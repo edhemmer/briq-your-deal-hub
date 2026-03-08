@@ -152,7 +152,8 @@ const Analysis = () => {
     if (marketConditionsRow) {
       const mf: Record<string, string> = {};
       for (const k of MARKET_FIELD_KEYS) {
-        mf[k] = String((marketConditionsRow as any)[k] ?? 0);
+        const val = (marketConditionsRow as any)[k];
+        mf[k] = val != null ? String(val) : "";
       }
       setMarketFields(mf);
     }
