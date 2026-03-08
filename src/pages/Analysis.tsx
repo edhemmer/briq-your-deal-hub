@@ -1,28 +1,266 @@
 import { useParams } from "react-router-dom";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
 import { EmptyStateContainer } from "@/components/ui/empty-state-container";
 import { CardContainer } from "@/components/ui/card-container";
-import { BarChart3 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { BarChart3, TrendingUp, DollarSign, Percent, ShieldCheck, Lightbulb } from "lucide-react";
+import { useDeal, useUpdateDeal } from "@/hooks/useDeals";
+import { analyzeDeal, type DealInput } from "@/lib/dealAnalysisEngine";
+
+const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
+  // Acquisition
+  { key: "purchase_price", label: "Purchase Price", group: "Acquisition" },
+  { key: "closing_costs", label: "Closing Costs", group: "Acquisition" },
+  { key: "arv", label: "After Repair Value (ARV)", group: "Acquisition" },
+  // Rehab
+  { key: "rehab_cost", label: "Rehab Cost", group: "Rehab" },
+  { key: "rehab_contingency", label: "Rehab Contingency", group: "Rehab" },
+  // Financing
+  { key: "down_payment_percent", label: "Down Payment %", isPercent: true, group: "Financing" },
+  { key: "interest_rate", label: "Interest Rate %", isPercent: true, group: "Financing" },
+  { key: "loan_term_years", label: "Loan Term (years)", group: "Financing" },
+  // Income
+  { key: "monthly_rent", label: "Monthly Rent", group: "Income" },
+  { key: "other_income", label: "Other Annual Income", group: "Income" },
+  // Expenses
+  { key: "taxes", label: "Annual Taxes", group: "Expenses" },
+  { key: "insurance", label: "Annual Insurance", group: "Expenses" },
+  { key: "vacancy_percent", label: "Vacancy %", isPercent: true, group: "Expenses" },
+  { key: "maintenance_percent", label: "Maintenance %", isPercent: true, group: "Expenses" },
+  { key: "management_percent", label: "Management %", isPercent: true, group: "Expenses" },
+  { key: "capex_percent", label: "CapEx %", isPercent: true, group: "Expenses" },
+];
+
+function metricColor(value: number, thresholds: [number, number]): string {
+  if (value >= thresholds[1]) return "text-green-500";
+  if (value >= thresholds[0]) return "text-yellow-500";
+  return "text-destructive";
+}
+
+function metricBadge(value: number, thresholds: [number, number]): "default" | "secondary" | "destructive" {
+  if (value >= thresholds[1]) return "default";
+  if (value >= thresholds[0]) return "secondary";
+  return "destructive";
+}
+
+const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+const fmtPct = (n: number) => (n * 100).toFixed(2) + "%";
+const fmtX = (n: number) => n.toFixed(2) + "x";
 
 const Analysis = () => {
   const { dealId } = useParams();
+  const { data: deal, isLoading } = useDeal(dealId);
+  const updateDeal = useUpdateDeal();
+
+  const [localFields, setLocalFields] = useState<Record<string, string>>({});
+  const [initialized, setInitialized] = useState(false);
+
+  // Initialize local fields from DB deal
+  useEffect(() => {
+    if (deal && !initialized) {
+      const fields: Record<string, string> = {};
+      for (const f of FINANCIAL_FIELDS) {
+        const raw = (deal as any)[f.key] as number | null;
+        const val = raw ?? 0;
+        fields[f.key] = f.isPercent ? String(val * 100) : String(val);
+      }
+      setLocalFields(fields);
+      setInitialized(true);
+    }
+  }, [deal, initialized]);
+
+  const setField = useCallback((key: string, val: string) => {
+    setLocalFields(prev => ({ ...prev, [key]: val }));
+  }, []);
+
+  // Build DealInput from local fields
+  const dealInput: DealInput = useMemo(() => {
+    const input: any = {};
+    for (const f of FINANCIAL_FIELDS) {
+      const raw = parseFloat(localFields[f.key] || "0") || 0;
+      input[f.key] = f.isPercent ? raw / 100 : raw;
+    }
+    return input as DealInput;
+  }, [localFields]);
+
+  const analysis = useMemo(() => analyzeDeal(dealInput), [dealInput]);
+
+  // Auto-save on blur
+  const handleBlur = useCallback(() => {
+    if (!dealId) return;
+    const updates: Record<string, number> = {};
+    for (const f of FINANCIAL_FIELDS) {
+      const raw = parseFloat(localFields[f.key] || "0") || 0;
+      updates[f.key] = f.isPercent ? raw / 100 : raw;
+    }
+    updateDeal.mutate({ id: dealId, ...updates } as any);
+  }, [dealId, localFields, updateDeal]);
+
+  if (!dealId) {
+    return (
+      <SectionContainer>
+        <PageHeader title="Analysis" description="Select a deal to analyze" />
+        <CardContainer>
+          <EmptyStateContainer icon={<BarChart3 className="h-10 w-10" />} title="No deal selected" description="Go to Deals and select a deal to analyze." />
+        </CardContainer>
+      </SectionContainer>
+    );
+  }
+
+  if (isLoading || !initialized) {
+    return (
+      <SectionContainer>
+        <PageHeader title="Analysis" description="Loading deal…" />
+        <div className="text-sm text-muted-foreground">Loading…</div>
+      </SectionContainer>
+    );
+  }
+
+  const groups = [...new Set(FINANCIAL_FIELDS.map(f => f.group))];
 
   return (
     <SectionContainer>
       <PageHeader
-        title="Analysis"
-        description={dealId ? `Deal ${dealId.slice(0, 8)}…` : "Deal analysis and financial modeling"}
+        title={deal?.property_address ?? "Analysis"}
+        description={deal ? `${deal.city}, ${deal.state} ${deal.zip_code ?? ""}` : "Deal analysis"}
       />
-      <CardContainer>
-        <EmptyStateContainer
-          icon={<BarChart3 className="h-10 w-10" />}
-          title="Analysis coming soon"
-          description="Deal intelligence and scoring will appear here."
+
+      {/* Metric Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <MetricCard
+          icon={<Percent className="h-4 w-4" />}
+          label="Cap Rate"
+          value={fmtPct(analysis.metrics.cap_rate)}
+          color={metricColor(analysis.metrics.cap_rate, [0.04, 0.06])}
+          badge={metricBadge(analysis.metrics.cap_rate, [0.04, 0.06])}
         />
-      </CardContainer>
+        <MetricCard
+          icon={<DollarSign className="h-4 w-4" />}
+          label="Cash Flow / mo"
+          value={fmt(analysis.metrics.monthly_cashflow)}
+          color={metricColor(analysis.metrics.monthly_cashflow, [0, 200])}
+          badge={metricBadge(analysis.metrics.monthly_cashflow, [0, 200])}
+        />
+        <MetricCard
+          icon={<TrendingUp className="h-4 w-4" />}
+          label="Cash on Cash"
+          value={fmtPct(analysis.metrics.cash_on_cash)}
+          color={metricColor(analysis.metrics.cash_on_cash, [0.04, 0.08])}
+          badge={metricBadge(analysis.metrics.cash_on_cash, [0.04, 0.08])}
+        />
+        <MetricCard
+          icon={<ShieldCheck className="h-4 w-4" />}
+          label="DSCR"
+          value={fmtX(analysis.metrics.dscr)}
+          color={metricColor(analysis.metrics.dscr, [1.0, 1.25])}
+          badge={metricBadge(analysis.metrics.dscr, [1.0, 1.25])}
+        />
+        <MetricCard
+          icon={<TrendingUp className="h-4 w-4" />}
+          label="Equity Created"
+          value={fmt(analysis.refinance.equity_created)}
+          color={metricColor(analysis.refinance.equity_created, [0, 20000])}
+          badge={metricBadge(analysis.refinance.equity_created, [0, 20000])}
+        />
+      </div>
+
+      {/* Strategy Insights */}
+      {analysis.strategyInsights.length > 0 && (
+        <CardContainer>
+          <div className="flex items-center gap-2 mb-3">
+            <Lightbulb className="h-4 w-4 text-yellow-500" />
+            <h3 className="text-sm font-semibold text-foreground">Strategy Insights</h3>
+          </div>
+          <div className="space-y-1">
+            {analysis.strategyInsights.map((s, i) => (
+              <p key={i} className="text-sm text-muted-foreground">• {s}</p>
+            ))}
+          </div>
+        </CardContainer>
+      )}
+
+      {/* Financial Inputs by Group */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {groups.map(group => (
+          <CardContainer key={group}>
+            <h3 className="text-sm font-semibold text-foreground mb-4">{group}</h3>
+            <div className="space-y-3">
+              {FINANCIAL_FIELDS.filter(f => f.group === group).map(f => (
+                <div key={f.key} className="flex items-center gap-3">
+                  <Label className="w-40 text-xs text-muted-foreground shrink-0">{f.label}</Label>
+                  <Input
+                    type="number"
+                    step="any"
+                    className="h-8 text-sm"
+                    value={localFields[f.key] ?? ""}
+                    onChange={e => setField(f.key, e.target.value)}
+                    onBlur={handleBlur}
+                  />
+                </div>
+              ))}
+            </div>
+          </CardContainer>
+        ))}
+      </div>
+
+      {/* Summary Breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <SummaryCard title="Income" rows={[
+          ["Gross Rent", fmt(analysis.income.gross_rent)],
+          ["Effective Rent", fmt(analysis.income.effective_rent)],
+          ["Other Income", fmt(analysis.income.other_income)],
+        ]} />
+        <SummaryCard title="Expenses" rows={[
+          ["Operating Expenses", fmt(analysis.expenses.operating_expenses)],
+          ["Debt Service", fmt(analysis.financing.annual_debt_service)],
+          ["NOI", fmt(analysis.metrics.noi)],
+        ]} />
+        <SummaryCard title="BRRRR / Refinance" rows={[
+          ["Total Project Cost", fmt(analysis.refinance.total_project_cost)],
+          ["Refinance (75% ARV)", fmt(analysis.refinance.refinance_amount)],
+          ["Cash Out", fmt(analysis.refinance.cash_out)],
+        ]} />
+      </div>
     </SectionContainer>
   );
 };
+
+function MetricCard({ icon, label, value, color, badge }: {
+  icon: React.ReactNode; label: string; value: string; color: string;
+  badge: "default" | "secondary" | "destructive";
+}) {
+  return (
+    <CardContainer className="flex flex-col items-start gap-1 p-4">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        {icon}
+        <span className="text-xs font-medium">{label}</span>
+      </div>
+      <span className={`text-lg font-bold ${color}`}>{value}</span>
+      <Badge variant={badge} className="text-[10px] mt-1">
+        {badge === "default" ? "Strong" : badge === "secondary" ? "Moderate" : "Weak"}
+      </Badge>
+    </CardContainer>
+  );
+}
+
+function SummaryCard({ title, rows }: { title: string; rows: [string, string][] }) {
+  return (
+    <CardContainer>
+      <h3 className="text-sm font-semibold text-foreground mb-3">{title}</h3>
+      <div className="space-y-2">
+        {rows.map(([label, val]) => (
+          <div key={label} className="flex justify-between text-sm">
+            <span className="text-muted-foreground">{label}</span>
+            <span className="font-medium text-foreground">{val}</span>
+          </div>
+        ))}
+      </div>
+    </CardContainer>
+  );
+}
 
 export default Analysis;

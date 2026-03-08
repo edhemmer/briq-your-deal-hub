@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import type { TablesInsert } from "@/integrations/supabase/types";
+import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
 const MAX_DEALS = 15;
 
@@ -78,6 +78,48 @@ export function useDeleteDeal() {
     },
     onError: (error: Error) => {
       toast({ title: "Error deleting deal", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useDeal(dealId: string | undefined) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["deal", dealId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("deals")
+        .select("*")
+        .eq("id", dealId!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user && !!dealId,
+  });
+}
+
+export function useUpdateDeal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: TablesUpdate<"deals"> & { id: string }) => {
+      const { data, error } = await supabase
+        .from("deals")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["deals"] });
+      queryClient.invalidateQueries({ queryKey: ["deal", data.id] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error updating deal", description: error.message, variant: "destructive" });
     },
   });
 }
