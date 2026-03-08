@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { BarChart3, TrendingUp, DollarSign, Percent, ShieldCheck, Lightbulb, AlertTriangle, XCircle, CheckCircle2, Gauge, Wrench, RefreshCw, FileSearch, ExternalLink, MapPin, Home, Activity, BarChart2, Users, ShieldAlert, Shield, ChevronDown, ChevronUp } from "lucide-react";
+import { BarChart3, TrendingUp, DollarSign, Percent, ShieldCheck, Lightbulb, AlertTriangle, XCircle, CheckCircle2, Gauge, Wrench, RefreshCw, FileSearch, ExternalLink, MapPin, Home, Activity, BarChart2, Users, ShieldAlert, Shield, ChevronDown, ChevronUp, FileText, Download } from "lucide-react";
 import { useDeal, useUpdateDeal } from "@/hooks/useDeals";
 import { analyzeDeal, type DealInput } from "@/lib/dealAnalysisEngine";
 import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
@@ -19,6 +19,8 @@ import { evaluateMarketIntelligence, type MarketConditions } from "@/lib/marketI
 import { useMarketConditions, useUpsertMarketConditions } from "@/hooks/useMarketConditions";
 import { evaluateDealStrategies, type StrategyFitResults, type StrategyFitInput } from "@/lib/strategyFitEngine";
 import { runStressTests, STRESS_SCENARIOS, type StressTestResults, type ScenarioResult, type ScenarioCategory, type ResilienceLevel } from "@/lib/stressTestingEngine";
+import { assembleDealReport, generateInvestorPDF, generateCSVExport } from "@/lib/reportEngine";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Target, Zap } from "lucide-react";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
@@ -315,7 +317,60 @@ const Analysis = () => {
       <PageHeader
         title={deal?.property_address ?? "Analysis"}
         description={deal ? `${deal.city}, ${deal.state} ${deal.zip_code ?? ""}` : "Deal analysis"}
-      />
+      >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="gap-2">
+              <FileText className="h-4 w-4" />
+              Generate Report
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => {
+              const report = assembleDealReport(
+                {
+                  address: deal?.property_address ?? "",
+                  city: deal?.city ?? "",
+                  state: deal?.state ?? "",
+                  zipCode: deal?.zip_code ?? null,
+                  purchasePrice: dealInput.purchase_price,
+                  propertyType: deal?.property_type ?? null,
+                },
+                analysis,
+                intelligence,
+                strategyFit,
+                marketIntelligence,
+                stressResults,
+              );
+              generateInvestorPDF(report);
+            }}>
+              <FileText className="h-4 w-4 mr-2" />
+              Investor PDF Report
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              const report = assembleDealReport(
+                {
+                  address: deal?.property_address ?? "",
+                  city: deal?.city ?? "",
+                  state: deal?.state ?? "",
+                  zipCode: deal?.zip_code ?? null,
+                  purchasePrice: dealInput.purchase_price,
+                  propertyType: deal?.property_type ?? null,
+                },
+                analysis,
+                intelligence,
+                strategyFit,
+                marketIntelligence,
+                stressResults,
+              );
+              generateCSVExport(report);
+            }}>
+              <Download className="h-4 w-4 mr-2" />
+              CSV Data Export
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </PageHeader>
 
       {/* Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
