@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateDeal } from "@/hooks/useDeals";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Lock } from "lucide-react";
+import { useCreateDeal, useDeals } from "@/hooks/useDeals";
+import { useProfile } from "@/hooks/useProfile";
+import { evaluateBillingAccess, getUpgradeMessage } from "@/lib/billingAccess";
 
 const propertyTypes = ["Single Family", "Multi-Family", "Commercial", "Land", "Mixed Use"];
 const strategies = ["Buy & Hold", "Fix & Flip", "Wholesale", "BRRRR", "Development"];
@@ -15,6 +19,9 @@ const strategies = ["Buy & Hold", "Fix & Flip", "Wholesale", "BRRRR", "Developme
 export default function NewDeal() {
   const navigate = useNavigate();
   const createDeal = useCreateDeal();
+  const { data: profile } = useProfile();
+  const { data: deals } = useDeals();
+  const billingAccess = evaluateBillingAccess(profile ?? null, deals?.length ?? 0);
   const [form, setForm] = useState({
     property_address: "",
     city: "",
