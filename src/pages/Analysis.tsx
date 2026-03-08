@@ -237,7 +237,7 @@ const Analysis = () => {
     for (const k of MARKET_FIELD_KEYS) {
       numericFields[k] = parseFloat(marketFields[k] || "0") || 0;
     }
-    const evaluated = evaluateMarketIntelligence(numericFields as MarketConditions);
+    const evaluated = evaluateMarketIntelligence(numericFields as unknown as MarketConditions);
     upsertMarket.mutate({
       deal_id: dealId,
       city: deal.city,
