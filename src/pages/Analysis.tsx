@@ -713,8 +713,10 @@ const Analysis = () => {
         </div>
       </div>
 
-      {/* Strategy Fit Analysis Section */}
-      <StrategyFitSection strategyFit={strategyFit} />
+      {/* Stress Testing Section */}
+      <StressTestingSection stressResults={stressResults} />
+
+
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {groups.map(group => (
