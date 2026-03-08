@@ -92,10 +92,13 @@ const Analysis = () => {
   const { dealId } = useParams();
   const { data: deal, isLoading } = useDeal(dealId);
   const updateDeal = useUpdateDeal();
+  const { data: marketConditionsRow } = useMarketConditions(dealId);
+  const upsertMarket = useUpsertMarketConditions();
 
   const [localFields, setLocalFields] = useState<Record<string, string>>({});
   const [initialized, setInitialized] = useState(false);
   const [enrichmentFields, setEnrichmentFields] = useState<Record<string, string>>({});
+  const [marketFields, setMarketFields] = useState<Record<string, string>>({});
 
   // Initialize local fields from DB deal
   useEffect(() => {
