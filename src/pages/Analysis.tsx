@@ -438,7 +438,7 @@ const Analysis = () => {
         </h2>
 
         {/* Score + Decision + Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
           <CardContainer className="flex flex-col items-center justify-center p-6">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Deal Score</span>
             <span className={`text-5xl font-black ${scoreColor(intelligence.score)}`}>{intelligence.score}</span>
