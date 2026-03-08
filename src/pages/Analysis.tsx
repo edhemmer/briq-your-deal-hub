@@ -606,7 +606,7 @@ const Analysis = () => {
       {/* Local Market Conditions Section */}
       <div className="space-y-4">
         <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-          <MapPin className="h-5 w-5" /> Local Market Conditions
+          <MapPin className="h-5 w-5" /> Local Market Conditions <HelpTooltip content={MARKET_HELP} />
         </h2>
         <p className="text-sm text-muted-foreground">
           Contextual market intelligence for {deal?.city}, {deal?.state}. Enter local market data to evaluate the surrounding environment.
