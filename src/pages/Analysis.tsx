@@ -644,7 +644,7 @@ const Analysis = () => {
         </div>
 
         {/* Signal Breakdown */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
           {Object.entries(marketIntelligence.signals).map(([key, signal]) => (
             <CardContainer key={key} className="flex flex-col items-start gap-1 p-4">
               <div className="flex items-center gap-2 text-muted-foreground">
