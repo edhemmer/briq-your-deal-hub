@@ -317,7 +317,60 @@ const Analysis = () => {
       <PageHeader
         title={deal?.property_address ?? "Analysis"}
         description={deal ? `${deal.city}, ${deal.state} ${deal.zip_code ?? ""}` : "Deal analysis"}
-      />
+      >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="gap-2">
+              <FileText className="h-4 w-4" />
+              Generate Report
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => {
+              const report = assembleDealReport(
+                {
+                  address: deal?.property_address ?? "",
+                  city: deal?.city ?? "",
+                  state: deal?.state ?? "",
+                  zipCode: deal?.zip_code ?? null,
+                  purchasePrice: dealInput.purchase_price,
+                  propertyType: deal?.property_type ?? null,
+                },
+                analysis,
+                intelligence,
+                strategyFit,
+                marketIntelligence,
+                stressResults,
+              );
+              generateInvestorPDF(report);
+            }}>
+              <FileText className="h-4 w-4 mr-2" />
+              Investor PDF Report
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              const report = assembleDealReport(
+                {
+                  address: deal?.property_address ?? "",
+                  city: deal?.city ?? "",
+                  state: deal?.state ?? "",
+                  zipCode: deal?.zip_code ?? null,
+                  purchasePrice: dealInput.purchase_price,
+                  propertyType: deal?.property_type ?? null,
+                },
+                analysis,
+                intelligence,
+                strategyFit,
+                marketIntelligence,
+                stressResults,
+              );
+              generateCSVExport(report);
+            }}>
+              <Download className="h-4 w-4 mr-2" />
+              CSV Data Export
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </PageHeader>
 
       {/* Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
