@@ -388,7 +388,7 @@ const Analysis = () => {
         />
         <MetricCard
           icon={<DollarSign className="h-4 w-4" />}
-          label="Cash Flow / mo"
+          label={<span className="flex items-center gap-1">Cash Flow / mo <HelpTooltip content={METRIC_HELP.monthly_cashflow} /></span>}
           value={fmt(analysis.metrics.monthly_cashflow)}
           color={metricColor(analysis.metrics.monthly_cashflow, [0, 200])}
           badge={metricBadge(analysis.metrics.monthly_cashflow, [0, 200])}
