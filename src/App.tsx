@@ -3,12 +3,19 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Index from "./pages/Index";
 import Deals from "./pages/Deals";
+import NewDeal from "./pages/NewDeal";
 import Analysis from "./pages/Analysis";
 import Reports from "./pages/Reports";
 import Account from "./pages/Account";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -19,16 +26,66 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AppLayout>
+        <AuthProvider>
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/deals" element={<Deals />} />
-            <Route path="/analysis" element={<Analysis />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/account" element={<Account />} />
+            {/* Public auth routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+
+            {/* Protected app routes */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><Index /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/deals"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><Deals /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/deals/new"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><NewDeal /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/analysis/:dealId?"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><Analysis /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><Reports /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/account"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><Account /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </AppLayout>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
