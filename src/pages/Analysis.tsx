@@ -801,7 +801,10 @@ const STRATEGY_LABELS: Record<keyof StrategyFitResults, string> = {
 
 function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }) {
   const entries = Object.entries(strategyFit) as [keyof StrategyFitResults, StrategyFitResults[keyof StrategyFitResults]][];
-  const topScore = Math.max(...entries.map(([, v]) => v.score));
+  const topEntry = entries.reduce((best, curr) => curr[1].score > best[1].score ? curr : best, entries[0]);
+  const topScore = topEntry[1].score;
+  const best = topEntry[1];
+  const bestLabel = STRATEGY_LABELS[topEntry[0]];
 
   return (
     <div className="space-y-4">
@@ -811,6 +814,49 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
       <p className="text-sm text-muted-foreground">
         Deterministic strategy scoring based on deal financials, property metrics, and market signals.
       </p>
+
+      {/* Best Strategy Summary Card */}
+      {topScore > 0 && (
+        <CardContainer className="p-6 ring-2 ring-primary/30 bg-primary/5">
+          <div className="flex items-center gap-2 mb-3">
+            <CheckCircle2 className="h-5 w-5 text-primary" />
+            <span className="text-sm font-bold text-foreground uppercase tracking-wider">Best Strategy</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <span className="text-xs text-muted-foreground block mb-1">Strategy</span>
+              <span className="text-sm font-semibold text-foreground">{bestLabel}</span>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground block mb-1">Fit Level</span>
+              <Badge
+                variant={best.fitLevel === "Strong" ? "default" : best.fitLevel === "Moderate" ? "secondary" : "destructive"}
+                className="text-xs"
+              >
+                {best.fitLevel}
+              </Badge>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground block mb-1">Confidence</span>
+              <Badge
+                variant={best.confidenceLevel === "High" ? "default" : best.confidenceLevel === "Medium" ? "secondary" : "destructive"}
+                className="text-xs"
+              >
+                {best.confidenceLevel}
+              </Badge>
+            </div>
+            <div className="col-span-2 md:col-span-1">
+              <span className="text-xs text-muted-foreground block mb-1">Score</span>
+              <span className={`text-2xl font-black ${
+                best.score >= 80 ? "text-green-500" : best.score >= 60 ? "text-yellow-500" : "text-destructive"
+              }`}>{best.score}</span>
+              <span className="text-xs text-muted-foreground ml-1">/ 100</span>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-3 leading-relaxed">{best.explanation}</p>
+        </CardContainer>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {entries.map(([key, strategy]) => {
           const isTop = strategy.score === topScore && topScore > 0;
@@ -835,13 +881,34 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
                 </span>
                 <span className="text-xs text-muted-foreground mb-1">/ 100</span>
               </div>
-              <Badge
-                variant={strategy.fitLevel === "Strong" ? "default" : strategy.fitLevel === "Moderate" ? "secondary" : "destructive"}
-                className="text-xs w-fit"
-              >
-                {strategy.fitLevel}
-              </Badge>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge
+                  variant={strategy.fitLevel === "Strong" ? "default" : strategy.fitLevel === "Moderate" ? "secondary" : "destructive"}
+                  className="text-xs"
+                >
+                  {strategy.fitLevel}
+                </Badge>
+                <Badge
+                  variant={strategy.confidenceLevel === "High" ? "default" : strategy.confidenceLevel === "Medium" ? "secondary" : "destructive"}
+                  className="text-[10px]"
+                >
+                  {strategy.confidenceLevel} Confidence
+                </Badge>
+              </div>
               <p className="text-xs text-muted-foreground leading-relaxed">{strategy.explanation}</p>
+              {strategy.disqualifiers.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border">
+                  {strategy.disqualifiers.map((dq) => (
+                    <span
+                      key={dq}
+                      className="inline-flex items-center gap-1 rounded-md bg-destructive/10 text-destructive px-2 py-0.5 text-[10px] font-medium"
+                    >
+                      <AlertTriangle className="h-3 w-3" />
+                      {dq}
+                    </span>
+                  ))}
+                </div>
+              )}
             </CardContainer>
           );
         })}

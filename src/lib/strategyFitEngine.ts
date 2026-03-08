@@ -6,6 +6,8 @@ export interface StrategyScore {
   score: number;
   fitLevel: "Strong" | "Moderate" | "Weak";
   explanation: string;
+  confidenceLevel: "High" | "Medium" | "Low";
+  disqualifiers: string[];
 }
 
 export interface StrategyFitResults {
@@ -190,10 +192,48 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
   );
   const ahScore = finalScore(ahFinancial, ahProperty, ahMarket);
 
+  // --- Confidence & Disqualifiers ---
+  function confidenceLevel(score: number): "High" | "Medium" | "Low" {
+    if (score >= 80) return "High";
+    if (score >= 60) return "Medium";
+    return "Low";
+  }
+
+  // Compute disqualifiers from existing inputs
+  const allDisqualifiers: string[] = [];
+  const thinArvSpread = arv - totalCost < pp * 0.10;
+  const negativeCashFlow = cf < 0;
+  const elevatedCrime = crime != null && crime >= 7;
+  const softPriceTrend = priceTrend != null && priceTrend <= 0;
+  const highRehabBurden = pp > 0 && rehab > pp * 0.40;
+  const lowProjectedRent = rent > 0 && cf < 0; // rent produces negative cash flow
+
+  if (thinArvSpread) allDisqualifiers.push("Thin ARV spread");
+  if (negativeCashFlow) allDisqualifiers.push("Negative monthly cash flow");
+  if (elevatedCrime) allDisqualifiers.push("Elevated crime signal");
+  if (softPriceTrend) allDisqualifiers.push("Soft price trend");
+  if (highRehabBurden) allDisqualifiers.push("High rehab burden");
+  if (lowProjectedRent && !negativeCashFlow) allDisqualifiers.push("Low projected rent");
+
+  // Strategy-specific disqualifier selection (max 3 per strategy)
+  function pickDisqualifiers(relevant: string[]): string[] {
+    return relevant.filter(d => allDisqualifiers.includes(d)).slice(0, 3);
+  }
+
+  const brrrrDQ = pickDisqualifiers(["Thin ARV spread", "Negative monthly cash flow", "High rehab burden", "Elevated crime signal"]);
+  const ltrDQ = pickDisqualifiers(["Negative monthly cash flow", "Elevated crime signal", "Low projected rent", "Soft price trend"]);
+  const mtrDQ = pickDisqualifiers(["Negative monthly cash flow", "Soft price trend", "Low projected rent", "Elevated crime signal"]);
+  const strDQ = pickDisqualifiers(["Elevated crime signal", "Negative monthly cash flow", "Soft price trend", "Low projected rent"]);
+  const flipDQ = pickDisqualifiers(["Thin ARV spread", "Soft price trend", "High rehab burden", "Elevated crime signal"]);
+  const vaDQ = pickDisqualifiers(["High rehab burden", "Negative monthly cash flow", "Low projected rent", "Thin ARV spread"]);
+  const ahDQ = pickDisqualifiers(["Soft price trend", "Elevated crime signal", "Thin ARV spread", "Negative monthly cash flow"]);
+
   return {
     brrrr: {
       score: brrrrScore,
       fitLevel: fitLevel(brrrrScore),
+      confidenceLevel: confidenceLevel(brrrrScore),
+      disqualifiers: brrrrDQ,
       explanation: brrrrScore >= 80
         ? "Strong rent support and deal spread make this a good BRRRR candidate."
         : brrrrScore >= 60
@@ -203,6 +243,8 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
     longTermRental: {
       score: ltrScore,
       fitLevel: fitLevel(ltrScore),
+      confidenceLevel: confidenceLevel(ltrScore),
+      disqualifiers: ltrDQ,
       explanation: ltrScore >= 80
         ? "Solid cash flow and cap rate support long-term rental strategy."
         : ltrScore >= 60
@@ -212,6 +254,8 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
     midTermRental: {
       score: mtrScore,
       fitLevel: fitLevel(mtrScore),
+      confidenceLevel: confidenceLevel(mtrScore),
+      disqualifiers: mtrDQ,
       explanation: mtrScore >= 80
         ? "Rent levels and market signals support mid-term rental positioning."
         : mtrScore >= 60
@@ -221,6 +265,8 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
     shortTermRental: {
       score: strScore,
       fitLevel: fitLevel(strScore),
+      confidenceLevel: confidenceLevel(strScore),
+      disqualifiers: strDQ,
       explanation: strScore >= 80
         ? "Strong income potential and favorable market for short-term rental."
         : strScore >= 60
@@ -232,6 +278,8 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
     fixFlip: {
       score: flipScore,
       fitLevel: fitLevel(flipScore),
+      confidenceLevel: confidenceLevel(flipScore),
+      disqualifiers: flipDQ,
       explanation: flipScore >= 80
         ? "Strong ARV spread and price momentum support a fix-and-flip exit."
         : flipScore >= 60
@@ -241,6 +289,8 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
     valueAdd: {
       score: vaScore,
       fitLevel: fitLevel(vaScore),
+      confidenceLevel: confidenceLevel(vaScore),
+      disqualifiers: vaDQ,
       explanation: vaScore >= 80
         ? "Rehab costs are well supported by rent upside and cash flow."
         : vaScore >= 60
@@ -250,6 +300,8 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
     appreciationHold: {
       score: ahScore,
       fitLevel: fitLevel(ahScore),
+      confidenceLevel: confidenceLevel(ahScore),
+      disqualifiers: ahDQ,
       explanation: ahScore >= 80
         ? "Positive price trend and tighter inventory support an appreciation hold."
         : ahScore >= 60
