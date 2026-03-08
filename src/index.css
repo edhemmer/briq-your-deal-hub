@@ -16,55 +16,55 @@
 
 @layer base {
   :root {
-    --background: 0 0% 99%;
-    --foreground: 220 20% 10%;
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 10%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 10%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 222 67% 33%;
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 10% 95%;
-    --secondary-foreground: 220 20% 10%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 220 10% 96%;
-    --muted-foreground: 220 10% 46%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 220 10% 93%;
-    --accent-foreground: 220 20% 10%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 220 20% 10%;
+    --ring: 217 91% 60%;
 
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 220 10% 40%;
-    --sidebar-primary: 220 20% 10%;
-    --sidebar-primary-foreground: 0 0% 99%;
-    --sidebar-accent: 220 10% 96%;
-    --sidebar-accent-foreground: 220 20% 10%;
+    --sidebar-foreground: 215 16% 47%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
     --sidebar-border: 220 13% 93%;
-    --sidebar-ring: 220 20% 10%;
+    --sidebar-ring: 217 91% 60%;
 
-    --briq-brand: 222 67% 33%;
+    --briq-brand: 217 91% 60%;
     --briq-brand-foreground: 0 0% 100%;
-    --briq-accent: 172 66% 26%;
-    --briq-surface: 220 10% 98%;
+    --briq-accent: 174 62% 47%;
+    --briq-surface: 210 40% 98%;
     --briq-surface-elevated: 0 0% 100%;
-    --briq-text-secondary: 220 10% 52%;
-    --briq-success: 152 60% 40%;
+    --briq-text-secondary: 215 16% 47%;
+    --briq-success: 142 71% 45%;
     --briq-warning: 38 92% 50%;
 
-    --signal-positive: 142 72% 29%;
+    --signal-positive: 142 71% 45%;
     --signal-positive-foreground: 0 0% 100%;
     --signal-warning: 38 92% 50%;
     --signal-warning-foreground: 0 0% 100%;
@@ -72,7 +72,7 @@
     --signal-risk-foreground: 0 0% 100%;
     --signal-info: 217 91% 60%;
     --signal-info-foreground: 0 0% 100%;
-    --signal-neutral: 220 10% 52%;
+    --signal-neutral: 215 16% 47%;
   }
 
   .dark {
