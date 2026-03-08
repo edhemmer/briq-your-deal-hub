@@ -235,6 +235,9 @@ const Analysis = () => {
 
   const strategyFit = useMemo(() => evaluateDealStrategies(strategyFitInput), [strategyFitInput]);
 
+  // Stress Testing Engine
+  const stressResults = useMemo(() => runStressTests(dealInput, analysis), [dealInput, analysis]);
+
   // Auto-save on blur
   const handleBlur = useCallback(() => {
     if (!dealId) return;
