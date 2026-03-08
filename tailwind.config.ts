@@ -68,6 +68,7 @@ export default {
           "text-secondary": "hsl(var(--briq-text-secondary))",
           success: "hsl(var(--briq-success))",
           warning: "hsl(var(--briq-warning))",
+          accent: "hsl(var(--briq-accent))",
         },
         signal: {
           positive: "hsl(var(--signal-positive))",
