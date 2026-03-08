@@ -119,6 +119,16 @@
     --briq-text-secondary: 220 10% 55%;
     --briq-success: 152 60% 40%;
     --briq-warning: 38 92% 50%;
+
+    --signal-positive: 152 55% 45%;
+    --signal-positive-foreground: 0 0% 100%;
+    --signal-warning: 38 85% 55%;
+    --signal-warning-foreground: 0 0% 100%;
+    --signal-risk: 0 65% 55%;
+    --signal-risk-foreground: 0 0% 100%;
+    --signal-info: 217 85% 65%;
+    --signal-info-foreground: 0 0% 100%;
+    --signal-neutral: 220 10% 55%;
   }
 }
 
