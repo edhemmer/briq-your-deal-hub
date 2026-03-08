@@ -613,7 +613,7 @@ const Analysis = () => {
         </p>
 
         {/* Market Strength + Risk Score Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
           <CardContainer className="flex flex-col items-center justify-center p-6">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Market Strength</span>
             <span className={`text-5xl font-black ${marketIntelligence.market_strength_score >= 61 ? "text-green-500" : marketIntelligence.market_strength_score >= 31 ? "text-yellow-500" : "text-destructive"}`}>
