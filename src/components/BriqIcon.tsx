@@ -23,12 +23,8 @@ const BriqIcon = ({ size = 28, className = "" }: BriqIconProps) => {
       {/* Row 3 - two bricks */}
       <rect x="2" y="26" width="14" height="9" rx="1.5" fill="currentColor" opacity="0.7" />
       <rect x="18" y="26" width="20" height="9" rx="1.5" fill="currentColor" opacity="0.6" />
-      {/* AI spark - 4-point star */}
-      <path
-        d="M31 26 L34 19 L37 26 L44 29 L37 32 L34 39 L31 32 L24 29Z"
-        className="fill-[hsl(var(--briq-accent))]"
-        opacity="0.85"
-      />
+      {/* IQ text */}
+      <text x="28" y="38" fontSize="11" fontWeight="800" fill="currentColor" opacity="0.9" fontFamily="Inter, system-ui, sans-serif">IQ</text>
     </svg>
   );
 };
