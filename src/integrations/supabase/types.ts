@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action_type: string
+          admin_user_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          target_user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          admin_user_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          admin_user_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       deals: {
         Row: {
           annual_property_tax: number | null
@@ -225,27 +252,36 @@ export type Database = {
       }
       profiles: {
         Row: {
+          admin_override: boolean | null
           created_at: string
           free_deal_used: boolean | null
           id: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
+          subscription_end_date: string | null
+          subscription_start_date: string | null
           subscription_status: string | null
         }
         Insert: {
+          admin_override?: boolean | null
           created_at?: string
           free_deal_used?: boolean | null
           id: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          subscription_end_date?: string | null
+          subscription_start_date?: string | null
           subscription_status?: string | null
         }
         Update: {
+          admin_override?: boolean | null
           created_at?: string
           free_deal_used?: boolean | null
           id?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          subscription_end_date?: string | null
+          subscription_start_date?: string | null
           subscription_status?: string | null
         }
         Relationships: []
