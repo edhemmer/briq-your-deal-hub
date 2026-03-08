@@ -90,6 +90,7 @@ const Analysis = () => {
   }, [localFields]);
 
   const analysis = useMemo(() => analyzeDeal(dealInput), [dealInput]);
+  const intelligence = useMemo(() => analyzeDealIntelligence(analysis), [analysis]);
 
   // Auto-save on blur
   const handleBlur = useCallback(() => {
