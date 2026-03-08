@@ -1,5 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useMemo, useState, useEffect, useCallback } from "react";
+import type { StrategySignals } from "@/lib/strategyFitEngine";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
 import { EmptyStateContainer } from "@/components/ui/empty-state-container";
