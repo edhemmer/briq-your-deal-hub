@@ -46,7 +46,7 @@ const MARKET_FIELD_KEYS = [
   "median_home_price", "price_growth_12mo", "price_growth_36mo",
   "price_per_sqft", "inventory_level", "months_of_supply",
   "days_on_market", "sale_to_list_ratio", "absorption_rate",
-  "population_growth_rate", "job_growth_rate",
+  "population_growth_rate", "job_growth_rate", "crime_score",
 ] as const;
 
 const MARKET_FIELDS: { key: string; label: string; group: string; suffix?: string }[] = [
