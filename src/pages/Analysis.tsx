@@ -402,7 +402,7 @@ const Analysis = () => {
         />
         <MetricCard
           icon={<ShieldCheck className="h-4 w-4" />}
-          label="DSCR"
+          label={<span className="flex items-center gap-1">DSCR <HelpTooltip content={METRIC_HELP.dscr} /></span>}
           value={fmtX(analysis.metrics.dscr)}
           color={metricColor(analysis.metrics.dscr, [1.0, 1.25])}
           badge={metricBadge(analysis.metrics.dscr, [1.0, 1.25])}
