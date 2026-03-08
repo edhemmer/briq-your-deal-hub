@@ -884,7 +884,7 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-        <Target className="h-5 w-5" /> Strategy Fit Analysis
+        <Target className="h-5 w-5" /> Strategy Fit Analysis <HelpTooltip content={STRATEGY_HELP} />
       </h2>
       <p className="text-sm text-muted-foreground">
         Deterministic strategy scoring based on deal financials, property metrics, and market signals.
