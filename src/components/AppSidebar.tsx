@@ -1,4 +1,4 @@
-import { LayoutDashboard, Briefcase, BarChart3, FileText, User, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Briefcase, BarChart3, FileText, User, ShieldCheck, HelpCircle } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import BriqIcon from "@/components/BriqIcon";
