@@ -374,6 +374,9 @@ const Analysis = () => {
         </DropdownMenu>
       </PageHeader>
 
+      {/* Workflow Indicator */}
+      <DealWorkflowIndicator activeStep={2} className="mb-2" />
+
       {/* Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <MetricCard
