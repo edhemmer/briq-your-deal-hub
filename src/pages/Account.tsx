@@ -5,7 +5,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useDeals } from "@/hooks/useDeals";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { LogOut, Lock } from "lucide-react";
+import { evaluateBillingAccess, getUpgradeMessage } from "@/lib/billingAccess";
 
 const MAX_DEALS = 15;
 
@@ -13,6 +15,7 @@ const Account = () => {
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
   const { data: deals } = useDeals();
+  const billingAccess = evaluateBillingAccess(profile ?? null, deals?.length ?? 0);
 
   return (
     <SectionContainer>
@@ -26,9 +29,11 @@ const Account = () => {
               <span className="text-muted-foreground">Email</span>
               <span className="text-foreground font-medium">{user?.email}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Subscription</span>
-              <span className="text-foreground font-medium capitalize">{profile?.subscription_status ?? "free"}</span>
+              <Badge variant="outline" className="text-xs capitalize">
+                {billingAccess.subscriptionState.replace("_", " ")}
+              </Badge>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Deals Used</span>
@@ -39,7 +44,14 @@ const Account = () => {
 
         <CardContainer className="p-5 space-y-3">
           <h2 className="text-sm font-medium text-muted-foreground">Billing</h2>
-          <p className="text-sm text-muted-foreground">Stripe billing integration coming soon.</p>
+          {billingAccess.isStripeConfigured ? (
+            <p className="text-sm text-muted-foreground">Manage your subscription and payment method.</p>
+          ) : (
+            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+              <Lock className="h-4 w-4 mt-0.5 shrink-0" />
+              <p>Subscription billing will be enabled once platform configuration is completed.</p>
+            </div>
+          )}
         </CardContainer>
 
         <Button variant="outline" onClick={signOut} className="gap-2">
