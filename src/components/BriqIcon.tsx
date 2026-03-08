@@ -23,11 +23,11 @@ const BriqIcon = ({ size = 28, className = "" }: BriqIconProps) => {
       {/* Row 3 - two bricks */}
       <rect x="2" y="26" width="14" height="9" rx="1.5" fill="currentColor" opacity="0.7" />
       <rect x="18" y="26" width="20" height="9" rx="1.5" fill="currentColor" opacity="0.6" />
-      {/* AI spark - small 4-point star on bottom-right */}
+      {/* AI spark - 4-point star */}
       <path
-        d="M35 30 L36 27.5 L37 30 L39.5 31 L37 32 L36 34.5 L35 32 L32.5 31Z"
+        d="M33 28 L35 23 L37 28 L42 30 L37 32 L35 37 L33 32 L28 30Z"
         fill="currentColor"
-        opacity="0.45"
+        opacity="0.5"
       />
     </svg>
   );
