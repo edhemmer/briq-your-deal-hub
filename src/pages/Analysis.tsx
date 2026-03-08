@@ -826,7 +826,7 @@ const Analysis = () => {
 };
 
 function MetricCard({ icon, label, value, color, badge }: {
-  icon: React.ReactNode; label: string; value: string; color: string;
+  icon: React.ReactNode; label: React.ReactNode; value: string; color: string;
   badge: "default" | "secondary" | "destructive";
 }) {
   return (
