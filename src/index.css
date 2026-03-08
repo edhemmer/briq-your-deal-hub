@@ -64,11 +64,11 @@
     --briq-success: 152 60% 40%;
     --briq-warning: 38 92% 50%;
 
-    --signal-positive: 152 60% 40%;
+    --signal-positive: 142 72% 29%;
     --signal-positive-foreground: 0 0% 100%;
     --signal-warning: 38 92% 50%;
     --signal-warning-foreground: 0 0% 100%;
-    --signal-risk: 0 72% 51%;
+    --signal-risk: 0 84% 60%;
     --signal-risk-foreground: 0 0% 100%;
     --signal-info: 217 91% 60%;
     --signal-info-foreground: 0 0% 100%;
