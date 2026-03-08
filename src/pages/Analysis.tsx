@@ -378,7 +378,7 @@ const Analysis = () => {
       <DealWorkflowIndicator activeStep={2} className="mb-2" />
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
         <MetricCard
           icon={<Percent className="h-4 w-4" />}
           label={<span className="flex items-center gap-1">Cap Rate <HelpTooltip content={METRIC_HELP.cap_rate} /></span>}
