@@ -18,7 +18,8 @@ import { resolvePropertyIntelligence, openPropertyRecord } from "@/lib/property/
 import { evaluateMarketIntelligence, type MarketConditions } from "@/lib/marketIntelligenceEngine";
 import { useMarketConditions, useUpsertMarketConditions } from "@/hooks/useMarketConditions";
 import { evaluateDealStrategies, type StrategyFitResults, type StrategyFitInput } from "@/lib/strategyFitEngine";
-import { Target } from "lucide-react";
+import { runStressTests, STRESS_SCENARIOS, type StressTestResults, type ScenarioResult, type ScenarioCategory, type ResilienceLevel } from "@/lib/stressTestingEngine";
+import { Target, Zap } from "lucide-react";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   // Acquisition
