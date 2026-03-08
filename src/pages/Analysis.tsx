@@ -93,6 +93,7 @@ const Analysis = () => {
 
   const [localFields, setLocalFields] = useState<Record<string, string>>({});
   const [initialized, setInitialized] = useState(false);
+  const [enrichmentFields, setEnrichmentFields] = useState<Record<string, string>>({});
 
   // Initialize local fields from DB deal
   useEffect(() => {
@@ -104,12 +105,23 @@ const Analysis = () => {
         fields[f.key] = f.isPercent ? String(val * 100) : String(val);
       }
       setLocalFields(fields);
+      setEnrichmentFields({
+        assessed_value: String((deal as any).assessed_value ?? 0),
+        annual_property_tax: String((deal as any).annual_property_tax ?? 0),
+        year_built: String((deal as any).year_built ?? 0),
+        lot_size: (deal as any).lot_size ?? "",
+        zoning_type: (deal as any).zoning_type ?? "",
+      });
       setInitialized(true);
     }
   }, [deal, initialized]);
 
   const setField = useCallback((key: string, val: string) => {
     setLocalFields(prev => ({ ...prev, [key]: val }));
+  }, []);
+
+  const setEnrichmentField = useCallback((key: string, val: string) => {
+    setEnrichmentFields(prev => ({ ...prev, [key]: val }));
   }, []);
 
   // Build DealInput from local fields
@@ -125,6 +137,20 @@ const Analysis = () => {
   const analysis = useMemo(() => analyzeDeal(dealInput), [dealInput]);
   const intelligence = useMemo(() => analyzeDealIntelligence(analysis), [analysis]);
 
+  const propertyIntelligence = useMemo(() => {
+    if (!deal) return null;
+    return resolvePropertyIntelligence(
+      { property_address: deal.property_address, city: deal.city, state: deal.state, zip_code: deal.zip_code },
+      {
+        assessed_value: parseFloat(enrichmentFields.assessed_value || "0") || 0,
+        annual_property_tax: parseFloat(enrichmentFields.annual_property_tax || "0") || 0,
+        year_built: parseFloat(enrichmentFields.year_built || "0") || 0,
+        lot_size: enrichmentFields.lot_size || "",
+        zoning_type: enrichmentFields.zoning_type || "",
+      }
+    );
+  }, [deal, enrichmentFields]);
+
   // Auto-save on blur
   const handleBlur = useCallback(() => {
     if (!dealId) return;
@@ -135,6 +161,19 @@ const Analysis = () => {
     }
     updateDeal.mutate({ id: dealId, ...updates } as any);
   }, [dealId, localFields, updateDeal]);
+
+  const handleEnrichmentBlur = useCallback(() => {
+    if (!dealId) return;
+    updateDeal.mutate({
+      id: dealId,
+      assessed_value: parseFloat(enrichmentFields.assessed_value || "0") || 0,
+      annual_property_tax: parseFloat(enrichmentFields.annual_property_tax || "0") || 0,
+      year_built: parseFloat(enrichmentFields.year_built || "0") || 0,
+      lot_size: enrichmentFields.lot_size || null,
+      zoning_type: enrichmentFields.zoning_type || null,
+      property_record_url: propertyIntelligence?.countyLookup.url ?? null,
+    } as any);
+  }, [dealId, enrichmentFields, propertyIntelligence, updateDeal]);
 
   if (!dealId) {
     return (
