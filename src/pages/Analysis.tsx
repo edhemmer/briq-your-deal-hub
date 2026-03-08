@@ -338,7 +338,99 @@ const Analysis = () => {
         )}
       </div>
 
-      {/* Financial Inputs by Group */}
+      {/* Property Intelligence Section */}
+      {propertyIntelligence && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <FileSearch className="h-5 w-5" /> Property Intelligence
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Verify official county property records and enrich property insights.
+          </p>
+
+          <CardContainer className="p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-foreground">County Property Record</h3>
+                <p className="text-xs text-muted-foreground">
+                  {propertyIntelligence.countyLookup.county} County • {propertyIntelligence.countyLookup.source === "registry" ? "Direct link" : "Google search fallback"}
+                </p>
+              </div>
+              <Button
+                onClick={() => openPropertyRecord(propertyIntelligence.countyLookup.url)}
+                className="gap-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open County Property Record
+              </Button>
+            </div>
+
+            <div className="border-t border-border pt-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Property Data Enrichment</h3>
+              <p className="text-xs text-muted-foreground mb-4">Optionally enter verified property details from official records.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Assessed Value</Label>
+                  <Input
+                    type="number"
+                    className="h-8 text-sm"
+                    value={enrichmentFields.assessed_value ?? ""}
+                    onChange={e => setEnrichmentField("assessed_value", e.target.value)}
+                    onBlur={handleEnrichmentBlur}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Annual Property Tax</Label>
+                  <Input
+                    type="number"
+                    className="h-8 text-sm"
+                    value={enrichmentFields.annual_property_tax ?? ""}
+                    onChange={e => setEnrichmentField("annual_property_tax", e.target.value)}
+                    onBlur={handleEnrichmentBlur}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Year Built</Label>
+                  <Input
+                    type="number"
+                    className="h-8 text-sm"
+                    value={enrichmentFields.year_built ?? ""}
+                    onChange={e => setEnrichmentField("year_built", e.target.value)}
+                    onBlur={handleEnrichmentBlur}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Lot Size</Label>
+                  <Input
+                    type="text"
+                    className="h-8 text-sm"
+                    value={enrichmentFields.lot_size ?? ""}
+                    onChange={e => setEnrichmentField("lot_size", e.target.value)}
+                    onBlur={handleEnrichmentBlur}
+                    placeholder="e.g. 0.25 acres"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Zoning Type</Label>
+                  <Input
+                    type="text"
+                    className="h-8 text-sm"
+                    value={enrichmentFields.zoning_type ?? ""}
+                    onChange={e => setEnrichmentField("zoning_type", e.target.value)}
+                    onBlur={handleEnrichmentBlur}
+                    placeholder="e.g. R-1, Commercial"
+                  />
+                </div>
+              </div>
+            </div>
+          </CardContainer>
+        </div>
+      )}
+
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {groups.map(group => (
           <CardContainer key={group}>
