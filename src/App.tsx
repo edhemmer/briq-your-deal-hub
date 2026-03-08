@@ -98,8 +98,17 @@ const App = () => (
                 </AdminRoute>
               }
             />
+            <Route
+              path="/help"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><Help /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </HelpProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
