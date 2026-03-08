@@ -9,11 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { BarChart3, TrendingUp, DollarSign, Percent, ShieldCheck, Lightbulb, AlertTriangle, XCircle, CheckCircle2, Gauge, Wrench, RefreshCw, FileSearch, ExternalLink } from "lucide-react";
+import { BarChart3, TrendingUp, DollarSign, Percent, ShieldCheck, Lightbulb, AlertTriangle, XCircle, CheckCircle2, Gauge, Wrench, RefreshCw, FileSearch, ExternalLink, MapPin, Home, Activity, BarChart2, Users, ShieldAlert } from "lucide-react";
 import { useDeal, useUpdateDeal } from "@/hooks/useDeals";
 import { analyzeDeal, type DealInput } from "@/lib/dealAnalysisEngine";
 import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
 import { resolvePropertyIntelligence, openPropertyRecord } from "@/lib/property/propertyIntelligenceEngine";
+import { evaluateMarketIntelligence, type MarketConditions } from "@/lib/marketIntelligenceEngine";
+import { useMarketConditions, useUpsertMarketConditions } from "@/hooks/useMarketConditions";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   // Acquisition
