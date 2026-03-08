@@ -506,6 +506,135 @@ const Analysis = () => {
         </div>
       )}
 
+      {/* Local Market Conditions Section */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+          <MapPin className="h-5 w-5" /> Local Market Conditions
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Contextual market intelligence for {deal?.city}, {deal?.state}. Enter local market data to evaluate the surrounding environment.
+        </p>
+
+        {/* Market Strength + Risk Score Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <CardContainer className="flex flex-col items-center justify-center p-6">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Market Strength</span>
+            <span className={`text-5xl font-black ${marketIntelligence.market_strength_score >= 61 ? "text-green-500" : marketIntelligence.market_strength_score >= 31 ? "text-yellow-500" : "text-destructive"}`}>
+              {marketIntelligence.market_strength_score}
+            </span>
+            <Badge variant={marketIntelligence.market_strength_score >= 61 ? "default" : marketIntelligence.market_strength_score >= 31 ? "secondary" : "destructive"} className="mt-2 text-xs">
+              {marketIntelligence.strengthLabel}
+            </Badge>
+          </CardContainer>
+          <CardContainer className="flex flex-col items-center justify-center p-6">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Market Risk</span>
+            <span className={`text-5xl font-black ${marketIntelligence.market_risk_score <= 39 ? "text-green-500" : marketIntelligence.market_risk_score <= 69 ? "text-yellow-500" : "text-destructive"}`}>
+              {marketIntelligence.market_risk_score}
+            </span>
+            <Badge variant={marketIntelligence.market_risk_score <= 39 ? "default" : marketIntelligence.market_risk_score <= 69 ? "secondary" : "destructive"} className="mt-2 text-xs">
+              {marketIntelligence.riskLabel}
+            </Badge>
+          </CardContainer>
+          <CardContainer className="flex flex-col items-center justify-center p-6">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Demand Pressure</span>
+            <span className={`text-5xl font-black ${marketIntelligence.demand_pressure_score >= 61 ? "text-green-500" : marketIntelligence.demand_pressure_score >= 31 ? "text-yellow-500" : "text-destructive"}`}>
+              {marketIntelligence.demand_pressure_score}
+            </span>
+            <Badge variant={marketIntelligence.demand_pressure_score >= 61 ? "default" : marketIntelligence.demand_pressure_score >= 31 ? "secondary" : "destructive"} className="mt-2 text-xs">
+              {marketIntelligence.demand_pressure_score >= 61 ? "Strong" : marketIntelligence.demand_pressure_score >= 31 ? "Moderate" : "Weak"}
+            </Badge>
+          </CardContainer>
+        </div>
+
+        {/* Signal Breakdown */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {Object.entries(marketIntelligence.signals).map(([key, signal]) => (
+            <CardContainer key={key} className="flex flex-col items-start gap-1 p-4">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                {key === "rent" ? <Home className="h-4 w-4" /> :
+                 key === "price" ? <BarChart2 className="h-4 w-4" /> :
+                 key === "supply" ? <Activity className="h-4 w-4" /> :
+                 key === "liquidity" ? <TrendingUp className="h-4 w-4" /> :
+                 <Users className="h-4 w-4" />}
+                <span className="text-xs font-medium">{signal.label}</span>
+              </div>
+              <span className={`text-lg font-bold ${signal.level === "strong" ? "text-green-500" : signal.level === "neutral" ? "text-yellow-500" : "text-destructive"}`}>
+                {signal.score}
+              </span>
+              <Badge variant={signal.level === "strong" ? "default" : signal.level === "neutral" ? "secondary" : "destructive"} className="text-[10px] mt-1">
+                {signal.level === "strong" ? "Strong" : signal.level === "neutral" ? "Neutral" : "Weak"}
+              </Badge>
+            </CardContainer>
+          ))}
+        </div>
+
+        {/* Market Insights */}
+        {marketIntelligence.insights.length > 0 && (
+          <div className="space-y-2">
+            {marketIntelligence.insights.filter(i => i.type === "risk").length > 0 && (
+              <Alert variant="destructive">
+                <ShieldAlert className="h-4 w-4" />
+                <AlertTitle>Market Risks</AlertTitle>
+                <AlertDescription>
+                  <ul className="list-disc pl-4 space-y-1 mt-1">
+                    {marketIntelligence.insights.filter(i => i.type === "risk").map((ins, i) => <li key={i}>{ins.message}</li>)}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+            {marketIntelligence.insights.filter(i => i.type === "caution").length > 0 && (
+              <Alert className="border-yellow-500/50 text-yellow-700 dark:text-yellow-400 [&>svg]:text-yellow-600">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Market Cautions</AlertTitle>
+                <AlertDescription>
+                  <ul className="list-disc pl-4 space-y-1 mt-1">
+                    {marketIntelligence.insights.filter(i => i.type === "caution").map((ins, i) => <li key={i}>{ins.message}</li>)}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+            {marketIntelligence.insights.filter(i => i.type === "positive").length > 0 && (
+              <Alert className="border-green-500/50 text-green-700 dark:text-green-400 [&>svg]:text-green-600">
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertTitle>Positive Signals</AlertTitle>
+                <AlertDescription>
+                  <ul className="list-disc pl-4 space-y-1 mt-1">
+                    {marketIntelligence.insights.filter(i => i.type === "positive").map((ins, i) => <li key={i}>{ins.message}</li>)}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        )}
+
+        {/* Market Data Input Fields */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[...new Set(MARKET_FIELDS.map(f => f.group))].map(group => (
+            <CardContainer key={group}>
+              <h3 className="text-sm font-semibold text-foreground mb-4">{group}</h3>
+              <div className="space-y-3">
+                {MARKET_FIELDS.filter(f => f.group === group).map(f => (
+                  <div key={f.key} className="flex items-center gap-3">
+                    <Label className="w-44 text-xs text-muted-foreground shrink-0">
+                      {f.label}{f.suffix ? ` (${f.suffix})` : ""}
+                    </Label>
+                    <Input
+                      type="number"
+                      step="any"
+                      className="h-8 text-sm"
+                      value={marketFields[f.key] ?? ""}
+                      onChange={e => setMarketField(f.key, e.target.value)}
+                      onBlur={handleMarketBlur}
+                      placeholder="0"
+                    />
+                  </div>
+                ))}
+              </div>
+            </CardContainer>
+          ))}
+        </div>
+      </div>
+
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {groups.map(group => (
