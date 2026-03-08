@@ -53,7 +53,38 @@ const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", curren
 const fmtPct = (n: number) => (n * 100).toFixed(2) + "%";
 const fmtX = (n: number) => n.toFixed(2) + "x";
 
-const Analysis = () => {
+function scoreColor(score: number): string {
+  if (score >= 85) return "text-green-500";
+  if (score >= 70) return "text-primary";
+  if (score >= 55) return "text-yellow-500";
+  return "text-destructive";
+}
+
+function scoreBadgeVariant(label: string): "default" | "secondary" | "destructive" {
+  if (label === "Excellent" || label === "Strong") return "default";
+  if (label === "Borderline") return "secondary";
+  return "destructive";
+}
+
+function decisionBadgeVariant(d: string): "default" | "secondary" | "destructive" {
+  if (d === "Strong Buy" || d === "Worth Pursuing") return "default";
+  if (d === "Needs Negotiation") return "secondary";
+  return "destructive";
+}
+
+function viabilityBadgeVariant(v: string): "default" | "secondary" | "destructive" {
+  if (v === "Strong") return "default";
+  if (v === "Moderate") return "secondary";
+  return "destructive";
+}
+
+function complexityBadgeVariant(c: string): "default" | "secondary" | "destructive" {
+  if (c === "Low") return "default";
+  if (c === "Moderate") return "secondary";
+  return "destructive";
+}
+
+
   const { dealId } = useParams();
   const { data: deal, isLoading } = useDeal(dealId);
   const updateDeal = useUpdateDeal();
