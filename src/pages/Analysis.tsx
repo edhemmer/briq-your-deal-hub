@@ -121,12 +121,27 @@ const Analysis = () => {
     }
   }, [deal, initialized]);
 
+  // Initialize market fields from DB
+  useEffect(() => {
+    if (marketConditionsRow) {
+      const mf: Record<string, string> = {};
+      for (const k of MARKET_FIELD_KEYS) {
+        mf[k] = String((marketConditionsRow as any)[k] ?? 0);
+      }
+      setMarketFields(mf);
+    }
+  }, [marketConditionsRow]);
+
   const setField = useCallback((key: string, val: string) => {
     setLocalFields(prev => ({ ...prev, [key]: val }));
   }, []);
 
   const setEnrichmentField = useCallback((key: string, val: string) => {
     setEnrichmentFields(prev => ({ ...prev, [key]: val }));
+  }, []);
+
+  const setMarketField = useCallback((key: string, val: string) => {
+    setMarketFields(prev => ({ ...prev, [key]: val }));
   }, []);
 
   // Build DealInput from local fields
