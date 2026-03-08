@@ -1,13 +1,11 @@
-import { Plus, LayoutDashboard, Briefcase, TrendingUp, Clock } from "lucide-react";
+import { Plus, Briefcase, TrendingUp, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
-import { DashboardWorkspace } from "@/components/ui/dashboard-workspace";
-import { EmptyStateContainer } from "@/components/ui/empty-state-container";
-import { PrimaryButton } from "@/components/ui/primary-button";
 import { CardContainer } from "@/components/ui/card-container";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useDeals } from "@/hooks/useDeals";
 
 const Index = () => {
@@ -26,30 +24,37 @@ const Index = () => {
 
   return (
     <SectionContainer>
-      <PageHeader title="BRIQ" description="Real Estate Deal Intelligence">
-        <Link to="/deals/new">
-          <PrimaryButton>
-            <Plus className="h-4 w-4 mr-2" />
-            Analyze New Deal
-          </PrimaryButton>
-        </Link>
-      </PageHeader>
+      <PageHeader title="BRIQ" description="Real Estate Deal Intelligence" />
 
       {isLoading ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-20 rounded-xl" />
+            ))}
           </div>
           <Skeleton className="h-48 rounded-xl" />
         </div>
       ) : totalDeals === 0 ? (
-        <DashboardWorkspace>
-          <EmptyStateContainer
-            icon={<LayoutDashboard className="h-10 w-10" />}
-            title="Your workspace is ready"
-            description="Start by analyzing a new deal. Insights and analytics will appear here."
-          />
-        </DashboardWorkspace>
+        <CardContainer className="py-20 px-6">
+          <div className="flex flex-col items-center text-center max-w-md mx-auto">
+            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
+              <TrendingUp className="h-6 w-6 text-primary" />
+            </div>
+            <h2 className="text-lg font-semibold text-foreground">
+              BRIQ Deal Intelligence Workspace
+            </h2>
+            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+              Analyze a property to generate financial insights, market signals, and risk intelligence.
+            </p>
+            <Link to="/deals/new" className="mt-6">
+              <Button size="lg" className="gap-2 rounded-lg font-medium shadow-sm hover:shadow-md transition-shadow">
+                <Plus className="h-4 w-4" />
+                Analyze Deal
+              </Button>
+            </Link>
+          </div>
+        </CardContainer>
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -82,11 +87,15 @@ const Index = () => {
             </CardContainer>
           </div>
 
-          <DashboardWorkspace>
+          <CardContainer className="p-5">
             <h2 className="text-sm font-medium text-muted-foreground mb-4">Recent Deals</h2>
             <div className="divide-y divide-border">
               {recentDeals.map((deal) => (
-                <Link key={deal.id} to={`/analysis/${deal.id}`} className="py-3 flex items-center justify-between gap-4 hover:bg-muted/30 -mx-2 px-2 rounded-lg transition-colors">
+                <Link
+                  key={deal.id}
+                  to={`/analysis/${deal.id}`}
+                  className="py-3 flex items-center justify-between gap-4 hover:bg-muted/30 -mx-2 px-2 rounded-lg transition-colors"
+                >
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{deal.property_address}</p>
                     <p className="text-xs text-muted-foreground">
@@ -102,7 +111,7 @@ const Index = () => {
                 </Link>
               ))}
             </div>
-          </DashboardWorkspace>
+          </CardContainer>
         </div>
       )}
     </SectionContainer>

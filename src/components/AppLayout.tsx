@@ -1,6 +1,4 @@
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
-import { AppHeader } from "@/components/AppHeader";
+import { TopNav } from "@/components/TopNav";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -8,16 +6,14 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-        <div className="flex-1 flex flex-col min-w-0">
-          <AppHeader />
-          <main className="flex-1 p-4 md:p-8 lg:p-10 overflow-auto pb-safe">
-            {children}
-          </main>
-        </div>
-      </div>
-    </SidebarProvider>
+    <div className="min-h-screen flex flex-col bg-background">
+      <TopNav />
+      {/* Spacer for fixed nav: 64px + mobile sub-nav 40px on md:hidden */}
+      <div className="h-16 md:h-16" />
+      <div className="md:hidden h-10" />
+      <main className="flex-1 w-full max-w-[1320px] mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 pb-safe">
+        {children}
+      </main>
+    </div>
   );
 }
