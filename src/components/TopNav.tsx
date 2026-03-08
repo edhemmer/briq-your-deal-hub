@@ -40,8 +40,11 @@ export function TopNav() {
       <div className="mx-auto flex h-full max-w-[1320px] items-center justify-between px-4 md:px-6">
         {/* Left: Brand */}
         <Link to="/" className="flex items-center gap-2.5 shrink-0">
-          <BriqIcon size={32} />
-          <span className="text-base font-semibold tracking-tight text-foreground">BRIQ</span>
+          <BriqIcon size={40} className="text-primary" />
+          <div className="flex flex-col leading-none">
+            <span className="text-base font-bold tracking-tight text-foreground">BRIQ</span>
+            <span className="text-[10px] text-muted-foreground font-medium tracking-wide">Real Estate Deal Intelligence</span>
+          </div>
         </Link>
 
         {/* Center: Navigation */}
