@@ -19,6 +19,7 @@ export interface MarketConditions {
   absorption_rate: number;
   population_growth_rate: number;
   job_growth_rate: number;
+  crime_score?: number | null;
 }
 
 export interface MarketSignalScore {
@@ -30,6 +31,11 @@ export interface MarketSignalScore {
 export interface MarketInsight {
   type: "positive" | "caution" | "risk";
   message: string;
+}
+
+export interface CrimeIntelligence {
+  crime_score: number | null;
+  crime_risk_band: string | null;
 }
 
 export interface MarketIntelligenceResult {
@@ -46,6 +52,7 @@ export interface MarketIntelligenceResult {
     demand: MarketSignalScore;
   };
   insights: MarketInsight[];
+  crime: CrimeIntelligence;
 }
 
 function clamp(v: number, min: number, max: number): number {
@@ -231,6 +238,17 @@ function generateInsights(conditions: MarketConditions, signals: MarketIntellige
 }
 
 /**
+ * Derive crime risk band from crime_score (0-10 scale).
+ */
+export function deriveCrimeRiskBand(score: number): string {
+  if (score <= 2.0) return "Very Low";
+  if (score <= 4.0) return "Low";
+  if (score <= 6.0) return "Moderate";
+  if (score <= 8.0) return "High";
+  return "Very High";
+}
+
+/**
  * Main market intelligence evaluation function.
  * Consumes market condition data and returns deterministic intelligence.
  */
@@ -246,14 +264,31 @@ export function evaluateMarketIntelligence(conditions: MarketConditions): Market
   const allScores = [rent.score, price.score, supply.score, liquidity.score, demand.score];
   const market_strength_score = Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length);
 
-  // Risk score: inverse of strength, adjusted for supply pressure
+  // Risk score: inverse of strength, adjusted for supply pressure and crime
   const supplyPressure = supply.score < 40 ? 10 : 0;
-  const market_risk_score = clamp(100 - market_strength_score + supplyPressure, 0, 100);
+  const crimeScore = conditions.crime_score;
+  const crimePressure = (crimeScore != null && crimeScore >= 7) ? 8 : 0;
+  const market_risk_score = clamp(100 - market_strength_score + supplyPressure + crimePressure, 0, 100);
 
   // Demand pressure: weighted average of demand and supply signals
   const demand_pressure_score = Math.round((demand.score * 0.6 + supply.score * 0.4));
 
   const insights = generateInsights(conditions, signals);
+
+  // Crime insights
+  if (crimeScore != null) {
+    if (crimeScore >= 7) {
+      insights.push({ type: "risk", message: "Elevated area crime risk may reduce neighborhood stability and increase tenant turnover risk." });
+    }
+    if (crimeScore <= 3) {
+      insights.push({ type: "positive", message: "Low area crime risk supports stronger neighborhood stability." });
+    }
+  }
+
+  const crime: CrimeIntelligence = {
+    crime_score: crimeScore ?? null,
+    crime_risk_band: crimeScore != null ? deriveCrimeRiskBand(crimeScore) : null,
+  };
 
   return {
     market_strength_score,
@@ -263,5 +298,6 @@ export function evaluateMarketIntelligence(conditions: MarketConditions): Market
     riskLabel: riskLabel(market_risk_score),
     signals,
     insights,
+    crime,
   };
 }

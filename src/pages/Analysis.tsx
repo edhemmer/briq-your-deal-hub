@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { BarChart3, TrendingUp, DollarSign, Percent, ShieldCheck, Lightbulb, AlertTriangle, XCircle, CheckCircle2, Gauge, Wrench, RefreshCw, FileSearch, ExternalLink, MapPin, Home, Activity, BarChart2, Users, ShieldAlert } from "lucide-react";
+import { BarChart3, TrendingUp, DollarSign, Percent, ShieldCheck, Lightbulb, AlertTriangle, XCircle, CheckCircle2, Gauge, Wrench, RefreshCw, FileSearch, ExternalLink, MapPin, Home, Activity, BarChart2, Users, ShieldAlert, Shield } from "lucide-react";
 import { useDeal, useUpdateDeal } from "@/hooks/useDeals";
 import { analyzeDeal, type DealInput } from "@/lib/dealAnalysisEngine";
 import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
@@ -46,7 +46,7 @@ const MARKET_FIELD_KEYS = [
   "median_home_price", "price_growth_12mo", "price_growth_36mo",
   "price_per_sqft", "inventory_level", "months_of_supply",
   "days_on_market", "sale_to_list_ratio", "absorption_rate",
-  "population_growth_rate", "job_growth_rate",
+  "population_growth_rate", "job_growth_rate", "crime_score",
 ] as const;
 
 const MARKET_FIELDS: { key: string; label: string; group: string; suffix?: string }[] = [
@@ -64,6 +64,7 @@ const MARKET_FIELDS: { key: string; label: string; group: string; suffix?: strin
   { key: "absorption_rate", label: "Absorption Rate", group: "Inventory", suffix: "%" },
   { key: "population_growth_rate", label: "Population Growth", group: "Demand", suffix: "%" },
   { key: "job_growth_rate", label: "Job Growth", group: "Demand", suffix: "%" },
+  { key: "crime_score", label: "Crime Score (0-10)", group: "Crime & Safety" },
 ];
 
 function metricColor(value: number, thresholds: [number, number]): string {
@@ -151,7 +152,8 @@ const Analysis = () => {
     if (marketConditionsRow) {
       const mf: Record<string, string> = {};
       for (const k of MARKET_FIELD_KEYS) {
-        mf[k] = String((marketConditionsRow as any)[k] ?? 0);
+        const val = (marketConditionsRow as any)[k];
+        mf[k] = val != null ? String(val) : "";
       }
       setMarketFields(mf);
     }
@@ -200,7 +202,12 @@ const Analysis = () => {
   const marketConditionsInput: MarketConditions = useMemo(() => {
     const mc: any = {};
     for (const k of MARKET_FIELD_KEYS) {
-      mc[k] = parseFloat(marketFields[k] || "0") || 0;
+      if (k === "crime_score") {
+        const v = parseFloat(marketFields[k] || "");
+        mc[k] = isNaN(v) ? null : v;
+      } else {
+        mc[k] = parseFloat(marketFields[k] || "0") || 0;
+      }
     }
     return mc as MarketConditions;
   }, [marketFields]);
@@ -233,9 +240,14 @@ const Analysis = () => {
 
   const handleMarketBlur = useCallback(() => {
     if (!dealId || !deal) return;
-    const numericFields: Record<string, number> = {};
+    const numericFields: Record<string, any> = {};
     for (const k of MARKET_FIELD_KEYS) {
-      numericFields[k] = parseFloat(marketFields[k] || "0") || 0;
+      if (k === "crime_score") {
+        const v = parseFloat(marketFields[k] || "");
+        numericFields[k] = isNaN(v) ? null : v;
+      } else {
+        numericFields[k] = parseFloat(marketFields[k] || "0") || 0;
+      }
     }
     const evaluated = evaluateMarketIntelligence(numericFields as unknown as MarketConditions);
     upsertMarket.mutate({
@@ -248,6 +260,7 @@ const Analysis = () => {
       market_strength_score: evaluated.market_strength_score,
       market_risk_score: evaluated.market_risk_score,
       demand_pressure_score: evaluated.demand_pressure_score,
+      crime_risk_band: evaluated.crime.crime_risk_band,
     });
   }, [dealId, deal, marketFields, marketConditionsRow, upsertMarket]);
 
@@ -567,6 +580,47 @@ const Analysis = () => {
             </CardContainer>
           ))}
         </div>
+
+        {/* Crime & Safety Signal */}
+        <CardContainer className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Shield className="h-5 w-5 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground">Crime & Safety Signal</h3>
+          </div>
+          {marketIntelligence.crime.crime_score != null ? (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              <div className="flex flex-col items-center">
+                <span className={`text-4xl font-black ${
+                  marketIntelligence.crime.crime_score <= 3 ? "text-green-500" :
+                  marketIntelligence.crime.crime_score <= 6 ? "text-yellow-500" :
+                  marketIntelligence.crime.crime_score <= 8 ? "text-orange-500" :
+                  "text-destructive"
+                }`}>
+                  {marketIntelligence.crime.crime_score.toFixed(1)}
+                </span>
+                <span className="text-xs text-muted-foreground mt-1">/ 10</span>
+              </div>
+              <div className="space-y-1.5">
+                <Badge variant={
+                  marketIntelligence.crime.crime_score <= 3 ? "default" :
+                  marketIntelligence.crime.crime_score <= 6 ? "secondary" :
+                  "destructive"
+                } className="text-xs">
+                  {marketIntelligence.crime.crime_risk_band}
+                </Badge>
+                <p className="text-sm text-muted-foreground">
+                  {marketIntelligence.crime.crime_score <= 3
+                    ? "Low crime area — supports stable tenancy and neighborhood value retention."
+                    : marketIntelligence.crime.crime_score <= 6
+                    ? "Moderate crime levels — typical for urban markets. Monitor trends."
+                    : "Elevated crime risk — may impact tenant retention, insurance costs, and property values."}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">Crime data unavailable for this location.</p>
+          )}
+        </CardContainer>
 
         {/* Market Insights */}
         {marketIntelligence.insights.length > 0 && (

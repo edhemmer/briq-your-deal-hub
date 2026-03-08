@@ -127,6 +127,9 @@ export type Database = {
           absorption_rate: number | null
           city: string
           created_at: string
+          crime_data_last_updated: string | null
+          crime_risk_band: string | null
+          crime_score: number | null
           data_last_updated: string | null
           days_on_market: number | null
           deal_id: string | null
@@ -154,6 +157,9 @@ export type Database = {
           absorption_rate?: number | null
           city: string
           created_at?: string
+          crime_data_last_updated?: string | null
+          crime_risk_band?: string | null
+          crime_score?: number | null
           data_last_updated?: string | null
           days_on_market?: number | null
           deal_id?: string | null
@@ -181,6 +187,9 @@ export type Database = {
           absorption_rate?: number | null
           city?: string
           created_at?: string
+          crime_data_last_updated?: string | null
+          crime_risk_band?: string | null
+          crime_score?: number | null
           data_last_updated?: string | null
           days_on_market?: number | null
           deal_id?: string | null
