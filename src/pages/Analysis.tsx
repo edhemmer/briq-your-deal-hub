@@ -395,7 +395,7 @@ const Analysis = () => {
         />
         <MetricCard
           icon={<TrendingUp className="h-4 w-4" />}
-          label="Cash on Cash"
+          label={<span className="flex items-center gap-1">Cash on Cash <HelpTooltip content={METRIC_HELP.cash_on_cash} /></span>}
           value={fmtPct(analysis.metrics.cash_on_cash)}
           color={metricColor(analysis.metrics.cash_on_cash, [0.04, 0.08])}
           badge={metricBadge(analysis.metrics.cash_on_cash, [0.04, 0.08])}
