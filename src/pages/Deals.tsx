@@ -7,6 +7,7 @@ import { CardContainer } from "@/components/ui/card-container";
 import { PrimaryButton } from "@/components/ui/primary-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDeals, useDeleteDeal } from "@/hooks/useDeals";
 
 const Deals = () => {
@@ -35,7 +36,9 @@ const Deals = () => {
       </PageHeader>
 
       {isLoading ? (
-        <div className="text-sm text-muted-foreground">Loading…</div>
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)}
+        </div>
       ) : !deals || deals.length === 0 ? (
         <CardContainer>
           <EmptyStateContainer
@@ -64,9 +67,9 @@ const Deals = () => {
                 <tr key={deal.id} className="group">
                   <td className="py-3 pr-4 font-medium text-foreground">{deal.property_address}</td>
                   <td className="py-3 pr-4 text-muted-foreground">{deal.strategy_primary ?? "—"}</td>
-                  <td className="py-3 pr-4 text-muted-foreground">{formatCurrency(deal.purchase_price)}</td>
-                  <td className="py-3 pr-4 text-muted-foreground">{formatCurrency(deal.estimated_arv)}</td>
-                  <td className="py-3 pr-4"><Badge variant={statusColor(deal.deal_status)}>{deal.deal_status}</Badge></td>
+                  <td className="py-3 pr-4 text-muted-foreground tabular-nums">{formatCurrency(deal.purchase_price)}</td>
+                  <td className="py-3 pr-4 text-muted-foreground tabular-nums">{formatCurrency(deal.estimated_arv)}</td>
+                  <td className="py-3 pr-4"><Badge variant={statusColor(deal.deal_status)}>{deal.deal_status ?? "draft"}</Badge></td>
                   <td className="py-3 pr-4 text-muted-foreground">{new Date(deal.created_at).toLocaleDateString()}</td>
                   <td className="py-3 text-right">
                     <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
@@ -89,7 +92,7 @@ const Deals = () => {
               <div key={deal.id} className="py-3 space-y-1">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-foreground truncate">{deal.property_address}</p>
-                  <Badge variant={statusColor(deal.deal_status)}>{deal.deal_status}</Badge>
+                  <Badge variant={statusColor(deal.deal_status)}>{deal.deal_status ?? "draft"}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {deal.strategy_primary ?? "—"} · {formatCurrency(deal.purchase_price)} · ARV {formatCurrency(deal.estimated_arv)}
