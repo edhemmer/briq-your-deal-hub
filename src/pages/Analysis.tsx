@@ -806,6 +806,11 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
   const topScore = topEntry[1].score;
   const best = topEntry[1];
   const bestLabel = STRATEGY_LABELS[topEntry[0]];
+  const [expandedSignals, setExpandedSignals] = useState<Record<string, boolean>>({});
+
+  const toggleSignals = (key: string) => {
+    setExpandedSignals(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   return (
     <div className="space-y-4">
@@ -861,6 +866,8 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {entries.map(([key, strategy]) => {
           const isTop = strategy.score === topScore && topScore > 0;
+          const isExpanded = !!expandedSignals[key];
+          const hasSignals = strategy.signals.financial.length > 0 || strategy.signals.property.length > 0 || strategy.signals.market.length > 0;
           return (
             <CardContainer
               key={key}
@@ -910,9 +917,46 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
                   ))}
                 </div>
               )}
+              {hasSignals && (
+                <div className="pt-1 border-t border-border">
+                  <button
+                    onClick={() => toggleSignals(key)}
+                    className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors w-full"
+                  >
+                    {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    View Signals
+                  </button>
+                  {isExpanded && (
+                    <div className="mt-2 space-y-2">
+                      <SignalGroup label="Financial" signals={strategy.signals.financial} />
+                      <SignalGroup label="Property" signals={strategy.signals.property} />
+                      <SignalGroup label="Market" signals={strategy.signals.market} />
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContainer>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function SignalGroup({ label, signals }: { label: string; signals: string[] }) {
+  if (signals.length === 0) return null;
+  return (
+    <div>
+      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
+      <div className="flex flex-wrap gap-1 mt-0.5">
+        {signals.map((s) => (
+          <span
+            key={s}
+            className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+          >
+            {s}
+          </span>
+        ))}
       </div>
     </div>
   );
