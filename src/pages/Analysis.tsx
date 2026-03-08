@@ -608,6 +608,9 @@ const Analysis = () => {
           ) : (
             <p className="text-sm text-muted-foreground italic">Crime data unavailable for this location.</p>
           )}
+        </CardContainer>
+
+        {/* Market Insights */}
         {marketIntelligence.insights.length > 0 && (
           <div className="space-y-2">
             {marketIntelligence.insights.filter(i => i.type === "risk").length > 0 && (
