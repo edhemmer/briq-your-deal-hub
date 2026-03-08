@@ -53,6 +53,16 @@ export default function NewDeal() {
   return (
     <SectionContainer>
       <PageHeader title="New Deal" description="Enter deal details to begin analysis" />
+
+      {!billingAccess.canCreateDeal && (
+        <Alert className="max-w-2xl mb-4 border-border bg-muted/50">
+          <Lock className="h-4 w-4" />
+          <AlertDescription className="text-sm text-muted-foreground">
+            {getUpgradeMessage(billingAccess)}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <CardContainer className="max-w-2xl p-6">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
