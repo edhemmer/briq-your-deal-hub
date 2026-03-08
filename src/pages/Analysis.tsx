@@ -16,6 +16,8 @@ import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
 import { resolvePropertyIntelligence, openPropertyRecord } from "@/lib/property/propertyIntelligenceEngine";
 import { evaluateMarketIntelligence, type MarketConditions } from "@/lib/marketIntelligenceEngine";
 import { useMarketConditions, useUpsertMarketConditions } from "@/hooks/useMarketConditions";
+import { evaluateDealStrategies, type StrategyFitResults, type StrategyFitInput } from "@/lib/strategyFitEngine";
+import { Target } from "lucide-react";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   // Acquisition
@@ -213,6 +215,23 @@ const Analysis = () => {
   }, [marketFields]);
 
   const marketIntelligence = useMemo(() => evaluateMarketIntelligence(marketConditionsInput), [marketConditionsInput]);
+
+  // Strategy Fit Engine
+  const strategyFitInput: StrategyFitInput = useMemo(() => ({
+    purchasePrice: dealInput.purchase_price,
+    rehabCost: dealInput.rehab_cost,
+    arv: dealInput.arv,
+    projectedRent: dealInput.monthly_rent,
+    cashFlowMonthly: analysis.metrics.monthly_cashflow,
+    capRate: analysis.metrics.cap_rate,
+    cashOnCashReturn: analysis.metrics.cash_on_cash,
+    rentTrend: marketConditionsInput.rent_growth_12mo || null,
+    priceTrend: marketConditionsInput.price_growth_12mo || null,
+    inventoryTrend: marketConditionsInput.months_of_supply || null,
+    crimeScore: marketConditionsInput.crime_score ?? null,
+  }), [dealInput, analysis, marketConditionsInput]);
+
+  const strategyFit = useMemo(() => evaluateDealStrategies(strategyFitInput), [strategyFitInput]);
 
   // Auto-save on blur
   const handleBlur = useCallback(() => {
@@ -689,6 +708,8 @@ const Analysis = () => {
         </div>
       </div>
 
+      {/* Strategy Fit Analysis Section */}
+      <StrategyFitSection strategyFit={strategyFit} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {groups.map(group => (
@@ -766,6 +787,66 @@ function SummaryCard({ title, rows }: { title: string; rows: [string, string][] 
         ))}
       </div>
     </CardContainer>
+  );
+}
+const STRATEGY_LABELS: Record<keyof StrategyFitResults, string> = {
+  brrrr: "BRRRR",
+  longTermRental: "Long Term Rental",
+  midTermRental: "Mid Term Rental",
+  shortTermRental: "Short Term Rental",
+  fixFlip: "Fix & Flip",
+  valueAdd: "Value Add",
+  appreciationHold: "Appreciation Hold",
+};
+
+function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }) {
+  const entries = Object.entries(strategyFit) as [keyof StrategyFitResults, StrategyFitResults[keyof StrategyFitResults]][];
+  const topScore = Math.max(...entries.map(([, v]) => v.score));
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+        <Target className="h-5 w-5" /> Strategy Fit Analysis
+      </h2>
+      <p className="text-sm text-muted-foreground">
+        Deterministic strategy scoring based on deal financials, property metrics, and market signals.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {entries.map(([key, strategy]) => {
+          const isTop = strategy.score === topScore && topScore > 0;
+          return (
+            <CardContainer
+              key={key}
+              className={`p-5 flex flex-col gap-3 transition-all ${isTop ? "ring-2 ring-primary shadow-lg" : ""}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-foreground">{STRATEGY_LABELS[key]}</span>
+                {isTop && (
+                  <Badge variant="default" className="text-[10px]">Best Fit</Badge>
+                )}
+              </div>
+              <div className="flex items-end gap-2">
+                <span className={`text-3xl font-black ${
+                  strategy.score >= 80 ? "text-green-500" :
+                  strategy.score >= 60 ? "text-yellow-500" :
+                  "text-destructive"
+                }`}>
+                  {strategy.score}
+                </span>
+                <span className="text-xs text-muted-foreground mb-1">/ 100</span>
+              </div>
+              <Badge
+                variant={strategy.fitLevel === "Strong" ? "default" : strategy.fitLevel === "Moderate" ? "secondary" : "destructive"}
+                className="text-xs w-fit"
+              >
+                {strategy.fitLevel}
+              </Badge>
+              <p className="text-xs text-muted-foreground leading-relaxed">{strategy.explanation}</p>
+            </CardContainer>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
