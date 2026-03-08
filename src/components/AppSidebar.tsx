@@ -22,6 +22,7 @@ const navItems = [
   { title: "Analysis", url: "/analysis", icon: BarChart3 },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "Account", url: "/account", icon: User },
+  { title: "Help", url: "/help", icon: HelpCircle },
 ];
 
 export function AppSidebar() {
