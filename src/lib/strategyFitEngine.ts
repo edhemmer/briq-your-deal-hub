@@ -6,6 +6,8 @@ export interface StrategyScore {
   score: number;
   fitLevel: "Strong" | "Moderate" | "Weak";
   explanation: string;
+  confidenceLevel: "High" | "Medium" | "Low";
+  disqualifiers: string[];
 }
 
 export interface StrategyFitResults {
