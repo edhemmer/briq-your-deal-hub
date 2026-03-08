@@ -10,7 +10,14 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { BarChart3, TrendingUp, DollarSign, Percent, ShieldCheck, Lightbulb, AlertTriangle, XCircle, CheckCircle2, Gauge, Wrench, RefreshCw, FileSearch, ExternalLink, MapPin, Home, Activity, BarChart2, Users, ShieldAlert, Shield, ChevronDown, ChevronUp, FileText, Download, Target, Zap } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  BarChart3, TrendingUp, DollarSign, Percent, ShieldCheck, Lightbulb,
+  AlertTriangle, XCircle, CheckCircle2, Gauge, Wrench, RefreshCw,
+  FileSearch, ExternalLink, MapPin, Home, Activity, BarChart2, Users,
+  ShieldAlert, Shield, ChevronDown, ChevronUp, FileText, Download,
+  Target, Zap
+} from "lucide-react";
 import { useDeal, useUpdateDeal } from "@/hooks/useDeals";
 import { analyzeDeal, type DealInput } from "@/lib/dealAnalysisEngine";
 import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
@@ -26,21 +33,16 @@ import { DealWorkflowIndicator } from "@/components/help/DealWorkflowIndicator";
 import { METRIC_HELP, STRATEGY_HELP, MARKET_HELP, CRIME_HELP, DEAL_INPUT_HELP } from "@/components/help/helpContent";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
-  // Acquisition
   { key: "purchase_price", label: "Purchase Price", group: "Acquisition" },
   { key: "closing_costs", label: "Closing Costs", group: "Acquisition" },
   { key: "arv", label: "After Repair Value (ARV)", group: "Acquisition" },
-  // Rehab
   { key: "rehab_cost", label: "Rehab Cost", group: "Rehab" },
   { key: "rehab_contingency", label: "Rehab Contingency", group: "Rehab" },
-  // Financing
   { key: "down_payment_percent", label: "Down Payment %", isPercent: true, group: "Financing" },
   { key: "interest_rate", label: "Interest Rate %", isPercent: true, group: "Financing" },
   { key: "loan_term_years", label: "Loan Term (years)", group: "Financing" },
-  // Income
   { key: "monthly_rent", label: "Monthly Rent", group: "Income" },
   { key: "other_income", label: "Other Annual Income", group: "Income" },
-  // Expenses
   { key: "taxes", label: "Annual Taxes", group: "Expenses" },
   { key: "insurance", label: "Annual Insurance", group: "Expenses" },
   { key: "vacancy_percent", label: "Vacancy %", isPercent: true, group: "Expenses" },
@@ -75,10 +77,20 @@ const MARKET_FIELDS: { key: string; label: string; group: string; suffix?: strin
   { key: "crime_score", label: "Crime Score (0-10)", group: "Crime & Safety" },
 ];
 
-function metricColor(value: number, thresholds: [number, number]): string {
-  if (value >= thresholds[1]) return "text-green-500";
-  if (value >= thresholds[0]) return "text-yellow-500";
-  return "text-destructive";
+// Signal color utilities using semantic tokens
+function signalColor(level: "positive" | "warning" | "risk" | "neutral"): string {
+  switch (level) {
+    case "positive": return "text-signal-positive";
+    case "warning": return "text-signal-warning";
+    case "risk": return "text-signal-risk";
+    default: return "text-signal-neutral";
+  }
+}
+
+function metricSignalLevel(value: number, thresholds: [number, number]): "positive" | "warning" | "risk" {
+  if (value >= thresholds[1]) return "positive";
+  if (value >= thresholds[0]) return "warning";
+  return "risk";
 }
 
 function metricBadge(value: number, thresholds: [number, number]): "default" | "secondary" | "destructive" {
@@ -92,10 +104,10 @@ const fmtPct = (n: number) => (n * 100).toFixed(2) + "%";
 const fmtX = (n: number) => n.toFixed(2) + "x";
 
 function scoreColor(score: number): string {
-  if (score >= 85) return "text-green-500";
+  if (score >= 85) return "text-signal-positive";
   if (score >= 70) return "text-primary";
-  if (score >= 55) return "text-yellow-500";
-  return "text-destructive";
+  if (score >= 55) return "text-signal-warning";
+  return "text-signal-risk";
 }
 
 function scoreBadgeVariant(label: string): "default" | "secondary" | "destructive" {
@@ -134,7 +146,6 @@ const Analysis = () => {
   const [enrichmentFields, setEnrichmentFields] = useState<Record<string, string>>({});
   const [marketFields, setMarketFields] = useState<Record<string, string>>({});
 
-  // Initialize local fields from DB deal
   useEffect(() => {
     if (deal && !initialized) {
       const fields: Record<string, string> = {};
@@ -155,7 +166,6 @@ const Analysis = () => {
     }
   }, [deal, initialized]);
 
-  // Initialize market fields from DB
   useEffect(() => {
     if (marketConditionsRow) {
       const mf: Record<string, string> = {};
@@ -179,7 +189,6 @@ const Analysis = () => {
     setMarketFields(prev => ({ ...prev, [key]: val }));
   }, []);
 
-  // Build DealInput from local fields
   const dealInput: DealInput = useMemo(() => {
     const input: any = {};
     for (const f of FINANCIAL_FIELDS) {
@@ -206,7 +215,6 @@ const Analysis = () => {
     );
   }, [deal, enrichmentFields]);
 
-  // Market conditions intelligence
   const marketConditionsInput: MarketConditions = useMemo(() => {
     const mc: any = {};
     for (const k of MARKET_FIELD_KEYS) {
@@ -222,7 +230,6 @@ const Analysis = () => {
 
   const marketIntelligence = useMemo(() => evaluateMarketIntelligence(marketConditionsInput), [marketConditionsInput]);
 
-  // Strategy Fit Engine
   const strategyFitInput: StrategyFitInput = useMemo(() => ({
     purchasePrice: dealInput.purchase_price,
     rehabCost: dealInput.rehab_cost,
@@ -238,11 +245,8 @@ const Analysis = () => {
   }), [dealInput, analysis, marketConditionsInput]);
 
   const strategyFit = useMemo(() => evaluateDealStrategies(strategyFitInput), [strategyFitInput]);
-
-  // Stress Testing Engine
   const stressResults = useMemo(() => runStressTests(dealInput, analysis), [dealInput, analysis]);
 
-  // Auto-save on blur
   const handleBlur = useCallback(() => {
     if (!dealId) return;
     const updates: Record<string, number> = {};
@@ -292,6 +296,27 @@ const Analysis = () => {
     });
   }, [dealId, deal, marketFields, marketConditionsRow, upsertMarket]);
 
+  // Report generation helper
+  const buildReport = useCallback(() => {
+    if (!deal) return null;
+    return assembleDealReport(
+      {
+        address: deal.property_address,
+        city: deal.city,
+        state: deal.state,
+        zipCode: deal.zip_code ?? null,
+        purchasePrice: dealInput.purchase_price,
+        propertyType: deal.property_type ?? null,
+      },
+      analysis,
+      intelligence,
+      strategyFit,
+      marketIntelligence,
+      stressResults,
+    );
+  }, [deal, dealInput, analysis, intelligence, strategyFit, marketIntelligence, stressResults]);
+
+  // ── Empty / Loading States ──
   if (!dealId) {
     return (
       <SectionContainer>
@@ -307,12 +332,22 @@ const Analysis = () => {
     return (
       <SectionContainer>
         <PageHeader title="Analysis" description="Loading deal…" />
-        <div className="text-sm text-muted-foreground">Loading…</div>
+        <div className="space-y-4">
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+          </div>
+          <Skeleton className="h-32 w-full rounded-xl" />
+        </div>
       </SectionContainer>
     );
   }
 
   const groups = [...new Set(FINANCIAL_FIELDS.map(f => f.group))];
+
+  // Derive top strategy for summary
+  const strategyEntries = Object.entries(strategyFit) as [keyof StrategyFitResults, StrategyFitResults[keyof StrategyFitResults]][];
+  const topStrategy = strategyEntries.reduce((best, curr) => curr[1].score > best[1].score ? curr : best, strategyEntries[0]);
 
   return (
     <SectionContainer>
@@ -329,43 +364,15 @@ const Analysis = () => {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => {
-              const report = assembleDealReport(
-                {
-                  address: deal?.property_address ?? "",
-                  city: deal?.city ?? "",
-                  state: deal?.state ?? "",
-                  zipCode: deal?.zip_code ?? null,
-                  purchasePrice: dealInput.purchase_price,
-                  propertyType: deal?.property_type ?? null,
-                },
-                analysis,
-                intelligence,
-                strategyFit,
-                marketIntelligence,
-                stressResults,
-              );
-              generateInvestorPDF(report);
+              const report = buildReport();
+              if (report) generateInvestorPDF(report);
             }}>
               <FileText className="h-4 w-4 mr-2" />
               Investor PDF Report
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => {
-              const report = assembleDealReport(
-                {
-                  address: deal?.property_address ?? "",
-                  city: deal?.city ?? "",
-                  state: deal?.state ?? "",
-                  zipCode: deal?.zip_code ?? null,
-                  purchasePrice: dealInput.purchase_price,
-                  propertyType: deal?.property_type ?? null,
-                },
-                analysis,
-                intelligence,
-                strategyFit,
-                marketIntelligence,
-                stressResults,
-              );
-              generateCSVExport(report);
+              const report = buildReport();
+              if (report) generateCSVExport(report);
             }}>
               <Download className="h-4 w-4 mr-2" />
               CSV Data Export
@@ -374,153 +381,28 @@ const Analysis = () => {
         </DropdownMenu>
       </PageHeader>
 
-      {/* Workflow Indicator */}
       <DealWorkflowIndicator activeStep={2} className="mb-2" />
 
-      {/* Metric Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
-        <MetricCard
-          icon={<Percent className="h-4 w-4" />}
-          label={<span className="flex items-center gap-1">Cap Rate <HelpTooltip content={METRIC_HELP.cap_rate} /></span>}
-          value={fmtPct(analysis.metrics.cap_rate)}
-          color={metricColor(analysis.metrics.cap_rate, [0.04, 0.06])}
-          badge={metricBadge(analysis.metrics.cap_rate, [0.04, 0.06])}
-        />
-        <MetricCard
-          icon={<DollarSign className="h-4 w-4" />}
-          label={<span className="flex items-center gap-1">Cash Flow / mo <HelpTooltip content={METRIC_HELP.monthly_cashflow} /></span>}
-          value={fmt(analysis.metrics.monthly_cashflow)}
-          color={metricColor(analysis.metrics.monthly_cashflow, [0, 200])}
-          badge={metricBadge(analysis.metrics.monthly_cashflow, [0, 200])}
-        />
-        <MetricCard
-          icon={<TrendingUp className="h-4 w-4" />}
-          label={<span className="flex items-center gap-1">Cash on Cash <HelpTooltip content={METRIC_HELP.cash_on_cash} /></span>}
-          value={fmtPct(analysis.metrics.cash_on_cash)}
-          color={metricColor(analysis.metrics.cash_on_cash, [0.04, 0.08])}
-          badge={metricBadge(analysis.metrics.cash_on_cash, [0.04, 0.08])}
-        />
-        <MetricCard
-          icon={<ShieldCheck className="h-4 w-4" />}
-          label={<span className="flex items-center gap-1">DSCR <HelpTooltip content={METRIC_HELP.dscr} /></span>}
-          value={fmtX(analysis.metrics.dscr)}
-          color={metricColor(analysis.metrics.dscr, [1.0, 1.25])}
-          badge={metricBadge(analysis.metrics.dscr, [1.0, 1.25])}
-        />
-        <MetricCard
-          icon={<TrendingUp className="h-4 w-4" />}
-          label="Equity Created"
-          value={fmt(analysis.refinance.equity_created)}
-          color={metricColor(analysis.refinance.equity_created, [0, 20000])}
-          badge={metricBadge(analysis.refinance.equity_created, [0, 20000])}
-        />
-      </div>
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 1: DEAL INTELLIGENCE SUMMARY (Investment decision first)
+          ═══════════════════════════════════════════════════════════════════ */}
+      <DealIntelligenceSummary
+        intelligence={intelligence}
+        topStrategyLabel={STRATEGY_LABELS[topStrategy[0]]}
+        marketStrength={marketIntelligence.market_strength_score}
+        crimeScore={marketIntelligence.crime.crime_score}
+        priceGrowth={marketConditionsInput.price_growth_12mo}
+        cashFlowMonthly={analysis.metrics.monthly_cashflow}
+      />
 
-      {/* Strategy Insights */}
-      {analysis.strategyInsights.length > 0 && (
-        <CardContainer>
-          <div className="flex items-center gap-2 mb-3">
-            <Lightbulb className="h-4 w-4 text-yellow-500" />
-            <h3 className="text-sm font-semibold text-foreground">Strategy Insights</h3>
-          </div>
-          <div className="space-y-1">
-            {analysis.strategyInsights.map((s, i) => (
-              <p key={i} className="text-sm text-muted-foreground">• {s}</p>
-            ))}
-          </div>
-        </CardContainer>
-      )}
-
-      {/* Deal Intelligence Section */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-          <Gauge className="h-5 w-5" /> Deal Intelligence <HelpTooltip content="Composite analysis combining cash flow, returns, risk factors, and market alignment into a single deal score." />
-        </h2>
-
-        {/* Score + Decision + Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-          <CardContainer className="flex flex-col items-center justify-center p-6">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Deal Score</span>
-            <span className={`text-5xl font-black ${scoreColor(intelligence.score)}`}>{intelligence.score}</span>
-            <Badge variant={scoreBadgeVariant(intelligence.scoreLabel)} className="mt-2 text-xs">
-              {intelligence.scoreLabel}
-            </Badge>
-          </CardContainer>
-          <CardContainer className="flex flex-col items-center justify-center p-6">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Decision</span>
-            <Badge variant={decisionBadgeVariant(intelligence.decision)} className="text-sm px-4 py-1.5">
-              {intelligence.decision}
-            </Badge>
-          </CardContainer>
-          <CardContainer className="flex flex-col justify-center p-6 gap-3">
-            <div className="flex items-center gap-2">
-              <RefreshCw className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">Refinance</span>
-              <Badge variant={viabilityBadgeVariant(intelligence.refinanceViability)} className="text-[10px]">{intelligence.refinanceViability}</Badge>
-            </div>
-            <div className="flex items-center gap-2">
-              <Wrench className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">Complexity</span>
-              <Badge variant={complexityBadgeVariant(intelligence.executionComplexity)} className="text-[10px]">{intelligence.executionComplexity}</Badge>
-            </div>
-          </CardContainer>
-        </div>
-
-        {/* Summary */}
-        <CardContainer className="p-4">
-          <p className="text-sm text-muted-foreground italic">{intelligence.summary}</p>
-        </CardContainer>
-
-        {/* Deal Killers */}
-        {intelligence.dealKillers.length > 0 && (
-          <Alert variant="destructive">
-            <XCircle className="h-4 w-4" />
-            <AlertTitle>Deal Killers</AlertTitle>
-            <AlertDescription>
-              <ul className="list-disc pl-4 space-y-1 mt-1">
-                {intelligence.dealKillers.map((k, i) => <li key={i}>{k}</li>)}
-              </ul>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Warnings */}
-        {intelligence.warnings.length > 0 && (
-          <Alert className="border-yellow-500/50 text-yellow-700 dark:text-yellow-400 [&>svg]:text-yellow-600">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Warnings</AlertTitle>
-            <AlertDescription>
-              <ul className="list-disc pl-4 space-y-1 mt-1">
-                {intelligence.warnings.map((w, i) => <li key={i}>{w}</li>)}
-              </ul>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Strengths */}
-        {intelligence.strengths.length > 0 && (
-          <Alert className="border-green-500/50 text-green-700 dark:text-green-400 [&>svg]:text-green-600">
-            <CheckCircle2 className="h-4 w-4" />
-            <AlertTitle>Strengths</AlertTitle>
-            <AlertDescription>
-              <ul className="list-disc pl-4 space-y-1 mt-1">
-                {intelligence.strengths.map((s, i) => <li key={i}>{s}</li>)}
-              </ul>
-            </AlertDescription>
-          </Alert>
-        )}
-      </div>
-
-      {/* Property Intelligence Section */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 2: PROPERTY OVERVIEW
+          ═══════════════════════════════════════════════════════════════════ */}
       {propertyIntelligence && (
         <div className="space-y-4">
-          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-            <FileSearch className="h-5 w-5" /> Property Intelligence
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <FileSearch className="h-5 w-5 text-muted-foreground" /> Property Intelligence
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Verify official county property records and enrich property insights.
-          </p>
-
           <CardContainer className="p-6 space-y-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="space-y-1">
@@ -529,121 +411,117 @@ const Analysis = () => {
                   {propertyIntelligence.countyLookup.county} County • {propertyIntelligence.countyLookup.source === "registry" ? "Direct link" : "Google search fallback"}
                 </p>
               </div>
-              <Button
-                onClick={() => openPropertyRecord(propertyIntelligence.countyLookup.url)}
-                className="gap-2"
-              >
+              <Button onClick={() => openPropertyRecord(propertyIntelligence.countyLookup.url)} className="gap-2">
                 <ExternalLink className="h-4 w-4" />
                 Open County Property Record
               </Button>
             </div>
-
             <div className="border-t border-border pt-5">
               <h3 className="text-sm font-semibold text-foreground mb-4">Property Data Enrichment</h3>
               <p className="text-xs text-muted-foreground mb-4">Optionally enter verified property details from official records.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Assessed Value</Label>
-                  <Input
-                    type="number"
-                    className="h-8 text-sm"
-                    value={enrichmentFields.assessed_value ?? ""}
-                    onChange={e => setEnrichmentField("assessed_value", e.target.value)}
-                    onBlur={handleEnrichmentBlur}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Annual Property Tax</Label>
-                  <Input
-                    type="number"
-                    className="h-8 text-sm"
-                    value={enrichmentFields.annual_property_tax ?? ""}
-                    onChange={e => setEnrichmentField("annual_property_tax", e.target.value)}
-                    onBlur={handleEnrichmentBlur}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Year Built</Label>
-                  <Input
-                    type="number"
-                    className="h-8 text-sm"
-                    value={enrichmentFields.year_built ?? ""}
-                    onChange={e => setEnrichmentField("year_built", e.target.value)}
-                    onBlur={handleEnrichmentBlur}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Lot Size</Label>
-                  <Input
-                    type="text"
-                    className="h-8 text-sm"
-                    value={enrichmentFields.lot_size ?? ""}
-                    onChange={e => setEnrichmentField("lot_size", e.target.value)}
-                    onBlur={handleEnrichmentBlur}
-                    placeholder="e.g. 0.25 acres"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Zoning Type</Label>
-                  <Input
-                    type="text"
-                    className="h-8 text-sm"
-                    value={enrichmentFields.zoning_type ?? ""}
-                    onChange={e => setEnrichmentField("zoning_type", e.target.value)}
-                    onBlur={handleEnrichmentBlur}
-                    placeholder="e.g. R-1, Commercial"
-                  />
-                </div>
+                {[
+                  { key: "assessed_value", label: "Assessed Value", type: "number", placeholder: "0" },
+                  { key: "annual_property_tax", label: "Annual Property Tax", type: "number", placeholder: "0" },
+                  { key: "year_built", label: "Year Built", type: "number", placeholder: "0" },
+                  { key: "lot_size", label: "Lot Size", type: "text", placeholder: "e.g. 0.25 acres" },
+                  { key: "zoning_type", label: "Zoning Type", type: "text", placeholder: "e.g. R-1, Commercial" },
+                ].map(f => (
+                  <div key={f.key} className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">{f.label}</Label>
+                    <Input
+                      type={f.type}
+                      className="h-8 text-sm"
+                      value={enrichmentFields[f.key] ?? ""}
+                      onChange={e => setEnrichmentField(f.key, e.target.value)}
+                      onBlur={handleEnrichmentBlur}
+                      placeholder={f.placeholder}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           </CardContainer>
         </div>
       )}
 
-      {/* Local Market Conditions Section */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 3: DEAL METRICS
+          ═══════════════════════════════════════════════════════════════════ */}
       <div className="space-y-4">
-        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-          <MapPin className="h-5 w-5" /> Local Market Conditions <HelpTooltip content={MARKET_HELP} />
+        <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+          <BarChart3 className="h-5 w-5 text-muted-foreground" /> Deal Metrics
         </h2>
-        <p className="text-sm text-muted-foreground">
-          Contextual market intelligence for {deal?.city}, {deal?.state}. Enter local market data to evaluate the surrounding environment.
-        </p>
-
-        {/* Market Strength + Risk Score Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-          <CardContainer className="flex flex-col items-center justify-center p-6">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Market Strength</span>
-            <span className={`text-5xl font-black ${marketIntelligence.market_strength_score >= 61 ? "text-green-500" : marketIntelligence.market_strength_score >= 31 ? "text-yellow-500" : "text-destructive"}`}>
-              {marketIntelligence.market_strength_score}
-            </span>
-            <Badge variant={marketIntelligence.market_strength_score >= 61 ? "default" : marketIntelligence.market_strength_score >= 31 ? "secondary" : "destructive"} className="mt-2 text-xs">
-              {marketIntelligence.strengthLabel}
-            </Badge>
-          </CardContainer>
-          <CardContainer className="flex flex-col items-center justify-center p-6">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Market Risk</span>
-            <span className={`text-5xl font-black ${marketIntelligence.market_risk_score <= 39 ? "text-green-500" : marketIntelligence.market_risk_score <= 69 ? "text-yellow-500" : "text-destructive"}`}>
-              {marketIntelligence.market_risk_score}
-            </span>
-            <Badge variant={marketIntelligence.market_risk_score <= 39 ? "default" : marketIntelligence.market_risk_score <= 69 ? "secondary" : "destructive"} className="mt-2 text-xs">
-              {marketIntelligence.riskLabel}
-            </Badge>
-          </CardContainer>
-          <CardContainer className="flex flex-col items-center justify-center p-6">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Demand Pressure</span>
-            <span className={`text-5xl font-black ${marketIntelligence.demand_pressure_score >= 61 ? "text-green-500" : marketIntelligence.demand_pressure_score >= 31 ? "text-yellow-500" : "text-destructive"}`}>
-              {marketIntelligence.demand_pressure_score}
-            </span>
-            <Badge variant={marketIntelligence.demand_pressure_score >= 61 ? "default" : marketIntelligence.demand_pressure_score >= 31 ? "secondary" : "destructive"} className="mt-2 text-xs">
-              {marketIntelligence.demand_pressure_score >= 61 ? "Strong" : marketIntelligence.demand_pressure_score >= 31 ? "Moderate" : "Weak"}
-            </Badge>
-          </CardContainer>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
+          <MetricCard
+            icon={<Percent className="h-4 w-4" />}
+            label={<span className="flex items-center gap-1">Cap Rate <HelpTooltip content={METRIC_HELP.cap_rate} /></span>}
+            value={fmtPct(analysis.metrics.cap_rate)}
+            level={metricSignalLevel(analysis.metrics.cap_rate, [0.04, 0.06])}
+            badge={metricBadge(analysis.metrics.cap_rate, [0.04, 0.06])}
+          />
+          <MetricCard
+            icon={<DollarSign className="h-4 w-4" />}
+            label={<span className="flex items-center gap-1">Cash Flow / mo <HelpTooltip content={METRIC_HELP.monthly_cashflow} /></span>}
+            value={fmt(analysis.metrics.monthly_cashflow)}
+            level={metricSignalLevel(analysis.metrics.monthly_cashflow, [0, 200])}
+            badge={metricBadge(analysis.metrics.monthly_cashflow, [0, 200])}
+          />
+          <MetricCard
+            icon={<TrendingUp className="h-4 w-4" />}
+            label={<span className="flex items-center gap-1">Cash on Cash <HelpTooltip content={METRIC_HELP.cash_on_cash} /></span>}
+            value={fmtPct(analysis.metrics.cash_on_cash)}
+            level={metricSignalLevel(analysis.metrics.cash_on_cash, [0.04, 0.08])}
+            badge={metricBadge(analysis.metrics.cash_on_cash, [0.04, 0.08])}
+          />
+          <MetricCard
+            icon={<ShieldCheck className="h-4 w-4" />}
+            label={<span className="flex items-center gap-1">DSCR <HelpTooltip content={METRIC_HELP.dscr} /></span>}
+            value={fmtX(analysis.metrics.dscr)}
+            level={metricSignalLevel(analysis.metrics.dscr, [1.0, 1.25])}
+            badge={metricBadge(analysis.metrics.dscr, [1.0, 1.25])}
+          />
+          <MetricCard
+            icon={<TrendingUp className="h-4 w-4" />}
+            label="Equity Created"
+            value={fmt(analysis.refinance.equity_created)}
+            level={metricSignalLevel(analysis.refinance.equity_created, [0, 20000])}
+            badge={metricBadge(analysis.refinance.equity_created, [0, 20000])}
+          />
         </div>
 
-        {/* Signal Breakdown */}
+        {analysis.strategyInsights.length > 0 && (
+          <CardContainer>
+            <div className="flex items-center gap-2 mb-3">
+              <Lightbulb className="h-4 w-4 text-signal-warning" />
+              <h3 className="text-sm font-semibold text-foreground">Strategy Insights</h3>
+            </div>
+            <div className="space-y-1">
+              {analysis.strategyInsights.map((s, i) => (
+                <p key={i} className="text-sm text-muted-foreground">• {s}</p>
+              ))}
+            </div>
+          </CardContainer>
+        )}
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 4: MARKET INTELLIGENCE
+          ═══════════════════════════════════════════════════════════════════ */}
+      <div className="space-y-4">
+        <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+          <MapPin className="h-5 w-5 text-muted-foreground" /> Market Intelligence <HelpTooltip content={MARKET_HELP} />
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Contextual market intelligence for {deal?.city}, {deal?.state}.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+          <ScoreCard label="Market Strength" score={marketIntelligence.market_strength_score} badgeText={marketIntelligence.strengthLabel} positive={marketIntelligence.market_strength_score >= 61} warning={marketIntelligence.market_strength_score >= 31 && marketIntelligence.market_strength_score < 61} />
+          <ScoreCard label="Market Risk" score={marketIntelligence.market_risk_score} badgeText={marketIntelligence.riskLabel} positive={marketIntelligence.market_risk_score <= 39} warning={marketIntelligence.market_risk_score <= 69 && marketIntelligence.market_risk_score > 39} />
+          <ScoreCard label="Demand Pressure" score={marketIntelligence.demand_pressure_score} badgeText={marketIntelligence.demand_pressure_score >= 61 ? "Strong" : marketIntelligence.demand_pressure_score >= 31 ? "Moderate" : "Weak"} positive={marketIntelligence.demand_pressure_score >= 61} warning={marketIntelligence.demand_pressure_score >= 31 && marketIntelligence.demand_pressure_score < 61} />
+        </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
           {Object.entries(marketIntelligence.signals).map(([key, signal]) => (
             <CardContainer key={key} className="flex flex-col items-start gap-1 p-4">
@@ -655,7 +533,7 @@ const Analysis = () => {
                  <Users className="h-4 w-4" />}
                 <span className="text-xs font-medium">{signal.label}</span>
               </div>
-              <span className={`text-lg font-bold ${signal.level === "strong" ? "text-green-500" : signal.level === "neutral" ? "text-yellow-500" : "text-destructive"}`}>
+              <span className={`text-2xl font-black ${signal.level === "strong" ? "text-signal-positive" : signal.level === "neutral" ? "text-signal-warning" : "text-signal-risk"}`}>
                 {signal.score}
               </span>
               <Badge variant={signal.level === "strong" ? "default" : signal.level === "neutral" ? "secondary" : "destructive"} className="text-[10px] mt-1">
@@ -676,10 +554,9 @@ const Analysis = () => {
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
               <div className="flex flex-col items-center">
                 <span className={`text-4xl font-black ${
-                  marketIntelligence.crime.crime_score <= 3 ? "text-green-500" :
-                  marketIntelligence.crime.crime_score <= 6 ? "text-yellow-500" :
-                  marketIntelligence.crime.crime_score <= 8 ? "text-orange-500" :
-                  "text-destructive"
+                  marketIntelligence.crime.crime_score <= 3 ? "text-signal-positive" :
+                  marketIntelligence.crime.crime_score <= 6 ? "text-signal-warning" :
+                  "text-signal-risk"
                 }`}>
                   {marketIntelligence.crime.crime_score.toFixed(1)}
                 </span>
@@ -722,7 +599,7 @@ const Analysis = () => {
               </Alert>
             )}
             {marketIntelligence.insights.filter(i => i.type === "caution").length > 0 && (
-              <Alert className="border-yellow-500/50 text-yellow-700 dark:text-yellow-400 [&>svg]:text-yellow-600">
+              <Alert className="border-signal-warning/50 text-signal-warning [&>svg]:text-signal-warning">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Market Cautions</AlertTitle>
                 <AlertDescription>
@@ -733,7 +610,7 @@ const Analysis = () => {
               </Alert>
             )}
             {marketIntelligence.insights.filter(i => i.type === "positive").length > 0 && (
-              <Alert className="border-green-500/50 text-green-700 dark:text-green-400 [&>svg]:text-green-600">
+              <Alert className="border-signal-positive/50 text-signal-positive [&>svg]:text-signal-positive">
                 <CheckCircle2 className="h-4 w-4" />
                 <AlertTitle>Positive Signals</AlertTitle>
                 <AlertDescription>
@@ -774,91 +651,280 @@ const Analysis = () => {
         </div>
       </div>
 
-      {/* Strategy Fit Analysis Section */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 5: STRATEGY FIT
+          ═══════════════════════════════════════════════════════════════════ */}
       <StrategyFitSection strategyFit={strategyFit} />
 
-      {/* Stress Testing Section */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 6: STRESS TESTING
+          ═══════════════════════════════════════════════════════════════════ */}
       <StressTestingSection stressResults={stressResults} />
 
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {groups.map(group => (
-          <CardContainer key={group}>
-            <h3 className="text-sm font-semibold text-foreground mb-4">{group}</h3>
-            <div className="space-y-3">
-              {FINANCIAL_FIELDS.filter(f => f.group === group).map(f => (
-                <div key={f.key} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                  <Label className="sm:w-40 text-xs text-muted-foreground shrink-0">{f.label}</Label>
-                  <Input
-                    type="number"
-                    step="any"
-                    className="h-8 text-sm"
-                    value={localFields[f.key] ?? ""}
-                    onChange={e => setField(f.key, e.target.value)}
-                    onBlur={handleBlur}
-                  />
-                </div>
-              ))}
-            </div>
-          </CardContainer>
-        ))}
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 7: DETAILED ANALYSIS (Financial Inputs)
+          ═══════════════════════════════════════════════════════════════════ */}
+      <div className="space-y-4">
+        <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+          <DollarSign className="h-5 w-5 text-muted-foreground" /> Financial Assumptions
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {groups.map(group => (
+            <CardContainer key={group}>
+              <h3 className="text-sm font-semibold text-foreground mb-4">{group}</h3>
+              <div className="space-y-3">
+                {FINANCIAL_FIELDS.filter(f => f.group === group).map(f => (
+                  <div key={f.key} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                    <Label className="sm:w-40 text-xs text-muted-foreground shrink-0">{f.label}</Label>
+                    <Input
+                      type="number"
+                      step="any"
+                      className="h-8 text-sm"
+                      value={localFields[f.key] ?? ""}
+                      onChange={e => setField(f.key, e.target.value)}
+                      onBlur={handleBlur}
+                    />
+                  </div>
+                ))}
+              </div>
+            </CardContainer>
+          ))}
+        </div>
       </div>
 
-      {/* Summary Breakdown */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-        <SummaryCard title="Income" rows={[
-          ["Gross Rent", fmt(analysis.income.gross_rent)],
-          ["Effective Rent", fmt(analysis.income.effective_rent)],
-          ["Other Income", fmt(analysis.income.other_income)],
-        ]} />
-        <SummaryCard title="Expenses" rows={[
-          ["Operating Expenses", fmt(analysis.expenses.operating_expenses)],
-          ["Debt Service", fmt(analysis.financing.annual_debt_service)],
-          ["NOI", fmt(analysis.metrics.noi)],
-        ]} />
-        <SummaryCard title="BRRRR / Refinance" rows={[
-          ["Total Project Cost", fmt(analysis.refinance.total_project_cost)],
-          ["Refinance (75% ARV)", fmt(analysis.refinance.refinance_amount)],
-          ["Cash Out", fmt(analysis.refinance.cash_out)],
-        ]} />
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 8: SUMMARY BREAKDOWN
+          ═══════════════════════════════════════════════════════════════════ */}
+      <div className="space-y-4">
+        <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+          <BarChart3 className="h-5 w-5 text-muted-foreground" /> Financial Summary
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+          <SummaryCard title="Income" rows={[
+            ["Gross Rent", fmt(analysis.income.gross_rent)],
+            ["Effective Rent", fmt(analysis.income.effective_rent)],
+            ["Other Income", fmt(analysis.income.other_income)],
+          ]} />
+          <SummaryCard title="Expenses" rows={[
+            ["Operating Expenses", fmt(analysis.expenses.operating_expenses)],
+            ["Debt Service", fmt(analysis.financing.annual_debt_service)],
+            ["NOI", fmt(analysis.metrics.noi)],
+          ]} />
+          <SummaryCard title="BRRRR / Refinance" rows={[
+            ["Total Project Cost", fmt(analysis.refinance.total_project_cost)],
+            ["Refinance (75% ARV)", fmt(analysis.refinance.refinance_amount)],
+            ["Cash Out", fmt(analysis.refinance.cash_out)],
+          ]} />
+        </div>
       </div>
     </SectionContainer>
   );
 };
 
-function MetricCard({ icon, label, value, color, badge }: {
-  icon: React.ReactNode; label: React.ReactNode; value: string; color: string;
+// ── Deal Intelligence Summary Panel ──────────────────────────────────────
+
+function DealIntelligenceSummary({
+  intelligence,
+  topStrategyLabel,
+  marketStrength,
+  crimeScore,
+  priceGrowth,
+  cashFlowMonthly,
+}: {
+  intelligence: ReturnType<typeof analyzeDealIntelligence>;
+  topStrategyLabel: string;
+  marketStrength: number;
+  crimeScore: number | null;
+  priceGrowth: number;
+  cashFlowMonthly: number;
+}) {
+  const signals = [
+    {
+      label: "Cash Flow",
+      level: cashFlowMonthly >= 200 ? "positive" as const : cashFlowMonthly >= 0 ? "warning" as const : "risk" as const,
+      text: cashFlowMonthly >= 200 ? "Strong" : cashFlowMonthly >= 0 ? "Moderate" : "Negative",
+    },
+    {
+      label: "Market Demand",
+      level: marketStrength >= 61 ? "positive" as const : marketStrength >= 31 ? "warning" as const : "risk" as const,
+      text: marketStrength >= 61 ? "Strong" : marketStrength >= 31 ? "Moderate" : "Weak",
+    },
+    {
+      label: "Crime Risk",
+      level: crimeScore == null ? "neutral" as const : crimeScore <= 3 ? "positive" as const : crimeScore <= 6 ? "warning" as const : "risk" as const,
+      text: crimeScore == null ? "N/A" : crimeScore <= 3 ? "Low" : crimeScore <= 6 ? "Moderate" : "High",
+    },
+    {
+      label: "Price Trend",
+      level: priceGrowth >= 5 ? "positive" as const : priceGrowth >= 0 ? "warning" as const : "risk" as const,
+      text: priceGrowth >= 5 ? "Strong" : priceGrowth >= 0 ? "Stable" : "Declining",
+    },
+  ];
+
+  return (
+    <CardContainer className="p-6 ring-1 ring-border shadow-md">
+      <div className="flex items-center gap-2 mb-5">
+        <Gauge className="h-5 w-5 text-muted-foreground" />
+        <h2 className="text-base font-bold text-foreground">Deal Intelligence Summary</h2>
+        <HelpTooltip content="Composite analysis combining cash flow, returns, risk factors, and market alignment into a single deal score." />
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-6 mb-6">
+        {/* Deal Score */}
+        <div className="flex flex-col items-center text-center">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Deal Score</span>
+          <span className={`text-5xl font-black leading-none ${scoreColor(intelligence.score)}`}>{intelligence.score}</span>
+          <Badge variant={scoreBadgeVariant(intelligence.scoreLabel)} className="mt-2 text-xs">{intelligence.scoreLabel}</Badge>
+        </div>
+
+        {/* Classification */}
+        <div className="flex flex-col items-center text-center justify-center">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Classification</span>
+          <Badge variant={decisionBadgeVariant(intelligence.decision)} className="text-sm px-4 py-1.5">{intelligence.decision}</Badge>
+        </div>
+
+        {/* Recommended Strategy */}
+        <div className="flex flex-col items-center text-center justify-center">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Strategy</span>
+          <span className="text-sm font-semibold text-foreground">{topStrategyLabel}</span>
+        </div>
+
+        {/* Viability Indicators */}
+        <div className="flex flex-col items-center text-center justify-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground">Refinance</span>
+            <Badge variant={viabilityBadgeVariant(intelligence.refinanceViability)} className="text-[10px]">{intelligence.refinanceViability}</Badge>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground">Complexity</span>
+            <Badge variant={complexityBadgeVariant(intelligence.executionComplexity)} className="text-[10px]">{intelligence.executionComplexity}</Badge>
+          </div>
+        </div>
+      </div>
+
+      {/* Key Market Signals */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        {signals.map(s => (
+          <div key={s.label} className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50">
+            <div className={`h-2 w-2 rounded-full ${
+              s.level === "positive" ? "bg-signal-positive" :
+              s.level === "warning" ? "bg-signal-warning" :
+              s.level === "risk" ? "bg-signal-risk" :
+              "bg-signal-neutral"
+            }`} />
+            <div className="min-w-0">
+              <span className="text-[10px] text-muted-foreground block">{s.label}</span>
+              <span className={`text-xs font-semibold ${signalColor(s.level)}`}>{s.text}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Summary */}
+      <p className="text-sm text-muted-foreground italic border-t border-border pt-4">{intelligence.summary}</p>
+
+      {/* Deal Killers */}
+      {intelligence.dealKillers.length > 0 && (
+        <Alert variant="destructive" className="mt-4">
+          <XCircle className="h-4 w-4" />
+          <AlertTitle>Deal Killers</AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc pl-4 space-y-1 mt-1">
+              {intelligence.dealKillers.map((k, i) => <li key={i}>{k}</li>)}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Warnings */}
+      {intelligence.warnings.length > 0 && (
+        <Alert className="mt-3 border-signal-warning/50 text-signal-warning [&>svg]:text-signal-warning">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Warnings</AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc pl-4 space-y-1 mt-1">
+              {intelligence.warnings.map((w, i) => <li key={i}>{w}</li>)}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Strengths */}
+      {intelligence.strengths.length > 0 && (
+        <Alert className="mt-3 border-signal-positive/50 text-signal-positive [&>svg]:text-signal-positive">
+          <CheckCircle2 className="h-4 w-4" />
+          <AlertTitle>Strengths</AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc pl-4 space-y-1 mt-1">
+              {intelligence.strengths.map((s, i) => <li key={i}>{s}</li>)}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+    </CardContainer>
+  );
+}
+
+// ── Metric Card (elevated typography) ──────────────────────────────────
+
+function MetricCard({ icon, label, value, level, badge }: {
+  icon: React.ReactNode; label: React.ReactNode; value: string; level: "positive" | "warning" | "risk";
   badge: "default" | "secondary" | "destructive";
 }) {
   return (
-    <CardContainer className="flex flex-col items-start gap-1 p-4">
+    <CardContainer className="flex flex-col items-start gap-1.5 p-4">
       <div className="flex items-center gap-2 text-muted-foreground">
         {icon}
-        <span className="text-xs font-medium">{label}</span>
+        <span className="text-[11px] font-medium">{label}</span>
       </div>
-      <span className={`text-lg font-bold ${color}`}>{value}</span>
-      <Badge variant={badge} className="text-[10px] mt-1">
+      <span className={`text-2xl font-black tracking-tight ${signalColor(level)}`}>{value}</span>
+      <Badge variant={badge} className="text-[10px] mt-0.5">
         {badge === "default" ? "Strong" : badge === "secondary" ? "Moderate" : "Weak"}
       </Badge>
     </CardContainer>
   );
 }
 
+// ── Score Card (Market scores) ──────────────────────────────────────────
+
+function ScoreCard({ label, score, badgeText, positive, warning }: {
+  label: string; score: number; badgeText: string; positive: boolean; warning: boolean;
+}) {
+  return (
+    <CardContainer className="flex flex-col items-center justify-center p-6">
+      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">{label}</span>
+      <span className={`text-5xl font-black leading-none ${positive ? "text-signal-positive" : warning ? "text-signal-warning" : "text-signal-risk"}`}>
+        {score}
+      </span>
+      <Badge variant={positive ? "default" : warning ? "secondary" : "destructive"} className="mt-2 text-xs">
+        {badgeText}
+      </Badge>
+    </CardContainer>
+  );
+}
+
+// ── Summary Card ────────────────────────────────────────────────────────
+
 function SummaryCard({ title, rows }: { title: string; rows: [string, string][] }) {
   return (
     <CardContainer>
       <h3 className="text-sm font-semibold text-foreground mb-3">{title}</h3>
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {rows.map(([label, val]) => (
           <div key={label} className="flex justify-between text-sm">
             <span className="text-muted-foreground">{label}</span>
-            <span className="font-medium text-foreground">{val}</span>
+            <span className="font-semibold text-foreground tabular-nums">{val}</span>
           </div>
         ))}
       </div>
     </CardContainer>
   );
 }
+
+// ── Strategy Section ────────────────────────────────────────────────────
+
 const STRATEGY_LABELS: Record<keyof StrategyFitResults, string> = {
   brrrr: "BRRRR",
   longTermRental: "Long Term Rental",
@@ -883,14 +949,13 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-        <Target className="h-5 w-5" /> Strategy Fit Analysis <HelpTooltip content={STRATEGY_HELP} />
+      <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+        <Target className="h-5 w-5 text-muted-foreground" /> Strategy Fit Analysis <HelpTooltip content={STRATEGY_HELP} />
       </h2>
       <p className="text-sm text-muted-foreground">
         Deterministic strategy scoring based on deal financials, property metrics, and market signals.
       </p>
 
-      {/* Best Strategy Summary Card */}
       {topScore > 0 && (
         <CardContainer className="p-6 ring-2 ring-primary/30 bg-primary/5">
           <div className="flex items-center gap-2 mb-3">
@@ -904,27 +969,15 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
             </div>
             <div>
               <span className="text-xs text-muted-foreground block mb-1">Fit Level</span>
-              <Badge
-                variant={best.fitLevel === "Strong" ? "default" : best.fitLevel === "Moderate" ? "secondary" : "destructive"}
-                className="text-xs"
-              >
-                {best.fitLevel}
-              </Badge>
+              <Badge variant={best.fitLevel === "Strong" ? "default" : best.fitLevel === "Moderate" ? "secondary" : "destructive"} className="text-xs">{best.fitLevel}</Badge>
             </div>
             <div>
               <span className="text-xs text-muted-foreground block mb-1">Confidence</span>
-              <Badge
-                variant={best.confidenceLevel === "High" ? "default" : best.confidenceLevel === "Medium" ? "secondary" : "destructive"}
-                className="text-xs"
-              >
-                {best.confidenceLevel}
-              </Badge>
+              <Badge variant={best.confidenceLevel === "High" ? "default" : best.confidenceLevel === "Medium" ? "secondary" : "destructive"} className="text-xs">{best.confidenceLevel}</Badge>
             </div>
             <div className="col-span-2 md:col-span-1">
               <span className="text-xs text-muted-foreground block mb-1">Score</span>
-              <span className={`text-2xl font-black ${
-                best.score >= 80 ? "text-green-500" : best.score >= 60 ? "text-yellow-500" : "text-destructive"
-              }`}>{best.score}</span>
+              <span className={`text-2xl font-black ${best.score >= 80 ? "text-signal-positive" : best.score >= 60 ? "text-signal-warning" : "text-signal-risk"}`}>{best.score}</span>
               <span className="text-xs text-muted-foreground ml-1">/ 100</span>
             </div>
           </div>
@@ -938,48 +991,26 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
           const isExpanded = !!expandedSignals[key];
           const hasSignals = strategy.signals.financial.length > 0 || strategy.signals.property.length > 0 || strategy.signals.market.length > 0;
           return (
-            <CardContainer
-              key={key}
-              className={`p-5 flex flex-col gap-3 transition-all ${isTop ? "ring-2 ring-primary shadow-lg" : ""}`}
-            >
+            <CardContainer key={key} className={`p-5 flex flex-col gap-3 transition-all ${isTop ? "ring-2 ring-primary shadow-md" : ""}`}>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-foreground">{STRATEGY_LABELS[key]}</span>
-                {isTop && (
-                  <Badge variant="default" className="text-[10px]">Best Fit</Badge>
-                )}
+                {isTop && <Badge variant="default" className="text-[10px]">Best Fit</Badge>}
               </div>
               <div className="flex items-end gap-2">
-                <span className={`text-3xl font-black ${
-                  strategy.score >= 80 ? "text-green-500" :
-                  strategy.score >= 60 ? "text-yellow-500" :
-                  "text-destructive"
-                }`}>
+                <span className={`text-3xl font-black ${strategy.score >= 80 ? "text-signal-positive" : strategy.score >= 60 ? "text-signal-warning" : "text-signal-risk"}`}>
                   {strategy.score}
                 </span>
                 <span className="text-xs text-muted-foreground mb-1">/ 100</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                <Badge
-                  variant={strategy.fitLevel === "Strong" ? "default" : strategy.fitLevel === "Moderate" ? "secondary" : "destructive"}
-                  className="text-xs"
-                >
-                  {strategy.fitLevel}
-                </Badge>
-                <Badge
-                  variant={strategy.confidenceLevel === "High" ? "default" : strategy.confidenceLevel === "Medium" ? "secondary" : "destructive"}
-                  className="text-[10px]"
-                >
-                  {strategy.confidenceLevel} Confidence
-                </Badge>
+                <Badge variant={strategy.fitLevel === "Strong" ? "default" : strategy.fitLevel === "Moderate" ? "secondary" : "destructive"} className="text-xs">{strategy.fitLevel}</Badge>
+                <Badge variant={strategy.confidenceLevel === "High" ? "default" : strategy.confidenceLevel === "Medium" ? "secondary" : "destructive"} className="text-[10px]">{strategy.confidenceLevel} Confidence</Badge>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">{strategy.explanation}</p>
               {strategy.disqualifiers.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border">
                   {strategy.disqualifiers.map((dq) => (
-                    <span
-                      key={dq}
-                      className="inline-flex items-center gap-1 rounded-md bg-destructive/10 text-destructive px-2 py-0.5 text-[10px] font-medium"
-                    >
+                    <span key={dq} className="inline-flex items-center gap-1 rounded-md bg-destructive/10 text-destructive px-2 py-0.5 text-[10px] font-medium">
                       <AlertTriangle className="h-3 w-3" />
                       {dq}
                     </span>
@@ -988,10 +1019,7 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
               )}
               {hasSignals && (
                 <div className="pt-1 border-t border-border">
-                  <button
-                    onClick={() => toggleSignals(key)}
-                    className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors w-full"
-                  >
+                  <button onClick={() => toggleSignals(key)} className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors w-full">
                     {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                     View Signals
                   </button>
@@ -1019,18 +1047,12 @@ function SignalGroup({ label, signals }: { label: string; signals: string[] }) {
       <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
       <div className="flex flex-wrap gap-1 mt-0.5">
         {signals.map((s) => (
-          <span
-            key={s}
-            className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
-          >
-            {s}
-          </span>
+          <span key={s} className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{s}</span>
         ))}
       </div>
     </div>
   );
 }
-
 
 // ── Stress Testing Section ─────────────────────────────────────────────
 
@@ -1059,27 +1081,26 @@ function StressTestingSection({ stressResults }: { stressResults: StressTestResu
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-        <Zap className="h-5 w-5" /> Stress Testing
+      <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+        <Zap className="h-5 w-5 text-muted-foreground" /> Stress Testing
       </h2>
       <p className="text-sm text-muted-foreground">
         Scenario modeling to evaluate deal resilience under adverse conditions.
       </p>
 
-      {/* Resilience Summary */}
       <CardContainer className={`p-6 ${
-        stressResults.resilience === "Strong" ? "ring-2 ring-green-500/30 bg-green-500/5" :
-        stressResults.resilience === "Moderate" ? "ring-2 ring-yellow-500/30 bg-yellow-500/5" :
-        "ring-2 ring-destructive/30 bg-destructive/5"
+        stressResults.resilience === "Strong" ? "ring-2 ring-signal-positive/30 bg-signal-positive/5" :
+        stressResults.resilience === "Moderate" ? "ring-2 ring-signal-warning/30 bg-signal-warning/5" :
+        "ring-2 ring-signal-risk/30 bg-signal-risk/5"
       }`}>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="flex flex-col items-center sm:items-start gap-1">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Deal Resilience</span>
+            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Deal Resilience</span>
             <div className="flex items-center gap-2">
               <span className={`text-3xl font-black ${
-                stressResults.resilience === "Strong" ? "text-green-500" :
-                stressResults.resilience === "Moderate" ? "text-yellow-500" :
-                "text-destructive"
+                stressResults.resilience === "Strong" ? "text-signal-positive" :
+                stressResults.resilience === "Moderate" ? "text-signal-warning" :
+                "text-signal-risk"
               }`}>
                 {stressResults.resilience}
               </span>
@@ -1092,7 +1113,6 @@ function StressTestingSection({ stressResults }: { stressResults: StressTestResu
         </div>
       </CardContainer>
 
-      {/* Category Tabs */}
       <div className="flex flex-wrap gap-1.5">
         {CATEGORY_ORDER.map(cat => (
           <button
@@ -1109,7 +1129,6 @@ function StressTestingSection({ stressResults }: { stressResults: StressTestResu
         ))}
       </div>
 
-      {/* Comparison Table */}
       <CardContainer className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -1123,7 +1142,6 @@ function StressTestingSection({ stressResults }: { stressResults: StressTestResu
             </tr>
           </thead>
           <tbody>
-            {/* Baseline Row */}
             {filteredScenarios.length > 0 && (
               <tr className="border-b border-border bg-muted/30">
                 <td className="py-2.5 px-4 font-medium text-foreground">Baseline</td>
@@ -1141,9 +1159,7 @@ function StressTestingSection({ stressResults }: { stressResults: StressTestResu
                   <td className="py-2.5 px-4">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-foreground">{sr.scenario.label}</span>
-                      {isNegative && (
-                        <Badge variant="destructive" className="text-[9px] px-1.5 py-0">Negative</Badge>
-                      )}
+                      {isNegative && <Badge variant="destructive" className="text-[9px] px-1.5 py-0">Negative</Badge>}
                     </div>
                     <span className="text-[10px] text-muted-foreground">{sr.scenario.description}</span>
                   </td>
@@ -1183,10 +1199,10 @@ function StressCell({
 
   return (
     <td className="py-2.5 px-4 text-right">
-      <span className={`font-mono text-sm ${belowThreshold ? "text-destructive font-semibold" : "text-foreground"}`}>
+      <span className={`font-mono text-sm ${belowThreshold ? "text-signal-risk font-semibold" : "text-foreground"}`}>
         {formatted}
       </span>
-      <span className={`block text-[10px] font-mono ${isWorse ? "text-destructive" : "text-green-600"}`}>
+      <span className={`block text-[10px] font-mono ${isWorse ? "text-signal-risk" : "text-signal-positive"}`}>
         {deltaFormatted}
       </span>
     </td>

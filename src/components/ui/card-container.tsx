@@ -9,7 +9,7 @@ const CardContainer = ({ children, className }: CardContainerProps) => {
   return (
     <div
       className={cn(
-        "bg-card border border-border rounded-xl p-6",
+        "bg-card border border-border rounded-xl p-6 shadow-sm",
         className
       )}
     >

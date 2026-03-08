@@ -69,6 +69,17 @@ export default {
           success: "hsl(var(--briq-success))",
           warning: "hsl(var(--briq-warning))",
         },
+        signal: {
+          positive: "hsl(var(--signal-positive))",
+          "positive-foreground": "hsl(var(--signal-positive-foreground))",
+          warning: "hsl(var(--signal-warning))",
+          "warning-foreground": "hsl(var(--signal-warning-foreground))",
+          risk: "hsl(var(--signal-risk))",
+          "risk-foreground": "hsl(var(--signal-risk-foreground))",
+          info: "hsl(var(--signal-info))",
+          "info-foreground": "hsl(var(--signal-info-foreground))",
+          neutral: "hsl(var(--signal-neutral))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
