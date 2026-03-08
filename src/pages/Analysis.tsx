@@ -84,7 +84,7 @@ function complexityBadgeVariant(c: string): "default" | "secondary" | "destructi
   return "destructive";
 }
 
-
+const Analysis = () => {
   const { dealId } = useParams();
   const { data: deal, isLoading } = useDeal(dealId);
   const updateDeal = useUpdateDeal();
