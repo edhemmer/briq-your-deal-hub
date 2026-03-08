@@ -235,6 +235,37 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
   const vaDQ = pickDisqualifiers(["High rehab burden", "Negative monthly cash flow", "Low projected rent", "Thin ARV spread"]);
   const ahDQ = pickDisqualifiers(["Soft price trend", "Elevated crime signal", "Thin ARV spread", "Negative monthly cash flow"]);
 
+  // --- Signal Transparency Layer ---
+  const financialSignals: string[] = [];
+  if (cf > 0) financialSignals.push("Positive monthly cash flow");
+  if (cf < 0) financialSignals.push("Negative monthly cash flow");
+  const arvSpreadAmt = arv - totalCost;
+  if (arvSpreadAmt >= pp * 0.20) financialSignals.push("Strong ARV spread");
+  else if (arvSpreadAmt >= pp * 0.10) financialSignals.push("Moderate ARV spread");
+  else financialSignals.push("Weak ARV spread");
+  if (rent > 0 && cf < 0) financialSignals.push("Low projected rent");
+
+  const propertySignals: string[] = [];
+  if (pp > 0 && rehab > pp * 0.40) propertySignals.push("High rehab burden");
+  else if (pp > 0 && rehab >= pp * 0.20) propertySignals.push("Moderate rehab burden");
+  else if (pp > 0) propertySignals.push("Low rehab burden");
+
+  const marketSignals: string[] = [];
+  if (priceTrend != null) {
+    if (priceTrend > 0) marketSignals.push("Positive price trend");
+    else if (priceTrend === 0) marketSignals.push("Stable price trend");
+    else marketSignals.push("Declining price trend");
+  }
+  if (crime != null && crime >= 7) marketSignals.push("Elevated crime signal");
+  if (crime != null && crime <= 3) marketSignals.push("Low crime signal");
+
+  // Each strategy gets the shared signals (max 3 per group)
+  const signals: StrategySignals = {
+    financial: financialSignals.slice(0, 3),
+    property: propertySignals.slice(0, 3),
+    market: marketSignals.slice(0, 3),
+  };
+
   return {
     brrrr: {
       score: brrrrScore,
