@@ -44,7 +44,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
-          <BriqIcon size={26} />
+          <BriqIcon size={26} className="text-primary" />
           {!collapsed && (
             <span className="text-base font-semibold tracking-tight text-sidebar-primary">
               BRIQ
