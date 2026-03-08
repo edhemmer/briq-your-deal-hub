@@ -201,7 +201,12 @@ const Analysis = () => {
   const marketConditionsInput: MarketConditions = useMemo(() => {
     const mc: any = {};
     for (const k of MARKET_FIELD_KEYS) {
-      mc[k] = parseFloat(marketFields[k] || "0") || 0;
+      if (k === "crime_score") {
+        const v = parseFloat(marketFields[k] || "");
+        mc[k] = isNaN(v) ? null : v;
+      } else {
+        mc[k] = parseFloat(marketFields[k] || "0") || 0;
+      }
     }
     return mc as MarketConditions;
   }, [marketFields]);
