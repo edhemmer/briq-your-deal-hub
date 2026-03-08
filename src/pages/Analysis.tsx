@@ -569,7 +569,45 @@ const Analysis = () => {
           ))}
         </div>
 
-        {/* Market Insights */}
+        {/* Crime & Safety Signal */}
+        <CardContainer className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Shield className="h-5 w-5 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground">Crime & Safety Signal</h3>
+          </div>
+          {marketIntelligence.crime.crime_score != null ? (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              <div className="flex flex-col items-center">
+                <span className={`text-4xl font-black ${
+                  marketIntelligence.crime.crime_score <= 3 ? "text-green-500" :
+                  marketIntelligence.crime.crime_score <= 6 ? "text-yellow-500" :
+                  marketIntelligence.crime.crime_score <= 8 ? "text-orange-500" :
+                  "text-destructive"
+                }`}>
+                  {marketIntelligence.crime.crime_score.toFixed(1)}
+                </span>
+                <span className="text-xs text-muted-foreground mt-1">/ 10</span>
+              </div>
+              <div className="space-y-1.5">
+                <Badge variant={
+                  marketIntelligence.crime.crime_score <= 3 ? "default" :
+                  marketIntelligence.crime.crime_score <= 6 ? "secondary" :
+                  "destructive"
+                } className="text-xs">
+                  {marketIntelligence.crime.crime_risk_band}
+                </Badge>
+                <p className="text-sm text-muted-foreground">
+                  {marketIntelligence.crime.crime_score <= 3
+                    ? "Low crime area — supports stable tenancy and neighborhood value retention."
+                    : marketIntelligence.crime.crime_score <= 6
+                    ? "Moderate crime levels — typical for urban markets. Monitor trends."
+                    : "Elevated crime risk — may impact tenant retention, insurance costs, and property values."}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">Crime data unavailable for this location.</p>
+          )}
         {marketIntelligence.insights.length > 0 && (
           <div className="space-y-2">
             {marketIntelligence.insights.filter(i => i.type === "risk").length > 0 && (
