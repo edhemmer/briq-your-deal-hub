@@ -25,9 +25,9 @@ const BriqIcon = ({ size = 28, className = "" }: BriqIconProps) => {
       <rect x="18" y="26" width="20" height="9" rx="1.5" fill="currentColor" opacity="0.6" />
       {/* AI spark - 4-point star */}
       <path
-        d="M33 28 L35 23 L37 28 L42 30 L37 32 L35 37 L33 32 L28 30Z"
-        fill="currentColor"
-        opacity="0.5"
+        d="M31 26 L34 19 L37 26 L44 29 L37 32 L34 39 L31 32 L24 29Z"
+        className="fill-[hsl(var(--briq-accent))]"
+        opacity="0.85"
       />
     </svg>
   );
