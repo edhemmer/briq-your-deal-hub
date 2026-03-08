@@ -12,6 +12,8 @@ import { Lock } from "lucide-react";
 import { useCreateDeal, useDeals } from "@/hooks/useDeals";
 import { useProfile } from "@/hooks/useProfile";
 import { evaluateBillingAccess, getUpgradeMessage } from "@/lib/billingAccess";
+import { HelpTooltip } from "@/components/help/HelpTooltip";
+import { DEAL_INPUT_HELP } from "@/components/help/helpContent";
 
 const propertyTypes = ["Single Family", "Multi-Family", "Commercial", "Land", "Mixed Use"];
 const strategies = ["Buy & Hold", "Fix & Flip", "Wholesale", "BRRRR", "Development"];
