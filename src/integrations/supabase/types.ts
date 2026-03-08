@@ -16,7 +16,9 @@ export type Database = {
     Tables: {
       deals: {
         Row: {
+          annual_property_tax: number | null
           arv: number
+          assessed_value: number | null
           capex_percent: number
           city: string
           closing_costs: number
@@ -28,11 +30,13 @@ export type Database = {
           insurance: number
           interest_rate: number
           loan_term_years: number
+          lot_size: string | null
           maintenance_percent: number
           management_percent: number
           monthly_rent: number
           other_income: number
           property_address: string
+          property_record_url: string | null
           property_type: string | null
           purchase_price: number | null
           rehab_contingency: number
@@ -42,10 +46,14 @@ export type Database = {
           taxes: number
           user_id: string
           vacancy_percent: number
+          year_built: number | null
           zip_code: string | null
+          zoning_type: string | null
         }
         Insert: {
+          annual_property_tax?: number | null
           arv?: number
+          assessed_value?: number | null
           capex_percent?: number
           city: string
           closing_costs?: number
@@ -57,11 +65,13 @@ export type Database = {
           insurance?: number
           interest_rate?: number
           loan_term_years?: number
+          lot_size?: string | null
           maintenance_percent?: number
           management_percent?: number
           monthly_rent?: number
           other_income?: number
           property_address: string
+          property_record_url?: string | null
           property_type?: string | null
           purchase_price?: number | null
           rehab_contingency?: number
@@ -71,10 +81,14 @@ export type Database = {
           taxes?: number
           user_id: string
           vacancy_percent?: number
+          year_built?: number | null
           zip_code?: string | null
+          zoning_type?: string | null
         }
         Update: {
+          annual_property_tax?: number | null
           arv?: number
+          assessed_value?: number | null
           capex_percent?: number
           city?: string
           closing_costs?: number
@@ -86,11 +100,13 @@ export type Database = {
           insurance?: number
           interest_rate?: number
           loan_term_years?: number
+          lot_size?: string | null
           maintenance_percent?: number
           management_percent?: number
           monthly_rent?: number
           other_income?: number
           property_address?: string
+          property_record_url?: string | null
           property_type?: string | null
           purchase_price?: number | null
           rehab_contingency?: number
@@ -100,7 +116,9 @@ export type Database = {
           taxes?: number
           user_id?: string
           vacancy_percent?: number
+          year_built?: number | null
           zip_code?: string | null
+          zoning_type?: string | null
         }
         Relationships: []
       }
