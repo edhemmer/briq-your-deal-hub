@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { BarChart3, TrendingUp, DollarSign, Percent, ShieldCheck, Lightbulb, AlertTriangle, XCircle, CheckCircle2, Gauge, Wrench, RefreshCw, FileSearch, ExternalLink, MapPin, Home, Activity, BarChart2, Users, ShieldAlert, Shield, ChevronDown, ChevronUp, FileText, Download } from "lucide-react";
+import { BarChart3, TrendingUp, DollarSign, Percent, ShieldCheck, Lightbulb, AlertTriangle, XCircle, CheckCircle2, Gauge, Wrench, RefreshCw, FileSearch, ExternalLink, MapPin, Home, Activity, BarChart2, Users, ShieldAlert, Shield, ChevronDown, ChevronUp, FileText, Download, Target, Zap } from "lucide-react";
 import { useDeal, useUpdateDeal } from "@/hooks/useDeals";
 import { analyzeDeal, type DealInput } from "@/lib/dealAnalysisEngine";
 import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
@@ -21,7 +21,6 @@ import { evaluateDealStrategies, type StrategyFitResults, type StrategyFitInput 
 import { runStressTests, STRESS_SCENARIOS, type StressTestResults, type ScenarioResult, type ScenarioCategory, type ResilienceLevel } from "@/lib/stressTestingEngine";
 import { assembleDealReport, generateInvestorPDF, generateCSVExport } from "@/lib/reportEngine";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Target, Zap } from "lucide-react";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   // Acquisition
