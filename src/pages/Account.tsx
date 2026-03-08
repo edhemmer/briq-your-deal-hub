@@ -15,7 +15,14 @@ const Account = () => {
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
   const { data: deals } = useDeals();
-  const billingAccess = evaluateBillingAccess(profile ?? null, deals?.length ?? 0);
+  const billingAccess = evaluateBillingAccess(profile ? {
+    subscription_status: profile.subscription_status,
+    free_deal_used: profile.free_deal_used,
+    admin_override: (profile as any).admin_override ?? false,
+    manual_premium_override: (profile as any).manual_premium_override ?? false,
+    stripe_customer_id: profile.stripe_customer_id,
+    stripe_subscription_id: profile.stripe_subscription_id,
+  } : null, deals?.length ?? 0);
 
   return (
     <SectionContainer>
