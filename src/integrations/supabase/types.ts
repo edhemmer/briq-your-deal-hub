@@ -122,6 +122,98 @@ export type Database = {
         }
         Relationships: []
       }
+      market_conditions: {
+        Row: {
+          absorption_rate: number | null
+          city: string
+          created_at: string
+          data_last_updated: string | null
+          days_on_market: number | null
+          deal_id: string | null
+          demand_pressure_score: number | null
+          id: string
+          inventory_level: number | null
+          job_growth_rate: number | null
+          market_risk_score: number | null
+          market_strength_score: number | null
+          median_home_price: number | null
+          median_rent: number | null
+          months_of_supply: number | null
+          population_growth_rate: number | null
+          price_growth_12mo: number | null
+          price_growth_36mo: number | null
+          price_per_sqft: number | null
+          rent_growth_12mo: number | null
+          rent_growth_36mo: number | null
+          sale_to_list_ratio: number | null
+          state: string
+          user_id: string
+          zipcode: string | null
+        }
+        Insert: {
+          absorption_rate?: number | null
+          city: string
+          created_at?: string
+          data_last_updated?: string | null
+          days_on_market?: number | null
+          deal_id?: string | null
+          demand_pressure_score?: number | null
+          id?: string
+          inventory_level?: number | null
+          job_growth_rate?: number | null
+          market_risk_score?: number | null
+          market_strength_score?: number | null
+          median_home_price?: number | null
+          median_rent?: number | null
+          months_of_supply?: number | null
+          population_growth_rate?: number | null
+          price_growth_12mo?: number | null
+          price_growth_36mo?: number | null
+          price_per_sqft?: number | null
+          rent_growth_12mo?: number | null
+          rent_growth_36mo?: number | null
+          sale_to_list_ratio?: number | null
+          state: string
+          user_id: string
+          zipcode?: string | null
+        }
+        Update: {
+          absorption_rate?: number | null
+          city?: string
+          created_at?: string
+          data_last_updated?: string | null
+          days_on_market?: number | null
+          deal_id?: string | null
+          demand_pressure_score?: number | null
+          id?: string
+          inventory_level?: number | null
+          job_growth_rate?: number | null
+          market_risk_score?: number | null
+          market_strength_score?: number | null
+          median_home_price?: number | null
+          median_rent?: number | null
+          months_of_supply?: number | null
+          population_growth_rate?: number | null
+          price_growth_12mo?: number | null
+          price_growth_36mo?: number | null
+          price_per_sqft?: number | null
+          rent_growth_12mo?: number | null
+          rent_growth_36mo?: number | null
+          sale_to_list_ratio?: number | null
+          state?: string
+          user_id?: string
+          zipcode?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_conditions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
