@@ -55,8 +55,9 @@
     --sidebar-border: 220 13% 93%;
     --sidebar-ring: 220 20% 10%;
 
-    --briq-brand: 220 20% 10%;
-    --briq-brand-foreground: 0 0% 99%;
+    --briq-brand: 222 67% 33%;
+    --briq-brand-foreground: 0 0% 100%;
+    --briq-accent: 172 66% 26%;
     --briq-surface: 220 10% 98%;
     --briq-surface-elevated: 0 0% 100%;
     --briq-text-secondary: 220 10% 52%;
