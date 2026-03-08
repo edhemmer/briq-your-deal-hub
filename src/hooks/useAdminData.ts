@@ -92,12 +92,12 @@ export function useAdminUpdateProfile() {
       if (error) throw error;
 
       // Log audit
-      await supabase.from("admin_audit_log").insert({
+      await supabase.from("admin_audit_log" as any).insert({
         admin_user_id: user.id,
         target_user_id: targetUserId,
         action_type: actionType,
-        details: updates as Record<string, unknown>,
-      });
+        details: updates,
+      } as any);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
