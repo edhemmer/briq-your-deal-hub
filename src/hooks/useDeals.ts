@@ -53,10 +53,20 @@ export function useCreateDeal() {
         .select()
         .single();
       if (error) throw error;
+
+      // Mark free deal as used after first deal creation
+      if (count === 0 || count === null) {
+        await supabase
+          .from("profiles")
+          .update({ free_deal_used: true })
+          .eq("id", user.id);
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deals"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
     },
     onError: (error: Error) => {
       toast({ title: "Error creating deal", description: error.message, variant: "destructive" });

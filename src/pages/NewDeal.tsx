@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateDeal } from "@/hooks/useDeals";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Lock } from "lucide-react";
+import { useCreateDeal, useDeals } from "@/hooks/useDeals";
+import { useProfile } from "@/hooks/useProfile";
+import { evaluateBillingAccess, getUpgradeMessage } from "@/lib/billingAccess";
 
 const propertyTypes = ["Single Family", "Multi-Family", "Commercial", "Land", "Mixed Use"];
 const strategies = ["Buy & Hold", "Fix & Flip", "Wholesale", "BRRRR", "Development"];
@@ -15,6 +19,9 @@ const strategies = ["Buy & Hold", "Fix & Flip", "Wholesale", "BRRRR", "Developme
 export default function NewDeal() {
   const navigate = useNavigate();
   const createDeal = useCreateDeal();
+  const { data: profile } = useProfile();
+  const { data: deals } = useDeals();
+  const billingAccess = evaluateBillingAccess(profile ?? null, deals?.length ?? 0);
   const [form, setForm] = useState({
     property_address: "",
     city: "",
@@ -46,6 +53,16 @@ export default function NewDeal() {
   return (
     <SectionContainer>
       <PageHeader title="New Deal" description="Enter deal details to begin analysis" />
+
+      {!billingAccess.canCreateDeal && (
+        <Alert className="max-w-2xl mb-4 border-border bg-muted/50">
+          <Lock className="h-4 w-4" />
+          <AlertDescription className="text-sm text-muted-foreground">
+            {getUpgradeMessage(billingAccess)}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <CardContainer className="max-w-2xl p-6">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
@@ -101,7 +118,7 @@ export default function NewDeal() {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button type="submit" disabled={createDeal.isPending}>
+            <Button type="submit" disabled={createDeal.isPending || !billingAccess.canCreateDeal}>
               {createDeal.isPending ? "Creating…" : "Create Deal"}
             </Button>
             <Button type="button" variant="outline" onClick={() => navigate("/deals")}>

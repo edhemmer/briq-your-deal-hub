@@ -1,7 +1,8 @@
-import { LayoutDashboard, Briefcase, BarChart3, FileText, User } from "lucide-react";
+import { LayoutDashboard, Briefcase, BarChart3, FileText, User, ShieldCheck } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import BriqIcon from "@/components/BriqIcon";
+import { useIsAdmin } from "@/hooks/useAdminData";
 
 import {
   Sidebar,
@@ -27,11 +28,16 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const { data: isAdmin } = useIsAdmin();
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
     return location.pathname.startsWith(path);
   };
+
+  const allItems = isAdmin
+    ? [...navItems, { title: "Admin", url: "/admin", icon: ShieldCheck }]
+    : navItems;
 
   return (
     <Sidebar collapsible="icon">
@@ -50,7 +56,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {allItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
