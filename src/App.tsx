@@ -10,6 +10,7 @@ import { AdminRoute } from "@/components/AdminRoute";
 import { AppLayout } from "@/components/AppLayout";
 import { OnboardingWalkthrough } from "@/components/help/OnboardingWalkthrough";
 import Index from "./pages/Index";
+import Landing from "./pages/Landing";
 import Deals from "./pages/Deals";
 import NewDeal from "./pages/NewDeal";
 import Analysis from "./pages/Analysis";
