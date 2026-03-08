@@ -43,7 +43,7 @@ export function TopNav() {
           <BriqIcon size={40} className="text-primary" />
           <div className="flex flex-col leading-none">
             <span className="text-base font-bold tracking-tight text-foreground">BRIQ</span>
-            <span className="text-[10px] text-muted-foreground font-medium tracking-wide">Real Estate Deal Intelligence</span>
+            <span className="text-[10px] text-muted-foreground font-medium tracking-wide">Real Estate Deal IQ</span>
           </div>
         </Link>
 

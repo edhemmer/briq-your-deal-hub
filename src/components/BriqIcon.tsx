@@ -13,13 +13,14 @@ const BriqIcon = ({ size = 28, className = "" }: BriqIconProps) => {
       xmlns="http://www.w3.org/2000/svg"
       className={className}
     >
-      {/* 2x2 brick grid */}
-      <rect x="4" y="14" width="14" height="10" rx="2" fill="currentColor" opacity="0.85" />
-      <rect x="22" y="14" width="14" height="10" rx="2" fill="currentColor" opacity="0.85" />
-      <rect x="4" y="28" width="14" height="10" rx="2" fill="currentColor" opacity="0.6" />
-      <rect x="22" y="28" width="14" height="10" rx="2" fill="currentColor" opacity="0.6" />
-      {/* Rising insight element */}
-      <rect x="30" y="4" width="6" height="20" rx="3" fill="currentColor" opacity="1" />
+      {/* Top row - two bricks */}
+      <rect x="2" y="4" width="17" height="12" rx="2" fill="currentColor" opacity="0.7" />
+      <rect x="21" y="4" width="17" height="12" rx="2" fill="currentColor" opacity="0.7" />
+      {/* Bottom row - offset masonry */}
+      <rect x="2" y="20" width="12" height="12" rx="2" fill="currentColor" opacity="0.5" />
+      <rect x="16" y="20" width="12" height="12" rx="2" fill="currentColor" opacity="0.5" />
+      {/* Insight element - rising brick */}
+      <rect x="30" y="20" width="8" height="18" rx="2" className="fill-[hsl(var(--briq-accent))]" opacity="0.9" />
     </svg>
   );
 };
