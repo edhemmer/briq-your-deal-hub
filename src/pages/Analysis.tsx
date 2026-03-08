@@ -196,6 +196,17 @@ const Analysis = () => {
     );
   }, [deal, enrichmentFields]);
 
+  // Market conditions intelligence
+  const marketConditionsInput: MarketConditions = useMemo(() => {
+    const mc: any = {};
+    for (const k of MARKET_FIELD_KEYS) {
+      mc[k] = parseFloat(marketFields[k] || "0") || 0;
+    }
+    return mc as MarketConditions;
+  }, [marketFields]);
+
+  const marketIntelligence = useMemo(() => evaluateMarketIntelligence(marketConditionsInput), [marketConditionsInput]);
+
   // Auto-save on blur
   const handleBlur = useCallback(() => {
     if (!dealId) return;
@@ -219,6 +230,26 @@ const Analysis = () => {
       property_record_url: propertyIntelligence?.countyLookup.url ?? null,
     } as any);
   }, [dealId, enrichmentFields, propertyIntelligence, updateDeal]);
+
+  const handleMarketBlur = useCallback(() => {
+    if (!dealId || !deal) return;
+    const numericFields: Record<string, number> = {};
+    for (const k of MARKET_FIELD_KEYS) {
+      numericFields[k] = parseFloat(marketFields[k] || "0") || 0;
+    }
+    const evaluated = evaluateMarketIntelligence(numericFields as MarketConditions);
+    upsertMarket.mutate({
+      deal_id: dealId,
+      city: deal.city,
+      state: deal.state,
+      zipcode: deal.zip_code || undefined,
+      existing_id: marketConditionsRow?.id,
+      ...numericFields,
+      market_strength_score: evaluated.market_strength_score,
+      market_risk_score: evaluated.market_risk_score,
+      demand_pressure_score: evaluated.demand_pressure_score,
+    });
+  }, [dealId, deal, marketFields, marketConditionsRow, upsertMarket]);
 
   if (!dealId) {
     return (
