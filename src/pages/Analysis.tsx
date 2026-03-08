@@ -240,9 +240,14 @@ const Analysis = () => {
 
   const handleMarketBlur = useCallback(() => {
     if (!dealId || !deal) return;
-    const numericFields: Record<string, number> = {};
+    const numericFields: Record<string, any> = {};
     for (const k of MARKET_FIELD_KEYS) {
-      numericFields[k] = parseFloat(marketFields[k] || "0") || 0;
+      if (k === "crime_score") {
+        const v = parseFloat(marketFields[k] || "");
+        numericFields[k] = isNaN(v) ? null : v;
+      } else {
+        numericFields[k] = parseFloat(marketFields[k] || "0") || 0;
+      }
     }
     const evaluated = evaluateMarketIntelligence(numericFields as unknown as MarketConditions);
     upsertMarket.mutate({
@@ -255,6 +260,7 @@ const Analysis = () => {
       market_strength_score: evaluated.market_strength_score,
       market_risk_score: evaluated.market_risk_score,
       demand_pressure_score: evaluated.demand_pressure_score,
+      crime_risk_band: evaluated.crime.crime_risk_band,
     });
   }, [dealId, deal, marketFields, marketConditionsRow, upsertMarket]);
 
