@@ -2,12 +2,19 @@
 
 import type { AnalysisResult } from "./dealAnalysisEngine";
 
+export interface StrategySignals {
+  financial: string[];
+  property: string[];
+  market: string[];
+}
+
 export interface StrategyScore {
   score: number;
   fitLevel: "Strong" | "Moderate" | "Weak";
   explanation: string;
   confidenceLevel: "High" | "Medium" | "Low";
   disqualifiers: string[];
+  signals: StrategySignals;
 }
 
 export interface StrategyFitResults {
