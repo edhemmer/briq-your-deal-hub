@@ -12,6 +12,8 @@ import { Lock } from "lucide-react";
 import { useCreateDeal, useDeals } from "@/hooks/useDeals";
 import { useProfile } from "@/hooks/useProfile";
 import { evaluateBillingAccess, getUpgradeMessage } from "@/lib/billingAccess";
+import { HelpTooltip } from "@/components/help/HelpTooltip";
+import { DEAL_INPUT_HELP } from "@/components/help/helpContent";
 
 const propertyTypes = ["Single Family", "Multi-Family", "Commercial", "Land", "Mixed Use"];
 const strategies = ["Buy & Hold", "Fix & Flip", "Wholesale", "BRRRR", "Development"];
@@ -115,11 +117,11 @@ export default function NewDeal() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="price">Purchase Price</Label>
+              <Label htmlFor="price" className="flex items-center gap-1.5">Purchase Price <HelpTooltip content={DEAL_INPUT_HELP.purchase_price} /></Label>
               <Input id="price" type="number" value={form.purchase_price} onChange={e => set("purchase_price", e.target.value)} placeholder="250000" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="arv">Estimated ARV</Label>
+              <Label htmlFor="arv" className="flex items-center gap-1.5">Estimated ARV <HelpTooltip content={DEAL_INPUT_HELP.arv} /></Label>
               <Input id="arv" type="number" value={form.estimated_arv} onChange={e => set("estimated_arv", e.target.value)} placeholder="350000" />
             </div>
           </div>

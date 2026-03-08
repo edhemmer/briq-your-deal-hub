@@ -21,6 +21,9 @@ import { evaluateDealStrategies, type StrategyFitResults, type StrategyFitInput 
 import { runStressTests, STRESS_SCENARIOS, type StressTestResults, type ScenarioResult, type ScenarioCategory, type ResilienceLevel } from "@/lib/stressTestingEngine";
 import { assembleDealReport, generateInvestorPDF, generateCSVExport } from "@/lib/reportEngine";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { HelpTooltip } from "@/components/help/HelpTooltip";
+import { DealWorkflowIndicator } from "@/components/help/DealWorkflowIndicator";
+import { METRIC_HELP, STRATEGY_HELP, MARKET_HELP, CRIME_HELP, DEAL_INPUT_HELP } from "@/components/help/helpContent";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   // Acquisition
@@ -371,32 +374,35 @@ const Analysis = () => {
         </DropdownMenu>
       </PageHeader>
 
+      {/* Workflow Indicator */}
+      <DealWorkflowIndicator activeStep={2} className="mb-2" />
+
       {/* Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <MetricCard
           icon={<Percent className="h-4 w-4" />}
-          label="Cap Rate"
+          label={<span className="flex items-center gap-1">Cap Rate <HelpTooltip content={METRIC_HELP.cap_rate} /></span>}
           value={fmtPct(analysis.metrics.cap_rate)}
           color={metricColor(analysis.metrics.cap_rate, [0.04, 0.06])}
           badge={metricBadge(analysis.metrics.cap_rate, [0.04, 0.06])}
         />
         <MetricCard
           icon={<DollarSign className="h-4 w-4" />}
-          label="Cash Flow / mo"
+          label={<span className="flex items-center gap-1">Cash Flow / mo <HelpTooltip content={METRIC_HELP.monthly_cashflow} /></span>}
           value={fmt(analysis.metrics.monthly_cashflow)}
           color={metricColor(analysis.metrics.monthly_cashflow, [0, 200])}
           badge={metricBadge(analysis.metrics.monthly_cashflow, [0, 200])}
         />
         <MetricCard
           icon={<TrendingUp className="h-4 w-4" />}
-          label="Cash on Cash"
+          label={<span className="flex items-center gap-1">Cash on Cash <HelpTooltip content={METRIC_HELP.cash_on_cash} /></span>}
           value={fmtPct(analysis.metrics.cash_on_cash)}
           color={metricColor(analysis.metrics.cash_on_cash, [0.04, 0.08])}
           badge={metricBadge(analysis.metrics.cash_on_cash, [0.04, 0.08])}
         />
         <MetricCard
           icon={<ShieldCheck className="h-4 w-4" />}
-          label="DSCR"
+          label={<span className="flex items-center gap-1">DSCR <HelpTooltip content={METRIC_HELP.dscr} /></span>}
           value={fmtX(analysis.metrics.dscr)}
           color={metricColor(analysis.metrics.dscr, [1.0, 1.25])}
           badge={metricBadge(analysis.metrics.dscr, [1.0, 1.25])}
@@ -428,7 +434,7 @@ const Analysis = () => {
       {/* Deal Intelligence Section */}
       <div className="space-y-4">
         <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-          <Gauge className="h-5 w-5" /> Deal Intelligence
+          <Gauge className="h-5 w-5" /> Deal Intelligence <HelpTooltip content="Composite analysis combining cash flow, returns, risk factors, and market alignment into a single deal score." />
         </h2>
 
         {/* Score + Decision + Summary */}
@@ -600,7 +606,7 @@ const Analysis = () => {
       {/* Local Market Conditions Section */}
       <div className="space-y-4">
         <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-          <MapPin className="h-5 w-5" /> Local Market Conditions
+          <MapPin className="h-5 w-5" /> Local Market Conditions <HelpTooltip content={MARKET_HELP} />
         </h2>
         <p className="text-sm text-muted-foreground">
           Contextual market intelligence for {deal?.city}, {deal?.state}. Enter local market data to evaluate the surrounding environment.
@@ -664,6 +670,7 @@ const Analysis = () => {
           <div className="flex items-center gap-2 mb-4">
             <Shield className="h-5 w-5 text-muted-foreground" />
             <h3 className="text-sm font-semibold text-foreground">Crime & Safety Signal</h3>
+            <HelpTooltip content={CRIME_HELP} />
           </div>
           {marketIntelligence.crime.crime_score != null ? (
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
@@ -820,7 +827,7 @@ const Analysis = () => {
 };
 
 function MetricCard({ icon, label, value, color, badge }: {
-  icon: React.ReactNode; label: string; value: string; color: string;
+  icon: React.ReactNode; label: React.ReactNode; value: string; color: string;
   badge: "default" | "secondary" | "destructive";
 }) {
   return (
@@ -877,7 +884,7 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-        <Target className="h-5 w-5" /> Strategy Fit Analysis
+        <Target className="h-5 w-5" /> Strategy Fit Analysis <HelpTooltip content={STRATEGY_HELP} />
       </h2>
       <p className="text-sm text-muted-foreground">
         Deterministic strategy scoring based on deal financials, property metrics, and market signals.

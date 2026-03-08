@@ -1,4 +1,4 @@
-import { LayoutDashboard, Briefcase, BarChart3, FileText, User, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Briefcase, BarChart3, FileText, User, ShieldCheck, HelpCircle } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import BriqIcon from "@/components/BriqIcon";
@@ -22,6 +22,7 @@ const navItems = [
   { title: "Analysis", url: "/analysis", icon: BarChart3 },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "Account", url: "/account", icon: User },
+  { title: "Help", url: "/help", icon: HelpCircle },
 ];
 
 export function AppSidebar() {

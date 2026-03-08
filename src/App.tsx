@@ -4,9 +4,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { HelpProvider } from "@/contexts/HelpContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminRoute } from "@/components/AdminRoute";
 import { AppLayout } from "@/components/AppLayout";
+import { OnboardingWalkthrough } from "@/components/help/OnboardingWalkthrough";
 import Index from "./pages/Index";
 import Deals from "./pages/Deals";
 import NewDeal from "./pages/NewDeal";
@@ -18,6 +20,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +32,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <HelpProvider>
+          <OnboardingWalkthrough />
           <Routes>
             {/* Public auth routes */}
             <Route path="/login" element={<Login />} />
@@ -93,8 +98,17 @@ const App = () => (
                 </AdminRoute>
               }
             />
+            <Route
+              path="/help"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><Help /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </HelpProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
