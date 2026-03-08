@@ -256,6 +256,10 @@ export type Database = {
           created_at: string
           free_deal_used: boolean | null
           id: string
+          manual_override_note: string | null
+          manual_override_updated_at: string | null
+          manual_override_updated_by: string | null
+          manual_premium_override: boolean | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           subscription_end_date: string | null
@@ -267,6 +271,10 @@ export type Database = {
           created_at?: string
           free_deal_used?: boolean | null
           id: string
+          manual_override_note?: string | null
+          manual_override_updated_at?: string | null
+          manual_override_updated_by?: string | null
+          manual_premium_override?: boolean | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_end_date?: string | null
@@ -278,6 +286,10 @@ export type Database = {
           created_at?: string
           free_deal_used?: boolean | null
           id?: string
+          manual_override_note?: string | null
+          manual_override_updated_at?: string | null
+          manual_override_updated_by?: string | null
+          manual_premium_override?: boolean | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_end_date?: string | null
