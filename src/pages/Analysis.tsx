@@ -16,6 +16,8 @@ import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
 import { resolvePropertyIntelligence, openPropertyRecord } from "@/lib/property/propertyIntelligenceEngine";
 import { evaluateMarketIntelligence, type MarketConditions } from "@/lib/marketIntelligenceEngine";
 import { useMarketConditions, useUpsertMarketConditions } from "@/hooks/useMarketConditions";
+import { evaluateDealStrategies, type StrategyFitResults, type StrategyFitInput } from "@/lib/strategyFitEngine";
+import { Target } from "lucide-react";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   // Acquisition
