@@ -14,7 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      deals: {
+        Row: {
+          city: string
+          created_at: string
+          deal_status: string | null
+          estimated_arv: number | null
+          id: string
+          property_address: string
+          property_type: string | null
+          purchase_price: number | null
+          state: string
+          strategy_primary: string | null
+          user_id: string
+          zip_code: string | null
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          deal_status?: string | null
+          estimated_arv?: number | null
+          id?: string
+          property_address: string
+          property_type?: string | null
+          purchase_price?: number | null
+          state: string
+          strategy_primary?: string | null
+          user_id: string
+          zip_code?: string | null
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          deal_status?: string | null
+          estimated_arv?: number | null
+          id?: string
+          property_address?: string
+          property_type?: string | null
+          purchase_price?: number | null
+          state?: string
+          strategy_primary?: string | null
+          user_id?: string
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          free_deal_used: boolean | null
+          id: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_status: string | null
+        }
+        Insert: {
+          created_at?: string
+          free_deal_used?: boolean | null
+          id: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
+        }
+        Update: {
+          created_at?: string
+          free_deal_used?: boolean | null
+          id?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
