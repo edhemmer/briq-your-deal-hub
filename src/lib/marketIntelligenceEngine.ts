@@ -19,6 +19,7 @@ export interface MarketConditions {
   absorption_rate: number;
   population_growth_rate: number;
   job_growth_rate: number;
+  crime_score?: number | null;
 }
 
 export interface MarketSignalScore {
