@@ -186,6 +186,86 @@ const Analysis = () => {
         </CardContainer>
       )}
 
+      {/* Deal Intelligence Section */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+          <Gauge className="h-5 w-5" /> Deal Intelligence
+        </h2>
+
+        {/* Score + Decision + Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <CardContainer className="flex flex-col items-center justify-center p-6">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Deal Score</span>
+            <span className={`text-5xl font-black ${scoreColor(intelligence.score)}`}>{intelligence.score}</span>
+            <Badge variant={scoreBadgeVariant(intelligence.scoreLabel)} className="mt-2 text-xs">
+              {intelligence.scoreLabel}
+            </Badge>
+          </CardContainer>
+          <CardContainer className="flex flex-col items-center justify-center p-6">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Decision</span>
+            <Badge variant={decisionBadgeVariant(intelligence.decision)} className="text-sm px-4 py-1.5">
+              {intelligence.decision}
+            </Badge>
+          </CardContainer>
+          <CardContainer className="flex flex-col justify-center p-6 gap-3">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">Refinance</span>
+              <Badge variant={viabilityBadgeVariant(intelligence.refinanceViability)} className="text-[10px]">{intelligence.refinanceViability}</Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <Wrench className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">Complexity</span>
+              <Badge variant={complexityBadgeVariant(intelligence.executionComplexity)} className="text-[10px]">{intelligence.executionComplexity}</Badge>
+            </div>
+          </CardContainer>
+        </div>
+
+        {/* Summary */}
+        <CardContainer className="p-4">
+          <p className="text-sm text-muted-foreground italic">{intelligence.summary}</p>
+        </CardContainer>
+
+        {/* Deal Killers */}
+        {intelligence.dealKillers.length > 0 && (
+          <Alert variant="destructive">
+            <XCircle className="h-4 w-4" />
+            <AlertTitle>Deal Killers</AlertTitle>
+            <AlertDescription>
+              <ul className="list-disc pl-4 space-y-1 mt-1">
+                {intelligence.dealKillers.map((k, i) => <li key={i}>{k}</li>)}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Warnings */}
+        {intelligence.warnings.length > 0 && (
+          <Alert className="border-yellow-500/50 text-yellow-700 dark:text-yellow-400 [&>svg]:text-yellow-600">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Warnings</AlertTitle>
+            <AlertDescription>
+              <ul className="list-disc pl-4 space-y-1 mt-1">
+                {intelligence.warnings.map((w, i) => <li key={i}>{w}</li>)}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Strengths */}
+        {intelligence.strengths.length > 0 && (
+          <Alert className="border-green-500/50 text-green-700 dark:text-green-400 [&>svg]:text-green-600">
+            <CheckCircle2 className="h-4 w-4" />
+            <AlertTitle>Strengths</AlertTitle>
+            <AlertDescription>
+              <ul className="list-disc pl-4 space-y-1 mt-1">
+                {intelligence.strengths.map((s, i) => <li key={i}>{s}</li>)}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
+
       {/* Financial Inputs by Group */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {groups.map(group => (
