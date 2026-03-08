@@ -378,7 +378,7 @@ const Analysis = () => {
       <DealWorkflowIndicator activeStep={2} className="mb-2" />
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
         <MetricCard
           icon={<Percent className="h-4 w-4" />}
           label={<span className="flex items-center gap-1">Cap Rate <HelpTooltip content={METRIC_HELP.cap_rate} /></span>}
@@ -438,7 +438,7 @@ const Analysis = () => {
         </h2>
 
         {/* Score + Decision + Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
           <CardContainer className="flex flex-col items-center justify-center p-6">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Deal Score</span>
             <span className={`text-5xl font-black ${scoreColor(intelligence.score)}`}>{intelligence.score}</span>
@@ -613,7 +613,7 @@ const Analysis = () => {
         </p>
 
         {/* Market Strength + Risk Score Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
           <CardContainer className="flex flex-col items-center justify-center p-6">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Market Strength</span>
             <span className={`text-5xl font-black ${marketIntelligence.market_strength_score >= 61 ? "text-green-500" : marketIntelligence.market_strength_score >= 31 ? "text-yellow-500" : "text-destructive"}`}>
@@ -644,7 +644,7 @@ const Analysis = () => {
         </div>
 
         {/* Signal Breakdown */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
           {Object.entries(marketIntelligence.signals).map(([key, signal]) => (
             <CardContainer key={key} className="flex flex-col items-start gap-1 p-4">
               <div className="flex items-center gap-2 text-muted-foreground">
@@ -753,8 +753,8 @@ const Analysis = () => {
               <h3 className="text-sm font-semibold text-foreground mb-4">{group}</h3>
               <div className="space-y-3">
                 {MARKET_FIELDS.filter(f => f.group === group).map(f => (
-                  <div key={f.key} className="flex items-center gap-3">
-                    <Label className="w-44 text-xs text-muted-foreground shrink-0">
+                  <div key={f.key} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                    <Label className="sm:w-44 text-xs text-muted-foreground shrink-0">
                       {f.label}{f.suffix ? ` (${f.suffix})` : ""}
                     </Label>
                     <Input
@@ -787,8 +787,8 @@ const Analysis = () => {
             <h3 className="text-sm font-semibold text-foreground mb-4">{group}</h3>
             <div className="space-y-3">
               {FINANCIAL_FIELDS.filter(f => f.group === group).map(f => (
-                <div key={f.key} className="flex items-center gap-3">
-                  <Label className="w-40 text-xs text-muted-foreground shrink-0">{f.label}</Label>
+                <div key={f.key} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                  <Label className="sm:w-40 text-xs text-muted-foreground shrink-0">{f.label}</Label>
                   <Input
                     type="number"
                     step="any"
@@ -805,7 +805,7 @@ const Analysis = () => {
       </div>
 
       {/* Summary Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
         <SummaryCard title="Income" rows={[
           ["Gross Rent", fmt(analysis.income.gross_rent)],
           ["Effective Rent", fmt(analysis.income.effective_rent)],
