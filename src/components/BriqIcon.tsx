@@ -13,14 +13,16 @@ const BriqIcon = ({ size = 28, className = "" }: BriqIconProps) => {
       xmlns="http://www.w3.org/2000/svg"
       className={className}
     >
-      {/* Top row - two bricks */}
-      <rect x="2" y="4" width="17" height="12" rx="2" fill="currentColor" opacity="0.7" />
-      <rect x="21" y="4" width="17" height="12" rx="2" fill="currentColor" opacity="0.7" />
-      {/* Bottom row - offset masonry */}
-      <rect x="2" y="20" width="12" height="12" rx="2" fill="currentColor" opacity="0.5" />
-      <rect x="16" y="20" width="12" height="12" rx="2" fill="currentColor" opacity="0.5" />
-      {/* Insight element - rising brick */}
-      <rect x="30" y="20" width="8" height="18" rx="2" className="fill-[hsl(var(--briq-accent))]" opacity="0.9" />
+      {/* Row 1 - two bricks */}
+      <rect x="2" y="4" width="18" height="9" rx="1.5" fill="currentColor" opacity="0.85" />
+      <rect x="22" y="4" width="16" height="9" rx="1.5" fill="currentColor" opacity="0.7" />
+      {/* Row 2 - staggered three bricks */}
+      <rect x="2" y="15" width="10" height="9" rx="1.5" fill="currentColor" opacity="0.6" />
+      <rect x="14" y="15" width="16" height="9" rx="1.5" fill="currentColor" opacity="0.8" />
+      <rect x="32" y="15" width="6" height="9" rx="1.5" fill="currentColor" opacity="0.55" />
+      {/* Row 3 - two bricks offset */}
+      <rect x="2" y="26" width="14" height="9" rx="1.5" fill="currentColor" opacity="0.7" />
+      <rect x="18" y="26" width="20" height="9" rx="1.5" fill="currentColor" opacity="0.6" />
     </svg>
   );
 };
