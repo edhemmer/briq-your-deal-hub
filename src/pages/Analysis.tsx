@@ -970,4 +970,166 @@ function SignalGroup({ label, signals }: { label: string; signals: string[] }) {
   );
 }
 
+
+// ── Stress Testing Section ─────────────────────────────────────────────
+
+const CATEGORY_LABELS: Record<ScenarioCategory, string> = {
+  interest: "Interest Rate",
+  rent: "Rent",
+  vacancy: "Vacancy",
+  rehab: "Rehab",
+  expenses: "Expenses",
+};
+
+const CATEGORY_ORDER: ScenarioCategory[] = ["interest", "rent", "vacancy", "rehab", "expenses"];
+
+function resilienceBadgeVariant(level: ResilienceLevel): "default" | "secondary" | "destructive" {
+  if (level === "Strong") return "default";
+  if (level === "Moderate") return "secondary";
+  return "destructive";
+}
+
+function StressTestingSection({ stressResults }: { stressResults: StressTestResults }) {
+  const [activeCategory, setActiveCategory] = useState<ScenarioCategory>("interest");
+
+  const filteredScenarios = stressResults.scenarios.filter(
+    s => s.scenario.category === activeCategory
+  );
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+        <Zap className="h-5 w-5" /> Stress Testing
+      </h2>
+      <p className="text-sm text-muted-foreground">
+        Scenario modeling to evaluate deal resilience under adverse conditions.
+      </p>
+
+      {/* Resilience Summary */}
+      <CardContainer className={`p-6 ${
+        stressResults.resilience === "Strong" ? "ring-2 ring-green-500/30 bg-green-500/5" :
+        stressResults.resilience === "Moderate" ? "ring-2 ring-yellow-500/30 bg-yellow-500/5" :
+        "ring-2 ring-destructive/30 bg-destructive/5"
+      }`}>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex flex-col items-center sm:items-start gap-1">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Deal Resilience</span>
+            <div className="flex items-center gap-2">
+              <span className={`text-3xl font-black ${
+                stressResults.resilience === "Strong" ? "text-green-500" :
+                stressResults.resilience === "Moderate" ? "text-yellow-500" :
+                "text-destructive"
+              }`}>
+                {stressResults.resilience}
+              </span>
+              <Badge variant={resilienceBadgeVariant(stressResults.resilience)} className="text-xs">
+                {stressResults.scenarios.filter(s => s.stressed.monthly_cashflow >= 0).length}/{stressResults.scenarios.length} pass
+              </Badge>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed flex-1">{stressResults.resilienceInsight}</p>
+        </div>
+      </CardContainer>
+
+      {/* Category Tabs */}
+      <div className="flex flex-wrap gap-1.5">
+        {CATEGORY_ORDER.map(cat => (
+          <button
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              activeCategory === cat
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {CATEGORY_LABELS[cat]}
+          </button>
+        ))}
+      </div>
+
+      {/* Comparison Table */}
+      <CardContainer className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Scenario</th>
+              <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cash Flow / mo</th>
+              <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cash Flow / yr</th>
+              <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">DSCR</th>
+              <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">CoC Return</th>
+              <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Break-Even Occ.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {/* Baseline Row */}
+            {filteredScenarios.length > 0 && (
+              <tr className="border-b border-border bg-muted/30">
+                <td className="py-2.5 px-4 font-medium text-foreground">Baseline</td>
+                <td className="py-2.5 px-4 text-right font-mono text-foreground">{fmt(filteredScenarios[0].baseline.monthly_cashflow)}</td>
+                <td className="py-2.5 px-4 text-right font-mono text-foreground">{fmt(filteredScenarios[0].baseline.annual_cashflow)}</td>
+                <td className="py-2.5 px-4 text-right font-mono text-foreground">{fmtX(filteredScenarios[0].baseline.dscr)}</td>
+                <td className="py-2.5 px-4 text-right font-mono text-foreground">{fmtPct(filteredScenarios[0].baseline.cash_on_cash)}</td>
+                <td className="py-2.5 px-4 text-right font-mono text-foreground">{fmtPct(filteredScenarios[0].baseline.break_even_occupancy)}</td>
+              </tr>
+            )}
+            {filteredScenarios.map(sr => {
+              const isNegative = sr.stressed.monthly_cashflow < 0;
+              return (
+                <tr key={sr.scenario.id} className={`border-b border-border ${isNegative ? "bg-destructive/5" : ""}`}>
+                  <td className="py-2.5 px-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-foreground">{sr.scenario.label}</span>
+                      {isNegative && (
+                        <Badge variant="destructive" className="text-[9px] px-1.5 py-0">Negative</Badge>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{sr.scenario.description}</span>
+                  </td>
+                  <StressCell value={sr.stressed.monthly_cashflow} delta={sr.delta.monthly_cashflow} format="currency" />
+                  <StressCell value={sr.stressed.annual_cashflow} delta={sr.delta.annual_cashflow} format="currency" />
+                  <StressCell value={sr.stressed.dscr} delta={sr.delta.dscr} format="x" threshold={1.0} />
+                  <StressCell value={sr.stressed.cash_on_cash} delta={sr.delta.cash_on_cash} format="percent" />
+                  <StressCell value={sr.stressed.break_even_occupancy} delta={sr.delta.break_even_occupancy} format="percent" invertDelta />
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </CardContainer>
+    </div>
+  );
+}
+
+function StressCell({
+  value, delta, format, threshold, invertDelta
+}: {
+  value: number;
+  delta: number;
+  format: "currency" | "percent" | "x";
+  threshold?: number;
+  invertDelta?: boolean;
+}) {
+  const formatted = format === "currency" ? fmt(value) : format === "x" ? fmtX(value) : fmtPct(value);
+  const deltaFormatted = format === "currency"
+    ? (delta >= 0 ? "+" : "") + fmt(delta)
+    : format === "x"
+    ? (delta >= 0 ? "+" : "") + delta.toFixed(2) + "x"
+    : (delta >= 0 ? "+" : "") + (delta * 100).toFixed(2) + "%";
+
+  const isWorse = invertDelta ? delta > 0 : delta < 0;
+  const belowThreshold = threshold != null && value < threshold;
+
+  return (
+    <td className="py-2.5 px-4 text-right">
+      <span className={`font-mono text-sm ${belowThreshold ? "text-destructive font-semibold" : "text-foreground"}`}>
+        {formatted}
+      </span>
+      <span className={`block text-[10px] font-mono ${isWorse ? "text-destructive" : "text-green-600"}`}>
+        {deltaFormatted}
+      </span>
+    </td>
+  );
+}
+
 export default Analysis;
