@@ -216,6 +216,23 @@ const Analysis = () => {
 
   const marketIntelligence = useMemo(() => evaluateMarketIntelligence(marketConditionsInput), [marketConditionsInput]);
 
+  // Strategy Fit Engine
+  const strategyFitInput: StrategyFitInput = useMemo(() => ({
+    purchasePrice: dealInput.purchase_price,
+    rehabCost: dealInput.rehab_cost,
+    arv: dealInput.arv,
+    projectedRent: dealInput.monthly_rent,
+    cashFlowMonthly: analysis.metrics.monthly_cashflow,
+    capRate: analysis.metrics.cap_rate,
+    cashOnCashReturn: analysis.metrics.cash_on_cash,
+    rentTrend: marketConditionsInput.rent_growth_12mo || null,
+    priceTrend: marketConditionsInput.price_growth_12mo || null,
+    inventoryTrend: marketConditionsInput.months_of_supply || null,
+    crimeScore: marketConditionsInput.crime_score ?? null,
+  }), [dealInput, analysis, marketConditionsInput]);
+
+  const strategyFit = useMemo(() => evaluateDealStrategies(strategyFitInput), [strategyFitInput]);
+
   // Auto-save on blur
   const handleBlur = useCallback(() => {
     if (!dealId) return;
