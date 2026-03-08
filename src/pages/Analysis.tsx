@@ -64,6 +64,7 @@ const MARKET_FIELDS: { key: string; label: string; group: string; suffix?: strin
   { key: "absorption_rate", label: "Absorption Rate", group: "Inventory", suffix: "%" },
   { key: "population_growth_rate", label: "Population Growth", group: "Demand", suffix: "%" },
   { key: "job_growth_rate", label: "Job Growth", group: "Demand", suffix: "%" },
+  { key: "crime_score", label: "Crime Score (0-10)", group: "Crime & Safety" },
 ];
 
 function metricColor(value: number, thresholds: [number, number]): string {
