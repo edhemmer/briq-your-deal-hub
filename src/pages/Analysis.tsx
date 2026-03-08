@@ -381,7 +381,7 @@ const Analysis = () => {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <MetricCard
           icon={<Percent className="h-4 w-4" />}
-          label="Cap Rate"
+          label={<span className="flex items-center gap-1">Cap Rate <HelpTooltip content={METRIC_HELP.cap_rate} /></span>}
           value={fmtPct(analysis.metrics.cap_rate)}
           color={metricColor(analysis.metrics.cap_rate, [0.04, 0.06])}
           badge={metricBadge(analysis.metrics.cap_rate, [0.04, 0.06])}
