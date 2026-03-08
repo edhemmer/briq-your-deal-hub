@@ -36,6 +36,9 @@ const App = () => (
           <HelpProvider>
           <OnboardingWalkthrough />
           <Routes>
+            {/* Public landing page */}
+            <Route path="/landing" element={<Landing />} />
+
             {/* Public auth routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
