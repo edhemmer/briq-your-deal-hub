@@ -272,6 +272,7 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
       fitLevel: fitLevel(brrrrScore),
       confidenceLevel: confidenceLevel(brrrrScore),
       disqualifiers: brrrrDQ,
+      signals,
       explanation: brrrrScore >= 80
         ? "Strong rent support and deal spread make this a good BRRRR candidate."
         : brrrrScore >= 60
@@ -283,6 +284,7 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
       fitLevel: fitLevel(ltrScore),
       confidenceLevel: confidenceLevel(ltrScore),
       disqualifiers: ltrDQ,
+      signals,
       explanation: ltrScore >= 80
         ? "Solid cash flow and cap rate support long-term rental strategy."
         : ltrScore >= 60
@@ -294,6 +296,7 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
       fitLevel: fitLevel(mtrScore),
       confidenceLevel: confidenceLevel(mtrScore),
       disqualifiers: mtrDQ,
+      signals,
       explanation: mtrScore >= 80
         ? "Rent levels and market signals support mid-term rental positioning."
         : mtrScore >= 60
@@ -305,6 +308,7 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
       fitLevel: fitLevel(strScore),
       confidenceLevel: confidenceLevel(strScore),
       disqualifiers: strDQ,
+      signals,
       explanation: strScore >= 80
         ? "Strong income potential and favorable market for short-term rental."
         : strScore >= 60
@@ -318,6 +322,7 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
       fitLevel: fitLevel(flipScore),
       confidenceLevel: confidenceLevel(flipScore),
       disqualifiers: flipDQ,
+      signals,
       explanation: flipScore >= 80
         ? "Strong ARV spread and price momentum support a fix-and-flip exit."
         : flipScore >= 60
@@ -329,6 +334,7 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
       fitLevel: fitLevel(vaScore),
       confidenceLevel: confidenceLevel(vaScore),
       disqualifiers: vaDQ,
+      signals,
       explanation: vaScore >= 80
         ? "Rehab costs are well supported by rent upside and cash flow."
         : vaScore >= 60
@@ -340,6 +346,7 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
       fitLevel: fitLevel(ahScore),
       confidenceLevel: confidenceLevel(ahScore),
       disqualifiers: ahDQ,
+      signals,
       explanation: ahScore >= 80
         ? "Positive price trend and tighter inventory support an appreciation hold."
         : ahScore >= 60
