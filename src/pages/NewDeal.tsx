@@ -118,7 +118,7 @@ export default function NewDeal() {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button type="submit" disabled={createDeal.isPending}>
+            <Button type="submit" disabled={createDeal.isPending || !billingAccess.canCreateDeal}>
               {createDeal.isPending ? "Creating…" : "Create Deal"}
             </Button>
             <Button type="button" variant="outline" onClick={() => navigate("/deals")}>
