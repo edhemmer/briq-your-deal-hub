@@ -16,45 +16,90 @@ export type Database = {
     Tables: {
       deals: {
         Row: {
+          arv: number
+          capex_percent: number
           city: string
+          closing_costs: number
           created_at: string
           deal_status: string | null
+          down_payment_percent: number
           estimated_arv: number | null
           id: string
+          insurance: number
+          interest_rate: number
+          loan_term_years: number
+          maintenance_percent: number
+          management_percent: number
+          monthly_rent: number
+          other_income: number
           property_address: string
           property_type: string | null
           purchase_price: number | null
+          rehab_contingency: number
+          rehab_cost: number
           state: string
           strategy_primary: string | null
+          taxes: number
           user_id: string
+          vacancy_percent: number
           zip_code: string | null
         }
         Insert: {
+          arv?: number
+          capex_percent?: number
           city: string
+          closing_costs?: number
           created_at?: string
           deal_status?: string | null
+          down_payment_percent?: number
           estimated_arv?: number | null
           id?: string
+          insurance?: number
+          interest_rate?: number
+          loan_term_years?: number
+          maintenance_percent?: number
+          management_percent?: number
+          monthly_rent?: number
+          other_income?: number
           property_address: string
           property_type?: string | null
           purchase_price?: number | null
+          rehab_contingency?: number
+          rehab_cost?: number
           state: string
           strategy_primary?: string | null
+          taxes?: number
           user_id: string
+          vacancy_percent?: number
           zip_code?: string | null
         }
         Update: {
+          arv?: number
+          capex_percent?: number
           city?: string
+          closing_costs?: number
           created_at?: string
           deal_status?: string | null
+          down_payment_percent?: number
           estimated_arv?: number | null
           id?: string
+          insurance?: number
+          interest_rate?: number
+          loan_term_years?: number
+          maintenance_percent?: number
+          management_percent?: number
+          monthly_rent?: number
+          other_income?: number
           property_address?: string
           property_type?: string | null
           purchase_price?: number | null
+          rehab_contingency?: number
+          rehab_cost?: number
           state?: string
           strategy_primary?: string | null
+          taxes?: number
           user_id?: string
+          vacancy_percent?: number
           zip_code?: string | null
         }
         Relationships: []
