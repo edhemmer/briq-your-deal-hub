@@ -85,6 +85,14 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AppLayout><Admin /></AppLayout>
+                </AdminRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
