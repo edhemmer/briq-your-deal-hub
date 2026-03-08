@@ -753,8 +753,8 @@ const Analysis = () => {
               <h3 className="text-sm font-semibold text-foreground mb-4">{group}</h3>
               <div className="space-y-3">
                 {MARKET_FIELDS.filter(f => f.group === group).map(f => (
-                  <div key={f.key} className="flex items-center gap-3">
-                    <Label className="w-44 text-xs text-muted-foreground shrink-0">
+                  <div key={f.key} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                    <Label className="sm:w-44 text-xs text-muted-foreground shrink-0">
                       {f.label}{f.suffix ? ` (${f.suffix})` : ""}
                     </Label>
                     <Input
