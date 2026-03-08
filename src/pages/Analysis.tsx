@@ -670,6 +670,7 @@ const Analysis = () => {
           <div className="flex items-center gap-2 mb-4">
             <Shield className="h-5 w-5 text-muted-foreground" />
             <h3 className="text-sm font-semibold text-foreground">Crime & Safety Signal</h3>
+            <HelpTooltip content={CRIME_HELP} />
           </div>
           {marketIntelligence.crime.crime_score != null ? (
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
