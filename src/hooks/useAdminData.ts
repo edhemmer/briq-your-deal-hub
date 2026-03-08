@@ -57,7 +57,7 @@ export function useAdminAuditLog() {
     queryKey: ["admin-audit-log"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("admin_audit_log")
+        .from("admin_audit_log" as any)
         .select("*")
         .order("created_at", { ascending: false })
         .limit(50);
