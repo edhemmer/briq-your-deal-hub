@@ -33,6 +33,11 @@ export interface MarketInsight {
   message: string;
 }
 
+export interface CrimeIntelligence {
+  crime_score: number | null;
+  crime_risk_band: string | null;
+}
+
 export interface MarketIntelligenceResult {
   market_strength_score: number;
   market_risk_score: number;
@@ -47,6 +52,7 @@ export interface MarketIntelligenceResult {
     demand: MarketSignalScore;
   };
   insights: MarketInsight[];
+  crime: CrimeIntelligence;
 }
 
 function clamp(v: number, min: number, max: number): number {
