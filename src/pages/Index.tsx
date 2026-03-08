@@ -1,6 +1,5 @@
-import { Plus, Briefcase, TrendingUp, Clock } from "lucide-react";
+import { Plus, Briefcase, TrendingUp, Clock, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
 import { CardContainer } from "@/components/ui/card-container";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +23,29 @@ const Index = () => {
 
   return (
     <SectionContainer>
-      <PageHeader title="BRIQ" description="Real Estate Deal Intelligence" />
+      {/* Hero Command Panel */}
+      <div className="mx-auto max-w-[900px] mb-8">
+        <CardContainer className="relative overflow-hidden p-8 md:p-10 bg-gradient-to-br from-primary/[0.04] via-card to-card border-primary/10">
+          <div className="flex flex-col items-center text-center">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+              Deal Intelligence Workspace
+            </h1>
+            <p className="mt-2 text-base font-medium text-primary tracking-wide">
+              Deal Chaos → Clarity
+            </p>
+            <p className="mt-3 text-sm text-muted-foreground max-w-lg leading-relaxed">
+              Analyze a property to generate financial insights, market signals, and risk intelligence.
+            </p>
+            <Link to="/deals/new" className="mt-6">
+              <Button size="lg" className="gap-2 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all">
+                <Plus className="h-4 w-4" />
+                Analyze Deal
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </CardContainer>
+      </div>
 
       {isLoading ? (
         <div className="space-y-6">
@@ -36,23 +57,17 @@ const Index = () => {
           <Skeleton className="h-48 rounded-xl" />
         </div>
       ) : totalDeals === 0 ? (
-        <CardContainer className="py-20 px-6">
+        <CardContainer className="py-16 px-6">
           <div className="flex flex-col items-center text-center max-w-md mx-auto">
             <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
               <TrendingUp className="h-6 w-6 text-primary" />
             </div>
             <h2 className="text-lg font-semibold text-foreground">
-              BRIQ Deal Intelligence Workspace
+              No deals yet
             </h2>
             <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-              Analyze a property to generate financial insights, market signals, and risk intelligence.
+              Create your first deal analysis to get started with BRIQ.
             </p>
-            <Link to="/deals/new" className="mt-6">
-              <Button size="lg" className="gap-2 rounded-lg font-medium shadow-sm hover:shadow-md transition-shadow">
-                <Plus className="h-4 w-4" />
-                Analyze Deal
-              </Button>
-            </Link>
           </div>
         </CardContainer>
       ) : (
@@ -62,7 +77,7 @@ const Index = () => {
               <div className="flex items-center gap-3">
                 <Briefcase className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Total Deals</p>
+                  <p className="text-xs text-muted-foreground font-medium">Total Deals</p>
                   <p className="text-2xl font-black text-foreground tabular-nums">{totalDeals}</p>
                 </div>
               </div>
@@ -71,7 +86,7 @@ const Index = () => {
               <div className="flex items-center gap-3">
                 <TrendingUp className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Avg Deal Score</p>
+                  <p className="text-xs text-muted-foreground font-medium">Avg Deal Score</p>
                   <p className="text-2xl font-black text-muted-foreground">—</p>
                 </div>
               </div>
@@ -80,7 +95,7 @@ const Index = () => {
               <div className="flex items-center gap-3">
                 <Clock className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Recent Deals</p>
+                  <p className="text-xs text-muted-foreground font-medium">Recent Deals</p>
                   <p className="text-2xl font-black text-foreground tabular-nums">{recentDeals.length}</p>
                 </div>
               </div>
@@ -88,7 +103,7 @@ const Index = () => {
           </div>
 
           <CardContainer className="p-5">
-            <h2 className="text-sm font-medium text-muted-foreground mb-4">Recent Deals</h2>
+            <h2 className="text-sm font-semibold text-foreground mb-4">Recent Deals</h2>
             <div className="divide-y divide-border">
               {recentDeals.map((deal) => (
                 <Link

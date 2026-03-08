@@ -25,8 +25,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 20% 10%;
 
-    --primary: 220 20% 10%;
-    --primary-foreground: 0 0% 99%;
+    --primary: 222 67% 33%;
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 220 10% 95%;
     --secondary-foreground: 220 20% 10%;
@@ -55,19 +55,20 @@
     --sidebar-border: 220 13% 93%;
     --sidebar-ring: 220 20% 10%;
 
-    --briq-brand: 220 20% 10%;
-    --briq-brand-foreground: 0 0% 99%;
+    --briq-brand: 222 67% 33%;
+    --briq-brand-foreground: 0 0% 100%;
+    --briq-accent: 172 66% 26%;
     --briq-surface: 220 10% 98%;
     --briq-surface-elevated: 0 0% 100%;
     --briq-text-secondary: 220 10% 52%;
     --briq-success: 152 60% 40%;
     --briq-warning: 38 92% 50%;
 
-    --signal-positive: 152 60% 40%;
+    --signal-positive: 142 72% 29%;
     --signal-positive-foreground: 0 0% 100%;
     --signal-warning: 38 92% 50%;
     --signal-warning-foreground: 0 0% 100%;
-    --signal-risk: 0 72% 51%;
+    --signal-risk: 0 84% 60%;
     --signal-risk-foreground: 0 0% 100%;
     --signal-info: 217 91% 60%;
     --signal-info-foreground: 0 0% 100%;
@@ -84,8 +85,8 @@
     --popover: 220 16% 8%;
     --popover-foreground: 220 10% 94%;
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 220 16% 6%;
+    --primary: 222 67% 55%;
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 14%;
     --secondary-foreground: 220 10% 94%;
@@ -112,8 +113,9 @@
     --sidebar-border: 220 14% 14%;
     --sidebar-ring: 220 10% 70%;
 
-    --briq-brand: 0 0% 98%;
-    --briq-brand-foreground: 220 16% 6%;
+    --briq-brand: 222 67% 55%;
+    --briq-brand-foreground: 0 0% 100%;
+    --briq-accent: 172 66% 40%;
     --briq-surface: 220 14% 10%;
     --briq-surface-elevated: 220 16% 12%;
     --briq-text-secondary: 220 10% 55%;
