@@ -81,3 +81,45 @@ export function useDeleteDeal() {
     },
   });
 }
+
+export function useDeal(dealId: string | undefined) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["deal", dealId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("deals")
+        .select("*")
+        .eq("id", dealId!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user && !!dealId,
+  });
+}
+
+export function useUpdateDeal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: TablesUpdate<"deals"> & { id: string }) => {
+      const { data, error } = await supabase
+        .from("deals")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["deals"] });
+      queryClient.invalidateQueries({ queryKey: ["deal", data.id] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error updating deal", description: error.message, variant: "destructive" });
+    },
+  });
+}
