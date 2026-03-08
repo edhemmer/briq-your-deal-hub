@@ -434,7 +434,7 @@ const Analysis = () => {
       {/* Deal Intelligence Section */}
       <div className="space-y-4">
         <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-          <Gauge className="h-5 w-5" /> Deal Intelligence
+          <Gauge className="h-5 w-5" /> Deal Intelligence <HelpTooltip content="Composite analysis combining cash flow, returns, risk factors, and market alignment into a single deal score." />
         </h2>
 
         {/* Score + Decision + Summary */}
