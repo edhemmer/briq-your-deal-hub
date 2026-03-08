@@ -41,6 +41,31 @@ const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boole
   { key: "capex_percent", label: "CapEx %", isPercent: true, group: "Expenses" },
 ];
 
+const MARKET_FIELD_KEYS = [
+  "median_rent", "rent_growth_12mo", "rent_growth_36mo",
+  "median_home_price", "price_growth_12mo", "price_growth_36mo",
+  "price_per_sqft", "inventory_level", "months_of_supply",
+  "days_on_market", "sale_to_list_ratio", "absorption_rate",
+  "population_growth_rate", "job_growth_rate",
+] as const;
+
+const MARKET_FIELDS: { key: string; label: string; group: string; suffix?: string }[] = [
+  { key: "median_rent", label: "Median Rent", group: "Rent Market", suffix: "/mo" },
+  { key: "rent_growth_12mo", label: "Rent Growth (12mo)", group: "Rent Market", suffix: "%" },
+  { key: "rent_growth_36mo", label: "Rent Growth (36mo)", group: "Rent Market", suffix: "%" },
+  { key: "median_home_price", label: "Median Home Price", group: "Sales Market" },
+  { key: "price_growth_12mo", label: "Price Growth (12mo)", group: "Sales Market", suffix: "%" },
+  { key: "price_growth_36mo", label: "Price Growth (36mo)", group: "Sales Market", suffix: "%" },
+  { key: "price_per_sqft", label: "Price per Sq Ft", group: "Sales Market" },
+  { key: "inventory_level", label: "Inventory Level", group: "Inventory" },
+  { key: "months_of_supply", label: "Months of Supply", group: "Inventory" },
+  { key: "days_on_market", label: "Days on Market", group: "Inventory" },
+  { key: "sale_to_list_ratio", label: "Sale-to-List Ratio", group: "Inventory" },
+  { key: "absorption_rate", label: "Absorption Rate", group: "Inventory", suffix: "%" },
+  { key: "population_growth_rate", label: "Population Growth", group: "Demand", suffix: "%" },
+  { key: "job_growth_rate", label: "Job Growth", group: "Demand", suffix: "%" },
+];
+
 function metricColor(value: number, thresholds: [number, number]): string {
   if (value >= thresholds[1]) return "text-green-500";
   if (value >= thresholds[0]) return "text-yellow-500";
