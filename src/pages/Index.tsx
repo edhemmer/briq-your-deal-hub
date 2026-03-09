@@ -13,7 +13,7 @@ const Index = () => {
   const recentDeals = deals?.slice(0, 5) ?? [];
 
   const formatCurrency = (val: number | null) =>
-    val != null ? `$${val.toLocaleString()}` : "—";
+  val != null ? `$${val.toLocaleString()}` : "—";
 
   const statusColor = (s: string | null) => {
     if (s === "completed") return "default";
@@ -28,10 +28,10 @@ const Index = () => {
         <CardContainer className="relative overflow-hidden p-8 md:p-10 bg-gradient-to-br from-primary/[0.04] via-card to-card border-primary/10">
           <div className="flex flex-col items-center text-center">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-              Deal Intelligence Workspace
+              Deal  IQ Workspace
             </h1>
             <p className="mt-2 text-base font-medium text-primary tracking-wide">
-              Deal Chaos → Clarity
+              Guessing Chaos → Deal Clarity
             </p>
             <p className="mt-3 text-sm text-muted-foreground max-w-lg leading-relaxed">
               Analyze a property to generate financial insights, market signals, and risk intelligence.
@@ -47,17 +47,17 @@ const Index = () => {
         </CardContainer>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-6">
+      {isLoading ?
+      <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 rounded-xl" />
-            ))}
+            {Array.from({ length: 3 }).map((_, i) =>
+          <Skeleton key={i} className="h-20 rounded-xl" />
+          )}
           </div>
           <Skeleton className="h-48 rounded-xl" />
-        </div>
-      ) : totalDeals === 0 ? (
-        <CardContainer className="py-16 px-6">
+        </div> :
+      totalDeals === 0 ?
+      <CardContainer className="py-16 px-6">
           <div className="flex flex-col items-center text-center max-w-md mx-auto">
             <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
               <TrendingUp className="h-6 w-6 text-primary" />
@@ -69,9 +69,9 @@ const Index = () => {
               Create your first deal analysis to get started with BRIQ.
             </p>
           </div>
-        </CardContainer>
-      ) : (
-        <div className="space-y-6">
+        </CardContainer> :
+
+      <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <CardContainer className="p-5">
               <div className="flex items-center gap-3">
@@ -105,12 +105,12 @@ const Index = () => {
           <CardContainer className="p-5">
             <h2 className="text-sm font-semibold text-foreground mb-4">Recent Deals</h2>
             <div className="divide-y divide-border">
-              {recentDeals.map((deal) => (
-                <Link
-                  key={deal.id}
-                  to={`/analysis/${deal.id}`}
-                  className="py-3 flex items-center justify-between gap-4 hover:bg-muted/30 -mx-2 px-2 rounded-lg transition-colors"
-                >
+              {recentDeals.map((deal) =>
+            <Link
+              key={deal.id}
+              to={`/analysis/${deal.id}`}
+              className="py-3 flex items-center justify-between gap-4 hover:bg-muted/30 -mx-2 px-2 rounded-lg transition-colors">
+              
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{deal.property_address}</p>
                     <p className="text-xs text-muted-foreground">
@@ -124,13 +124,13 @@ const Index = () => {
                     </span>
                   </div>
                 </Link>
-              ))}
+            )}
             </div>
           </CardContainer>
         </div>
-      )}
-    </SectionContainer>
-  );
+      }
+    </SectionContainer>);
+
 };
 
 export default Index;
