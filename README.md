@@ -1,73 +1,134 @@
-# Welcome to your Lovable project
+# BRIQ — Real Estate Deal Intelligence Platform
 
-## Project info
+> **Stop the information chaos. Get deal clarity.**
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+BRIQ transforms property listings into actionable deal intelligence — financial analysis, market signals, risk scoring, and strategy fit — in minutes instead of hours.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## Overview
 
-**Use Lovable**
+BRIQ is a modern SaaS platform purpose-built for real estate investors who need fast, reliable deal analysis without the spreadsheet overhead. Drop a listing, get comprehensive intelligence.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+**Live Application:** [briq-ai.lovable.app](https://briq-ai.lovable.app)
 
-Changes made via Lovable will be committed automatically to this repo.
+---
 
-**Use your preferred IDE**
+## Core Capabilities
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+| Module | Description |
+|--------|-------------|
+| **Deal Analysis Engine** | Cap rate, cash-on-cash return, DSCR, monthly cash flow — calculated instantly from deal inputs |
+| **Deal Intelligence Scoring** | Composite 0-100 score combining financials, market conditions, and risk factors |
+| **Market Intelligence** | Price trends, rent growth, days on market, supply levels, demand pressure |
+| **Strategy Fit Evaluation** | Automated alignment to Buy & Hold, Fix & Flip, BRRRR, or Wholesale strategies |
+| **Stress Testing** | Scenario modeling for rate increases, vacancy spikes, and rent compression |
+| **Report Generation** | Export-ready PDF reports for partners, lenders, and records |
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+---
 
-Follow these steps:
+## Technology Stack
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS |
+| **UI Components** | shadcn/ui, Radix primitives |
+| **Backend** | Lovable Cloud (Supabase/PostgreSQL) |
+| **Authentication** | Email/password with Row Level Security (RLS) |
+| **Payments** | Stripe subscription billing |
+| **AI Processing** | Lovable AI for listing extraction |
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+---
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Project Structure
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```
+src/
+├── components/          # Reusable UI components
+│   ├── ui/              # shadcn/ui primitives
+│   └── help/            # Contextual help system
+├── contexts/            # React context providers
+├── hooks/               # Custom React hooks
+├── lib/                 # Business logic engines
+│   ├── dealAnalysisEngine.ts
+│   ├── dealIntelligenceEngine.ts
+│   ├── marketIntelligenceEngine.ts
+│   ├── strategyFitEngine.ts
+│   ├── stressTestingEngine.ts
+│   └── property/        # County property lookups
+├── pages/               # Route components
+└── integrations/        # External service clients
+
+supabase/
+├── functions/           # Edge functions (AI extraction)
+├── migrations/          # Database schema versions
+└── config.toml          # Supabase configuration
+```
+
+---
+
+## Local Development
+
+**Prerequisites:** Node.js 18+ (recommend using [nvm](https://github.com/nvm-sh/nvm))
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd briq
+
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Application runs at `http://localhost:5173`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+---
 
-**Use GitHub Codespaces**
+## Environment Configuration
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Environment variables are managed automatically by Lovable Cloud. For local development, create `.env.local`:
 
-## What technologies are used for this project?
+```env
+VITE_SUPABASE_URL=<your-supabase-url>
+VITE_SUPABASE_PUBLISHABLE_KEY=<your-anon-key>
+```
 
-This project is built with:
+---
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Database Schema
 
-## How can I deploy this project?
+| Table | Purpose |
+|-------|---------|
+| `deals` | Property deal records with financial inputs |
+| `market_conditions` | Market intelligence data per deal/location |
+| `profiles` | User profiles with subscription status |
+| `user_roles` | Role-based access control (admin/user) |
+| `admin_audit_log` | Administrative action tracking |
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+All tables implement Row Level Security (RLS) for data isolation.
 
-## Can I connect a custom domain to my Lovable project?
+---
 
-Yes, you can!
+## Deployment
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+**Frontend:** Publish via Lovable dashboard (Settings → Publish)
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+**Backend:** Edge functions and database migrations deploy automatically on commit.
+
+**Custom Domain:** Configure in Project → Settings → Domains
+
+---
+
+## Documentation
+
+- **[INVESTOR_OVERVIEW.md](./INVESTOR_OVERVIEW.md)** — Business overview and roadmap for stakeholders
+- **[Lovable Docs](https://docs.lovable.dev)** — Platform documentation
+
+---
+
+## License
+
+Proprietary. © InLight AI. All rights reserved.
