@@ -31,7 +31,7 @@ const Index = () => {
               Deal  IQ Workspace
             </h1>
             <p className="mt-2 text-base font-medium text-primary tracking-wide">
-              Guessing Chaos → Deal Clarity
+              Information Chaos → Deal Clarity
             </p>
             <p className="mt-3 text-sm text-muted-foreground max-w-lg leading-relaxed">
               Analyze a property to generate financial insights, market signals, and risk intelligence.
