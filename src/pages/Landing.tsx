@@ -79,7 +79,7 @@ export default function Landing() {
           </div>
 
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.1]">
-            Stop the guessing chaos.
+            Stop the information chaos.
             <br />
             <span className="text-primary">Get deal clarity.</span>
           </h1>
