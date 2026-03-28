@@ -64,6 +64,12 @@
     --briq-success: 142 71% 45%;
     --briq-warning: 38 92% 50%;
 
+    --landing-glow: 217 91% 60%;
+    --landing-glow-soft: 217 91% 80%;
+    --landing-gradient-start: 217 91% 60%;
+    --landing-gradient-end: 199 89% 48%;
+    --landing-surface-glass: 210 40% 98% / 0.7;
+
     --signal-positive: 142 71% 45%;
     --signal-positive-foreground: 0 0% 100%;
     --signal-warning: 38 92% 50%;
@@ -121,6 +127,12 @@
     --briq-text-secondary: 215 16% 55%;
     --briq-success: 142 71% 45%;
     --briq-warning: 38 92% 50%;
+
+    --landing-glow: 217 91% 65%;
+    --landing-glow-soft: 217 60% 35%;
+    --landing-gradient-start: 217 91% 60%;
+    --landing-gradient-end: 199 89% 48%;
+    --landing-surface-glass: 222 47% 8% / 0.7;
 
     --signal-positive: 142 65% 50%;
     --signal-positive-foreground: 0 0% 100%;
