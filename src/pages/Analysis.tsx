@@ -1,7 +1,8 @@
 import { useParams } from "react-router-dom";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import type { StrategySignals } from "@/lib/strategyFitEngine";
-import { evaluateInputSufficiency, type InputSufficiency } from "@/lib/normalizedDealState";
+import { evaluateInputSufficiency, type InputSufficiency, buildNormalizedDealState, enrichWithMarketData, updateFinancialFields } from "@/lib/normalizedDealState";
+import { runCanonicalAnalysis, deriveDealInput, deriveMarketConditions } from "@/lib/canonicalEngineLayer";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
@@ -21,13 +22,13 @@ import {
   Target, Zap
 } from "lucide-react";
 import { useDeal, useUpdateDeal } from "@/hooks/useDeals";
-import { analyzeDeal, type DealInput } from "@/lib/dealAnalysisEngine";
-import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
+import type { DealInput } from "@/lib/dealAnalysisEngine";
 import { resolvePropertyIntelligence, openPropertyRecord } from "@/lib/property/propertyIntelligenceEngine";
-import { evaluateMarketIntelligence, type MarketConditions } from "@/lib/marketIntelligenceEngine";
+import type { MarketConditions } from "@/lib/marketIntelligenceEngine";
 import { useMarketConditions, useUpsertMarketConditions } from "@/hooks/useMarketConditions";
-import { evaluateDealStrategies, type StrategyFitResults, type StrategyFitInput } from "@/lib/strategyFitEngine";
-import { runStressTests, STRESS_SCENARIOS, type StressTestResults, type ScenarioResult, type ScenarioCategory, type ResilienceLevel } from "@/lib/stressTestingEngine";
+import type { StrategyFitResults } from "@/lib/strategyFitEngine";
+import type { ScenarioResult, ScenarioCategory, ResilienceLevel, StressTestResults } from "@/lib/stressTestingEngine";
+import { STRESS_SCENARIOS } from "@/lib/stressTestingEngine";
 import { assembleDealReport, generateInvestorPDF, generateCSVExport } from "@/lib/reportEngine";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { HelpTooltip } from "@/components/help/HelpTooltip";
@@ -191,17 +192,45 @@ const Analysis = () => {
     setMarketFields(prev => ({ ...prev, [key]: val }));
   }, []);
 
-  const dealInput: DealInput = useMemo(() => {
-    const input: any = {};
+  // ── Build Canonical NormalizedDealState ──
+  const normalizedState = useMemo(() => {
+    if (!deal) return null;
+    const baseState = buildNormalizedDealState(deal as any);
+    
+    // Apply local field overrides (user edits not yet persisted)
+    const fieldUpdates: Record<string, number> = {};
     for (const f of FINANCIAL_FIELDS) {
       const raw = parseFloat(localFields[f.key] || "0") || 0;
-      input[f.key] = f.isPercent ? raw / 100 : raw;
+      fieldUpdates[f.key] = f.isPercent ? raw / 100 : raw;
     }
-    return input as DealInput;
-  }, [localFields]);
+    const withFields = updateFinancialFields(baseState, fieldUpdates);
+    
+    // Enrich with market data
+    const marketRow: Record<string, number | null> = {};
+    for (const k of MARKET_FIELD_KEYS) {
+      if (k === "crime_score") {
+        const v = parseFloat(marketFields[k] || "");
+        marketRow[k] = isNaN(v) ? null : v;
+      } else {
+        marketRow[k] = parseFloat(marketFields[k] || "0") || 0;
+      }
+    }
+    return enrichWithMarketData(withFields, marketRow);
+  }, [deal, localFields, marketFields]);
 
-  const analysis = useMemo(() => analyzeDeal(dealInput), [dealInput]);
-  const intelligence = useMemo(() => analyzeDealIntelligence(analysis), [analysis]);
+  // ── Run Canonical Analysis Pipeline ──
+  const canonicalOutput = useMemo(() => {
+    if (!normalizedState) return null;
+    return runCanonicalAnalysis(normalizedState);
+  }, [normalizedState]);
+
+  const dealInput = canonicalOutput?.dealInput ?? ({} as DealInput);
+  const analysis = canonicalOutput?.analysis!;
+  const intelligence = canonicalOutput?.intelligence!;
+  const marketConditionsInput = canonicalOutput?.marketConditions ?? ({} as MarketConditions);
+  const marketIntelligence = canonicalOutput?.marketIntelligence!;
+  const strategyFit = canonicalOutput?.strategyFit!;
+  const stressResults = canonicalOutput?.stressResults!;
 
   // ── Input Sufficiency Check ──
   const inputSufficiency: InputSufficiency = useMemo(() => {
@@ -238,38 +267,6 @@ const Analysis = () => {
     );
   }, [deal, enrichmentFields]);
 
-  const marketConditionsInput: MarketConditions = useMemo(() => {
-    const mc: any = {};
-    for (const k of MARKET_FIELD_KEYS) {
-      if (k === "crime_score") {
-        const v = parseFloat(marketFields[k] || "");
-        mc[k] = isNaN(v) ? null : v;
-      } else {
-        mc[k] = parseFloat(marketFields[k] || "0") || 0;
-      }
-    }
-    return mc as MarketConditions;
-  }, [marketFields]);
-
-  const marketIntelligence = useMemo(() => evaluateMarketIntelligence(marketConditionsInput), [marketConditionsInput]);
-
-  const strategyFitInput: StrategyFitInput = useMemo(() => ({
-    purchasePrice: dealInput.purchase_price,
-    rehabCost: dealInput.rehab_cost,
-    arv: dealInput.arv,
-    projectedRent: dealInput.monthly_rent,
-    cashFlowMonthly: analysis.metrics.monthly_cashflow,
-    capRate: analysis.metrics.cap_rate,
-    cashOnCashReturn: analysis.metrics.cash_on_cash,
-    rentTrend: marketConditionsInput.rent_growth_12mo || null,
-    priceTrend: marketConditionsInput.price_growth_12mo || null,
-    inventoryTrend: marketConditionsInput.months_of_supply || null,
-    crimeScore: marketConditionsInput.crime_score ?? null,
-  }), [dealInput, analysis, marketConditionsInput]);
-
-  const strategyFit = useMemo(() => evaluateDealStrategies(strategyFitInput), [strategyFitInput]);
-  const stressResults = useMemo(() => runStressTests(dealInput, analysis), [dealInput, analysis]);
-
   const handleBlur = useCallback(() => {
     if (!dealId) return;
     const updates: Record<string, number> = {};
@@ -304,7 +301,8 @@ const Analysis = () => {
         numericFields[k] = parseFloat(marketFields[k] || "0") || 0;
       }
     }
-    const evaluated = evaluateMarketIntelligence(numericFields as unknown as MarketConditions);
+    // Use canonical market intelligence from the pipeline
+    const mi = marketIntelligence;
     upsertMarket.mutate({
       deal_id: dealId,
       city: deal.city,
@@ -312,12 +310,12 @@ const Analysis = () => {
       zipcode: deal.zip_code || undefined,
       existing_id: marketConditionsRow?.id,
       ...numericFields,
-      market_strength_score: evaluated.market_strength_score,
-      market_risk_score: evaluated.market_risk_score,
-      demand_pressure_score: evaluated.demand_pressure_score,
-      crime_risk_band: evaluated.crime.crime_risk_band,
+      market_strength_score: mi?.market_strength_score ?? 0,
+      market_risk_score: mi?.market_risk_score ?? 0,
+      demand_pressure_score: mi?.demand_pressure_score ?? 0,
+      crime_risk_band: mi?.crime?.crime_risk_band ?? null,
     });
-  }, [dealId, deal, marketFields, marketConditionsRow, upsertMarket]);
+  }, [dealId, deal, marketFields, marketConditionsRow, upsertMarket, marketIntelligence]);
 
   // Report generation helper
   const buildReport = useCallback(() => {
@@ -818,7 +816,7 @@ function DealIntelligenceSummary({
   priceGrowth,
   cashFlowMonthly,
 }: {
-  intelligence: ReturnType<typeof analyzeDealIntelligence>;
+  intelligence: import("@/lib/dealIntelligenceEngine").DealIntelligenceResult;
   topStrategyLabel: string;
   marketStrength: number;
   crimeScore: number | null;
