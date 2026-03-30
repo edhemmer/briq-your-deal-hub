@@ -772,6 +772,7 @@ const Analysis = () => {
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 8: SUMMARY BREAKDOWN
           ═══════════════════════════════════════════════════════════════════ */}
+      {inputSufficiency.canAnalyze && (
       <div className="space-y-4">
         <h2 className="text-base font-bold text-foreground flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-muted-foreground" /> Financial Summary
@@ -794,6 +795,7 @@ const Analysis = () => {
           ]} />
         </div>
       </div>
+      )}
     </SectionContainer>
   );
 };
