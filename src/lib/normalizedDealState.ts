@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.5.1 — Canonical Normalized Deal State
+ * BRIQ v1.5.2 — Canonical Normalized Deal State
  * 
  * Single source of truth for downstream calculations.
  * Clearly distinguishes sourced, user-entered, and unavailable values.
@@ -7,12 +7,18 @@
  * Architecture direction:
  *   dataSourceLayer → normalizedDealState → canonical engines → UI
  * 
+ * v1.5.2: Added enriched property, rent range, and financing range fields.
+ * All data flows through canonical resolvers before reaching this state.
+ * 
  * This is the migration target for future engine rewiring.
  * Do not create competing state systems.
  */
 
 import type { SourcedValue } from "./dataSourceLayer";
 import { userValue, unavailableValue, hasValue } from "./dataSourceLayer";
+import { getPropertyData } from "./resolvers/propertyDataResolver";
+import { getRentData } from "./resolvers/rentDataResolver";
+import { getFinancingData } from "./resolvers/financingDataResolver";
 
 // ── Normalized Deal State ──────────────────────────────────────────────
 
