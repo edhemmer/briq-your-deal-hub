@@ -2,7 +2,8 @@ import { useParams } from "react-router-dom";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import type { StrategySignals } from "@/lib/strategyFitEngine";
 import { evaluateInputSufficiency, type InputSufficiency, buildNormalizedDealState, enrichWithMarketData, updateFinancialFields } from "@/lib/normalizedDealState";
-import { runCanonicalAnalysis, deriveDealInput, deriveMarketConditions } from "@/lib/canonicalEngineLayer";
+import { deriveDealInput, deriveMarketConditions } from "@/lib/canonicalEngineLayer";
+import { useCanonicalAnalysis } from "@/hooks/useCanonicalAnalysis";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
