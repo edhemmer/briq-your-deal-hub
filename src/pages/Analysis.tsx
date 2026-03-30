@@ -1,7 +1,8 @@
 import { useParams } from "react-router-dom";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import type { StrategySignals } from "@/lib/strategyFitEngine";
-import { evaluateInputSufficiency, type InputSufficiency } from "@/lib/normalizedDealState";
+import { evaluateInputSufficiency, type InputSufficiency, buildNormalizedDealState, enrichWithMarketData, updateFinancialFields } from "@/lib/normalizedDealState";
+import { runCanonicalAnalysis, deriveDealInput, deriveMarketConditions } from "@/lib/canonicalEngineLayer";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
@@ -21,13 +22,14 @@ import {
   Target, Zap
 } from "lucide-react";
 import { useDeal, useUpdateDeal } from "@/hooks/useDeals";
-import { analyzeDeal, type DealInput } from "@/lib/dealAnalysisEngine";
+import type { DealInput } from "@/lib/dealAnalysisEngine";
 import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
 import { resolvePropertyIntelligence, openPropertyRecord } from "@/lib/property/propertyIntelligenceEngine";
 import { evaluateMarketIntelligence, type MarketConditions } from "@/lib/marketIntelligenceEngine";
 import { useMarketConditions, useUpsertMarketConditions } from "@/hooks/useMarketConditions";
-import { evaluateDealStrategies, type StrategyFitResults, type StrategyFitInput } from "@/lib/strategyFitEngine";
-import { runStressTests, STRESS_SCENARIOS, type StressTestResults, type ScenarioResult, type ScenarioCategory, type ResilienceLevel } from "@/lib/stressTestingEngine";
+import type { StrategyFitResults, StrategyFitInput } from "@/lib/strategyFitEngine";
+import type { StressTestResults, ScenarioResult, ScenarioCategory, ResilienceLevel } from "@/lib/stressTestingEngine";
+import { STRESS_SCENARIOS } from "@/lib/stressTestingEngine";
 import { assembleDealReport, generateInvestorPDF, generateCSVExport } from "@/lib/reportEngine";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { HelpTooltip } from "@/components/help/HelpTooltip";
