@@ -816,7 +816,7 @@ function DealIntelligenceSummary({
   priceGrowth,
   cashFlowMonthly,
 }: {
-  intelligence: ReturnType<typeof analyzeDealIntelligence>;
+  intelligence: import("@/lib/dealIntelligenceEngine").DealIntelligenceResult;
   topStrategyLabel: string;
   marketStrength: number;
   crimeScore: number | null;
