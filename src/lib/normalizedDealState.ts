@@ -40,6 +40,10 @@ export interface NormalizedDealState {
   rent: {
     monthlyRent: SourcedValue<number>;
     otherIncome: SourcedValue<number>;
+    estimatedRentLow: SourcedValue<number | null>;
+    estimatedRentMedian: SourcedValue<number | null>;
+    estimatedRentHigh: SourcedValue<number | null>;
+    rentPerSqft: SourcedValue<number | null>;
   };
   financing: {
     purchasePrice: SourcedValue<number>;
