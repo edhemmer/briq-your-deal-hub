@@ -584,7 +584,7 @@ const Analysis = () => {
 
         {inputSufficiency.hasMarketData && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
-          {Object.entries(marketIntelligence.signals).map(([key, signal]) => (
+          {Object.entries(marketIntelligence.signals).map(([key, signal]: [string, any]) => (
             <CardContainer key={key} className="flex flex-col items-start gap-1 p-4">
               <div className="flex items-center gap-2 text-muted-foreground">
                 {key === "rent" ? <Home className="h-4 w-4" /> :
