@@ -97,7 +97,7 @@ export function getFinancingData(
     rateMin: unavailableValue<number | null>(null),
     rateAvg: unavailableValue<number | null>(null),
     rateMax: unavailableValue<number | null>(null),
-    loanType: unavailableValue<number | null>(null),
+    loanType: unavailableValue<string | null>(null),
     term: unavailableValue<number | null>(null),
     downPaymentPercent: unavailableValue<number | null>(null),
     purchasePrice: unavailableValue<number | null>(null),
