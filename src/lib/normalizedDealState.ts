@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.5.1 — Canonical Normalized Deal State
+ * BRIQ v1.5.2 — Canonical Normalized Deal State
  * 
  * Single source of truth for downstream calculations.
  * Clearly distinguishes sourced, user-entered, and unavailable values.
@@ -7,12 +7,18 @@
  * Architecture direction:
  *   dataSourceLayer → normalizedDealState → canonical engines → UI
  * 
+ * v1.5.2: Added enriched property, rent range, and financing range fields.
+ * All data flows through canonical resolvers before reaching this state.
+ * 
  * This is the migration target for future engine rewiring.
  * Do not create competing state systems.
  */
 
 import type { SourcedValue } from "./dataSourceLayer";
 import { userValue, unavailableValue, hasValue } from "./dataSourceLayer";
+import { getPropertyData } from "./resolvers/propertyDataResolver";
+import { getRentData } from "./resolvers/rentDataResolver";
+import { getFinancingData } from "./resolvers/financingDataResolver";
 
 // ── Normalized Deal State ──────────────────────────────────────────────
 
@@ -24,6 +30,7 @@ export interface NormalizedDealState {
     zipCode: SourcedValue<string | null>;
     propertyType: SourcedValue<string | null>;
     yearBuilt: SourcedValue<number | null>;
+    squareFootage: SourcedValue<number | null>;
     lotSize: SourcedValue<string | null>;
     zoningType: SourcedValue<string | null>;
     assessedValue: SourcedValue<number | null>;
@@ -33,6 +40,10 @@ export interface NormalizedDealState {
   rent: {
     monthlyRent: SourcedValue<number>;
     otherIncome: SourcedValue<number>;
+    estimatedRentLow: SourcedValue<number | null>;
+    estimatedRentMedian: SourcedValue<number | null>;
+    estimatedRentHigh: SourcedValue<number | null>;
+    rentPerSqft: SourcedValue<number | null>;
   };
   financing: {
     purchasePrice: SourcedValue<number>;
@@ -41,6 +52,9 @@ export interface NormalizedDealState {
     interestRate: SourcedValue<number>;
     loanTermYears: SourcedValue<number>;
     arv: SourcedValue<number>;
+    rateMin: SourcedValue<number | null>;
+    rateMax: SourcedValue<number | null>;
+    loanType: SourcedValue<string | null>;
   };
   expenses: {
     taxes: SourcedValue<number>;
@@ -190,23 +204,61 @@ export function buildNormalizedDealState(
     strategy_primary: string | null;
   }
 ): NormalizedDealState {
+  // Resolve property data through canonical resolver
+  const propertyResolved = getPropertyData(
+    { address: deal.property_address, city: deal.city, state: deal.state, zipCode: deal.zip_code },
+    {
+      propertyType: deal.property_type,
+      yearBuilt: deal.year_built,
+      lotSize: deal.lot_size,
+      assessedValue: deal.assessed_value,
+      annualPropertyTax: deal.annual_property_tax,
+      zoningType: deal.zoning_type,
+      propertyRecordUrl: deal.property_record_url,
+    }
+  );
+
+  // Resolve rent data through canonical resolver
+  const rentResolved = getRentData(
+    { address: deal.property_address, city: deal.city, state: deal.state, zipCode: deal.zip_code, propertyType: deal.property_type },
+    { monthlyRent: deal.monthly_rent, otherIncome: deal.other_income }
+  );
+
+  // Resolve financing data through canonical resolver
+  const financingResolved = getFinancingData(
+    {},
+    {
+      interestRate: deal.interest_rate,
+      loanTermYears: deal.loan_term_years,
+      downPaymentPercent: deal.down_payment_percent,
+      purchasePrice: deal.purchase_price,
+      closingCosts: deal.closing_costs,
+      arv: deal.arv,
+    }
+  );
+
   return {
     property: {
-      address: userValue(deal.property_address),
+      address: propertyResolved.address,
       city: userValue(deal.city),
       state: userValue(deal.state),
       zipCode: svStr(deal.zip_code),
-      propertyType: svStr(deal.property_type),
-      yearBuilt: sv(deal.year_built),
-      lotSize: svStr(deal.lot_size),
-      zoningType: svStr(deal.zoning_type),
-      assessedValue: sv(deal.assessed_value),
-      annualPropertyTax: sv(deal.annual_property_tax),
-      propertyRecordUrl: svStr(deal.property_record_url),
+      propertyType: propertyResolved.propertyType,
+      yearBuilt: propertyResolved.yearBuilt,
+      squareFootage: propertyResolved.squareFootage,
+      lotSize: propertyResolved.lotSize,
+      zoningType: propertyResolved.zoningType,
+      assessedValue: propertyResolved.assessedValue,
+      annualPropertyTax: propertyResolved.annualPropertyTax,
+      propertyRecordUrl: propertyResolved.propertyRecordUrl,
     },
     rent: {
       monthlyRent: sv(deal.monthly_rent),
       otherIncome: sv(deal.other_income),
+      estimatedRentLow: rentResolved.estimatedRentLow,
+      estimatedRentMedian: rentResolved.estimatedRentMedian,
+      estimatedRentHigh: rentResolved.estimatedRentHigh,
+      rentPerSqft: rentResolved.rentPerSqft,
     },
     financing: {
       purchasePrice: sv(deal.purchase_price),
@@ -215,6 +267,9 @@ export function buildNormalizedDealState(
       interestRate: sv(deal.interest_rate),
       loanTermYears: sv(deal.loan_term_years),
       arv: sv(deal.arv),
+      rateMin: financingResolved.rateMin,
+      rateMax: financingResolved.rateMax,
+      loanType: financingResolved.loanType,
     },
     expenses: {
       taxes: sv(deal.taxes),
