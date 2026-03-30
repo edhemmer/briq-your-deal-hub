@@ -158,14 +158,16 @@ All tables implement RLS policies:
 | `reportEngine.ts` | Report Generation | PDF/CSV export |
 | `property/propertyIntelligenceEngine.ts` | Property Intelligence | County record resolution |
 
-### Canonical Data Flow (v1.5.1+)
+### Canonical Data Flow (v1.5.3)
 
 ```
-dataSourceLayer → normalizedDealState → canonical engines → UI
+dataSourceLayer → normalizedDealState → canonicalEngineLayer → UI
 ```
 
-- **dataSourceLayer**: Defines `SourcedValue<T>` types that distinguish `user_input`, `extracted`, `county_record`, `market_data`, `calculated`, and `unavailable` origins
-- **normalizedDealState**: Builds the canonical deal object from DB rows; evaluates input sufficiency before allowing analysis output
+- **dataSourceLayer** (`dataSourceLayer.ts`): Defines `SourcedValue<T>` types that distinguish `user_input`, `extracted`, `county_record`, `market_data`, `calculated`, and `unavailable` origins
+- **Resolvers** (`resolvers/`): `propertyDataResolver`, `rentDataResolver`, `financingDataResolver` — normalize raw data into `SourcedValue` objects
+- **normalizedDealState** (`normalizedDealState.ts`): Builds the canonical deal object from DB rows; supports market data enrichment via `enrichWithMarketData()` and field updates via `updateFinancialFields()`
+- **canonicalEngineLayer** (`canonicalEngineLayer.ts`): Single orchestration point — derives `DealInput`, `MarketConditions`, and `StrategyFitInput` from `NormalizedDealState`, then runs all engines via `runCanonicalAnalysis()`. No analytical engine is called directly from UI components.
 - **Input Sufficiency**: Analysis sections are gated — if required inputs (purchase price, monthly rent) are missing, clean "awaiting data" states are shown instead of misleading zero-input outputs
 
 ---
