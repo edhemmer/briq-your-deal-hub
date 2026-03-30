@@ -148,13 +148,25 @@ All tables implement RLS policies:
 
 | File | Engine | Responsibility |
 |------|--------|----------------|
+| `dataSourceLayer.ts` | Data Source Layer | Canonical data orchestration & sourced value types |
+| `normalizedDealState.ts` | Normalized Deal State | Single source of truth for deal data & input sufficiency |
 | `dealAnalysisEngine.ts` | Deal Analysis | Financial KPI calculations |
 | `dealIntelligenceEngine.ts` | Deal Intelligence | Composite scoring |
 | `marketIntelligenceEngine.ts` | Market Intelligence | Location-based signals |
 | `strategyFitEngine.ts` | Strategy Fit | Investment strategy alignment |
 | `stressTestingEngine.ts` | Stress Testing | Scenario modeling |
-| `reportEngine.ts` | Report Generation | PDF export |
+| `reportEngine.ts` | Report Generation | PDF/CSV export |
 | `property/propertyIntelligenceEngine.ts` | Property Intelligence | County record resolution |
+
+### Canonical Data Flow (v1.5.1+)
+
+```
+dataSourceLayer → normalizedDealState → canonical engines → UI
+```
+
+- **dataSourceLayer**: Defines `SourcedValue<T>` types that distinguish `user_input`, `extracted`, `county_record`, `market_data`, `calculated`, and `unavailable` origins
+- **normalizedDealState**: Builds the canonical deal object from DB rows; evaluates input sufficiency before allowing analysis output
+- **Input Sufficiency**: Analysis sections are gated — if required inputs (purchase price, monthly rent) are missing, clean "awaiting data" states are shown instead of misleading zero-input outputs
 
 ---
 
@@ -208,4 +220,4 @@ All tables implement RLS policies:
 
 ---
 
-*Last Updated: March 2026*
+*Last Updated: March 2026 — v1.5.1 Data Foundation Patch*

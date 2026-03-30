@@ -1,6 +1,8 @@
 import { useParams } from "react-router-dom";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import type { StrategySignals } from "@/lib/strategyFitEngine";
+import { evaluateInputSufficiency, type InputSufficiency } from "@/lib/normalizedDealState";
+
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
 import { EmptyStateContainer } from "@/components/ui/empty-state-container";
@@ -201,6 +203,27 @@ const Analysis = () => {
   const analysis = useMemo(() => analyzeDeal(dealInput), [dealInput]);
   const intelligence = useMemo(() => analyzeDealIntelligence(analysis), [analysis]);
 
+  // ── Input Sufficiency Check ──
+  const inputSufficiency: InputSufficiency = useMemo(() => {
+    const hasAnyMarketFields = MARKET_FIELD_KEYS.some(k => {
+      const v = parseFloat(marketFields[k] || "");
+      return !isNaN(v) && v !== 0;
+    });
+    return evaluateInputSufficiency(
+      {
+        purchase_price: dealInput.purchase_price || null,
+        monthly_rent: dealInput.monthly_rent,
+        arv: dealInput.arv,
+        interest_rate: dealInput.interest_rate,
+        loan_term_years: dealInput.loan_term_years,
+        down_payment_percent: dealInput.down_payment_percent,
+        taxes: dealInput.taxes,
+        insurance: dealInput.insurance,
+      },
+      { hasAnyMarketFields }
+    );
+  }, [dealInput, marketFields]);
+
   const propertyIntelligence = useMemo(() => {
     if (!deal) return null;
     return resolvePropertyIntelligence(
@@ -383,9 +406,24 @@ const Analysis = () => {
 
       <DealWorkflowIndicator activeStep={2} className="mb-2" />
 
+      {/* ── Input Sufficiency Warning ── */}
+      {!inputSufficiency.canAnalyze && (
+        <Alert className="border-signal-warning/50 text-signal-warning [&>svg]:text-signal-warning">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Awaiting Deal Data</AlertTitle>
+          <AlertDescription>
+            <p className="mb-1">Enter required financial inputs to generate analysis.</p>
+            {inputSufficiency.missingFields.length > 0 && (
+              <p className="text-xs">Missing: {inputSufficiency.missingFields.join(", ")}</p>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 1: DEAL INTELLIGENCE SUMMARY (Investment decision first)
           ═══════════════════════════════════════════════════════════════════ */}
+      {inputSufficiency.canAnalyze ? (
       <DealIntelligenceSummary
         intelligence={intelligence}
         topStrategyLabel={STRATEGY_LABELS[topStrategy[0]]}
@@ -394,6 +432,15 @@ const Analysis = () => {
         priceGrowth={marketConditionsInput.price_growth_12mo}
         cashFlowMonthly={analysis.metrics.monthly_cashflow}
       />
+      ) : (
+        <CardContainer className="p-6">
+          <EmptyStateContainer
+            icon={<Gauge className="h-10 w-10" />}
+            title="No analysis available"
+            description="Enter purchase price and monthly rent to generate deal intelligence."
+          />
+        </CardContainer>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 2: PROPERTY OVERVIEW
@@ -448,6 +495,7 @@ const Analysis = () => {
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 3: DEAL METRICS
           ═══════════════════════════════════════════════════════════════════ */}
+      {inputSufficiency.canAnalyze ? (
       <div className="space-y-4">
         <h2 className="text-base font-bold text-foreground flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-muted-foreground" /> Deal Metrics
@@ -504,6 +552,15 @@ const Analysis = () => {
           </CardContainer>
         )}
       </div>
+      ) : (
+        <CardContainer className="p-6">
+          <EmptyStateContainer
+            icon={<BarChart3 className="h-10 w-10" />}
+            title="No metrics available"
+            description="Enter financial inputs to calculate deal metrics."
+          />
+        </CardContainer>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 4: MARKET INTELLIGENCE
@@ -516,12 +573,19 @@ const Analysis = () => {
           Contextual market intelligence for {deal?.city}, {deal?.state}.
         </p>
 
+        {inputSufficiency.hasMarketData ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
           <ScoreCard label="Market Strength" score={marketIntelligence.market_strength_score} badgeText={marketIntelligence.strengthLabel} positive={marketIntelligence.market_strength_score >= 61} warning={marketIntelligence.market_strength_score >= 31 && marketIntelligence.market_strength_score < 61} />
           <ScoreCard label="Market Risk" score={marketIntelligence.market_risk_score} badgeText={marketIntelligence.riskLabel} positive={marketIntelligence.market_risk_score <= 39} warning={marketIntelligence.market_risk_score <= 69 && marketIntelligence.market_risk_score > 39} />
           <ScoreCard label="Demand Pressure" score={marketIntelligence.demand_pressure_score} badgeText={marketIntelligence.demand_pressure_score >= 61 ? "Strong" : marketIntelligence.demand_pressure_score >= 31 ? "Moderate" : "Weak"} positive={marketIntelligence.demand_pressure_score >= 61} warning={marketIntelligence.demand_pressure_score >= 31 && marketIntelligence.demand_pressure_score < 61} />
         </div>
+        ) : (
+          <CardContainer className="p-4">
+            <p className="text-sm text-muted-foreground italic">No market data entered. Enter market conditions below to generate intelligence scores.</p>
+          </CardContainer>
+        )}
 
+        {inputSufficiency.hasMarketData && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
           {Object.entries(marketIntelligence.signals).map(([key, signal]) => (
             <CardContainer key={key} className="flex flex-col items-start gap-1 p-4">
@@ -542,6 +606,7 @@ const Analysis = () => {
             </CardContainer>
           ))}
         </div>
+        )}
 
         {/* Crime & Safety Signal */}
         <CardContainer className="p-6">
@@ -654,12 +719,32 @@ const Analysis = () => {
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 5: STRATEGY FIT
           ═══════════════════════════════════════════════════════════════════ */}
-      <StrategyFitSection strategyFit={strategyFit} />
+      {inputSufficiency.canAnalyze ? (
+        <StrategyFitSection strategyFit={strategyFit} />
+      ) : (
+        <CardContainer className="p-6">
+          <EmptyStateContainer
+            icon={<Target className="h-10 w-10" />}
+            title="Strategy analysis unavailable"
+            description="Enter financial inputs to evaluate strategy fit."
+          />
+        </CardContainer>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 6: STRESS TESTING
           ═══════════════════════════════════════════════════════════════════ */}
-      <StressTestingSection stressResults={stressResults} />
+      {inputSufficiency.canAnalyze ? (
+        <StressTestingSection stressResults={stressResults} />
+      ) : (
+        <CardContainer className="p-6">
+          <EmptyStateContainer
+            icon={<Zap className="h-10 w-10" />}
+            title="Stress testing unavailable"
+            description="Enter financial inputs to run stress scenarios."
+          />
+        </CardContainer>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 7: DETAILED ANALYSIS (Financial Inputs)
@@ -695,6 +780,7 @@ const Analysis = () => {
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 8: SUMMARY BREAKDOWN
           ═══════════════════════════════════════════════════════════════════ */}
+      {inputSufficiency.canAnalyze && (
       <div className="space-y-4">
         <h2 className="text-base font-bold text-foreground flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-muted-foreground" /> Financial Summary
@@ -717,6 +803,7 @@ const Analysis = () => {
           ]} />
         </div>
       </div>
+      )}
     </SectionContainer>
   );
 };
