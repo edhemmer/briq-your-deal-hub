@@ -309,3 +309,97 @@ export function buildNormalizedDealState(
     },
   };
 }
+
+// ── Market Data Enrichment ─────────────────────────────────────────────
+
+function svMarket(value: number | null | undefined): SourcedValue<number | null> {
+  return value != null && Number.isFinite(value) && value !== 0
+    ? marketValue(value)
+    : unavailableValue(null);
+}
+
+/**
+ * Enrich a NormalizedDealState with market condition data.
+ * Returns a new state — never mutates the original.
+ */
+export function enrichWithMarketData(
+  state: NormalizedDealState,
+  marketRow: {
+    median_rent?: number | null;
+    rent_growth_12mo?: number | null;
+    rent_growth_36mo?: number | null;
+    median_home_price?: number | null;
+    price_growth_12mo?: number | null;
+    price_growth_36mo?: number | null;
+    price_per_sqft?: number | null;
+    inventory_level?: number | null;
+    months_of_supply?: number | null;
+    days_on_market?: number | null;
+    sale_to_list_ratio?: number | null;
+    absorption_rate?: number | null;
+    population_growth_rate?: number | null;
+    job_growth_rate?: number | null;
+    crime_score?: number | null;
+  }
+): NormalizedDealState {
+  return {
+    ...state,
+    market: {
+      medianRent: svMarket(marketRow.median_rent),
+      rentGrowth12mo: svMarket(marketRow.rent_growth_12mo),
+      rentGrowth36mo: svMarket(marketRow.rent_growth_36mo),
+      medianHomePrice: svMarket(marketRow.median_home_price),
+      priceGrowth12mo: svMarket(marketRow.price_growth_12mo),
+      priceGrowth36mo: svMarket(marketRow.price_growth_36mo),
+      pricePerSqft: svMarket(marketRow.price_per_sqft),
+      inventoryLevel: svMarket(marketRow.inventory_level),
+      monthsOfSupply: svMarket(marketRow.months_of_supply),
+      daysOnMarket: svMarket(marketRow.days_on_market),
+      saleToListRatio: svMarket(marketRow.sale_to_list_ratio),
+      absorptionRate: svMarket(marketRow.absorption_rate),
+      populationGrowthRate: svMarket(marketRow.population_growth_rate),
+      jobGrowthRate: svMarket(marketRow.job_growth_rate),
+    },
+    risk: {
+      crimeScore: svMarket(marketRow.crime_score),
+    },
+  };
+}
+
+/**
+ * Update specific financial fields on a NormalizedDealState from user input.
+ * Returns a new state — never mutates the original.
+ */
+export function updateFinancialFields(
+  state: NormalizedDealState,
+  fields: Partial<Record<string, number>>
+): NormalizedDealState {
+  return {
+    ...state,
+    financing: {
+      ...state.financing,
+      purchasePrice: fields.purchase_price !== undefined ? userValue(fields.purchase_price) : state.financing.purchasePrice,
+      closingCosts: fields.closing_costs !== undefined ? userValue(fields.closing_costs) : state.financing.closingCosts,
+      downPaymentPercent: fields.down_payment_percent !== undefined ? userValue(fields.down_payment_percent) : state.financing.downPaymentPercent,
+      interestRate: fields.interest_rate !== undefined ? userValue(fields.interest_rate) : state.financing.interestRate,
+      loanTermYears: fields.loan_term_years !== undefined ? userValue(fields.loan_term_years) : state.financing.loanTermYears,
+      arv: fields.arv !== undefined ? userValue(fields.arv) : state.financing.arv,
+    },
+    rent: {
+      ...state.rent,
+      monthlyRent: fields.monthly_rent !== undefined ? userValue(fields.monthly_rent) : state.rent.monthlyRent,
+      otherIncome: fields.other_income !== undefined ? userValue(fields.other_income) : state.rent.otherIncome,
+    },
+    expenses: {
+      ...state.expenses,
+      taxes: fields.taxes !== undefined ? userValue(fields.taxes) : state.expenses.taxes,
+      insurance: fields.insurance !== undefined ? userValue(fields.insurance) : state.expenses.insurance,
+      vacancyPercent: fields.vacancy_percent !== undefined ? userValue(fields.vacancy_percent) : state.expenses.vacancyPercent,
+      maintenancePercent: fields.maintenance_percent !== undefined ? userValue(fields.maintenance_percent) : state.expenses.maintenancePercent,
+      managementPercent: fields.management_percent !== undefined ? userValue(fields.management_percent) : state.expenses.managementPercent,
+      capexPercent: fields.capex_percent !== undefined ? userValue(fields.capex_percent) : state.expenses.capexPercent,
+      rehabCost: fields.rehab_cost !== undefined ? userValue(fields.rehab_cost) : state.expenses.rehabCost,
+      rehabContingency: fields.rehab_contingency !== undefined ? userValue(fields.rehab_contingency) : state.expenses.rehabContingency,
+    },
+  };
+}
