@@ -573,11 +573,17 @@ const Analysis = () => {
           Contextual market intelligence for {deal?.city}, {deal?.state}.
         </p>
 
+        {inputSufficiency.hasMarketData ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
           <ScoreCard label="Market Strength" score={marketIntelligence.market_strength_score} badgeText={marketIntelligence.strengthLabel} positive={marketIntelligence.market_strength_score >= 61} warning={marketIntelligence.market_strength_score >= 31 && marketIntelligence.market_strength_score < 61} />
           <ScoreCard label="Market Risk" score={marketIntelligence.market_risk_score} badgeText={marketIntelligence.riskLabel} positive={marketIntelligence.market_risk_score <= 39} warning={marketIntelligence.market_risk_score <= 69 && marketIntelligence.market_risk_score > 39} />
           <ScoreCard label="Demand Pressure" score={marketIntelligence.demand_pressure_score} badgeText={marketIntelligence.demand_pressure_score >= 61 ? "Strong" : marketIntelligence.demand_pressure_score >= 31 ? "Moderate" : "Weak"} positive={marketIntelligence.demand_pressure_score >= 61} warning={marketIntelligence.demand_pressure_score >= 31 && marketIntelligence.demand_pressure_score < 61} />
         </div>
+        ) : (
+          <CardContainer className="p-4">
+            <p className="text-sm text-muted-foreground italic">No market data entered. Enter market conditions below to generate intelligence scores.</p>
+          </CardContainer>
+        )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
           {Object.entries(marketIntelligence.signals).map(([key, signal]) => (
