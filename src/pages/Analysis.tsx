@@ -219,10 +219,8 @@ const Analysis = () => {
     return enrichWithMarketData(withFields, marketRow);
   }, [deal, localFields, marketFields]);
 
-  // ── Run Canonical Analysis Pipeline ──
-  const canonicalOutput = useMemo(() => {
-    if (!normalizedState) return null;
-    return runCanonicalAnalysis(normalizedState);
+  // ── Run Canonical Analysis Pipeline (debounced + concurrency-safe) ──
+  const { output: canonicalOutput, status: analysisStatus } = useCanonicalAnalysis(normalizedState);
   }, [normalizedState]);
 
   const dealInput = canonicalOutput?.dealInput ?? ({} as DealInput);
