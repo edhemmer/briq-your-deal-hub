@@ -52,6 +52,9 @@ export interface NormalizedDealState {
     interestRate: SourcedValue<number>;
     loanTermYears: SourcedValue<number>;
     arv: SourcedValue<number>;
+    rateMin: SourcedValue<number | null>;
+    rateMax: SourcedValue<number | null>;
+    loanType: SourcedValue<string | null>;
   };
   expenses: {
     taxes: SourcedValue<number>;
