@@ -552,6 +552,15 @@ const Analysis = () => {
           </CardContainer>
         )}
       </div>
+      ) : (
+        <CardContainer className="p-6">
+          <EmptyStateContainer
+            icon={<BarChart3 className="h-10 w-10" />}
+            title="No metrics available"
+            description="Enter financial inputs to calculate deal metrics."
+          />
+        </CardContainer>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 4: MARKET INTELLIGENCE
