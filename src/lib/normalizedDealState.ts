@@ -30,6 +30,7 @@ export interface NormalizedDealState {
     zipCode: SourcedValue<string | null>;
     propertyType: SourcedValue<string | null>;
     yearBuilt: SourcedValue<number | null>;
+    squareFootage: SourcedValue<number | null>;
     lotSize: SourcedValue<string | null>;
     zoningType: SourcedValue<string | null>;
     assessedValue: SourcedValue<number | null>;
