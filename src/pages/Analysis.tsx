@@ -2,7 +2,8 @@ import { useParams } from "react-router-dom";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import type { StrategySignals } from "@/lib/strategyFitEngine";
 import { evaluateInputSufficiency, type InputSufficiency, buildNormalizedDealState, enrichWithMarketData, updateFinancialFields } from "@/lib/normalizedDealState";
-import { runCanonicalAnalysis, deriveDealInput, deriveMarketConditions } from "@/lib/canonicalEngineLayer";
+import { deriveDealInput, deriveMarketConditions } from "@/lib/canonicalEngineLayer";
+import { useCanonicalAnalysis } from "@/hooks/useCanonicalAnalysis";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
@@ -218,11 +219,9 @@ const Analysis = () => {
     return enrichWithMarketData(withFields, marketRow);
   }, [deal, localFields, marketFields]);
 
-  // ── Run Canonical Analysis Pipeline ──
-  const canonicalOutput = useMemo(() => {
-    if (!normalizedState) return null;
-    return runCanonicalAnalysis(normalizedState);
-  }, [normalizedState]);
+  // ── Run Canonical Analysis Pipeline (debounced + concurrency-safe) ──
+  const { output: canonicalOutput, status: analysisStatus } = useCanonicalAnalysis(normalizedState);
+  
 
   const dealInput = canonicalOutput?.dealInput ?? ({} as DealInput);
   const analysis = canonicalOutput?.analysis!;
@@ -585,7 +584,7 @@ const Analysis = () => {
 
         {inputSufficiency.hasMarketData && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
-          {Object.entries(marketIntelligence.signals).map(([key, signal]) => (
+          {Object.entries(marketIntelligence.signals).map(([key, signal]: [string, any]) => (
             <CardContainer key={key} className="flex flex-col items-start gap-1 p-4">
               <div className="flex items-center gap-2 text-muted-foreground">
                 {key === "rent" ? <Home className="h-4 w-4" /> :
