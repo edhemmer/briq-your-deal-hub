@@ -23,12 +23,11 @@ import {
 } from "lucide-react";
 import { useDeal, useUpdateDeal } from "@/hooks/useDeals";
 import type { DealInput } from "@/lib/dealAnalysisEngine";
-import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
 import { resolvePropertyIntelligence, openPropertyRecord } from "@/lib/property/propertyIntelligenceEngine";
-import { evaluateMarketIntelligence, type MarketConditions } from "@/lib/marketIntelligenceEngine";
+import type { MarketConditions } from "@/lib/marketIntelligenceEngine";
 import { useMarketConditions, useUpsertMarketConditions } from "@/hooks/useMarketConditions";
-import type { StrategyFitResults, StrategyFitInput } from "@/lib/strategyFitEngine";
-import type { StressTestResults, ScenarioResult, ScenarioCategory, ResilienceLevel } from "@/lib/stressTestingEngine";
+import type { StrategyFitResults } from "@/lib/strategyFitEngine";
+import type { ScenarioResult, ScenarioCategory, ResilienceLevel } from "@/lib/stressTestingEngine";
 import { STRESS_SCENARIOS } from "@/lib/stressTestingEngine";
 import { assembleDealReport, generateInvestorPDF, generateCSVExport } from "@/lib/reportEngine";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
