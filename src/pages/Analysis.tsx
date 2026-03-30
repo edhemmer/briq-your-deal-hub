@@ -27,7 +27,7 @@ import { resolvePropertyIntelligence, openPropertyRecord } from "@/lib/property/
 import type { MarketConditions } from "@/lib/marketIntelligenceEngine";
 import { useMarketConditions, useUpsertMarketConditions } from "@/hooks/useMarketConditions";
 import type { StrategyFitResults } from "@/lib/strategyFitEngine";
-import type { ScenarioResult, ScenarioCategory, ResilienceLevel } from "@/lib/stressTestingEngine";
+import type { ScenarioResult, ScenarioCategory, ResilienceLevel, StressTestResults } from "@/lib/stressTestingEngine";
 import { STRESS_SCENARIOS } from "@/lib/stressTestingEngine";
 import { assembleDealReport, generateInvestorPDF, generateCSVExport } from "@/lib/reportEngine";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
