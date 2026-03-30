@@ -406,9 +406,24 @@ const Analysis = () => {
 
       <DealWorkflowIndicator activeStep={2} className="mb-2" />
 
+      {/* ── Input Sufficiency Warning ── */}
+      {!inputSufficiency.canAnalyze && (
+        <Alert className="border-signal-warning/50 text-signal-warning [&>svg]:text-signal-warning">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Awaiting Deal Data</AlertTitle>
+          <AlertDescription>
+            <p className="mb-1">Enter required financial inputs to generate analysis.</p>
+            {inputSufficiency.missingFields.length > 0 && (
+              <p className="text-xs">Missing: {inputSufficiency.missingFields.join(", ")}</p>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 1: DEAL INTELLIGENCE SUMMARY (Investment decision first)
           ═══════════════════════════════════════════════════════════════════ */}
+      {inputSufficiency.canAnalyze ? (
       <DealIntelligenceSummary
         intelligence={intelligence}
         topStrategyLabel={STRATEGY_LABELS[topStrategy[0]]}
@@ -417,6 +432,15 @@ const Analysis = () => {
         priceGrowth={marketConditionsInput.price_growth_12mo}
         cashFlowMonthly={analysis.metrics.monthly_cashflow}
       />
+      ) : (
+        <CardContainer className="p-6">
+          <EmptyStateContainer
+            icon={<Gauge className="h-10 w-10" />}
+            title="No analysis available"
+            description="Enter purchase price and monthly rent to generate deal intelligence."
+          />
+        </CardContainer>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 2: PROPERTY OVERVIEW
