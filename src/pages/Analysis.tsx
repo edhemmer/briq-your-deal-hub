@@ -711,12 +711,32 @@ const Analysis = () => {
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 5: STRATEGY FIT
           ═══════════════════════════════════════════════════════════════════ */}
-      <StrategyFitSection strategyFit={strategyFit} />
+      {inputSufficiency.canAnalyze ? (
+        <StrategyFitSection strategyFit={strategyFit} />
+      ) : (
+        <CardContainer className="p-6">
+          <EmptyStateContainer
+            icon={<Target className="h-10 w-10" />}
+            title="Strategy analysis unavailable"
+            description="Enter financial inputs to evaluate strategy fit."
+          />
+        </CardContainer>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 6: STRESS TESTING
           ═══════════════════════════════════════════════════════════════════ */}
-      <StressTestingSection stressResults={stressResults} />
+      {inputSufficiency.canAnalyze ? (
+        <StressTestingSection stressResults={stressResults} />
+      ) : (
+        <CardContainer className="p-6">
+          <EmptyStateContainer
+            icon={<Zap className="h-10 w-10" />}
+            title="Stress testing unavailable"
+            description="Enter financial inputs to run stress scenarios."
+          />
+        </CardContainer>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 7: DETAILED ANALYSIS (Financial Inputs)
