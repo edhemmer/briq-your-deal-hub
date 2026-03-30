@@ -220,4 +220,4 @@ dataSourceLayer → normalizedDealState → canonical engines → UI
 
 ---
 
-*Last Updated: March 2026*
+*Last Updated: March 2026 — v1.5.1 Data Foundation Patch*
