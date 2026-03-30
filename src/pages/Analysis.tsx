@@ -585,6 +585,7 @@ const Analysis = () => {
           </CardContainer>
         )}
 
+        {inputSufficiency.hasMarketData && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
           {Object.entries(marketIntelligence.signals).map(([key, signal]) => (
             <CardContainer key={key} className="flex flex-col items-start gap-1 p-4">
@@ -605,6 +606,7 @@ const Analysis = () => {
             </CardContainer>
           ))}
         </div>
+        )}
 
         {/* Crime & Safety Signal */}
         <CardContainer className="p-6">
