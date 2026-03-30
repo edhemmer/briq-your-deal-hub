@@ -203,6 +203,27 @@ const Analysis = () => {
   const analysis = useMemo(() => analyzeDeal(dealInput), [dealInput]);
   const intelligence = useMemo(() => analyzeDealIntelligence(analysis), [analysis]);
 
+  // ── Input Sufficiency Check ──
+  const inputSufficiency: InputSufficiency = useMemo(() => {
+    const hasAnyMarketFields = MARKET_FIELD_KEYS.some(k => {
+      const v = parseFloat(marketFields[k] || "");
+      return !isNaN(v) && v !== 0;
+    });
+    return evaluateInputSufficiency(
+      {
+        purchase_price: dealInput.purchase_price || null,
+        monthly_rent: dealInput.monthly_rent,
+        arv: dealInput.arv,
+        interest_rate: dealInput.interest_rate,
+        loan_term_years: dealInput.loan_term_years,
+        down_payment_percent: dealInput.down_payment_percent,
+        taxes: dealInput.taxes,
+        insurance: dealInput.insurance,
+      },
+      { hasAnyMarketFields }
+    );
+  }, [dealInput, marketFields]);
+
   const propertyIntelligence = useMemo(() => {
     if (!deal) return null;
     return resolvePropertyIntelligence(
