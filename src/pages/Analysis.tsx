@@ -221,7 +221,7 @@ const Analysis = () => {
 
   // ── Run Canonical Analysis Pipeline (debounced + concurrency-safe) ──
   const { output: canonicalOutput, status: analysisStatus } = useCanonicalAnalysis(normalizedState);
-  }, [normalizedState]);
+  
 
   const dealInput = canonicalOutput?.dealInput ?? ({} as DealInput);
   const analysis = canonicalOutput?.analysis!;
