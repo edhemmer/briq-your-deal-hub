@@ -15,7 +15,7 @@
  */
 
 import type { SourcedValue } from "./dataSourceLayer";
-import { userValue, unavailableValue, hasValue } from "./dataSourceLayer";
+import { userValue, unavailableValue, marketValue, hasValue } from "./dataSourceLayer";
 import { getPropertyData } from "./resolvers/propertyDataResolver";
 import { getRentData } from "./resolvers/rentDataResolver";
 import { getFinancingData } from "./resolvers/financingDataResolver";
