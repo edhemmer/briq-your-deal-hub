@@ -204,23 +204,61 @@ export function buildNormalizedDealState(
     strategy_primary: string | null;
   }
 ): NormalizedDealState {
+  // Resolve property data through canonical resolver
+  const propertyResolved = getPropertyData(
+    { address: deal.property_address, city: deal.city, state: deal.state, zipCode: deal.zip_code },
+    {
+      propertyType: deal.property_type,
+      yearBuilt: deal.year_built,
+      lotSize: deal.lot_size,
+      assessedValue: deal.assessed_value,
+      annualPropertyTax: deal.annual_property_tax,
+      zoningType: deal.zoning_type,
+      propertyRecordUrl: deal.property_record_url,
+    }
+  );
+
+  // Resolve rent data through canonical resolver
+  const rentResolved = getRentData(
+    { address: deal.property_address, city: deal.city, state: deal.state, zipCode: deal.zip_code, propertyType: deal.property_type },
+    { monthlyRent: deal.monthly_rent, otherIncome: deal.other_income }
+  );
+
+  // Resolve financing data through canonical resolver
+  const financingResolved = getFinancingData(
+    {},
+    {
+      interestRate: deal.interest_rate,
+      loanTermYears: deal.loan_term_years,
+      downPaymentPercent: deal.down_payment_percent,
+      purchasePrice: deal.purchase_price,
+      closingCosts: deal.closing_costs,
+      arv: deal.arv,
+    }
+  );
+
   return {
     property: {
-      address: userValue(deal.property_address),
+      address: propertyResolved.address,
       city: userValue(deal.city),
       state: userValue(deal.state),
       zipCode: svStr(deal.zip_code),
-      propertyType: svStr(deal.property_type),
-      yearBuilt: sv(deal.year_built),
-      lotSize: svStr(deal.lot_size),
-      zoningType: svStr(deal.zoning_type),
-      assessedValue: sv(deal.assessed_value),
-      annualPropertyTax: sv(deal.annual_property_tax),
-      propertyRecordUrl: svStr(deal.property_record_url),
+      propertyType: propertyResolved.propertyType,
+      yearBuilt: propertyResolved.yearBuilt,
+      squareFootage: propertyResolved.squareFootage,
+      lotSize: propertyResolved.lotSize,
+      zoningType: propertyResolved.zoningType,
+      assessedValue: propertyResolved.assessedValue,
+      annualPropertyTax: propertyResolved.annualPropertyTax,
+      propertyRecordUrl: propertyResolved.propertyRecordUrl,
     },
     rent: {
       monthlyRent: sv(deal.monthly_rent),
       otherIncome: sv(deal.other_income),
+      estimatedRentLow: rentResolved.estimatedRentLow,
+      estimatedRentMedian: rentResolved.estimatedRentMedian,
+      estimatedRentHigh: rentResolved.estimatedRentHigh,
+      rentPerSqft: rentResolved.rentPerSqft,
     },
     financing: {
       purchasePrice: sv(deal.purchase_price),
@@ -229,6 +267,9 @@ export function buildNormalizedDealState(
       interestRate: sv(deal.interest_rate),
       loanTermYears: sv(deal.loan_term_years),
       arv: sv(deal.arv),
+      rateMin: financingResolved.rateMin,
+      rateMax: financingResolved.rateMax,
+      loanType: financingResolved.loanType,
     },
     expenses: {
       taxes: sv(deal.taxes),
