@@ -302,7 +302,8 @@ const Analysis = () => {
         numericFields[k] = parseFloat(marketFields[k] || "0") || 0;
       }
     }
-    const evaluated = evaluateMarketIntelligence(numericFields as unknown as MarketConditions);
+    // Use canonical market intelligence from the pipeline
+    const mi = marketIntelligence;
     upsertMarket.mutate({
       deal_id: dealId,
       city: deal.city,
@@ -310,12 +311,12 @@ const Analysis = () => {
       zipcode: deal.zip_code || undefined,
       existing_id: marketConditionsRow?.id,
       ...numericFields,
-      market_strength_score: evaluated.market_strength_score,
-      market_risk_score: evaluated.market_risk_score,
-      demand_pressure_score: evaluated.demand_pressure_score,
-      crime_risk_band: evaluated.crime.crime_risk_band,
+      market_strength_score: mi?.market_strength_score ?? 0,
+      market_risk_score: mi?.market_risk_score ?? 0,
+      demand_pressure_score: mi?.demand_pressure_score ?? 0,
+      crime_risk_band: mi?.crime?.crime_risk_band ?? null,
     });
-  }, [dealId, deal, marketFields, marketConditionsRow, upsertMarket]);
+  }, [dealId, deal, marketFields, marketConditionsRow, upsertMarket, marketIntelligence]);
 
   // Report generation helper
   const buildReport = useCallback(() => {
