@@ -22,7 +22,7 @@ import {
   AlertTriangle, XCircle, CheckCircle2, Gauge, Wrench, RefreshCw,
   FileSearch, ExternalLink, MapPin, Home, Activity, BarChart2, Users,
   ShieldAlert, Shield, ChevronDown, ChevronUp, FileText, Download,
-  Target, Zap
+  Target, Zap, Landmark
 } from "lucide-react";
 import { useDeal, useUpdateDeal } from "@/hooks/useDeals";
 import type { DealInput } from "@/lib/dealAnalysisEngine";
