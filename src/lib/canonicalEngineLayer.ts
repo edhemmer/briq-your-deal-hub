@@ -19,6 +19,7 @@ import type { MarketConditions, MarketIntelligenceResult } from "./marketIntelli
 import type { StressTestResults } from "./stressTestingEngine";
 import type { AnalysisContext, MarketProfileThresholds } from "./marketProfiles";
 import type { ConfidenceAssessment, SourceQualityInput } from "./confidenceEngine";
+import type { FinancingResult } from "./financingEngine";
 
 import { analyzeDeal } from "./dealAnalysisEngine";
 import { analyzeDealIntelligence } from "./dealIntelligenceEngine";
