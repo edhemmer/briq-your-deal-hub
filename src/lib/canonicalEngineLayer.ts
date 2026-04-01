@@ -133,6 +133,7 @@ export interface CanonicalAnalysisOutput {
   stressResults: StressTestResults;
   thresholds: MarketProfileThresholds;
   confidence: ConfidenceAssessment;
+  financingOptions: FinancingResult[];
   context: AnalysisContext;
 }
 
