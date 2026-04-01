@@ -4,6 +4,8 @@ import type { StrategySignals } from "@/lib/strategyFitEngine";
 import { evaluateInputSufficiency, type InputSufficiency, buildNormalizedDealState, enrichWithMarketData, updateFinancialFields } from "@/lib/normalizedDealState";
 import { deriveDealInput, deriveMarketConditions } from "@/lib/canonicalEngineLayer";
 import { useCanonicalAnalysis } from "@/hooks/useCanonicalAnalysis";
+import type { AnalysisContext } from "@/lib/marketProfiles";
+import { isContextComplete } from "@/lib/marketProfiles";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
@@ -35,6 +37,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { HelpTooltip } from "@/components/help/HelpTooltip";
 import { DealWorkflowIndicator } from "@/components/help/DealWorkflowIndicator";
 import { METRIC_HELP, STRATEGY_HELP, MARKET_HELP, CRIME_HELP, DEAL_INPUT_HELP } from "@/components/help/helpContent";
+import { AnalysisContextGate } from "@/components/analysis/AnalysisContextGate";
+import { AnalysisDisclosure } from "@/components/analysis/AnalysisDisclosure";
+import { ConfidenceIndicator } from "@/components/analysis/ConfidenceIndicator";
+import { MARKET_TYPE_LABELS, STRATEGY_LABELS as STRATEGY_GATE_LABELS, RISK_TOLERANCE_LABELS } from "@/lib/marketProfiles";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   { key: "purchase_price", label: "Purchase Price", group: "Acquisition" },
