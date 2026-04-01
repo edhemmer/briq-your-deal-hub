@@ -187,6 +187,9 @@ export function runCanonicalAnalysis(
   // Confidence assessment with source quality awareness
   const confidence = evaluateConfidence(state, resolvedContext, sourceQuality);
 
+  // Financing intelligence
+  const financingOptions = evaluateFinancingOptions(dealInput, resolvedContext, analysis.metrics.dscr);
+
   return {
     dealInput,
     bufferedDealInput,
@@ -199,6 +202,7 @@ export function runCanonicalAnalysis(
     stressResults,
     thresholds,
     confidence,
+    financingOptions,
     context: resolvedContext,
   };
 }
