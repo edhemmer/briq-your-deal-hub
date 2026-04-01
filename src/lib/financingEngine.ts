@@ -331,7 +331,7 @@ export function evaluateFinancingOptions(
 
     // Use midpoint rate and midpoint down payment for estimates
     const midRate = (rateRange.min + rateRange.max) / 2;
-    const midDp = (dpRange.min + dpRange.max) / 2;
+    const midDp = (dpRange[0] + dpRange[1]) / 2;
     const downPayment = pp * midDp;
     const loanAmount = Math.max(0, pp - downPayment);
     const monthlyPayment = profile.type === "cash"
