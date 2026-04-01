@@ -41,6 +41,9 @@ import { AnalysisContextGate } from "@/components/analysis/AnalysisContextGate";
 import { AnalysisDisclosure } from "@/components/analysis/AnalysisDisclosure";
 import { ConfidenceIndicator } from "@/components/analysis/ConfidenceIndicator";
 import { MARKET_TYPE_LABELS, STRATEGY_LABELS as STRATEGY_GATE_LABELS, RISK_TOLERANCE_LABELS } from "@/lib/marketProfiles";
+import { GuidedPropertyRetrieval } from "@/components/analysis/GuidedPropertyRetrieval";
+import type { SourceQualityInput } from "@/lib/confidenceEngine";
+import type { SourceQuality } from "@/lib/propertySourceResolver";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   { key: "purchase_price", label: "Purchase Price", group: "Acquisition" },
