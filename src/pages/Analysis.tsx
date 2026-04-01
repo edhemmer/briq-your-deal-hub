@@ -840,6 +840,14 @@ const Analysis = () => {
         </div>
       </div>
       )}
+
+      {/* ── Confidence Assessment (full) ── */}
+      {canonicalOutput?.confidence && (
+        <ConfidenceIndicator confidence={canonicalOutput.confidence} />
+      )}
+
+      {/* ── Global Disclosure ── */}
+      <AnalysisDisclosure className="mt-2" />
     </SectionContainer>
   );
 };
