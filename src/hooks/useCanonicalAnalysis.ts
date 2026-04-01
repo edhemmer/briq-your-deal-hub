@@ -1,17 +1,19 @@
 /**
- * BRIQ v1.5.4 — Reactive Canonical Analysis Hook
+ * BRIQ v1.6.0 — Reactive Canonical Analysis Hook
  *
  * Wraps runCanonicalAnalysis with:
  *  - Debounced execution (300ms) so rapid input edits don't thrash
  *  - Concurrency guard: only the latest input wins
  *  - Dirty/fresh state tracking for UI synchronization
  *  - Atomic output updates (all-or-nothing) to prevent partial renders
+ *  - v1.6.0: AnalysisContext support for profile-driven routing
  *
  * Pure orchestration — no formula or data-source changes.
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { NormalizedDealState } from "@/lib/normalizedDealState";
+import type { AnalysisContext } from "@/lib/marketProfiles";
 import { runCanonicalAnalysis, type CanonicalAnalysisOutput } from "@/lib/canonicalEngineLayer";
 
 export type AnalysisStatus = "idle" | "dirty" | "analyzing" | "fresh";
@@ -24,52 +26,47 @@ export interface UseCanonicalAnalysisResult {
 const DEBOUNCE_MS = 300;
 
 export function useCanonicalAnalysis(
-  state: NormalizedDealState | null
+  state: NormalizedDealState | null,
+  context?: AnalysisContext | null
 ): UseCanonicalAnalysisResult {
   const [output, setOutput] = useState<CanonicalAnalysisOutput | null>(null);
   const [status, setStatus] = useState<AnalysisStatus>("idle");
 
-  // Generation counter for concurrency: only the latest run may commit output.
   const generationRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Track the last-computed state identity to skip duplicate runs.
   const lastStateRef = useRef<NormalizedDealState | null>(null);
+  const lastContextRef = useRef<AnalysisContext | null | undefined>(null);
 
   useEffect(() => {
-    // Null state → clear everything
     if (!state) {
       if (timerRef.current) clearTimeout(timerRef.current);
       generationRef.current += 1;
       setOutput(null);
       setStatus("idle");
       lastStateRef.current = null;
+      lastContextRef.current = null;
       return;
     }
 
-    // If the reference is identical (same useMemo result), skip.
-    if (state === lastStateRef.current) return;
+    // Skip if identical refs
+    if (state === lastStateRef.current && context === lastContextRef.current) return;
 
-    // Mark dirty immediately so UI knows inputs changed.
     setStatus("dirty");
 
-    // Clear any pending debounce timer.
     if (timerRef.current) clearTimeout(timerRef.current);
 
-    // Increment generation so any in-flight older run is discarded.
     const gen = ++generationRef.current;
 
     timerRef.current = setTimeout(() => {
-      // Double-check this is still the latest generation.
       if (gen !== generationRef.current) return;
 
       setStatus("analyzing");
 
-      // runCanonicalAnalysis is synchronous & pure — safe to call inline.
-      const result = runCanonicalAnalysis(state);
+      const result = runCanonicalAnalysis(state, context ?? undefined);
 
-      // Only commit if still the latest generation (guards against rapid succession).
       if (gen === generationRef.current) {
         lastStateRef.current = state;
+        lastContextRef.current = context;
         setOutput(result);
         setStatus("fresh");
       }
@@ -78,7 +75,7 @@ export function useCanonicalAnalysis(
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [state]);
+  }, [state, context]);
 
   return { output, status };
 }
