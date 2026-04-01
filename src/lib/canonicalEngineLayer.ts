@@ -18,7 +18,7 @@ import type { StrategyFitInput, StrategyFitResults } from "./strategyFitEngine";
 import type { MarketConditions, MarketIntelligenceResult } from "./marketIntelligenceEngine";
 import type { StressTestResults } from "./stressTestingEngine";
 import type { AnalysisContext, MarketProfileThresholds } from "./marketProfiles";
-import type { ConfidenceAssessment } from "./confidenceEngine";
+import type { ConfidenceAssessment, SourceQualityInput } from "./confidenceEngine";
 
 import { analyzeDeal } from "./dealAnalysisEngine";
 import { analyzeDealIntelligence } from "./dealIntelligenceEngine";
@@ -143,7 +143,8 @@ export interface CanonicalAnalysisOutput {
  */
 export function runCanonicalAnalysis(
   state: NormalizedDealState,
-  context?: AnalysisContext
+  context?: AnalysisContext,
+  sourceQuality?: SourceQualityInput
 ): CanonicalAnalysisOutput {
   // Default context for backward compatibility
   const resolvedContext: AnalysisContext = context ?? {
@@ -180,8 +181,8 @@ export function runCanonicalAnalysis(
   // Stress tests use buffered baseline for conservative modeling
   const stressResults = runStressTests(bufferedDealInput, bufferedAnalysis);
 
-  // Confidence assessment
-  const confidence = evaluateConfidence(state, resolvedContext);
+  // Confidence assessment with source quality awareness
+  const confidence = evaluateConfidence(state, resolvedContext, sourceQuality);
 
   return {
     dealInput,
