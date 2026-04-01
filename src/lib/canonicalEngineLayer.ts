@@ -18,7 +18,7 @@ import type { StrategyFitInput, StrategyFitResults } from "./strategyFitEngine";
 import type { MarketConditions, MarketIntelligenceResult } from "./marketIntelligenceEngine";
 import type { StressTestResults } from "./stressTestingEngine";
 import type { AnalysisContext, MarketProfileThresholds } from "./marketProfiles";
-import type { ConfidenceAssessment } from "./confidenceEngine";
+import type { ConfidenceAssessment, SourceQualityInput } from "./confidenceEngine";
 
 import { analyzeDeal } from "./dealAnalysisEngine";
 import { analyzeDealIntelligence } from "./dealIntelligenceEngine";
