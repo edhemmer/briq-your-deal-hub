@@ -462,7 +462,7 @@ const Analysis = () => {
       {inputSufficiency.canAnalyze ? (
       <DealIntelligenceSummary
         intelligence={intelligence}
-        topStrategyLabel={STRATEGY_LABELS[topStrategy[0]]}
+        topStrategyLabel={STRATEGY_FIT_LABELS[topStrategy[0]]}
         marketStrength={marketIntelligence.market_strength_score}
         crimeScore={marketIntelligence.crime.crime_score}
         priceGrowth={marketConditionsInput.price_growth_12mo}
@@ -1071,7 +1071,7 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
   const topEntry = entries.reduce((best, curr) => curr[1].score > best[1].score ? curr : best, entries[0]);
   const topScore = topEntry[1].score;
   const best = topEntry[1];
-  const bestLabel = STRATEGY_LABELS[topEntry[0]];
+  const bestLabel = STRATEGY_FIT_LABELS[topEntry[0]];
   const [expandedSignals, setExpandedSignals] = useState<Record<string, boolean>>({});
 
   const toggleSignals = (key: string) => {
@@ -1124,7 +1124,7 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
           return (
             <CardContainer key={key} className={`p-5 flex flex-col gap-3 transition-all ${isTop ? "ring-2 ring-primary shadow-md" : ""}`}>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-foreground">{STRATEGY_LABELS[key]}</span>
+                <span className="text-sm font-semibold text-foreground">{STRATEGY_FIT_LABELS[key]}</span>
                 {isTop && <Badge variant="default" className="text-[10px]">Best Fit</Badge>}
               </div>
               <div className="flex items-end gap-2">
