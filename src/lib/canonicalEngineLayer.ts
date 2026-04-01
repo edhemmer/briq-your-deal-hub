@@ -28,6 +28,7 @@ import { evaluateMarketIntelligence } from "./marketIntelligenceEngine";
 import { runStressTests } from "./stressTestingEngine";
 import { getMarketThresholds, applyUnseenRiskBuffers, isContextComplete } from "./marketProfiles";
 import { evaluateConfidence } from "./confidenceEngine";
+import { evaluateFinancingOptions } from "./financingEngine";
 
 // ── Derive DealInput from NormalizedDealState ──────────────────────────
 
