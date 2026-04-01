@@ -646,6 +646,8 @@ const Analysis = () => {
       {inputSufficiency.canAnalyze && canonicalOutput?.financingOptions && (
         <FinancingIntelligence results={canonicalOutput.financingOptions} />
       )}
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 4: MARKET INTELLIGENCE
           ═══════════════════════════════════════════════════════════════════ */}
       <div className="space-y-4">
         <h2 className="text-base font-bold text-foreground flex items-center gap-2">
