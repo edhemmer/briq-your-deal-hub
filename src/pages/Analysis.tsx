@@ -425,6 +425,23 @@ const Analysis = () => {
 
       <DealWorkflowIndicator activeStep={2} className="mb-2" />
 
+      {/* ── Analysis Context Summary ── */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Badge variant="secondary" className="text-xs">{MARKET_TYPE_LABELS[analysisContext.marketType]}</Badge>
+        <Badge variant="secondary" className="text-xs">{STRATEGY_GATE_LABELS[analysisContext.strategy]}</Badge>
+        <Badge variant="secondary" className="text-xs">{RISK_TOLERANCE_LABELS[analysisContext.riskTolerance]}</Badge>
+        <button
+          onClick={() => setAnalysisContext(null)}
+          className="text-[10px] text-muted-foreground hover:text-foreground underline transition-colors ml-1"
+        >
+          Change
+        </button>
+        {canonicalOutput?.confidence && (
+          <div className="ml-auto">
+            <ConfidenceIndicator confidence={canonicalOutput.confidence} compact />
+          </div>
+        )}
+      </div>
       {/* ── Input Sufficiency Warning ── */}
       {!inputSufficiency.canAnalyze && (
         <Alert className="border-signal-warning/50 text-signal-warning [&>svg]:text-signal-warning">
