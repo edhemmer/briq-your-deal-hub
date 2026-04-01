@@ -1,8 +1,11 @@
 /**
- * BRIQ v1.5.3 — Canonical Engine Layer
+ * BRIQ v1.6.0 — Canonical Engine Layer
  * 
  * Single orchestration point: normalizedDealState → all analytical engines → outputs.
  * Pure functions only. No side effects. No component-level math.
+ * 
+ * v1.6.0: Added profile-driven decisioning, unseen-risk buffers,
+ *         and confidence-aware output support.
  * 
  * Architecture:
  *   dataSourceLayer → normalizedDealState → canonicalEngineLayer → UI
@@ -14,12 +17,16 @@ import type { DealIntelligenceResult } from "./dealIntelligenceEngine";
 import type { StrategyFitInput, StrategyFitResults } from "./strategyFitEngine";
 import type { MarketConditions, MarketIntelligenceResult } from "./marketIntelligenceEngine";
 import type { StressTestResults } from "./stressTestingEngine";
+import type { AnalysisContext, MarketProfileThresholds } from "./marketProfiles";
+import type { ConfidenceAssessment } from "./confidenceEngine";
 
 import { analyzeDeal } from "./dealAnalysisEngine";
 import { analyzeDealIntelligence } from "./dealIntelligenceEngine";
 import { evaluateDealStrategies } from "./strategyFitEngine";
 import { evaluateMarketIntelligence } from "./marketIntelligenceEngine";
 import { runStressTests } from "./stressTestingEngine";
+import { getMarketThresholds, applyUnseenRiskBuffers, isContextComplete } from "./marketProfiles";
+import { evaluateConfidence } from "./confidenceEngine";
 
 // ── Derive DealInput from NormalizedDealState ──────────────────────────
 
@@ -41,6 +48,28 @@ export function deriveDealInput(state: NormalizedDealState): DealInput {
     management_percent: state.expenses.managementPercent.value ?? 0,
     capex_percent: state.expenses.capexPercent.value ?? 0,
     arv: state.financing.arv.value ?? 0,
+  };
+}
+
+/**
+ * Apply unseen-risk buffers to a DealInput based on market profile thresholds.
+ * Returns a new DealInput — never mutates original.
+ */
+export function applyBuffersToDealInput(
+  input: DealInput,
+  thresholds: MarketProfileThresholds
+): DealInput {
+  const buffers = applyUnseenRiskBuffers(
+    input.interest_rate,
+    input.vacancy_percent,
+    thresholds
+  );
+  return {
+    ...input,
+    interest_rate: buffers.adjustedInterestRate,
+    vacancy_percent: buffers.adjustedVacancyPercent,
+    taxes: input.taxes * buffers.adjustedExpenseMultiplier,
+    insurance: input.insurance * buffers.adjustedExpenseMultiplier,
   };
 }
 
@@ -92,36 +121,80 @@ export function deriveStrategyFitInput(
 
 export interface CanonicalAnalysisOutput {
   dealInput: DealInput;
+  bufferedDealInput: DealInput;
   analysis: AnalysisResult;
+  bufferedAnalysis: AnalysisResult;
   intelligence: DealIntelligenceResult;
   marketConditions: MarketConditions;
   marketIntelligence: MarketIntelligenceResult;
   strategyFit: StrategyFitResults;
   stressResults: StressTestResults;
+  thresholds: MarketProfileThresholds;
+  confidence: ConfidenceAssessment;
+  context: AnalysisContext;
 }
 
 /**
  * Run the full canonical analysis pipeline from a NormalizedDealState.
  * This is the single entry point for all analytical outputs.
  * Pure function — no side effects.
+ * 
+ * v1.6.0: Now requires AnalysisContext for profile-driven routing.
  */
-export function runCanonicalAnalysis(state: NormalizedDealState): CanonicalAnalysisOutput {
+export function runCanonicalAnalysis(
+  state: NormalizedDealState,
+  context?: AnalysisContext
+): CanonicalAnalysisOutput {
+  // Default context for backward compatibility
+  const resolvedContext: AnalysisContext = context ?? {
+    marketType: "us_residential",
+    assetType: "single_family",
+    strategy: "long_term_rental",
+    riskTolerance: "balanced",
+  };
+
+  // Get profile-specific thresholds
+  const thresholds = getMarketThresholds(resolvedContext.marketType, resolvedContext.riskTolerance);
+
+  // Derive raw deal input
   const dealInput = deriveDealInput(state);
+
+  // Apply unseen-risk buffers for conservative analysis
+  const bufferedDealInput = applyBuffersToDealInput(dealInput, thresholds);
+
+  // Run analysis on both raw and buffered inputs
   const analysis = analyzeDeal(dealInput);
-  const intelligence = analyzeDealIntelligence(analysis);
+  const bufferedAnalysis = analyzeDeal(bufferedDealInput);
+
+  // Intelligence uses buffered analysis for conservative decisioning
+  const intelligence = analyzeDealIntelligence(bufferedAnalysis);
+
+  // Market analysis
   const marketConditions = deriveMarketConditions(state);
   const marketIntelligence = evaluateMarketIntelligence(marketConditions);
+
+  // Strategy fit uses raw analysis (buffers are for downside, not fit evaluation)
   const strategyFitInput = deriveStrategyFitInput(state, analysis, marketConditions);
   const strategyFit = evaluateDealStrategies(strategyFitInput);
-  const stressResults = runStressTests(dealInput, analysis);
+
+  // Stress tests use buffered baseline for conservative modeling
+  const stressResults = runStressTests(bufferedDealInput, bufferedAnalysis);
+
+  // Confidence assessment
+  const confidence = evaluateConfidence(state, resolvedContext);
 
   return {
     dealInput,
+    bufferedDealInput,
     analysis,
+    bufferedAnalysis,
     intelligence,
     marketConditions,
     marketIntelligence,
     strategyFit,
     stressResults,
+    thresholds,
+    confidence,
+    context: resolvedContext,
   };
 }

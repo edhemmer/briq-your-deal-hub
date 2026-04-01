@@ -4,6 +4,8 @@ import type { StrategySignals } from "@/lib/strategyFitEngine";
 import { evaluateInputSufficiency, type InputSufficiency, buildNormalizedDealState, enrichWithMarketData, updateFinancialFields } from "@/lib/normalizedDealState";
 import { deriveDealInput, deriveMarketConditions } from "@/lib/canonicalEngineLayer";
 import { useCanonicalAnalysis } from "@/hooks/useCanonicalAnalysis";
+import type { AnalysisContext } from "@/lib/marketProfiles";
+import { isContextComplete } from "@/lib/marketProfiles";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
@@ -35,6 +37,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { HelpTooltip } from "@/components/help/HelpTooltip";
 import { DealWorkflowIndicator } from "@/components/help/DealWorkflowIndicator";
 import { METRIC_HELP, STRATEGY_HELP, MARKET_HELP, CRIME_HELP, DEAL_INPUT_HELP } from "@/components/help/helpContent";
+import { AnalysisContextGate } from "@/components/analysis/AnalysisContextGate";
+import { AnalysisDisclosure } from "@/components/analysis/AnalysisDisclosure";
+import { ConfidenceIndicator } from "@/components/analysis/ConfidenceIndicator";
+import { MARKET_TYPE_LABELS, STRATEGY_LABELS as STRATEGY_GATE_LABELS, RISK_TOLERANCE_LABELS } from "@/lib/marketProfiles";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   { key: "purchase_price", label: "Purchase Price", group: "Acquisition" },
@@ -149,6 +155,7 @@ const Analysis = () => {
   const [initialized, setInitialized] = useState(false);
   const [enrichmentFields, setEnrichmentFields] = useState<Record<string, string>>({});
   const [marketFields, setMarketFields] = useState<Record<string, string>>({});
+  const [analysisContext, setAnalysisContext] = useState<AnalysisContext | null>(null);
 
   useEffect(() => {
     if (deal && !initialized) {
@@ -220,8 +227,8 @@ const Analysis = () => {
   }, [deal, localFields, marketFields]);
 
   // ── Run Canonical Analysis Pipeline (debounced + concurrency-safe) ──
-  const { output: canonicalOutput, status: analysisStatus } = useCanonicalAnalysis(normalizedState);
-  
+  const { output: canonicalOutput, status: analysisStatus } = useCanonicalAnalysis(normalizedState, analysisContext);
+
 
   const dealInput = canonicalOutput?.dealInput ?? ({} as DealInput);
   const analysis = canonicalOutput?.analysis!;
@@ -365,6 +372,21 @@ const Analysis = () => {
 
   const groups = [...new Set(FINANCIAL_FIELDS.map(f => f.group))];
 
+  // If context gate is not complete, show the gate UI
+  if (!analysisContext) {
+    return (
+      <SectionContainer>
+        <PageHeader
+          title={deal?.property_address ?? "Analysis"}
+          description={deal ? `${deal.city}, ${deal.state} ${deal.zip_code ?? ""}` : "Deal analysis"}
+        />
+        <DealWorkflowIndicator activeStep={2} className="mb-2" />
+        <AnalysisContextGate onContextComplete={setAnalysisContext} />
+        <AnalysisDisclosure className="mt-6" />
+      </SectionContainer>
+    );
+  }
+
   // Derive top strategy for summary
   const strategyEntries = Object.entries(strategyFit) as [keyof StrategyFitResults, StrategyFitResults[keyof StrategyFitResults]][];
   const topStrategy = strategyEntries.reduce((best, curr) => curr[1].score > best[1].score ? curr : best, strategyEntries[0]);
@@ -403,6 +425,23 @@ const Analysis = () => {
 
       <DealWorkflowIndicator activeStep={2} className="mb-2" />
 
+      {/* ── Analysis Context Summary ── */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Badge variant="secondary" className="text-xs">{MARKET_TYPE_LABELS[analysisContext.marketType]}</Badge>
+        <Badge variant="secondary" className="text-xs">{STRATEGY_GATE_LABELS[analysisContext.strategy]}</Badge>
+        <Badge variant="secondary" className="text-xs">{RISK_TOLERANCE_LABELS[analysisContext.riskTolerance]}</Badge>
+        <button
+          onClick={() => setAnalysisContext(null)}
+          className="text-[10px] text-muted-foreground hover:text-foreground underline transition-colors ml-1"
+        >
+          Change
+        </button>
+        {canonicalOutput?.confidence && (
+          <div className="ml-auto">
+            <ConfidenceIndicator confidence={canonicalOutput.confidence} compact />
+          </div>
+        )}
+      </div>
       {/* ── Input Sufficiency Warning ── */}
       {!inputSufficiency.canAnalyze && (
         <Alert className="border-signal-warning/50 text-signal-warning [&>svg]:text-signal-warning">
@@ -423,7 +462,7 @@ const Analysis = () => {
       {inputSufficiency.canAnalyze ? (
       <DealIntelligenceSummary
         intelligence={intelligence}
-        topStrategyLabel={STRATEGY_LABELS[topStrategy[0]]}
+        topStrategyLabel={STRATEGY_FIT_LABELS[topStrategy[0]]}
         marketStrength={marketIntelligence.market_strength_score}
         crimeScore={marketIntelligence.crime.crime_score}
         priceGrowth={marketConditionsInput.price_growth_12mo}
@@ -801,6 +840,14 @@ const Analysis = () => {
         </div>
       </div>
       )}
+
+      {/* ── Confidence Assessment (full) ── */}
+      {canonicalOutput?.confidence && (
+        <ConfidenceIndicator confidence={canonicalOutput.confidence} />
+      )}
+
+      {/* ── Global Disclosure ── */}
+      <AnalysisDisclosure className="mt-2" />
     </SectionContainer>
   );
 };
@@ -1009,7 +1056,7 @@ function SummaryCard({ title, rows }: { title: string; rows: [string, string][] 
 
 // ── Strategy Section ────────────────────────────────────────────────────
 
-const STRATEGY_LABELS: Record<keyof StrategyFitResults, string> = {
+const STRATEGY_FIT_LABELS: Record<keyof StrategyFitResults, string> = {
   brrrr: "BRRRR",
   longTermRental: "Long Term Rental",
   midTermRental: "Mid Term Rental",
@@ -1024,7 +1071,7 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
   const topEntry = entries.reduce((best, curr) => curr[1].score > best[1].score ? curr : best, entries[0]);
   const topScore = topEntry[1].score;
   const best = topEntry[1];
-  const bestLabel = STRATEGY_LABELS[topEntry[0]];
+  const bestLabel = STRATEGY_FIT_LABELS[topEntry[0]];
   const [expandedSignals, setExpandedSignals] = useState<Record<string, boolean>>({});
 
   const toggleSignals = (key: string) => {
@@ -1077,7 +1124,7 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
           return (
             <CardContainer key={key} className={`p-5 flex flex-col gap-3 transition-all ${isTop ? "ring-2 ring-primary shadow-md" : ""}`}>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-foreground">{STRATEGY_LABELS[key]}</span>
+                <span className="text-sm font-semibold text-foreground">{STRATEGY_FIT_LABELS[key]}</span>
                 {isTop && <Badge variant="default" className="text-[10px]">Best Fit</Badge>}
               </div>
               <div className="flex items-end gap-2">
