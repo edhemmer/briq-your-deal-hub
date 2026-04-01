@@ -155,6 +155,7 @@ const Analysis = () => {
   const [initialized, setInitialized] = useState(false);
   const [enrichmentFields, setEnrichmentFields] = useState<Record<string, string>>({});
   const [marketFields, setMarketFields] = useState<Record<string, string>>({});
+  const [analysisContext, setAnalysisContext] = useState<AnalysisContext | null>(null);
 
   useEffect(() => {
     if (deal && !initialized) {
