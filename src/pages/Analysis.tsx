@@ -159,6 +159,34 @@ const Analysis = () => {
   const [enrichmentFields, setEnrichmentFields] = useState<Record<string, string>>({});
   const [marketFields, setMarketFields] = useState<Record<string, string>>({});
   const [analysisContext, setAnalysisContext] = useState<AnalysisContext | null>(null);
+  const [sourceQualityMap, setSourceQualityMap] = useState<Record<string, SourceQuality>>({});
+
+  const sourceQualityInput = useMemo<SourceQualityInput | null>(() => {
+    if (Object.keys(sourceQualityMap).length === 0) return null;
+    return { fieldSources: sourceQualityMap };
+  }, [sourceQualityMap]);
+
+  const handleAcceptDraft = useCallback((accepted: Partial<Record<string, { value: number | string; source: SourceQuality; confidence: string }>>) => {
+    if (!dealId) return;
+    const fieldUpdates: Record<string, number> = {};
+    const enrichUpdates: Record<string, string> = {};
+    const newSources: Record<string, SourceQuality> = { ...sourceQualityMap };
+
+    for (const [key, data] of Object.entries(accepted)) {
+      if (!data) continue;
+      newSources[key] = data.source;
+
+      // Map draft keys to analysis/enrichment fields
+      if (key === "purchasePrice") { fieldUpdates.purchase_price = Number(data.value); setField("purchase_price", String(data.value)); }
+      else if (key === "monthlyRent") { fieldUpdates.monthly_rent = Number(data.value); setField("monthly_rent", String(data.value)); }
+      else if (key === "annualPropertyTax") { fieldUpdates.taxes = Number(data.value); setField("taxes", String(data.value)); }
+      else if (key === "assessedValue") { enrichUpdates.assessed_value = String(data.value); setEnrichmentField("assessed_value", String(data.value)); }
+      else if (key === "yearBuilt") { enrichUpdates.year_built = String(data.value); setEnrichmentField("year_built", String(data.value)); }
+      else if (key === "lotSize") { enrichUpdates.lot_size = String(data.value); setEnrichmentField("lot_size", String(data.value)); }
+      else if (key === "zoningType") { enrichUpdates.zoning_type = String(data.value); setEnrichmentField("zoning_type", String(data.value)); }
+    }
+    setSourceQualityMap(newSources);
+  }, [dealId, sourceQualityMap]);
 
   useEffect(() => {
     if (deal && !initialized) {
