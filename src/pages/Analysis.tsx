@@ -1056,7 +1056,7 @@ function SummaryCard({ title, rows }: { title: string; rows: [string, string][] 
 
 // ── Strategy Section ────────────────────────────────────────────────────
 
-const STRATEGY_LABELS: Record<keyof StrategyFitResults, string> = {
+const STRATEGY_FIT_LABELS: Record<keyof StrategyFitResults, string> = {
   brrrr: "BRRRR",
   longTermRental: "Long Term Rental",
   midTermRental: "Mid Term Rental",
