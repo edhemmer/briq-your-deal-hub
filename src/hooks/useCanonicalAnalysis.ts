@@ -1,19 +1,14 @@
 /**
- * BRIQ v1.6.0 — Reactive Canonical Analysis Hook
+ * BRIQ v1.6.1 — Reactive Canonical Analysis Hook
  *
- * Wraps runCanonicalAnalysis with:
- *  - Debounced execution (300ms) so rapid input edits don't thrash
- *  - Concurrency guard: only the latest input wins
- *  - Dirty/fresh state tracking for UI synchronization
- *  - Atomic output updates (all-or-nothing) to prevent partial renders
- *  - v1.6.0: AnalysisContext support for profile-driven routing
- *
- * Pure orchestration — no formula or data-source changes.
+ * Wraps runCanonicalAnalysis with debounced execution, concurrency guard,
+ * and source quality awareness.
  */
 
 import { useState, useEffect, useRef } from "react";
 import type { NormalizedDealState } from "@/lib/normalizedDealState";
 import type { AnalysisContext } from "@/lib/marketProfiles";
+import type { SourceQualityInput } from "@/lib/confidenceEngine";
 import { runCanonicalAnalysis, type CanonicalAnalysisOutput } from "@/lib/canonicalEngineLayer";
 
 export type AnalysisStatus = "idle" | "dirty" | "analyzing" | "fresh";
@@ -27,7 +22,8 @@ const DEBOUNCE_MS = 300;
 
 export function useCanonicalAnalysis(
   state: NormalizedDealState | null,
-  context?: AnalysisContext | null
+  context?: AnalysisContext | null,
+  sourceQuality?: SourceQualityInput | null
 ): UseCanonicalAnalysisResult {
   const [output, setOutput] = useState<CanonicalAnalysisOutput | null>(null);
   const [status, setStatus] = useState<AnalysisStatus>("idle");
@@ -36,6 +32,7 @@ export function useCanonicalAnalysis(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastStateRef = useRef<NormalizedDealState | null>(null);
   const lastContextRef = useRef<AnalysisContext | null | undefined>(null);
+  const lastSourceQualityRef = useRef<SourceQualityInput | null | undefined>(null);
 
   useEffect(() => {
     if (!state) {
@@ -45,11 +42,11 @@ export function useCanonicalAnalysis(
       setStatus("idle");
       lastStateRef.current = null;
       lastContextRef.current = null;
+      lastSourceQualityRef.current = null;
       return;
     }
 
-    // Skip if identical refs
-    if (state === lastStateRef.current && context === lastContextRef.current) return;
+    if (state === lastStateRef.current && context === lastContextRef.current && sourceQuality === lastSourceQualityRef.current) return;
 
     setStatus("dirty");
 
@@ -62,11 +59,12 @@ export function useCanonicalAnalysis(
 
       setStatus("analyzing");
 
-      const result = runCanonicalAnalysis(state, context ?? undefined);
+      const result = runCanonicalAnalysis(state, context ?? undefined, sourceQuality ?? undefined);
 
       if (gen === generationRef.current) {
         lastStateRef.current = state;
         lastContextRef.current = context;
+        lastSourceQualityRef.current = sourceQuality;
         setOutput(result);
         setStatus("fresh");
       }
@@ -75,7 +73,7 @@ export function useCanonicalAnalysis(
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [state, context]);
+  }, [state, context, sourceQuality]);
 
   return { output, status };
 }
