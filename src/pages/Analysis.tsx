@@ -372,6 +372,21 @@ const Analysis = () => {
 
   const groups = [...new Set(FINANCIAL_FIELDS.map(f => f.group))];
 
+  // If context gate is not complete, show the gate UI
+  if (!analysisContext) {
+    return (
+      <SectionContainer>
+        <PageHeader
+          title={deal?.property_address ?? "Analysis"}
+          description={deal ? `${deal.city}, ${deal.state} ${deal.zip_code ?? ""}` : "Deal analysis"}
+        />
+        <DealWorkflowIndicator activeStep={2} className="mb-2" />
+        <AnalysisContextGate onContextComplete={setAnalysisContext} />
+        <AnalysisDisclosure className="mt-6" />
+      </SectionContainer>
+    );
+  }
+
   // Derive top strategy for summary
   const strategyEntries = Object.entries(strategyFit) as [keyof StrategyFitResults, StrategyFitResults[keyof StrategyFitResults]][];
   const topStrategy = strategyEntries.reduce((best, curr) => curr[1].score > best[1].score ? curr : best, strategyEntries[0]);
