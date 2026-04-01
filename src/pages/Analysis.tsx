@@ -510,6 +510,16 @@ const Analysis = () => {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 1.5: GUIDED PROPERTY RETRIEVAL
+          ═══════════════════════════════════════════════════════════════════ */}
+      {deal && (
+        <GuidedPropertyRetrieval
+          dealAddress={{ property_address: deal.property_address, city: deal.city, state: deal.state, zip_code: deal.zip_code }}
+          onAcceptDraft={handleAcceptDraft}
+        />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
           SECTION 2: PROPERTY OVERVIEW
           ═══════════════════════════════════════════════════════════════════ */}
       {propertyIntelligence && (
