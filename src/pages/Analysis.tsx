@@ -22,7 +22,7 @@ import {
   AlertTriangle, XCircle, CheckCircle2, Gauge, Wrench, RefreshCw,
   FileSearch, ExternalLink, MapPin, Home, Activity, BarChart2, Users,
   ShieldAlert, Shield, ChevronDown, ChevronUp, FileText, Download,
-  Target, Zap
+  Target, Zap, Landmark
 } from "lucide-react";
 import { useDeal, useUpdateDeal } from "@/hooks/useDeals";
 import type { DealInput } from "@/lib/dealAnalysisEngine";
@@ -42,6 +42,7 @@ import { AnalysisDisclosure } from "@/components/analysis/AnalysisDisclosure";
 import { ConfidenceIndicator } from "@/components/analysis/ConfidenceIndicator";
 import { MARKET_TYPE_LABELS, STRATEGY_LABELS as STRATEGY_GATE_LABELS, RISK_TOLERANCE_LABELS } from "@/lib/marketProfiles";
 import { GuidedPropertyRetrieval } from "@/components/analysis/GuidedPropertyRetrieval";
+import { FinancingIntelligence } from "@/components/analysis/FinancingIntelligence";
 import type { SourceQualityInput } from "@/lib/confidenceEngine";
 import type { SourceQuality } from "@/lib/propertySourceResolver";
 
@@ -639,6 +640,12 @@ const Analysis = () => {
         </CardContainer>
       )}
 
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 3.5: FINANCING INTELLIGENCE
+          ═══════════════════════════════════════════════════════════════════ */}
+      {inputSufficiency.canAnalyze && canonicalOutput?.financingOptions && (
+        <FinancingIntelligence results={canonicalOutput.financingOptions} />
+      )}
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 4: MARKET INTELLIGENCE
           ═══════════════════════════════════════════════════════════════════ */}

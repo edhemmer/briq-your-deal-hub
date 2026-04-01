@@ -19,6 +19,7 @@ import type { MarketConditions, MarketIntelligenceResult } from "./marketIntelli
 import type { StressTestResults } from "./stressTestingEngine";
 import type { AnalysisContext, MarketProfileThresholds } from "./marketProfiles";
 import type { ConfidenceAssessment, SourceQualityInput } from "./confidenceEngine";
+import type { FinancingResult } from "./financingEngine";
 
 import { analyzeDeal } from "./dealAnalysisEngine";
 import { analyzeDealIntelligence } from "./dealIntelligenceEngine";
@@ -27,6 +28,7 @@ import { evaluateMarketIntelligence } from "./marketIntelligenceEngine";
 import { runStressTests } from "./stressTestingEngine";
 import { getMarketThresholds, applyUnseenRiskBuffers, isContextComplete } from "./marketProfiles";
 import { evaluateConfidence } from "./confidenceEngine";
+import { evaluateFinancingOptions } from "./financingEngine";
 
 // ── Derive DealInput from NormalizedDealState ──────────────────────────
 
@@ -131,6 +133,7 @@ export interface CanonicalAnalysisOutput {
   stressResults: StressTestResults;
   thresholds: MarketProfileThresholds;
   confidence: ConfidenceAssessment;
+  financingOptions: FinancingResult[];
   context: AnalysisContext;
 }
 
@@ -184,6 +187,9 @@ export function runCanonicalAnalysis(
   // Confidence assessment with source quality awareness
   const confidence = evaluateConfidence(state, resolvedContext, sourceQuality);
 
+  // Financing intelligence
+  const financingOptions = evaluateFinancingOptions(dealInput, resolvedContext, analysis.metrics.dscr);
+
   return {
     dealInput,
     bufferedDealInput,
@@ -196,6 +202,7 @@ export function runCanonicalAnalysis(
     stressResults,
     thresholds,
     confidence,
+    financingOptions,
     context: resolvedContext,
   };
 }
