@@ -150,6 +150,10 @@ All tables implement RLS policies:
 |------|--------|----------------|
 | `dataSourceLayer.ts` | Data Source Layer | Canonical data orchestration & sourced value types |
 | `normalizedDealState.ts` | Normalized Deal State | Single source of truth for deal data & input sufficiency |
+| `canonicalEngineLayer.ts` | Canonical Engine Layer | Single orchestration point for all analytical engines |
+| `marketProfiles.ts` | Market Profiles | Profile-driven thresholds, buffers, and risk tolerance config |
+| `confidenceEngine.ts` | Confidence Engine | Input quality assessment and confidence-aware results |
+| `glossary.ts` | Glossary & Disclosure | Inline term definitions, strategy education, and legal disclosure |
 | `dealAnalysisEngine.ts` | Deal Analysis | Financial KPI calculations |
 | `dealIntelligenceEngine.ts` | Deal Intelligence | Composite scoring |
 | `marketIntelligenceEngine.ts` | Market Intelligence | Location-based signals |
@@ -158,17 +162,35 @@ All tables implement RLS policies:
 | `reportEngine.ts` | Report Generation | PDF/CSV export |
 | `property/propertyIntelligenceEngine.ts` | Property Intelligence | County record resolution |
 
-### Canonical Data Flow (v1.5.3)
+### Canonical Data Flow (v1.6.0)
 
 ```
-dataSourceLayer → normalizedDealState → canonicalEngineLayer → UI
+User selects AnalysisContext (market type, asset type, strategy, risk tolerance)
+                                     │
+                                     ▼
+dataSourceLayer → normalizedDealState → canonicalEngineLayer(context) → UI
+                                                │
+                                     ┌──────────┼──────────┐
+                                     ▼          ▼          ▼
+                              marketProfiles  confidenceEngine  unseen-risk buffers
 ```
 
+- **AnalysisContext** (`marketProfiles.ts`): Required gate — market type (US Residential / US Commercial / International), asset type, investment strategy, and risk tolerance. Analysis cannot run without a complete context.
+- **Market Profiles**: Deterministic threshold configs per market type × risk tolerance. US Residential, US Commercial, and International each have distinct logic paths.
+- **Unseen-Risk Buffers**: Conservative adjustment applied to expense, financing, and vacancy assumptions so outputs are not based on best-case conditions. Configurable per market profile.
+- **Confidence Engine**: Evaluates data completeness and returns a confidence score (high / moderate / low / insufficient). Results below threshold are flagged as preliminary.
 - **dataSourceLayer** (`dataSourceLayer.ts`): Defines `SourcedValue<T>` types that distinguish `user_input`, `extracted`, `county_record`, `market_data`, `calculated`, and `unavailable` origins
 - **Resolvers** (`resolvers/`): `propertyDataResolver`, `rentDataResolver`, `financingDataResolver` — normalize raw data into `SourcedValue` objects
 - **normalizedDealState** (`normalizedDealState.ts`): Builds the canonical deal object from DB rows; supports market data enrichment via `enrichWithMarketData()` and field updates via `updateFinancialFields()`
-- **canonicalEngineLayer** (`canonicalEngineLayer.ts`): Single orchestration point — derives `DealInput`, `MarketConditions`, and `StrategyFitInput` from `NormalizedDealState`, then runs all engines via `runCanonicalAnalysis()`. No analytical engine is called directly from UI components.
+- **canonicalEngineLayer** (`canonicalEngineLayer.ts`): Single orchestration point — derives `DealInput`, applies unseen-risk buffers, runs all engines via `runCanonicalAnalysis(state, context)`. Returns both raw and buffered analysis plus confidence assessment. No analytical engine is called directly from UI components.
 - **Input Sufficiency**: Analysis sections are gated — if required inputs (purchase price, monthly rent) are missing, clean "awaiting data" states are shown instead of misleading zero-input outputs
+- **Glossary/Help**: Lightweight inline definitions via `GlossaryTerm` component. Global analysis disclosure visible on all analysis views.
+
+### Strategy & Risk Architecture (v1.6.0)
+
+- **Strategies**: Long-Term Rental, Short-Term Rental, Hybrid. Extensible for Fix & Flip, Value-Add, BRRRR without rebuilding.
+- **Risk Tolerance**: Conservative / Balanced / Aggressive. Affects thresholds, stress assumptions, and buffer intensities.
+- **International**: Supports country + region context. Architecture-ready for country-specific rule profiles in future patches.
 
 ---
 
@@ -222,4 +244,4 @@ dataSourceLayer → normalizedDealState → canonicalEngineLayer → UI
 
 ---
 
-*Last Updated: March 2026 — v1.5.1 Data Foundation Patch*
+*Last Updated: April 2026 — v1.6.0 Market Profile + Strategy + Decisioning Core*
