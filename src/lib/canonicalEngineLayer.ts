@@ -143,7 +143,8 @@ export interface CanonicalAnalysisOutput {
  */
 export function runCanonicalAnalysis(
   state: NormalizedDealState,
-  context?: AnalysisContext
+  context?: AnalysisContext,
+  sourceQuality?: SourceQualityInput
 ): CanonicalAnalysisOutput {
   // Default context for backward compatibility
   const resolvedContext: AnalysisContext = context ?? {
@@ -180,8 +181,8 @@ export function runCanonicalAnalysis(
   // Stress tests use buffered baseline for conservative modeling
   const stressResults = runStressTests(bufferedDealInput, bufferedAnalysis);
 
-  // Confidence assessment
-  const confidence = evaluateConfidence(state, resolvedContext);
+  // Confidence assessment with source quality awareness
+  const confidence = evaluateConfidence(state, resolvedContext, sourceQuality);
 
   return {
     dealInput,
