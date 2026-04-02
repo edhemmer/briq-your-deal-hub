@@ -272,6 +272,42 @@ const Analysis = () => {
   // ── Run Canonical Analysis Pipeline (debounced + concurrency-safe) ──
   const { output: canonicalOutput, status: analysisStatus } = useCanonicalAnalysis(normalizedState, analysisContext, sourceQualityInput);
 
+  // ── v1.9.0: Canonical Property Data Resolution Pipeline ──
+  const { resolvedPropertyData, propertyConflicts } = useMemo(() => {
+    if (!deal) return { resolvedPropertyData: null, propertyConflicts: [] as PropertyConflict[] };
+
+    // Step 1: Normalize listing data
+    const listingRaw = normalizeListingData({
+      address: deal.property_address,
+      price: deal.purchase_price ?? undefined,
+      rent: parseFloat(localFields.monthly_rent || "0") || undefined,
+      taxes: parseFloat(localFields.taxes || "0") || undefined,
+      sqft: undefined,
+      yearBuilt: parseFloat(enrichmentFields.year_built || "0") || undefined,
+    });
+
+    // Step 2: Merge user rent as separate source
+    let raw: RawPropertyData = { ...listingRaw, taxes: [...listingRaw.taxes] };
+    const userRent = parseFloat(localFields.monthly_rent || "0") || 0;
+    if (userRent > 0) {
+      raw.rentUser = { value: userRent, source: "user", confidence: "medium" };
+    }
+
+    // Step 3: Merge public record data
+    raw = mergePublicRecordData(raw, {
+      annualPropertyTax: parseFloat(enrichmentFields.annual_property_tax || "0") || undefined,
+      yearBuilt: parseFloat(enrichmentFields.year_built || "0") || undefined,
+    });
+
+    // Step 4: Detect conflicts
+    const conflicts = detectPropertyConflicts(raw);
+
+    // Step 5: Resolve for analysis
+    const resolved = resolvePropertyForAnalysis(raw);
+
+    return { resolvedPropertyData: resolved, propertyConflicts: conflicts };
+  }, [deal, localFields, enrichmentFields]);
+
 
   const dealInput = canonicalOutput?.dealInput ?? ({} as DealInput);
   const analysis = canonicalOutput?.analysis!;
