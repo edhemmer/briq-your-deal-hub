@@ -142,6 +142,7 @@ export interface CanonicalAnalysisOutput {
   financingOptions: FinancingResult[];
   marketOutlook: MarketOutlook | null;
   hiddenRisks: HiddenRiskResult;
+  dealGuidance: DealGuidanceResult;
   context: AnalysisContext;
 }
 
