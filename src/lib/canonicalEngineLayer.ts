@@ -30,6 +30,7 @@ import { analyzeDealIntelligence } from "./dealIntelligenceEngine";
 import { evaluateDealStrategies } from "./strategyFitEngine";
 import { evaluateMarketIntelligence } from "./marketIntelligenceEngine";
 import { runStressTests } from "./stressTestingEngine";
+import { evaluateDealReliability } from "./dealReliabilityEngine";
 import { getMarketThresholds, applyUnseenRiskBuffers, isContextComplete } from "./marketProfiles";
 import { evaluateConfidence } from "./confidenceEngine";
 import { evaluateFinancingOptions } from "./financingEngine";
