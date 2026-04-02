@@ -34,6 +34,7 @@ import { evaluateConfidence } from "./confidenceEngine";
 import { evaluateFinancingOptions } from "./financingEngine";
 import { evaluateMarketOutlook } from "./marketOutlookEngine";
 import { evaluateHiddenRisks } from "./hiddenRiskEngine";
+import { evaluateDealGuidance } from "./dealGuidanceEngine";
 
 // ── Derive DealInput from NormalizedDealState ──────────────────────────
 
