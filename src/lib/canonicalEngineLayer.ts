@@ -21,6 +21,7 @@ import type { AnalysisContext, MarketProfileThresholds } from "./marketProfiles"
 import type { ConfidenceAssessment, SourceQualityInput } from "./confidenceEngine";
 import type { FinancingResult } from "./financingEngine";
 import type { MarketOutlook } from "./marketOutlookEngine";
+import type { HiddenRiskResult, VisualSignal } from "./hiddenRiskEngine";
 
 import { analyzeDeal } from "./dealAnalysisEngine";
 import { analyzeDealIntelligence } from "./dealIntelligenceEngine";
