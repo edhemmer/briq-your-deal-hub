@@ -153,7 +153,8 @@ export interface CanonicalAnalysisOutput {
 export function runCanonicalAnalysis(
   state: NormalizedDealState,
   context?: AnalysisContext,
-  sourceQuality?: SourceQualityInput
+  sourceQuality?: SourceQualityInput,
+  visualSignals?: VisualSignal[]
 ): CanonicalAnalysisOutput {
   // Default context for backward compatibility
   const resolvedContext: AnalysisContext = context ?? {
