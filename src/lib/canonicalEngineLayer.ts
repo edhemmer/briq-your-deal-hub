@@ -139,6 +139,7 @@ export interface CanonicalAnalysisOutput {
   marketIntelligence: MarketIntelligenceResult;
   strategyFit: StrategyFitResults;
   stressResults: StressTestResults;
+  dealReliability: DealReliabilityResult;
   thresholds: MarketProfileThresholds;
   confidence: ConfidenceAssessment;
   financingOptions: FinancingResult[];
