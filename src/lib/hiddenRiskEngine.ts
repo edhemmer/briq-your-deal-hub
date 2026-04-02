@@ -128,8 +128,10 @@ function evaluateFinancialRisks(
   }
 
   // High expense ratio (> 60%)
-  if (m.total_expenses > 0 && m.gross_income > 0) {
-    const expenseRatio = m.total_expenses / m.gross_income;
+  const opex = analysis.expenses.operating_expenses;
+  const grossIncome = analysis.income.total_income;
+  if (opex > 0 && grossIncome > 0) {
+    const expenseRatio = opex / grossIncome;
     if (expenseRatio > 0.60) {
       flags.push({
         id: "fin_high_expense_ratio",
