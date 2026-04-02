@@ -209,6 +209,15 @@ export function runCanonicalAnalysis(
     inventory_level: marketConditions.inventory_level || null,
   });
 
+  // Hidden risk detection
+  const hiddenRisks = evaluateHiddenRisks({
+    state,
+    analysis: bufferedAnalysis,
+    marketConditions,
+    marketIntelligence,
+    visualSignals,
+  });
+
   return {
     dealInput,
     bufferedDealInput,
@@ -223,6 +232,7 @@ export function runCanonicalAnalysis(
     confidence,
     financingOptions,
     marketOutlook,
+    hiddenRisks,
     context: resolvedContext,
   };
 }
