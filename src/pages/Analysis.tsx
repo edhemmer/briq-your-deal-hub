@@ -43,6 +43,7 @@ import { ConfidenceIndicator } from "@/components/analysis/ConfidenceIndicator";
 import { MARKET_TYPE_LABELS, STRATEGY_LABELS as STRATEGY_GATE_LABELS, RISK_TOLERANCE_LABELS } from "@/lib/marketProfiles";
 import { GuidedPropertyRetrieval } from "@/components/analysis/GuidedPropertyRetrieval";
 import { FinancingIntelligence } from "@/components/analysis/FinancingIntelligence";
+import { MarketOutlook } from "@/components/analysis/MarketOutlook";
 import type { SourceQualityInput } from "@/lib/confidenceEngine";
 import type { SourceQuality } from "@/lib/propertySourceResolver";
 
@@ -645,6 +646,17 @@ const Analysis = () => {
           ═══════════════════════════════════════════════════════════════════ */}
       {inputSufficiency.canAnalyze && canonicalOutput?.financingOptions && (
         <FinancingIntelligence results={canonicalOutput.financingOptions} />
+      )}
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 3B: MARKET OUTLOOK (3–5 YEAR)
+          ═══════════════════════════════════════════════════════════════════ */}
+      {canonicalOutput?.marketOutlook && (
+        <div className="space-y-3">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-muted-foreground" /> Market Outlook (3–5 Year)
+          </h2>
+          <MarketOutlook outlook={canonicalOutput.marketOutlook} />
+        </div>
       )}
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION 4: MARKET INTELLIGENCE

@@ -20,6 +20,7 @@ import type { StressTestResults } from "./stressTestingEngine";
 import type { AnalysisContext, MarketProfileThresholds } from "./marketProfiles";
 import type { ConfidenceAssessment, SourceQualityInput } from "./confidenceEngine";
 import type { FinancingResult } from "./financingEngine";
+import type { MarketOutlook } from "./marketOutlookEngine";
 
 import { analyzeDeal } from "./dealAnalysisEngine";
 import { analyzeDealIntelligence } from "./dealIntelligenceEngine";
@@ -29,6 +30,7 @@ import { runStressTests } from "./stressTestingEngine";
 import { getMarketThresholds, applyUnseenRiskBuffers, isContextComplete } from "./marketProfiles";
 import { evaluateConfidence } from "./confidenceEngine";
 import { evaluateFinancingOptions } from "./financingEngine";
+import { evaluateMarketOutlook } from "./marketOutlookEngine";
 
 // ── Derive DealInput from NormalizedDealState ──────────────────────────
 
@@ -134,6 +136,7 @@ export interface CanonicalAnalysisOutput {
   thresholds: MarketProfileThresholds;
   confidence: ConfidenceAssessment;
   financingOptions: FinancingResult[];
+  marketOutlook: MarketOutlook | null;
   context: AnalysisContext;
 }
 
@@ -190,6 +193,18 @@ export function runCanonicalAnalysis(
   // Financing intelligence
   const financingOptions = evaluateFinancingOptions(dealInput, resolvedContext, analysis.metrics.dscr);
 
+  // Market outlook (3–5 year forward intelligence)
+  const marketOutlook = evaluateMarketOutlook({
+    population_growth_rate: marketConditions.population_growth_rate || null,
+    job_growth_rate: marketConditions.job_growth_rate || null,
+    rent_growth_36mo: marketConditions.rent_growth_36mo || null,
+    rent_growth_12mo: marketConditions.rent_growth_12mo || null,
+    price_growth_36mo: marketConditions.price_growth_36mo || null,
+    absorption_rate: marketConditions.absorption_rate || null,
+    months_of_supply: marketConditions.months_of_supply || null,
+    inventory_level: marketConditions.inventory_level || null,
+  });
+
   return {
     dealInput,
     bufferedDealInput,
@@ -203,6 +218,7 @@ export function runCanonicalAnalysis(
     thresholds,
     confidence,
     financingOptions,
+    marketOutlook,
     context: resolvedContext,
   };
 }
