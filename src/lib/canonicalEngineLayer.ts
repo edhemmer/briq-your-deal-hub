@@ -247,6 +247,7 @@ export function runCanonicalAnalysis(
     marketIntelligence,
     strategyFit,
     stressResults,
+    dealReliability,
     thresholds,
     confidence,
     financingOptions,
