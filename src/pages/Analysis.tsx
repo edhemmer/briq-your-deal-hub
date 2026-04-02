@@ -43,6 +43,7 @@ import { ConfidenceIndicator } from "@/components/analysis/ConfidenceIndicator";
 import { MARKET_TYPE_LABELS, STRATEGY_LABELS as STRATEGY_GATE_LABELS, RISK_TOLERANCE_LABELS } from "@/lib/marketProfiles";
 import { GuidedPropertyRetrieval } from "@/components/analysis/GuidedPropertyRetrieval";
 import { FinancingIntelligence } from "@/components/analysis/FinancingIntelligence";
+import { MarketOutlook } from "@/components/analysis/MarketOutlook";
 import type { SourceQualityInput } from "@/lib/confidenceEngine";
 import type { SourceQuality } from "@/lib/propertySourceResolver";
 
