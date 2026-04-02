@@ -30,6 +30,7 @@ import { runStressTests } from "./stressTestingEngine";
 import { getMarketThresholds, applyUnseenRiskBuffers, isContextComplete } from "./marketProfiles";
 import { evaluateConfidence } from "./confidenceEngine";
 import { evaluateFinancingOptions } from "./financingEngine";
+import { evaluateMarketOutlook } from "./marketOutlookEngine";
 
 // ── Derive DealInput from NormalizedDealState ──────────────────────────
 
