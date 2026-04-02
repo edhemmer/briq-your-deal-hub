@@ -660,6 +660,17 @@ const Analysis = () => {
         </div>
       )}
       {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 3C: HIDDEN RISK ENGINE
+          ═══════════════════════════════════════════════════════════════════ */}
+      {inputSufficiency.canAnalyze && canonicalOutput?.hiddenRisks && (
+        <div className="space-y-3">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5 text-muted-foreground" /> Hidden Risk Analysis
+          </h2>
+          <HiddenRiskPanel result={canonicalOutput.hiddenRisks} />
+        </div>
+      )}
+      {/* ═══════════════════════════════════════════════════════════════════
           SECTION 4: MARKET INTELLIGENCE
           ═══════════════════════════════════════════════════════════════════ */}
       <div className="space-y-4">
