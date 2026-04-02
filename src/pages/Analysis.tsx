@@ -1296,8 +1296,8 @@ function resilienceBadgeVariant(level: ResilienceLevel): "default" | "secondary"
 
 function StressTestingSection({ stressResults, intelligence, hiddenRisks, confidence }: {
   stressResults: StressTestResults;
-  intelligence: DealIntelligenceResult | null;
-  hiddenRisks: import("@/lib/hiddenRiskEngine").HiddenRiskResult | null;
+  intelligence: ReturnType<typeof import("@/lib/dealIntelligenceEngine").analyzeDealIntelligence> | null;
+  hiddenRisks: ReturnType<typeof import("@/lib/hiddenRiskEngine").evaluateHiddenRisks> | null;
   confidence: import("@/lib/confidenceEngine").ConfidenceAssessment | null;
 }) {
   const [activeCategory, setActiveCategory] = useState<ScenarioCategory>("interest");
