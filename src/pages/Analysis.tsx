@@ -50,6 +50,12 @@ import { HiddenRiskPanel } from "@/components/analysis/HiddenRiskPanel";
 import { DealGuidance } from "@/components/analysis/DealGuidance";
 import type { SourceQualityInput } from "@/lib/confidenceEngine";
 import type { SourceQuality } from "@/lib/propertySourceResolver";
+import { normalizeListingData } from "@/lib/listingDataNormalizer";
+import { mergePublicRecordData } from "@/lib/publicRecordResolver";
+import { detectPropertyConflicts, type PropertyConflict } from "@/lib/propertyConflictDetector";
+import { resolvePropertyForAnalysis } from "@/lib/analysisDataResolver";
+import type { RawPropertyData, ResolvedPropertyData } from "@/lib/propertyDataSources";
+import { DataConfidencePanel } from "@/components/analysis/DataConfidencePanel";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   { key: "purchase_price", label: "Purchase Price", group: "Acquisition" },
