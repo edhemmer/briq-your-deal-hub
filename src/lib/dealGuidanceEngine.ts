@@ -206,9 +206,9 @@ export function evaluateDealGuidance(input: DealGuidanceInput): DealGuidanceResu
   } else if (dataCompletenessScore >= 80) {
     reasoning.push(`Strong data coverage at ${dataCompletenessScore}%`);
   }
-  if (hiddenRisks.totalScore > 30) {
-    reasoning.push(`Elevated hidden risk score of ${hiddenRisks.totalScore}/100`);
-  } else if (hiddenRisks.totalScore <= 10) {
+  if (hiddenRisks.totalRiskScore > 30) {
+    reasoning.push(`Elevated hidden risk score of ${hiddenRisks.totalRiskScore}/100`);
+  } else if (hiddenRisks.totalRiskScore <= 10) {
     reasoning.push("Low hidden risk exposure detected");
   }
   if (overallConfidenceScore >= 70) {
