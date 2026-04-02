@@ -44,6 +44,7 @@ import { MARKET_TYPE_LABELS, STRATEGY_LABELS as STRATEGY_GATE_LABELS, RISK_TOLER
 import { GuidedPropertyRetrieval } from "@/components/analysis/GuidedPropertyRetrieval";
 import { FinancingIntelligence } from "@/components/analysis/FinancingIntelligence";
 import { MarketOutlook } from "@/components/analysis/MarketOutlook";
+import { HiddenRiskPanel } from "@/components/analysis/HiddenRiskPanel";
 import type { SourceQualityInput } from "@/lib/confidenceEngine";
 import type { SourceQuality } from "@/lib/propertySourceResolver";
 
@@ -656,6 +657,17 @@ const Analysis = () => {
             <TrendingUp className="h-5 w-5 text-muted-foreground" /> Market Outlook (3–5 Year)
           </h2>
           <MarketOutlook outlook={canonicalOutput.marketOutlook} />
+        </div>
+      )}
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 3C: HIDDEN RISK ENGINE
+          ═══════════════════════════════════════════════════════════════════ */}
+      {inputSufficiency.canAnalyze && canonicalOutput?.hiddenRisks && (
+        <div className="space-y-3">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5 text-muted-foreground" /> Hidden Risk Analysis
+          </h2>
+          <HiddenRiskPanel result={canonicalOutput.hiddenRisks} />
         </div>
       )}
       {/* ═══════════════════════════════════════════════════════════════════

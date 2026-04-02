@@ -21,6 +21,7 @@ import type { AnalysisContext, MarketProfileThresholds } from "./marketProfiles"
 import type { ConfidenceAssessment, SourceQualityInput } from "./confidenceEngine";
 import type { FinancingResult } from "./financingEngine";
 import type { MarketOutlook } from "./marketOutlookEngine";
+import type { HiddenRiskResult, VisualSignal } from "./hiddenRiskEngine";
 
 import { analyzeDeal } from "./dealAnalysisEngine";
 import { analyzeDealIntelligence } from "./dealIntelligenceEngine";
@@ -31,6 +32,7 @@ import { getMarketThresholds, applyUnseenRiskBuffers, isContextComplete } from "
 import { evaluateConfidence } from "./confidenceEngine";
 import { evaluateFinancingOptions } from "./financingEngine";
 import { evaluateMarketOutlook } from "./marketOutlookEngine";
+import { evaluateHiddenRisks } from "./hiddenRiskEngine";
 
 // ── Derive DealInput from NormalizedDealState ──────────────────────────
 
@@ -137,6 +139,7 @@ export interface CanonicalAnalysisOutput {
   confidence: ConfidenceAssessment;
   financingOptions: FinancingResult[];
   marketOutlook: MarketOutlook | null;
+  hiddenRisks: HiddenRiskResult;
   context: AnalysisContext;
 }
 
@@ -150,7 +153,8 @@ export interface CanonicalAnalysisOutput {
 export function runCanonicalAnalysis(
   state: NormalizedDealState,
   context?: AnalysisContext,
-  sourceQuality?: SourceQualityInput
+  sourceQuality?: SourceQualityInput,
+  visualSignals?: VisualSignal[]
 ): CanonicalAnalysisOutput {
   // Default context for backward compatibility
   const resolvedContext: AnalysisContext = context ?? {
@@ -205,6 +209,15 @@ export function runCanonicalAnalysis(
     inventory_level: marketConditions.inventory_level || null,
   });
 
+  // Hidden risk detection
+  const hiddenRisks = evaluateHiddenRisks({
+    state,
+    analysis: bufferedAnalysis,
+    marketConditions,
+    marketIntelligence,
+    visualSignals,
+  });
+
   return {
     dealInput,
     bufferedDealInput,
@@ -219,6 +232,7 @@ export function runCanonicalAnalysis(
     confidence,
     financingOptions,
     marketOutlook,
+    hiddenRisks,
     context: resolvedContext,
   };
 }
