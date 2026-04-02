@@ -514,6 +514,18 @@ const Analysis = () => {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 1.25: DEAL CONFIDENCE & GUIDANCE
+          ═══════════════════════════════════════════════════════════════════ */}
+      {inputSufficiency.canAnalyze && canonicalOutput?.dealGuidance && (
+        <div className="space-y-3">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <Shield className="h-5 w-5 text-muted-foreground" /> Deal Confidence & Guidance
+          </h2>
+          <DealGuidance result={canonicalOutput.dealGuidance} />
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
           SECTION 1.5: GUIDED PROPERTY RETRIEVAL
           ═══════════════════════════════════════════════════════════════════ */}
       {deal && (
