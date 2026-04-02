@@ -140,7 +140,7 @@ export function evaluateDealGuidance(input: DealGuidanceInput): DealGuidanceResu
     insurance: state.expenses.insurance.value,
     financingInputs: hasFinancing,
     propertyConditionKnown,
-    marketOutlookSignals: marketOutlook?.signalsUsedCount ?? 0,
+    marketOutlookSignals: marketOutlook?.signals_used_count ?? 0,
   };
 
   const dataCompletenessScore = computeDataCompleteness(completenessInput);
