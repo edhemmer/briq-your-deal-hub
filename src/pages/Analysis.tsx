@@ -1294,12 +1294,24 @@ function resilienceBadgeVariant(level: ResilienceLevel): "default" | "secondary"
   return "destructive";
 }
 
-function StressTestingSection({ stressResults }: { stressResults: StressTestResults }) {
+function StressTestingSection({ stressResults, intelligence, hiddenRisks, confidence }: {
+  stressResults: StressTestResults;
+  intelligence: DealIntelligenceResult | null;
+  hiddenRisks: import("@/lib/hiddenRiskEngine").HiddenRiskResult | null;
+  confidence: import("@/lib/confidenceEngine").ConfidenceAssessment | null;
+}) {
   const [activeCategory, setActiveCategory] = useState<ScenarioCategory>("interest");
 
   const filteredScenarios = stressResults.scenarios.filter(
     s => s.scenario.category === activeCategory
   );
+
+  const interpretation = useMemo(() => generateDealInterpretation({
+    stressResults,
+    intelligence,
+    hiddenRisks,
+    confidence,
+  }), [stressResults, intelligence, hiddenRisks, confidence]);
 
   return (
     <div className="space-y-4">
@@ -1309,6 +1321,42 @@ function StressTestingSection({ stressResults }: { stressResults: StressTestResu
       <p className="text-sm text-muted-foreground">
         Scenario modeling to evaluate deal resilience under adverse conditions.
       </p>
+
+      {/* ── What This Means (Interpretation Layer) ── */}
+      <CardContainer className="p-5 space-y-4 border-l-4 border-primary/40">
+        <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+          <Lightbulb className="h-4 w-4 text-primary" /> What This Means
+        </h3>
+        <p className="text-sm text-foreground leading-relaxed font-medium">
+          {interpretation.summary}
+        </p>
+        {interpretation.keyTakeaways.length > 0 && (
+          <div>
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Key Takeaways</span>
+            <ul className="mt-1.5 space-y-1">
+              {interpretation.keyTakeaways.map((t, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                  <AlertTriangle className="h-3.5 w-3.5 text-signal-warning mt-0.5 shrink-0" />
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {interpretation.recommendedActions.length > 0 && (
+          <div>
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Recommended Actions</span>
+            <ul className="mt-1.5 space-y-1">
+              {interpretation.recommendedActions.map((a, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                  <Target className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                  {a}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </CardContainer>
 
       <CardContainer className={`p-6 ${
         stressResults.resilience === "Strong" ? "ring-2 ring-signal-positive/30 bg-signal-positive/5" :
