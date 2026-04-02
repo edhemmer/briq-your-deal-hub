@@ -252,7 +252,7 @@ export function evaluateDealGuidance(input: DealGuidanceInput): DealGuidanceResu
   if (!hasRealValue(state.expenses.insurance.value)) {
     uncertainties.push("Insurance cost not provided");
   }
-  if (!marketOutlook || marketOutlook.signalsUsedCount < 2) {
+  if (!marketOutlook || marketOutlook.signals_used_count < 2) {
     uncertainties.push("Limited market outlook data available");
   }
   if (!hasRealValue(state.market.medianRent.value)) {
