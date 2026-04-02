@@ -857,7 +857,12 @@ const Analysis = () => {
           SECTION 6: STRESS TESTING
           ═══════════════════════════════════════════════════════════════════ */}
       {inputSufficiency.canAnalyze ? (
-        <StressTestingSection stressResults={stressResults} />
+        <StressTestingSection
+          stressResults={stressResults}
+          intelligence={intelligence}
+          hiddenRisks={canonicalOutput?.hiddenRisks ?? null}
+          confidence={canonicalOutput?.confidence ?? null}
+        />
       ) : (
         <CardContainer className="p-6">
           <EmptyStateContainer
