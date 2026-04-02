@@ -14,6 +14,7 @@
 import type { NormalizedDealState } from "./normalizedDealState";
 import type { DealInput, AnalysisResult } from "./dealAnalysisEngine";
 import type { DealIntelligenceResult } from "./dealIntelligenceEngine";
+import type { DealGuidanceResult } from "./dealGuidanceEngine";
 import type { StrategyFitInput, StrategyFitResults } from "./strategyFitEngine";
 import type { MarketConditions, MarketIntelligenceResult } from "./marketIntelligenceEngine";
 import type { StressTestResults } from "./stressTestingEngine";
@@ -33,6 +34,7 @@ import { evaluateConfidence } from "./confidenceEngine";
 import { evaluateFinancingOptions } from "./financingEngine";
 import { evaluateMarketOutlook } from "./marketOutlookEngine";
 import { evaluateHiddenRisks } from "./hiddenRiskEngine";
+import { evaluateDealGuidance } from "./dealGuidanceEngine";
 
 // ── Derive DealInput from NormalizedDealState ──────────────────────────
 
@@ -140,6 +142,7 @@ export interface CanonicalAnalysisOutput {
   financingOptions: FinancingResult[];
   marketOutlook: MarketOutlook | null;
   hiddenRisks: HiddenRiskResult;
+  dealGuidance: DealGuidanceResult;
   context: AnalysisContext;
 }
 
@@ -218,6 +221,16 @@ export function runCanonicalAnalysis(
     visualSignals,
   });
 
+  // Deal guidance (final trust layer — runs after all engines)
+  const dealGuidance = evaluateDealGuidance({
+    state,
+    analysis: bufferedAnalysis,
+    intelligence,
+    confidence,
+    hiddenRisks,
+    marketOutlook,
+  });
+
   return {
     dealInput,
     bufferedDealInput,
@@ -233,6 +246,7 @@ export function runCanonicalAnalysis(
     financingOptions,
     marketOutlook,
     hiddenRisks,
+    dealGuidance,
     context: resolvedContext,
   };
 }

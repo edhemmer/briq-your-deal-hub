@@ -45,6 +45,7 @@ import { GuidedPropertyRetrieval } from "@/components/analysis/GuidedPropertyRet
 import { FinancingIntelligence } from "@/components/analysis/FinancingIntelligence";
 import { MarketOutlook } from "@/components/analysis/MarketOutlook";
 import { HiddenRiskPanel } from "@/components/analysis/HiddenRiskPanel";
+import { DealGuidance } from "@/components/analysis/DealGuidance";
 import type { SourceQualityInput } from "@/lib/confidenceEngine";
 import type { SourceQuality } from "@/lib/propertySourceResolver";
 
@@ -510,6 +511,18 @@ const Analysis = () => {
             description="Enter purchase price and monthly rent to generate deal intelligence."
           />
         </CardContainer>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 1.25: DEAL CONFIDENCE & GUIDANCE
+          ═══════════════════════════════════════════════════════════════════ */}
+      {inputSufficiency.canAnalyze && canonicalOutput?.dealGuidance && (
+        <div className="space-y-3">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <Shield className="h-5 w-5 text-muted-foreground" /> Deal Confidence & Guidance
+          </h2>
+          <DealGuidance result={canonicalOutput.dealGuidance} />
+        </div>
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════
