@@ -1495,4 +1495,112 @@ function StressCell({
   );
 }
 
+// ── Deal Reliability & Fragility Section ────────────────────────────────
+
+const RELIABILITY_SCENARIOS: { key: keyof DealReliabilityResult["sensitivity"]; label: string; description: string }[] = [
+  { key: "rent_drop_10", label: "Rent −10%", description: "Monthly rent decreases by 10%" },
+  { key: "expense_increase_15", label: "Expenses +15%", description: "Operating expenses increase by 15%" },
+  { key: "tax_increase_20", label: "Taxes +20%", description: "Property taxes increase by 20%" },
+];
+
+function breakStatusBadge(status: BreakStatus): { variant: "default" | "secondary" | "destructive"; label: string } {
+  if (status === "stable") return { variant: "default", label: "Stable" };
+  if (status === "at_risk") return { variant: "secondary", label: "At Risk" };
+  return { variant: "destructive", label: "Breaks" };
+}
+
+function fragilityColor(level: FragilityLevel): string {
+  if (level === "low") return "text-signal-positive";
+  if (level === "moderate") return "text-signal-warning";
+  return "text-signal-risk";
+}
+
+function fragilityBadgeVariant(level: FragilityLevel): "default" | "secondary" | "destructive" {
+  if (level === "low") return "default";
+  if (level === "moderate") return "secondary";
+  return "destructive";
+}
+
+function DealReliabilitySection({ reliability }: { reliability: DealReliabilityResult }) {
+  return (
+    <div className="space-y-4">
+      <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+        <ShieldCheck className="h-5 w-5 text-muted-foreground" /> Deal Reliability & Fragility
+      </h2>
+      <p className="text-sm text-muted-foreground">
+        Downside scenario testing to detect when deals break or become unsafe under adverse conditions.
+      </p>
+
+      {/* Fragility Score */}
+      <CardContainer className={`p-6 ${
+        reliability.fragility_level === "low" ? "ring-2 ring-signal-positive/30 bg-signal-positive/5" :
+        reliability.fragility_level === "moderate" ? "ring-2 ring-signal-warning/30 bg-signal-warning/5" :
+        "ring-2 ring-signal-risk/30 bg-signal-risk/5"
+      }`}>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex flex-col items-center sm:items-start gap-1">
+            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Fragility Score</span>
+            <div className="flex items-center gap-2">
+              <span className={`text-4xl font-black ${fragilityColor(reliability.fragility_level)}`}>
+                {reliability.fragility_score}
+              </span>
+              <span className="text-sm text-muted-foreground">/ 100</span>
+            </div>
+            <Badge variant={fragilityBadgeVariant(reliability.fragility_level)} className="text-xs mt-1">
+              {reliability.fragility_level === "low" ? "Low Fragility" :
+               reliability.fragility_level === "moderate" ? "Moderate Fragility" :
+               "High Fragility"}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed flex-1">
+            {reliability.fragility_level === "low"
+              ? "This deal remains stable across downside scenarios. Cash flow and debt coverage hold under adverse conditions."
+              : reliability.fragility_level === "moderate"
+              ? "This deal shows sensitivity to some downside conditions. One or more scenarios approach break-even thresholds."
+              : "This deal is highly fragile. Multiple scenarios produce negative cash flow or insufficient debt coverage."}
+          </p>
+        </div>
+      </CardContainer>
+
+      {/* Scenario Table */}
+      <CardContainer className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Scenario</th>
+              <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cash Flow / mo</th>
+              <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">DSCR</th>
+              <th className="text-center py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {RELIABILITY_SCENARIOS.map(scenario => {
+              const outcome = reliability.sensitivity[scenario.key];
+              const badge = breakStatusBadge(outcome.break_status);
+              const isBreaking = outcome.break_status === "breaks";
+              return (
+                <tr key={scenario.key} className={`border-b border-border ${isBreaking ? "bg-destructive/5" : ""}`}>
+                  <td className="py-2.5 px-4">
+                    <span className="font-medium text-foreground">{scenario.label}</span>
+                    <span className="block text-[10px] text-muted-foreground">{scenario.description}</span>
+                  </td>
+                  <td className={`py-2.5 px-4 text-right font-mono ${outcome.cash_flow < 0 ? "text-signal-risk font-semibold" : "text-foreground"}`}>
+                    {fmt(outcome.cash_flow)}
+                  </td>
+                  <td className={`py-2.5 px-4 text-right font-mono ${outcome.dscr < 1.0 ? "text-signal-risk font-semibold" : "text-foreground"}`}>
+                    {fmtX(outcome.dscr)}
+                  </td>
+                  <td className="py-2.5 px-4 text-center">
+                    <Badge variant={badge.variant} className="text-xs">{badge.label}</Badge>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </CardContainer>
+    </div>
+  );
+}
+
 export default Analysis;
