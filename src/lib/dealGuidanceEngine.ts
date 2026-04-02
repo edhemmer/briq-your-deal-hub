@@ -146,7 +146,7 @@ export function evaluateDealGuidance(input: DealGuidanceInput): DealGuidanceResu
   const dataCompletenessScore = computeDataCompleteness(completenessInput);
 
   // ── 2. Signal Confidence Normalization ──
-  const outlookConfidence = normalizeConfidence(marketOutlook?.dataConfidence);
+  const outlookConfidence = normalizeConfidence(marketOutlook?.data_confidence);
   const riskConfidenceLevel = hiddenRisks.riskLevel;
   const riskConfidenceNorm = normalizeConfidence(
     riskConfidenceLevel === "minimal" ? "high" :
