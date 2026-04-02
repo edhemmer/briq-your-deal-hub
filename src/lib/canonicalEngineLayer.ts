@@ -18,6 +18,7 @@ import type { DealGuidanceResult } from "./dealGuidanceEngine";
 import type { StrategyFitInput, StrategyFitResults } from "./strategyFitEngine";
 import type { MarketConditions, MarketIntelligenceResult } from "./marketIntelligenceEngine";
 import type { StressTestResults } from "./stressTestingEngine";
+import type { DealReliabilityResult } from "./dealReliabilityEngine";
 import type { AnalysisContext, MarketProfileThresholds } from "./marketProfiles";
 import type { ConfidenceAssessment, SourceQualityInput } from "./confidenceEngine";
 import type { FinancingResult } from "./financingEngine";
@@ -29,6 +30,7 @@ import { analyzeDealIntelligence } from "./dealIntelligenceEngine";
 import { evaluateDealStrategies } from "./strategyFitEngine";
 import { evaluateMarketIntelligence } from "./marketIntelligenceEngine";
 import { runStressTests } from "./stressTestingEngine";
+import { evaluateDealReliability } from "./dealReliabilityEngine";
 import { getMarketThresholds, applyUnseenRiskBuffers, isContextComplete } from "./marketProfiles";
 import { evaluateConfidence } from "./confidenceEngine";
 import { evaluateFinancingOptions } from "./financingEngine";
@@ -137,6 +139,7 @@ export interface CanonicalAnalysisOutput {
   marketIntelligence: MarketIntelligenceResult;
   strategyFit: StrategyFitResults;
   stressResults: StressTestResults;
+  dealReliability: DealReliabilityResult;
   thresholds: MarketProfileThresholds;
   confidence: ConfidenceAssessment;
   financingOptions: FinancingResult[];
@@ -194,6 +197,9 @@ export function runCanonicalAnalysis(
   // Stress tests use buffered baseline for conservative modeling
   const stressResults = runStressTests(bufferedDealInput, bufferedAnalysis);
 
+  // Deal reliability (downside testing + fragility scoring)
+  const dealReliability = evaluateDealReliability(bufferedDealInput, bufferedAnalysis);
+
   // Confidence assessment with source quality awareness
   const confidence = evaluateConfidence(state, resolvedContext, sourceQuality);
 
@@ -241,6 +247,7 @@ export function runCanonicalAnalysis(
     marketIntelligence,
     strategyFit,
     stressResults,
+    dealReliability,
     thresholds,
     confidence,
     financingOptions,
