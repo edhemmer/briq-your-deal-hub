@@ -14,6 +14,7 @@
 import type { NormalizedDealState } from "./normalizedDealState";
 import type { DealInput, AnalysisResult } from "./dealAnalysisEngine";
 import type { DealIntelligenceResult } from "./dealIntelligenceEngine";
+import type { DealGuidanceResult } from "./dealGuidanceEngine";
 import type { StrategyFitInput, StrategyFitResults } from "./strategyFitEngine";
 import type { MarketConditions, MarketIntelligenceResult } from "./marketIntelligenceEngine";
 import type { StressTestResults } from "./stressTestingEngine";
