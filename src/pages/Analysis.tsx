@@ -855,6 +855,21 @@ const Analysis = () => {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 5.5: DEAL RELIABILITY & FRAGILITY
+          ═══════════════════════════════════════════════════════════════════ */}
+      {inputSufficiency.canAnalyze && canonicalOutput?.dealReliability ? (
+        <DealReliabilitySection reliability={canonicalOutput.dealReliability} />
+      ) : (
+        <CardContainer className="p-6">
+          <EmptyStateContainer
+            icon={<ShieldCheck className="h-10 w-10" />}
+            title="Reliability testing unavailable"
+            description="Enter financial inputs to run downside scenarios."
+          />
+        </CardContainer>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
           SECTION 6: STRESS TESTING
           ═══════════════════════════════════════════════════════════════════ */}
       {inputSufficiency.canAnalyze ? (
