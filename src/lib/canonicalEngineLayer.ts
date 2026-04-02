@@ -218,6 +218,7 @@ export function runCanonicalAnalysis(
     thresholds,
     confidence,
     financingOptions,
+    marketOutlook,
     context: resolvedContext,
   };
 }
