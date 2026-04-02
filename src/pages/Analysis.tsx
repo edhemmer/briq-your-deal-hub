@@ -580,7 +580,18 @@ const Analysis = () => {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 2: PROPERTY OVERVIEW
+          SECTION 1.75: DATA CONFIDENCE & SOURCES
+          ═══════════════════════════════════════════════════════════════════ */}
+      {resolvedPropertyData && (
+        <div className="space-y-3">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <Database className="h-5 w-5 text-muted-foreground" /> Data Confidence & Sources
+          </h2>
+          <DataConfidencePanel resolved={resolvedPropertyData} conflicts={propertyConflicts} />
+        </div>
+      )}
+
+
           ═══════════════════════════════════════════════════════════════════ */}
       {propertyIntelligence && (
         <div className="space-y-4">
