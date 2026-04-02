@@ -221,6 +221,16 @@ export function runCanonicalAnalysis(
     visualSignals,
   });
 
+  // Deal guidance (final trust layer — runs after all engines)
+  const dealGuidance = evaluateDealGuidance({
+    state,
+    analysis: bufferedAnalysis,
+    intelligence,
+    confidence,
+    hiddenRisks,
+    marketOutlook,
+  });
+
   return {
     dealInput,
     bufferedDealInput,
@@ -236,6 +246,7 @@ export function runCanonicalAnalysis(
     financingOptions,
     marketOutlook,
     hiddenRisks,
+    dealGuidance,
     context: resolvedContext,
   };
 }
