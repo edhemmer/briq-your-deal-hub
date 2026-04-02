@@ -45,6 +45,7 @@ import { GuidedPropertyRetrieval } from "@/components/analysis/GuidedPropertyRet
 import { FinancingIntelligence } from "@/components/analysis/FinancingIntelligence";
 import { MarketOutlook } from "@/components/analysis/MarketOutlook";
 import { HiddenRiskPanel } from "@/components/analysis/HiddenRiskPanel";
+import { DealGuidance } from "@/components/analysis/DealGuidance";
 import type { SourceQualityInput } from "@/lib/confidenceEngine";
 import type { SourceQuality } from "@/lib/propertySourceResolver";
 
