@@ -32,6 +32,7 @@ import { getMarketThresholds, applyUnseenRiskBuffers, isContextComplete } from "
 import { evaluateConfidence } from "./confidenceEngine";
 import { evaluateFinancingOptions } from "./financingEngine";
 import { evaluateMarketOutlook } from "./marketOutlookEngine";
+import { evaluateHiddenRisks } from "./hiddenRiskEngine";
 
 // ── Derive DealInput from NormalizedDealState ──────────────────────────
 
