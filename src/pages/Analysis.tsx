@@ -648,6 +648,17 @@ const Analysis = () => {
         <FinancingIntelligence results={canonicalOutput.financingOptions} />
       )}
       {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 3B: MARKET OUTLOOK (3–5 YEAR)
+          ═══════════════════════════════════════════════════════════════════ */}
+      {canonicalOutput?.marketOutlook && (
+        <div className="space-y-3">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-muted-foreground" /> Market Outlook (3–5 Year)
+          </h2>
+          <MarketOutlook outlook={canonicalOutput.marketOutlook} />
+        </div>
+      )}
+      {/* ═══════════════════════════════════════════════════════════════════
           SECTION 4: MARKET INTELLIGENCE
           ═══════════════════════════════════════════════════════════════════ */}
       <div className="space-y-4">
