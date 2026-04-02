@@ -193,6 +193,18 @@ export function runCanonicalAnalysis(
   // Financing intelligence
   const financingOptions = evaluateFinancingOptions(dealInput, resolvedContext, analysis.metrics.dscr);
 
+  // Market outlook (3–5 year forward intelligence)
+  const marketOutlook = evaluateMarketOutlook({
+    population_growth_rate: marketConditions.population_growth_rate || null,
+    job_growth_rate: marketConditions.job_growth_rate || null,
+    rent_growth_36mo: marketConditions.rent_growth_36mo || null,
+    rent_growth_12mo: marketConditions.rent_growth_12mo || null,
+    price_growth_36mo: marketConditions.price_growth_36mo || null,
+    absorption_rate: marketConditions.absorption_rate || null,
+    months_of_supply: marketConditions.months_of_supply || null,
+    inventory_level: marketConditions.inventory_level || null,
+  });
+
   return {
     dealInput,
     bufferedDealInput,
