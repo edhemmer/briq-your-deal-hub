@@ -22,7 +22,7 @@ import {
   AlertTriangle, XCircle, CheckCircle2, Gauge, Wrench, RefreshCw,
   FileSearch, ExternalLink, MapPin, Home, Activity, BarChart2, Users,
   ShieldAlert, Shield, ChevronDown, ChevronUp, FileText, Download,
-  Target, Zap, Landmark
+  Target, Zap, Landmark, Database
 } from "lucide-react";
 import { useDeal, useUpdateDeal } from "@/hooks/useDeals";
 import type { DealInput } from "@/lib/dealAnalysisEngine";
@@ -50,6 +50,12 @@ import { HiddenRiskPanel } from "@/components/analysis/HiddenRiskPanel";
 import { DealGuidance } from "@/components/analysis/DealGuidance";
 import type { SourceQualityInput } from "@/lib/confidenceEngine";
 import type { SourceQuality } from "@/lib/propertySourceResolver";
+import { normalizeListingData } from "@/lib/listingDataNormalizer";
+import { mergePublicRecordData } from "@/lib/publicRecordResolver";
+import { detectPropertyConflicts, type PropertyConflict } from "@/lib/propertyConflictDetector";
+import { resolvePropertyForAnalysis } from "@/lib/analysisDataResolver";
+import type { RawPropertyData, ResolvedPropertyData } from "@/lib/propertyDataSources";
+import { DataConfidencePanel } from "@/components/analysis/DataConfidencePanel";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   { key: "purchase_price", label: "Purchase Price", group: "Acquisition" },
@@ -265,6 +271,42 @@ const Analysis = () => {
 
   // ── Run Canonical Analysis Pipeline (debounced + concurrency-safe) ──
   const { output: canonicalOutput, status: analysisStatus } = useCanonicalAnalysis(normalizedState, analysisContext, sourceQualityInput);
+
+  // ── v1.9.0: Canonical Property Data Resolution Pipeline ──
+  const { resolvedPropertyData, propertyConflicts } = useMemo(() => {
+    if (!deal) return { resolvedPropertyData: null, propertyConflicts: [] as PropertyConflict[] };
+
+    // Step 1: Normalize listing data
+    const listingRaw = normalizeListingData({
+      address: deal.property_address,
+      price: deal.purchase_price ?? undefined,
+      rent: parseFloat(localFields.monthly_rent || "0") || undefined,
+      taxes: parseFloat(localFields.taxes || "0") || undefined,
+      sqft: undefined,
+      yearBuilt: parseFloat(enrichmentFields.year_built || "0") || undefined,
+    });
+
+    // Step 2: Merge user rent as separate source
+    let raw: RawPropertyData = { ...listingRaw, taxes: [...listingRaw.taxes] };
+    const userRent = parseFloat(localFields.monthly_rent || "0") || 0;
+    if (userRent > 0) {
+      raw.rentUser = { value: userRent, source: "user", confidence: "medium" };
+    }
+
+    // Step 3: Merge public record data
+    raw = mergePublicRecordData(raw, {
+      annualPropertyTax: parseFloat(enrichmentFields.annual_property_tax || "0") || undefined,
+      yearBuilt: parseFloat(enrichmentFields.year_built || "0") || undefined,
+    });
+
+    // Step 4: Detect conflicts
+    const conflicts = detectPropertyConflicts(raw);
+
+    // Step 5: Resolve for analysis
+    const resolved = resolvePropertyForAnalysis(raw);
+
+    return { resolvedPropertyData: resolved, propertyConflicts: conflicts };
+  }, [deal, localFields, enrichmentFields]);
 
 
   const dealInput = canonicalOutput?.dealInput ?? ({} as DealInput);
@@ -535,6 +577,18 @@ const Analysis = () => {
           dealAddress={{ property_address: deal.property_address, city: deal.city, state: deal.state, zip_code: deal.zip_code }}
           onAcceptDraft={handleAcceptDraft}
         />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION 1.75: DATA CONFIDENCE & SOURCES
+          ═══════════════════════════════════════════════════════════════════ */}
+      {resolvedPropertyData && (
+        <div className="space-y-3">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <Database className="h-5 w-5 text-muted-foreground" /> Data Confidence & Sources
+          </h2>
+          <DataConfidencePanel resolved={resolvedPropertyData} conflicts={propertyConflicts} />
+        </div>
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════
