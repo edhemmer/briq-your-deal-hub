@@ -139,6 +139,7 @@ export interface CanonicalAnalysisOutput {
   confidence: ConfidenceAssessment;
   financingOptions: FinancingResult[];
   marketOutlook: MarketOutlook | null;
+  hiddenRisks: HiddenRiskResult;
   context: AnalysisContext;
 }
 
