@@ -18,6 +18,7 @@ import type { DealGuidanceResult } from "./dealGuidanceEngine";
 import type { StrategyFitInput, StrategyFitResults } from "./strategyFitEngine";
 import type { MarketConditions, MarketIntelligenceResult } from "./marketIntelligenceEngine";
 import type { StressTestResults } from "./stressTestingEngine";
+import type { DealReliabilityResult } from "./dealReliabilityEngine";
 import type { AnalysisContext, MarketProfileThresholds } from "./marketProfiles";
 import type { ConfidenceAssessment, SourceQualityInput } from "./confidenceEngine";
 import type { FinancingResult } from "./financingEngine";
