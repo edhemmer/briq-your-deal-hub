@@ -32,6 +32,7 @@ import { useMarketConditions, useUpsertMarketConditions } from "@/hooks/useMarke
 import type { StrategyFitResults } from "@/lib/strategyFitEngine";
 import type { ScenarioResult, ScenarioCategory, ResilienceLevel, StressTestResults } from "@/lib/stressTestingEngine";
 import { STRESS_SCENARIOS } from "@/lib/stressTestingEngine";
+import type { DealReliabilityResult, BreakStatus, FragilityLevel } from "@/lib/dealReliabilityEngine";
 import { generateDealInterpretation, type DealInterpretation } from "@/lib/dealInterpretationEngine";
 import { assembleDealReport, generateInvestorPDF, generateCSVExport } from "@/lib/reportEngine";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
