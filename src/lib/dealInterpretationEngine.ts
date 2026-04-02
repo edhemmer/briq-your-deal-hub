@@ -133,7 +133,7 @@ function generateActions(
   }
 
   // Low confidence → validate inputs
-  if (confidence && confidence.overallLevel === "low" && actions.length < 3) {
+  if (confidence && confidence.level === "low" && actions.length < 3) {
     actions.push("Validate missing inputs before proceeding");
   }
 
