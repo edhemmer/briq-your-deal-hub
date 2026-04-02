@@ -197,6 +197,9 @@ export function runCanonicalAnalysis(
   // Stress tests use buffered baseline for conservative modeling
   const stressResults = runStressTests(bufferedDealInput, bufferedAnalysis);
 
+  // Deal reliability (downside testing + fragility scoring)
+  const dealReliability = evaluateDealReliability(bufferedDealInput, bufferedAnalysis);
+
   // Confidence assessment with source quality awareness
   const confidence = evaluateConfidence(state, resolvedContext, sourceQuality);
 
