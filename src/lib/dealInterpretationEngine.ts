@@ -76,7 +76,7 @@ function generateTakeaways(
   }
 
   // Priority 5: Data confidence
-  if (confidence && confidence.overallLevel === "low" && takeaways.length < 3) {
+  if (confidence && confidence.level === "low" && takeaways.length < 3) {
     takeaways.push("Key inputs rely on incomplete or unvalidated data");
   }
 
