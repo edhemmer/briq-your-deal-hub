@@ -159,7 +159,7 @@ export function evaluateDealGuidance(input: DealGuidanceInput): DealGuidanceResu
   const signalConfidenceAvg = Math.round(signalValues.reduce((a, b) => a + b, 0) / signalValues.length);
 
   // ── 3. Risk Profile Normalization ──
-  const riskConfidence = Math.max(0, Math.min(100, 100 - hiddenRisks.totalScore));
+  const riskConfidence = Math.max(0, Math.min(100, 100 - hiddenRisks.totalRiskScore));
 
   // ── 4. Overall Confidence Score ──
   const overallConfidenceScore = Math.round(
