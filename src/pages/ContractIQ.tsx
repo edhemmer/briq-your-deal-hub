@@ -253,141 +253,43 @@ const ContractIQ = () => {
 
             <ContractIntakeUploader onExtracted={handleExtracted} />
 
-            {extraction && (
-              <p className="text-[11px] text-muted-foreground">
-                Auto-filled from documents. Confidence chips show how confident the AI was per field — review and edit before analyzing.
-              </p>
+            {!extraction ? (
+              <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-center">
+                <p className="text-xs text-muted-foreground">
+                  Upload a contract or paste email text above. ContractIQ will extract the key terms automatically — you'll only be asked for fields it can't find.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowManual((s) => !s)}
+                  className="mt-2 text-[11px] text-primary hover:underline"
+                >
+                  {showManual ? "Hide manual entry" : "Or enter terms manually"}
+                </button>
+              </div>
+            ) : (
+              <ExtractedSummary extraction={extraction} form={form} />
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="md:col-span-2">
-                <Label htmlFor="cname">Contract name *</Label>
-                <Input
-                  id="cname"
-                  value={form.contract_name}
-                  onChange={(e) => setForm({ ...form, contract_name: e.target.value })}
-                  placeholder="e.g. Hemmer–Pulte Purchase Agreement"
-                />
-              </div>
-              <FieldChip extraction={extraction} field="contract_type">
-                <Label htmlFor="ctype">Contract type</Label>
-              </FieldChip>
-              <div className="md:col-span-1">
-                <Input
-                  id="ctype"
-                  value={form.contract_type}
-                  onChange={(e) => setForm({ ...form, contract_type: e.target.value })}
-                  placeholder="Purchase, LOI, Lease..."
-                />
-              </div>
-              <FieldChip extraction={extraction} field="property_address">
-                <Label htmlFor="addr">Property address</Label>
-              </FieldChip>
-              <div>
-                <Input
-                  id="addr"
-                  value={form.property_address}
-                  onChange={(e) => setForm({ ...form, property_address: e.target.value })}
-                />
-              </div>
-              <FieldChip extraction={extraction} field="buyer_name">
-                <Label htmlFor="buyer">Buyer name</Label>
-              </FieldChip>
-              <div>
-                <Input
-                  id="buyer"
-                  value={form.buyer_name}
-                  onChange={(e) => setForm({ ...form, buyer_name: e.target.value })}
-                />
-              </div>
-              <FieldChip extraction={extraction} field="seller_name">
-                <Label htmlFor="seller">Seller name</Label>
-              </FieldChip>
-              <div>
-                <Input
-                  id="seller"
-                  value={form.seller_name}
-                  onChange={(e) => setForm({ ...form, seller_name: e.target.value })}
-                />
-              </div>
-              <FieldChip extraction={extraction} field="purchase_price">
-                <Label htmlFor="price">Purchase price</Label>
-              </FieldChip>
-              <div>
-                <Input
-                  id="price"
-                  type="number"
-                  value={form.purchase_price}
-                  onChange={(e) => setForm({ ...form, purchase_price: e.target.value })}
-                />
-              </div>
-              <FieldChip extraction={extraction} field="earnest_money">
-                <Label htmlFor="em">Earnest money</Label>
-              </FieldChip>
-              <div>
-                <Input
-                  id="em"
-                  type="number"
-                  value={form.earnest_money}
-                  onChange={(e) => setForm({ ...form, earnest_money: e.target.value })}
-                />
-              </div>
-              <FieldChip extraction={extraction} field="closing_date">
-                <Label htmlFor="close">Closing date</Label>
-              </FieldChip>
-              <div>
-                <Input
-                  id="close"
-                  type="date"
-                  value={form.closing_date}
-                  onChange={(e) => setForm({ ...form, closing_date: e.target.value })}
-                />
-              </div>
-              <FieldChip extraction={extraction} field="inspection_period_days">
-                <Label htmlFor="ip">Inspection period (days)</Label>
-              </FieldChip>
-              <div>
-                <Input
-                  id="ip"
-                  type="number"
-                  value={form.inspection_period_days}
-                  onChange={(e) => setForm({ ...form, inspection_period_days: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2 rounded-lg border border-border p-3">
-              <p className="text-xs font-semibold text-foreground uppercase tracking-wide">
-                Contingencies
-              </p>
-              {([
-                ["financing_contingency", "Financing contingency"],
-                ["appraisal_contingency", "Appraisal contingency"],
-                ["inspection_contingency", "Inspection contingency"],
-              ] as const).map(([key, label]) => (
-                <div key={key} className="flex items-center justify-between">
-                  <Label htmlFor={key} className="text-sm font-normal cursor-pointer">
-                    {label}
-                  </Label>
-                  <Switch
-                    id={key}
-                    checked={form[key]}
-                    onCheckedChange={(v) => setForm({ ...form, [key]: v })}
+            {(extraction || showManual) && (
+              <>
+                <div>
+                  <Label htmlFor="cname">Contract name *</Label>
+                  <Input
+                    id="cname"
+                    value={form.contract_name}
+                    onChange={(e) => setForm({ ...form, contract_name: e.target.value })}
+                    placeholder="e.g. Hemmer–Pulte Purchase Agreement"
                   />
                 </div>
-              ))}
-            </div>
 
-            <div>
-              <Label htmlFor="ctext">Contract text (optional)</Label>
-              <Textarea
-                id="ctext"
-                rows={4}
-                value={form.contract_text}
-                onChange={(e) => setForm({ ...form, contract_text: e.target.value })}
-                placeholder="Paste relevant contract clauses for reference..."
-              />
-            </div>
+                <ReviewFields
+                  extraction={extraction}
+                  form={form}
+                  setForm={setForm}
+                  showAll={showManual && !extraction}
+                />
+              </>
+            )}
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>
