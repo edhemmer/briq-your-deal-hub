@@ -382,35 +382,162 @@ type ExtractableField =
   | "closing_date"
   | "inspection_period_days";
 
-const FieldChip = ({
+type FieldDef = { key: ExtractableField; label: string; type?: string };
+const FIELD_DEFS: FieldDef[] = [
+  { key: "contract_type", label: "Contract type" },
+  { key: "property_address", label: "Property address" },
+  { key: "buyer_name", label: "Buyer name" },
+  { key: "seller_name", label: "Seller name" },
+  { key: "purchase_price", label: "Purchase price", type: "number" },
+  { key: "earnest_money", label: "Earnest money", type: "number" },
+  { key: "closing_date", label: "Closing date", type: "date" },
+  { key: "inspection_period_days", label: "Inspection period (days)", type: "number" },
+];
+
+type FormShape = {
+  contract_name: string;
+  contract_type: string;
+  buyer_name: string;
+  seller_name: string;
+  property_address: string;
+  purchase_price: string;
+  earnest_money: string;
+  closing_date: string;
+  inspection_period_days: string;
+  financing_contingency: boolean;
+  appraisal_contingency: boolean;
+  inspection_contingency: boolean;
+  contract_text: string;
+};
+
+// Compact summary of fields the AI captured with high/medium confidence.
+const ExtractedSummary = ({
   extraction,
-  field,
-  children,
+  form,
+}: {
+  extraction: CanonicalContractExtraction;
+  form: FormShape;
+}) => {
+  const captured = FIELD_DEFS.filter((f) => {
+    const ex = extraction[f.key];
+    return ex && ex.confidence !== "none" && ex.confidence !== "low" && form[f.key];
+  });
+  if (captured.length === 0) return null;
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 p-3">
+      <p className="text-[11px] font-semibold text-foreground uppercase tracking-wide mb-2">
+        Extracted from contract
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+        {captured.map((f) => {
+          const ex = extraction[f.key];
+          return (
+            <div key={f.key} className="flex items-start justify-between gap-2 text-xs">
+              <span className="text-muted-foreground">{f.label}</span>
+              <span
+                className="font-medium text-foreground text-right truncate max-w-[60%]"
+                title={ex?.excerpt || ""}
+              >
+                {String(form[f.key])}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// Renders only the fields the AI couldn't confidently extract (or all, if `showAll`).
+const ReviewFields = ({
+  extraction,
+  form,
+  setForm,
+  showAll,
 }: {
   extraction: CanonicalContractExtraction | null;
-  field: ExtractableField;
-  children: React.ReactNode;
+  form: FormShape;
+  setForm: (f: FormShape) => void;
+  showAll: boolean;
 }) => {
-  const f = extraction?.[field];
+  const missing = FIELD_DEFS.filter((f) => {
+    if (showAll) return true;
+    if (!extraction) return true;
+    const ex = extraction[f.key];
+    const empty = !form[f.key] || String(form[f.key]).trim() === "";
+    const lowConf = !ex || ex.confidence === "none" || ex.confidence === "low";
+    return empty || lowConf;
+  });
+
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        {children}
-        {f && f.confidence !== "none" && (
-          <span
-            title={f.excerpt || "Source excerpt unavailable"}
-            className={`text-[10px] px-1.5 py-0.5 rounded border ${confidenceBadgeColor(f.confidence)}`}
-          >
-            {f.confidence}
-          </span>
-        )}
-      </div>
-      {f?.excerpt && f.confidence !== "none" && (
-        <p className="text-[10px] text-muted-foreground italic line-clamp-1" title={f.excerpt}>
-          “{f.excerpt}”
-        </p>
+    <>
+      {missing.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-[11px] font-semibold text-foreground uppercase tracking-wide">
+            {extraction ? "Please confirm or fill in" : "Contract details"}
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {missing.map((f) => {
+              const ex = extraction?.[f.key];
+              return (
+                <div key={f.key} className="space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor={f.key}>{f.label}</Label>
+                    {ex && ex.confidence !== "none" && (
+                      <span
+                        title={ex.excerpt || ""}
+                        className={`text-[10px] px-1.5 py-0.5 rounded border ${confidenceBadgeColor(ex.confidence)}`}
+                      >
+                        {ex.confidence}
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    id={f.key}
+                    type={f.type ?? "text"}
+                    value={String(form[f.key] ?? "")}
+                    onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
-    </div>
+
+      <div className="space-y-2 rounded-lg border border-border p-3">
+        <p className="text-xs font-semibold text-foreground uppercase tracking-wide">
+          Contingencies
+        </p>
+        {([
+          ["financing_contingency", "Financing contingency"],
+          ["appraisal_contingency", "Appraisal contingency"],
+          ["inspection_contingency", "Inspection contingency"],
+        ] as const).map(([key, label]) => (
+          <div key={key} className="flex items-center justify-between">
+            <Label htmlFor={key} className="text-sm font-normal cursor-pointer">
+              {label}
+            </Label>
+            <Switch
+              id={key}
+              checked={form[key]}
+              onCheckedChange={(v) => setForm({ ...form, [key]: v })}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <Label htmlFor="ctext">Contract text (optional)</Label>
+        <Textarea
+          id="ctext"
+          rows={4}
+          value={form.contract_text}
+          onChange={(e) => setForm({ ...form, contract_text: e.target.value })}
+          placeholder="Paste relevant contract clauses for reference..."
+        />
+      </div>
+    </>
   );
 };
 
