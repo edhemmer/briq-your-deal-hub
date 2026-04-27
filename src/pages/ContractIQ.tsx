@@ -26,6 +26,14 @@ import {
   useDeleteContract,
 } from "@/hooks/useContracts";
 import { analyzeContract, type Perspective } from "@/lib/contractIQEngine";
+import {
+  ContractIntakeUploader,
+  confidenceBadgeColor,
+} from "@/components/contractiq/ContractIntakeUploader";
+import {
+  extractionToFormValues,
+  type CanonicalContractExtraction,
+} from "@/lib/contractDataMapper";
 
 const ContractIQ = () => {
   const navigate = useNavigate();
