@@ -30,7 +30,7 @@ export function DealIQLanding() {
         title="DealIQ"
         description="Start a new deal analysis or open an existing one."
       >
-        <Link to="/deals/new">
+        <Link to="/dealiq/new">
           <PrimaryButton>
             <Plus className="h-4 w-4 mr-2" />
             New Deal
@@ -52,7 +52,7 @@ export function DealIQLanding() {
             description="Create your first deal to begin DealIQ analysis."
           />
           <div className="flex justify-center mt-4">
-            <Link to="/deals/new">
+            <Link to="/dealiq/new">
               <PrimaryButton>
                 <Plus className="h-4 w-4 mr-2" />
                 Create First Deal
