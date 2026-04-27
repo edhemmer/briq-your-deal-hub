@@ -27,6 +27,11 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const LegacyAnalysisRedirect = () => {
+  const { dealId } = useParams();
+  return <Navigate to={`/dealiq/${dealId ?? ""}`} replace />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
