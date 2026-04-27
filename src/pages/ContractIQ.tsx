@@ -66,6 +66,7 @@ const ContractIQ = () => {
 
   const reset = () => {
     setPerspective("buyer");
+    setShowManual(false);
     setExtraction(null);
     setExtractionMeta(null);
     setSourceFiles([]);
