@@ -1,4 +1,4 @@
-import { LayoutDashboard, Briefcase, BarChart3, FileText, User, ShieldCheck, HelpCircle } from "lucide-react";
+import { LayoutDashboard, Briefcase, BarChart3, FileText, Settings, ShieldCheck, HelpCircle, FileSignature } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import BriqIcon from "@/components/BriqIcon";
@@ -17,11 +17,12 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "DealIQ", url: "/dealiq", icon: BarChart3 },
+  { title: "ContractIQ", url: "/contractiq", icon: FileSignature },
   { title: "Deals", url: "/deals", icon: Briefcase },
   { title: "Reports", url: "/reports", icon: FileText },
-  { title: "Account", url: "/account", icon: User },
+  { title: "Settings", url: "/settings", icon: Settings },
   { title: "Help", url: "/help", icon: HelpCircle },
 ];
 
