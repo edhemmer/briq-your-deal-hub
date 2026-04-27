@@ -42,35 +42,9 @@ export interface FinancingResult {
   lastUpdated: string;
 }
 
-// ── Base Rate Table ────────────────────────────────────────────────────
+// Base rate and down-payment tables now live in `marketRateTable.ts`
+// (single dated source for all financing references).
 
-const BASE_RATES: Record<string, [number, number]> = {
-  conventional:      [0.0625, 0.0775],
-  dscr:              [0.0675, 0.085],
-  bridge:            [0.085,  0.12],
-  portfolio:         [0.065,  0.085],
-  commercial_bank:   [0.065,  0.085],
-  agency:            [0.055,  0.075],
-  sba:               [0.065,  0.08],
-  cash:              [0, 0],
-  local_bank:        [0.07,   0.10],
-  developer:         [0.06,   0.09],
-  private_hard_money:[0.09,   0.14],
-};
-
-const DOWN_PAYMENT_RANGES: Record<string, [number, number]> = {
-  conventional:      [0.20, 0.25],
-  dscr:              [0.20, 0.30],
-  bridge:            [0.10, 0.20],
-  portfolio:         [0.15, 0.25],
-  commercial_bank:   [0.25, 0.35],
-  agency:            [0.20, 0.30],
-  sba:               [0.10, 0.20],
-  cash:              [1.0,  1.0],
-  local_bank:        [0.20, 0.35],
-  developer:         [0.10, 0.30],
-  private_hard_money:[0.15, 0.30],
-};
 
 // ── Amortization Calculation ───────────────────────────────────────────
 
