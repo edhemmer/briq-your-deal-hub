@@ -71,7 +71,7 @@ export default function NewDeal() {
       estimated_arv: form.estimated_arv ? Number(form.estimated_arv) : undefined,
       strategy_primary: form.strategy_primary || undefined,
     });
-    navigate(`/analysis/${deal.id}`);
+    navigate(`/dealiq/${deal.id}`);
   };
 
   return (
@@ -148,7 +148,7 @@ export default function NewDeal() {
               <Button type="submit" disabled={createDeal.isPending || !billingAccess.canCreateDeal}>
                 {createDeal.isPending ? "Creating…" : "Create Deal"}
               </Button>
-              <Button type="button" variant="outline" onClick={() => navigate("/deals")}>
+              <Button type="button" variant="outline" onClick={() => navigate("/dealiq")}>
                 Cancel
               </Button>
             </div>

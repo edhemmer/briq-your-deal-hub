@@ -56,6 +56,7 @@ import { detectPropertyConflicts, type PropertyConflict } from "@/lib/propertyCo
 import { resolvePropertyForAnalysis } from "@/lib/analysisDataResolver";
 import type { RawPropertyData, ResolvedPropertyData } from "@/lib/propertyDataSources";
 import { DataConfidencePanel } from "@/components/analysis/DataConfidencePanel";
+import { DealIQLanding } from "@/components/dealiq/DealIQLanding";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   { key: "purchase_price", label: "Purchase Price", group: "Acquisition" },
@@ -424,14 +425,7 @@ const Analysis = () => {
 
   // ── Empty / Loading States ──
   if (!dealId) {
-    return (
-      <SectionContainer>
-        <PageHeader title="Analysis" description="Select a deal to analyze" />
-        <CardContainer>
-          <EmptyStateContainer icon={<BarChart3 className="h-10 w-10" />} title="No deal selected" description="Go to Deals and select a deal to analyze." />
-        </CardContainer>
-      </SectionContainer>
-    );
+    return <DealIQLanding />;
   }
 
   if (isLoading || !initialized) {
