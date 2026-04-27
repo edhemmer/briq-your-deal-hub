@@ -42,6 +42,7 @@ const ContractIQ = () => {
   const deleteContract = useDeleteContract();
 
   const [open, setOpen] = useState(false);
+  const [showManual, setShowManual] = useState(false);
   const [perspective, setPerspective] = useState<Perspective>("buyer");
   const [form, setForm] = useState({
     contract_name: "",
