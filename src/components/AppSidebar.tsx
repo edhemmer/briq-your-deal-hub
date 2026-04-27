@@ -18,12 +18,14 @@ import {
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "DealIQ", url: "/dealiq", icon: BarChart3 },
   { title: "Deals", url: "/deals", icon: Briefcase },
-  { title: "Analysis", url: "/analysis", icon: BarChart3 },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "Account", url: "/account", icon: User },
   { title: "Help", url: "/help", icon: HelpCircle },
 ];
+
+const comingSoonModules = ["ContractIQ", "MarketIQ", "LeaseIQ", "CapitalIQ"];
 
 export function AppSidebar() {
   const { state } = useSidebar();
