@@ -7,6 +7,7 @@
 
 import type { DealInput } from "./dealAnalysisEngine";
 import type { AnalysisContext, MarketType, RiskTolerance } from "./marketProfiles";
+import { BASE_RATES, DOWN_PAYMENT_RANGES, RATE_TABLE_AS_OF } from "./marketRateTable";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
