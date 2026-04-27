@@ -54,6 +54,8 @@ export type Database = {
           created_at: string
           deal_id: string | null
           earnest_money: number | null
+          extraction_confidence: Json | null
+          extraction_meta: Json | null
           financing_contingency: boolean | null
           id: string
           inspection_contingency: boolean | null
@@ -62,6 +64,7 @@ export type Database = {
           property_address: string | null
           purchase_price: number | null
           seller_name: string | null
+          source_files: Json | null
           status: string
           updated_at: string
           user_id: string
@@ -78,6 +81,8 @@ export type Database = {
           created_at?: string
           deal_id?: string | null
           earnest_money?: number | null
+          extraction_confidence?: Json | null
+          extraction_meta?: Json | null
           financing_contingency?: boolean | null
           id?: string
           inspection_contingency?: boolean | null
@@ -86,6 +91,7 @@ export type Database = {
           property_address?: string | null
           purchase_price?: number | null
           seller_name?: string | null
+          source_files?: Json | null
           status?: string
           updated_at?: string
           user_id: string
@@ -102,6 +108,8 @@ export type Database = {
           created_at?: string
           deal_id?: string | null
           earnest_money?: number | null
+          extraction_confidence?: Json | null
+          extraction_meta?: Json | null
           financing_contingency?: boolean | null
           id?: string
           inspection_contingency?: boolean | null
@@ -110,6 +118,7 @@ export type Database = {
           property_address?: string | null
           purchase_price?: number | null
           seller_name?: string | null
+          source_files?: Json | null
           status?: string
           updated_at?: string
           user_id?: string
