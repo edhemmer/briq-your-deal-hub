@@ -269,8 +269,10 @@ const ContractIQ = () => {
                   placeholder="e.g. Hemmer–Pulte Purchase Agreement"
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="contract_type">
                 <Label htmlFor="ctype">Contract type</Label>
+              </FieldChip>
+              <div className="md:col-span-1">
                 <Input
                   id="ctype"
                   value={form.contract_type}
@@ -278,32 +280,40 @@ const ContractIQ = () => {
                   placeholder="Purchase, LOI, Lease..."
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="property_address">
                 <Label htmlFor="addr">Property address</Label>
+              </FieldChip>
+              <div>
                 <Input
                   id="addr"
                   value={form.property_address}
                   onChange={(e) => setForm({ ...form, property_address: e.target.value })}
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="buyer_name">
                 <Label htmlFor="buyer">Buyer name</Label>
+              </FieldChip>
+              <div>
                 <Input
                   id="buyer"
                   value={form.buyer_name}
                   onChange={(e) => setForm({ ...form, buyer_name: e.target.value })}
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="seller_name">
                 <Label htmlFor="seller">Seller name</Label>
+              </FieldChip>
+              <div>
                 <Input
                   id="seller"
                   value={form.seller_name}
                   onChange={(e) => setForm({ ...form, seller_name: e.target.value })}
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="purchase_price">
                 <Label htmlFor="price">Purchase price</Label>
+              </FieldChip>
+              <div>
                 <Input
                   id="price"
                   type="number"
@@ -311,8 +321,10 @@ const ContractIQ = () => {
                   onChange={(e) => setForm({ ...form, purchase_price: e.target.value })}
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="earnest_money">
                 <Label htmlFor="em">Earnest money</Label>
+              </FieldChip>
+              <div>
                 <Input
                   id="em"
                   type="number"
@@ -320,8 +332,10 @@ const ContractIQ = () => {
                   onChange={(e) => setForm({ ...form, earnest_money: e.target.value })}
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="closing_date">
                 <Label htmlFor="close">Closing date</Label>
+              </FieldChip>
+              <div>
                 <Input
                   id="close"
                   type="date"
@@ -329,8 +343,10 @@ const ContractIQ = () => {
                   onChange={(e) => setForm({ ...form, closing_date: e.target.value })}
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="inspection_period_days">
                 <Label htmlFor="ip">Inspection period (days)</Label>
+              </FieldChip>
+              <div>
                 <Input
                   id="ip"
                   type="number"
