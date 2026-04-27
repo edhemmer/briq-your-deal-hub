@@ -424,14 +424,7 @@ const Analysis = () => {
 
   // ── Empty / Loading States ──
   if (!dealId) {
-    return (
-      <SectionContainer>
-        <PageHeader title="Analysis" description="Select a deal to analyze" />
-        <CardContainer>
-          <EmptyStateContainer icon={<BarChart3 className="h-10 w-10" />} title="No deal selected" description="Go to Deals and select a deal to analyze." />
-        </CardContainer>
-      </SectionContainer>
-    );
+    return <DealIQLanding />;
   }
 
   if (isLoading || !initialized) {
