@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Plus, User, HelpCircle, ShieldCheck, LogOut, ChevronDown } from "lucide-react";
+import { User, HelpCircle, ShieldCheck, LogOut, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,10 +13,10 @@ import { useIsAdmin } from "@/hooks/useAdminData";
 import BriqIcon from "@/components/BriqIcon";
 
 const navItems = [
-  { title: "Dashboard", url: "/" },
+  { title: "Dashboard", url: "/dashboard" },
   { title: "Deals", url: "/deals" },
-  { title: "Analysis", url: "/analysis" },
   { title: "Reports", url: "/reports" },
+  { title: "Settings", url: "/settings" },
 ];
 
 export function TopNav() {
