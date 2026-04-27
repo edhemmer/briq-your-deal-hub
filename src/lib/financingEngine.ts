@@ -296,7 +296,7 @@ export function evaluateFinancingOptions(
   const pp = input.purchase_price;
   const rehabRatio = pp > 0 ? input.rehab_cost / pp : 0;
   const rehabIntensity: "none" | "light" | "heavy" = rehabRatio > 0.3 ? "heavy" : rehabRatio > 0.05 ? "light" : "none";
-  const now = new Date().toISOString();
+  const lastUpdated = RATE_TABLE_AS_OF;
 
   const results: FinancingResult[] = profiles.map(profile => {
     const fitScore = evaluateFit(profile, input, context, dscr);
@@ -332,8 +332,8 @@ export function evaluateFinancingOptions(
       pros: profile.pros,
       cons: profile.cons,
       confidenceImpact,
-      sourceTag: "BRIX Financing Model (Market-Based Estimates)",
-      lastUpdated: now,
+      sourceTag: `DealIQ Financing Model — Rates as of ${RATE_TABLE_AS_OF}`,
+      lastUpdated,
     };
   });
 
