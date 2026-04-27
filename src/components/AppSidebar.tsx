@@ -20,7 +20,6 @@ const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "DealIQ", url: "/dealiq", icon: BarChart3 },
   { title: "ContractIQ", url: "/contractiq", icon: FileSignature },
-  { title: "Deals", url: "/deals", icon: Briefcase },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "Settings", url: "/settings", icon: Settings },
   { title: "Help", url: "/help", icon: HelpCircle },

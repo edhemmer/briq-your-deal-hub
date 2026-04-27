@@ -11,7 +11,6 @@ import { AppLayout } from "@/components/AppLayout";
 import { OnboardingWalkthrough } from "@/components/help/OnboardingWalkthrough";
 import Index from "./pages/Index";
 import Landing from "./pages/Landing";
-import Deals from "./pages/Deals";
 import NewDeal from "./pages/NewDeal";
 import Analysis from "./pages/Analysis";
 import ContractIQ from "./pages/ContractIQ";
@@ -94,21 +93,16 @@ const App = () => (
               }
             />
             <Route
-              path="/deals"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><Deals /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/deals/new"
+              path="/dealiq/new"
               element={
                 <ProtectedRoute>
                   <AppLayout><NewDeal /></AppLayout>
                 </ProtectedRoute>
               }
             />
+            {/* Legacy redirects: /deals -> /dealiq */}
+            <Route path="/deals" element={<Navigate to="/dealiq" replace />} />
+            <Route path="/deals/new" element={<Navigate to="/dealiq/new" replace />} />
             {/* Legacy redirect: /analysis -> /dealiq */}
             <Route
               path="/analysis"
