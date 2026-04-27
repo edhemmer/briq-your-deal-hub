@@ -45,7 +45,7 @@ export const DOWN_PAYMENT_RANGES: Record<string, [number, number]> = {
 // Standard underwriting assumption defaults (decimals where applicable).
 // Used by intake and as fallback when user has not entered a value.
 export const ASSUMPTION_DEFAULTS = {
-  closingCostPercent: 0.03,        // 3% of purchase price
+  closingCostPercent: 0.06,        // 6% of purchase price
   downPaymentPercent: 0.25,        // 25% conventional investor default
   interestRate: 0.0700,            // midpoint of conventional range
   loanTermYears: 30,
