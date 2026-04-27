@@ -46,12 +46,12 @@ const App = () => (
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Protected app routes */}
+            {/* Root redirects to /dashboard */}
             <Route
               path="/"
               element={
                 <ProtectedRoute>
-                  <AppLayout><Index /></AppLayout>
+                  <Navigate to="/dashboard" replace />
                 </ProtectedRoute>
               }
             />
@@ -68,6 +68,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AppLayout><Analysis /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/contractiq"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><ContractIQ /></AppLayout>
                 </ProtectedRoute>
               }
             />
