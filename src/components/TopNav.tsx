@@ -41,11 +41,11 @@ export function TopNav() {
     <header className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border bg-card/95 backdrop-blur-sm supports-[backdrop-filter]:bg-card/80">
       <div className="mx-auto flex h-full max-w-[1320px] items-center justify-between px-4 md:px-6">
         {/* Left: Brand */}
-        <Link to="/" className="flex items-center gap-2.5 shrink-0">
+        <Link to="/dashboard" className="flex items-center gap-2.5 shrink-0">
           <BriqIcon size={40} className="text-primary" />
           <div className="flex flex-col leading-none">
             <span className="text-base font-bold tracking-tight text-foreground">BRIQ</span>
-            <span className="text-[10px] text-muted-foreground font-medium tracking-wide">Real Estate Deal IQ</span>
+            <span className="text-[10px] text-muted-foreground font-medium tracking-wide">Real Estate Intelligence</span>
           </div>
         </Link>
 
