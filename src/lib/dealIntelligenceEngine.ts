@@ -78,14 +78,6 @@ export function analyzeDealIntelligence(a: AnalysisResult): DealIntelligenceResu
   if (monthly_cashflow < 0) dealKillers.push("Negative monthly cash flow — the deal loses money each month.");
   if (equity_created <= 0) dealKillers.push("No equity created — ARV does not exceed total project cost.");
   if (refinance_amount <= loan_amount) dealKillers.push("Refinance does not cover existing loan balance.");
-  if (a.refinance.total_project_cost >= (pp > 0 ? a.income.gross_rent : 0) && pp > 0 && acquisition.purchase_price + acquisition.closing_costs + rehab_cost >= (metrics.noi > 0 ? metrics.noi : Infinity)) {
-    // ARV <= total_project_cost check
-  }
-  // Direct ARV check
-  const arv_val = refinance_amount / 0.75; // reverse from refinance_amount = arv * 0.75
-  if (arv_val <= a.refinance.total_project_cost && pp > 0) {
-    // Already covered by equity_created <= 0 since equity = arv - total_project_cost
-  }
 
   // --- Warnings ---
   const warnings: string[] = [];

@@ -1,4 +1,6 @@
-// BRIX Deal Analysis Engine — deterministic, reusable, divide-by-zero safe.
+// DealIQ Deal Analysis Engine — deterministic, reusable, divide-by-zero safe.
+
+import { ASSUMPTION_DEFAULTS } from "./marketRateTable";
 
 export interface DealInput {
   purchase_price: number;
@@ -89,20 +91,25 @@ function calcMortgagePayment(loanAmount: number, annualRate: number, termYears: 
 
 export function analyzeDeal(d: DealInput): AnalysisResult {
   const pp = safe(d.purchase_price);
-  const cc = safe(d.closing_costs);
+  // Closing costs: fall back to 3% of price when not provided
+  const cc = safe(d.closing_costs) || pp * ASSUMPTION_DEFAULTS.closingCostPercent;
   const rc = safe(d.rehab_cost);
-  const rcont = safe(d.rehab_contingency);
-  const dpPct = safe(d.down_payment_percent);
-  const ir = safe(d.interest_rate);
-  const lt = safe(d.loan_term_years);
+  // Rehab contingency: fall back to 10% of rehab cost when not provided
+  const rcont = safe(d.rehab_contingency) || rc * ASSUMPTION_DEFAULTS.rehabContingencyPercent;
+  // Financing assumptions: use canonical defaults when blank
+  const dpPct = safe(d.down_payment_percent) || ASSUMPTION_DEFAULTS.downPaymentPercent;
+  const ir = safe(d.interest_rate) || ASSUMPTION_DEFAULTS.interestRate;
+  const lt = safe(d.loan_term_years) || ASSUMPTION_DEFAULTS.loanTermYears;
   const mr = safe(d.monthly_rent);
   const oi = safe(d.other_income);
-  const tx = safe(d.taxes);
-  const ins = safe(d.insurance);
-  const maintPct = safe(d.maintenance_percent);
-  const vacPct = safe(d.vacancy_percent);
-  const mgmtPct = safe(d.management_percent);
-  const capPct = safe(d.capex_percent);
+  // Tax/insurance: fall back to % of price when not provided
+  const tx = safe(d.taxes) || pp * ASSUMPTION_DEFAULTS.taxOfPricePercent;
+  const ins = safe(d.insurance) || pp * ASSUMPTION_DEFAULTS.insuranceOfPricePercent;
+  // Operating % assumptions: canonical defaults when blank
+  const maintPct = safe(d.maintenance_percent) || ASSUMPTION_DEFAULTS.maintenancePercent;
+  const vacPct = safe(d.vacancy_percent) || ASSUMPTION_DEFAULTS.vacancyPercent;
+  const mgmtPct = safe(d.management_percent) || ASSUMPTION_DEFAULTS.managementPercent;
+  const capPct = safe(d.capex_percent) || ASSUMPTION_DEFAULTS.capexPercent;
   const arv = safe(d.arv);
 
   // Acquisition
@@ -148,7 +155,7 @@ export function analyzeDeal(d: DealInput): AnalysisResult {
   // BRRRR / Refinance
   const total_project_cost = pp + cc + rc;
   const equity_created = arv - total_project_cost;
-  const refinance_amount = arv * 0.75;
+  const refinance_amount = arv * ASSUMPTION_DEFAULTS.refinanceLtv;
   const cash_out = refinance_amount - loan_amount;
 
   // Strategy insights
