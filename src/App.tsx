@@ -55,6 +55,22 @@ const App = () => (
               }
             />
             <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><Index /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dealiq/:dealId?"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><Analysis /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/deals"
               element={
                 <ProtectedRoute>
