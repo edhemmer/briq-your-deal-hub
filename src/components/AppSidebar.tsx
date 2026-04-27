@@ -88,24 +88,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {!collapsed && (
-          <div className="px-4 pt-6 pb-2">
-            <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-2">
-              Coming Soon
-            </p>
-            <ul className="space-y-1.5">
-              {comingSoonModules.map((m) => (
-                <li
-                  key={m}
-                  className="text-xs text-muted-foreground/80 flex items-center gap-2"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30" />
-                  {m}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </SidebarContent>
     </Sidebar>
   );
