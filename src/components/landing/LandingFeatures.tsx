@@ -50,7 +50,7 @@ export default function LandingFeatures() {
             transition={{ duration: 0.5 }}
             className="text-3xl md:text-4xl font-bold tracking-tight text-foreground"
           >
-            Everything you need to evaluate a deal
+            Two engines, one source of truth
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
@@ -59,7 +59,7 @@ export default function LandingFeatures() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="mt-4 text-base text-muted-foreground max-w-xl mx-auto"
           >
-            Seven intelligence engines work together to give you a complete picture of every property.
+            DealIQ scores the numbers. ContractIQ reads the paperwork. Both deterministic, both real-time.
           </motion.p>
         </div>
 
