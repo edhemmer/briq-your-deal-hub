@@ -1,4 +1,6 @@
-// BRIX Deal Analysis Engine — deterministic, reusable, divide-by-zero safe.
+// DealIQ Deal Analysis Engine — deterministic, reusable, divide-by-zero safe.
+
+import { ASSUMPTION_DEFAULTS } from "./marketRateTable";
 
 export interface DealInput {
   purchase_price: number;
