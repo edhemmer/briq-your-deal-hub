@@ -35,7 +35,10 @@ export function AppSidebar() {
   const { data: isAdmin } = useIsAdmin();
 
   const isActive = (path: string) => {
-    if (path === "/") return location.pathname === "/";
+  const isActive = (path: string) => {
+    if (path === "/dashboard") {
+      return location.pathname === "/" || location.pathname === "/dashboard";
+    }
     return location.pathname.startsWith(path);
   };
 
