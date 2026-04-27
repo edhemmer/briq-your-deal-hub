@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { CardContainer } from "@/components/ui/card-container";
 import BrixIcon from "@/components/BrixIcon";
 import { toast } from "@/hooks/use-toast";
+import { lovable } from "@/integrations/lovable";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -26,6 +27,18 @@ export default function Login() {
     } else {
       navigate("/");
     }
+  };
+
+  const handleGoogle = async () => {
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) {
+      toast({ title: "Google sign-in failed", description: result.error.message, variant: "destructive" });
+      return;
+    }
+    if (result.redirected) return;
+    navigate("/");
   };
 
   return (
@@ -55,6 +68,13 @@ export default function Login() {
               {loading ? "Signing in…" : "Sign in"}
             </Button>
           </form>
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+            <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+          </div>
+          <Button type="button" variant="outline" className="w-full" onClick={handleGoogle}>
+            Continue with Google
+          </Button>
           <div className="mt-4 text-center text-sm text-muted-foreground space-y-1">
             <Link to="/forgot-password" className="hover:text-foreground transition-colors">Forgot password?</Link>
             <p>Don't have an account? <Link to="/register" className="text-foreground font-medium hover:underline">Sign up</Link></p>
