@@ -141,13 +141,6 @@ function ModuleCard({ to, eyebrow, title, description, cta, icon, gradient, high
               </div>
             </div>
 
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-sm">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 animate-ping" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-              </span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Active</span>
-            </div>
           </div>
 
           <p className={`text-[10px] uppercase tracking-[0.18em] font-bold bg-gradient-to-r ${gradient} bg-clip-text text-transparent mb-2`}>
