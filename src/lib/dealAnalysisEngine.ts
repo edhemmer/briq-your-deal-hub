@@ -155,7 +155,7 @@ export function analyzeDeal(d: DealInput): AnalysisResult {
   // BRRRR / Refinance
   const total_project_cost = pp + cc + rc;
   const equity_created = arv - total_project_cost;
-  const refinance_amount = arv * 0.75;
+  const refinance_amount = arv * ASSUMPTION_DEFAULTS.refinanceLtv;
   const cash_out = refinance_amount - loan_amount;
 
   // Strategy insights
