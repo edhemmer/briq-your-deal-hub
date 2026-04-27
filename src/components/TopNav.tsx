@@ -14,6 +14,8 @@ import BrixIcon from "@/components/BrixIcon";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard" },
+  { title: "DealIQ", url: "/dealiq" },
+  { title: "ContractIQ", url: "/contractiq" },
   { title: "Deals", url: "/deals" },
   { title: "Reports", url: "/reports" },
   { title: "Settings", url: "/settings" },
