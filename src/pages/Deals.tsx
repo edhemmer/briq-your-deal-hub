@@ -73,7 +73,7 @@ const Deals = () => {
                   <td className="py-3 pr-4 text-muted-foreground">{new Date(deal.created_at).toLocaleDateString()}</td>
                   <td className="py-3 text-right">
                     <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" onClick={() => navigate(`/analysis/${deal.id}`)}>
+                      <Button variant="ghost" size="icon" onClick={() => navigate(`/dealiq/${deal.id}`)}>
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => deleteDeal.mutate(deal.id)}>
@@ -98,7 +98,7 @@ const Deals = () => {
                   {deal.strategy_primary ?? "—"} · {formatCurrency(deal.purchase_price)} · ARV {formatCurrency(deal.estimated_arv)}
                 </p>
                 <div className="flex gap-2 pt-1">
-                  <Button variant="ghost" size="sm" onClick={() => navigate(`/analysis/${deal.id}`)}>
+                  <Button variant="ghost" size="sm" onClick={() => navigate(`/dealiq/${deal.id}`)}>
                     <Eye className="h-3 w-3 mr-1" /> View
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => deleteDeal.mutate(deal.id)}>
