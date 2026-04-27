@@ -46,8 +46,9 @@ export const readAsDataURL = (file: File) =>
 async function parsePdf(file: File): Promise<ParsedDocument> {
   // Dynamic import keeps initial bundle smaller.
   const pdfjs = await import("pdfjs-dist");
-  // @ts-expect-error - worker URL ships with the package
-  const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+  const workerUrl = (
+    await import("pdfjs-dist/build/pdf.worker.min.mjs?url")
+  ).default as string;
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
   const buf = await readAsArrayBuffer(file);
@@ -57,7 +58,7 @@ async function parsePdf(file: File): Promise<ParsedDocument> {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
     const text = content.items
-      .map((it: { str?: string }) => it.str ?? "")
+      .map((it) => ("str" in it ? it.str : ""))
       .join(" ");
     pages.push(text);
   }
