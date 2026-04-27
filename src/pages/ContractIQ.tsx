@@ -258,6 +258,9 @@ const ContractIQ = () => {
                 Auto-filled from documents. Confidence chips show how confident the AI was per field — review and edit before analyzing.
               </p>
             )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="md:col-span-2">
                 <Label htmlFor="cname">Contract name *</Label>
                 <Input
                   id="cname"
