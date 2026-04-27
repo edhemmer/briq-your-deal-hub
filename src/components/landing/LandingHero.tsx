@@ -18,7 +18,7 @@ export default function LandingHero() {
           className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.06] px-4 py-1.5 mb-8"
         >
           <Zap className="h-3.5 w-3.5 text-primary" />
-          <span className="text-xs font-medium text-primary">Real estate deal analysis, simplified</span>
+          <span className="text-xs font-medium text-primary">DealIQ + ContractIQ — deal & contract intelligence</span>
         </motion.div>
 
         <motion.h1
@@ -27,10 +27,10 @@ export default function LandingHero() {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="text-4xl sm:text-5xl md:text-[3.5rem] lg:text-6xl font-bold tracking-tight text-foreground leading-[1.08]"
         >
-          Stop the information chaos.
+          From listing to contract.
           <br />
           <span className="bg-gradient-to-r from-primary to-[hsl(199,89%,48%)] bg-clip-text text-transparent">
-            Get deal clarity.
+            One source of truth.
           </span>
         </motion.h1>
 
@@ -40,7 +40,7 @@ export default function LandingHero() {
           transition={{ duration: 0.6, delay: 0.35 }}
           className="mt-6 text-lg md:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto"
         >
-          BRIX turns property listings into complete deal intelligence — financial analysis, market signals, risk scoring, and strategy fit — in minutes instead of hours.
+          BRIX runs every deal through two deterministic engines. <span className="text-foreground font-medium">DealIQ</span> scores the numbers in real time. <span className="text-foreground font-medium">ContractIQ</span> reads PDFs, emails, spreadsheets, and Word docs — then maps every clause, date, and dollar to a canonical structure. No guesswork. Same answer every time.
         </motion.p>
 
         <motion.div
