@@ -95,13 +95,14 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            {/* Legacy redirect: /analysis -> /dealiq */}
             <Route
-              path="/analysis/:dealId?"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><Analysis /></AppLayout>
-                </ProtectedRoute>
-              }
+              path="/analysis"
+              element={<Navigate to="/dealiq" replace />}
+            />
+            <Route
+              path="/analysis/:dealId"
+              element={<LegacyAnalysisRedirect />}
             />
             <Route
               path="/reports"
@@ -113,6 +114,14 @@ const App = () => (
             />
             <Route
               path="/account"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><Account /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
               element={
                 <ProtectedRoute>
                   <AppLayout><Account /></AppLayout>
