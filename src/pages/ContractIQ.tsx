@@ -157,6 +157,16 @@ const ContractIQ = () => {
         inspection_contingency: form.inspection_contingency,
         contract_text: form.contract_text || null,
         contractiq_analysis: analysis as unknown as never,
+        source_files: sourceFiles as never,
+        extraction_meta: extractionMeta as never,
+        extraction_confidence: (extraction
+          ? Object.fromEntries(
+              Object.entries(extraction).map(([k, v]) => [
+                k,
+                { confidence: v.confidence, excerpt: v.excerpt },
+              ]),
+            )
+          : null) as never,
         status: "analyzed",
       });
       setOpen(false);
