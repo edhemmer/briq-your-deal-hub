@@ -14,6 +14,7 @@ import Landing from "./pages/Landing";
 import Deals from "./pages/Deals";
 import NewDeal from "./pages/NewDeal";
 import Analysis from "./pages/Analysis";
+import ContractIQ from "./pages/ContractIQ";
 import Reports from "./pages/Reports";
 import Account from "./pages/Account";
 import Admin from "./pages/Admin";
