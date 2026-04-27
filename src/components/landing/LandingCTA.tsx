@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import BriqIcon from "@/components/BriqIcon";
+import BrixIcon from "@/components/BrixIcon";
 
 export default function LandingCTA() {
   return (
@@ -17,7 +17,7 @@ export default function LandingCTA() {
         transition={{ duration: 0.6 }}
         className="relative mx-auto max-w-2xl text-center"
       >
-        <BriqIcon size={56} className="text-primary mx-auto mb-6" />
+        <BrixIcon size={56} className="text-primary mx-auto mb-6" />
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
           Your next deal deserves better analysis
         </h2>

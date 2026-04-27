@@ -5,7 +5,7 @@ const features = [
   {
     icon: Upload,
     title: "Drop a Listing, Get Answers",
-    description: "Paste text or drop a screenshot from any listing site. BRIQ extracts the data and runs the numbers — no manual entry required.",
+    description: "Paste text or drop a screenshot from any listing site. BRIX extracts the data and runs the numbers — no manual entry required.",
   },
   {
     icon: BarChart3,

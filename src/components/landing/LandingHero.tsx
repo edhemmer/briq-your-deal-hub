@@ -40,7 +40,7 @@ export default function LandingHero() {
           transition={{ duration: 0.6, delay: 0.35 }}
           className="mt-6 text-lg md:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto"
         >
-          BRIQ turns property listings into complete deal intelligence — financial analysis, market signals, risk scoring, and strategy fit — in minutes instead of hours.
+          BRIX turns property listings into complete deal intelligence — financial analysis, market signals, risk scoring, and strategy fit — in minutes instead of hours.
         </motion.p>
 
         <motion.div

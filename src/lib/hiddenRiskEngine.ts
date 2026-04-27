@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.7.0 — Hidden Risk Engine (Deal Protection)
+ * BRIX v1.7.0 — Hidden Risk Engine (Deal Protection)
  *
  * Deterministic, source-aware risk detection from structured data
  * and controlled visual signals from listing photos.

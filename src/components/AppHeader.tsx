@@ -2,7 +2,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { HelpCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import BriqIcon from "@/components/BriqIcon";
+import BrixIcon from "@/components/BrixIcon";
 
 export function AppHeader() {
   return (
@@ -10,8 +10,8 @@ export function AppHeader() {
       <div className="flex items-center">
         <SidebarTrigger className="mr-3" />
         <div className="flex items-center gap-2 md:hidden">
-          <BriqIcon size={22} className="text-primary" />
-          <span className="text-sm font-semibold tracking-tight text-foreground">BRIQ</span>
+          <BrixIcon size={22} className="text-primary" />
+          <span className="text-sm font-semibold tracking-tight text-foreground">BRIX</span>
         </div>
       </div>
       <Link to="/help">
