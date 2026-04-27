@@ -26,7 +26,7 @@ const navItems = [
   { title: "Help", url: "/help", icon: HelpCircle },
 ];
 
-const comingSoonModules = ["ContractIQ", "MarketIQ", "LeaseIQ", "CapitalIQ"];
+
 
 export function AppSidebar() {
   const { state } = useSidebar();
