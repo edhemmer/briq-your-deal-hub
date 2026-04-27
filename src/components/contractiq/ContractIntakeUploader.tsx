@@ -166,11 +166,13 @@ export function ContractIntakeUploader({ onExtracted }: ContractIntakeUploaderPr
           e.stopPropagation();
           onFiles(e.dataTransfer.files);
         }}
-        className="cursor-pointer rounded-md border border-border bg-background p-4 text-center hover:bg-muted/40 transition-colors"
+        className="cursor-pointer rounded-lg border-2 border-dashed border-border bg-background px-6 py-12 md:py-16 text-center hover:bg-muted/40 hover:border-primary/50 transition-colors flex flex-col items-center justify-center min-h-[220px]"
       >
-        <Upload className="h-5 w-5 mx-auto text-muted-foreground" />
-        <p className="text-sm font-medium text-foreground mt-2">Drop files here or click to browse</p>
-        <p className="text-xs text-muted-foreground mt-0.5">PDF · DOCX · XLSX · EML · Images · up to 20MB each</p>
+        <div className="rounded-full bg-muted p-4 mb-3">
+          <Upload className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <p className="text-base font-semibold text-foreground">Drop files here or click to browse</p>
+        <p className="text-sm text-muted-foreground mt-1">PDF · DOCX · XLSX · EML · Images · up to 20MB each</p>
         <input
           ref={inputRef}
           type="file"
