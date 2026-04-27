@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.7.2 — Deal Guidance Engine (Investor Trust Layer)
+ * BRIX v1.7.2 — Deal Guidance Engine (Investor Trust Layer)
  *
  * Synthesizes all prior analysis layers into a final, investor-safe
  * confidence + guidance output. Deterministic. No AI. No guessing.

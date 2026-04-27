@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.6.1 — Property Source Resolver
+ * BRIX v1.6.1 — Property Source Resolver
  *
  * Canonical module for normalizing addresses/URLs, resolving US county/jurisdiction,
  * mapping to official property record sources, and providing a source hierarchy.

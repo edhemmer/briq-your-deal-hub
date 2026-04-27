@@ -10,10 +10,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsAdmin } from "@/hooks/useAdminData";
-import BriqIcon from "@/components/BriqIcon";
+import BrixIcon from "@/components/BrixIcon";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard" },
+  { title: "DealIQ", url: "/dealiq" },
+  { title: "ContractIQ", url: "/contractiq" },
   { title: "Deals", url: "/deals" },
   { title: "Reports", url: "/reports" },
   { title: "Settings", url: "/settings" },
@@ -42,9 +44,9 @@ export function TopNav() {
       <div className="mx-auto flex h-full max-w-[1320px] items-center justify-between px-4 md:px-6">
         {/* Left: Brand */}
         <Link to="/dashboard" className="flex items-center gap-2.5 shrink-0">
-          <BriqIcon size={40} className="text-primary" />
+          <BrixIcon size={40} className="text-primary" />
           <div className="flex flex-col leading-none">
-            <span className="text-base font-bold tracking-tight text-foreground">BRIQ</span>
+            <span className="text-base font-bold tracking-tight text-foreground">BRIX</span>
             <span className="text-[10px] text-muted-foreground font-medium tracking-wide">Real Estate Intelligence</span>
           </div>
         </Link>

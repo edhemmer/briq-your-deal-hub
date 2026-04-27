@@ -1,9 +1,9 @@
-interface BriqIconProps {
+interface BrixIconProps {
   size?: number;
   className?: string;
 }
 
-const BriqIcon = ({ size = 28, className = "" }: BriqIconProps) => {
+const BrixIcon = ({ size = 28, className = "" }: BrixIconProps) => {
   return (
     <svg
       width={size}
@@ -29,4 +29,4 @@ const BriqIcon = ({ size = 28, className = "" }: BriqIconProps) => {
   );
 };
 
-export default BriqIcon;
+export default BrixIcon;

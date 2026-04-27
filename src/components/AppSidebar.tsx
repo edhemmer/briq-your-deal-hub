@@ -1,7 +1,7 @@
 import { LayoutDashboard, Briefcase, BarChart3, FileText, Settings, ShieldCheck, HelpCircle, FileSignature } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
-import BriqIcon from "@/components/BriqIcon";
+import BrixIcon from "@/components/BrixIcon";
 import { useIsAdmin } from "@/hooks/useAdminData";
 
 import {
@@ -49,11 +49,11 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
-          <BriqIcon size={26} className="text-primary" />
+          <BrixIcon size={26} className="text-primary" />
           {!collapsed && (
             <div className="flex flex-col leading-tight">
               <span className="text-base font-semibold tracking-tight text-sidebar-primary">
-                BRIQ
+                BRIX
               </span>
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
                 Real Estate Intelligence

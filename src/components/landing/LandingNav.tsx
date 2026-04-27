@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import BriqIcon from "@/components/BriqIcon";
+import BrixIcon from "@/components/BrixIcon";
 
 export default function LandingNav() {
   return (
@@ -13,9 +13,9 @@ export default function LandingNav() {
     >
       <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-5">
         <Link to="/landing" className="flex items-center gap-2.5">
-          <BriqIcon size={36} className="text-primary" />
+          <BrixIcon size={36} className="text-primary" />
           <div className="flex flex-col leading-none">
-            <span className="text-base font-bold tracking-tight text-foreground">BRIQ</span>
+            <span className="text-base font-bold tracking-tight text-foreground">BRIX</span>
             <span className="text-[10px] text-muted-foreground font-medium">Real Estate Deal IQ</span>
           </div>
         </Link>

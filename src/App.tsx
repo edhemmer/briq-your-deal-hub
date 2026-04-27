@@ -15,6 +15,7 @@ import Deals from "./pages/Deals";
 import NewDeal from "./pages/NewDeal";
 import Analysis from "./pages/Analysis";
 import ContractIQ from "./pages/ContractIQ";
+import ContractAnalysis from "./pages/ContractAnalysis";
 import Reports from "./pages/Reports";
 import Account from "./pages/Account";
 import Admin from "./pages/Admin";
@@ -81,6 +82,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AppLayout><ContractIQ /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/contractiq/:contractId"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><ContractAnalysis /></AppLayout>
                 </ProtectedRoute>
               }
             />

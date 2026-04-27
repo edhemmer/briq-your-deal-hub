@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.6.2 — Financing Intelligence UI Component
+ * BRIX v1.6.2 — Financing Intelligence UI Component
  */
 
 import type { FinancingResult, FinancingFitScore } from "@/lib/financingEngine";

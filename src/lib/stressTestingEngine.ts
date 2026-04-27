@@ -1,4 +1,4 @@
-// BRIQ Stress Testing Engine v1.7.0 — deterministic scenario modeling.
+// BRIX Stress Testing Engine v1.7.0 — deterministic scenario modeling.
 // Consumes finalized deal outputs; never mutates baseline values.
 
 import type { DealInput, AnalysisResult } from "./dealAnalysisEngine";

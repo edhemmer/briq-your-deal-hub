@@ -1,4 +1,4 @@
-// BRIQ Deal Analysis Engine — deterministic, reusable, divide-by-zero safe.
+// BRIX Deal Analysis Engine — deterministic, reusable, divide-by-zero safe.
 
 export interface DealInput {
   purchase_price: number;

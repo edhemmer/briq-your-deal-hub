@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.9.0 — Public Record Resolver
+ * BRIX v1.9.0 — Public Record Resolver
  *
  * Lightweight resolver/normalizer for tax and public-record inputs
  * already available in the app flow.
