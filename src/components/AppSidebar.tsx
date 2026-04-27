@@ -35,7 +35,6 @@ export function AppSidebar() {
   const { data: isAdmin } = useIsAdmin();
 
   const isActive = (path: string) => {
-  const isActive = (path: string) => {
     if (path === "/dashboard") {
       return location.pathname === "/" || location.pathname === "/dashboard";
     }
