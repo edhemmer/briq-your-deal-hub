@@ -11,7 +11,7 @@ export function AppHeader() {
         <SidebarTrigger className="mr-3" />
         <div className="flex items-center gap-2 md:hidden">
           <BriqIcon size={22} className="text-primary" />
-          <span className="text-sm font-semibold tracking-tight text-foreground">BRIX</span>
+          <span className="text-sm font-semibold tracking-tight text-foreground">BRIQ</span>
         </div>
       </div>
       <Link to="/help">

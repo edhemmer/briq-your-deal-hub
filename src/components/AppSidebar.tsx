@@ -1,4 +1,4 @@
-import { LayoutDashboard, Briefcase, BarChart3, FileText, User, ShieldCheck, HelpCircle } from "lucide-react";
+import { LayoutDashboard, Briefcase, BarChart3, FileText, Settings, ShieldCheck, HelpCircle, FileSignature } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import BriqIcon from "@/components/BriqIcon";
@@ -17,15 +17,16 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "DealIQ", url: "/dealiq", icon: BarChart3 },
+  { title: "ContractIQ", url: "/contractiq", icon: FileSignature },
   { title: "Deals", url: "/deals", icon: Briefcase },
   { title: "Reports", url: "/reports", icon: FileText },
-  { title: "Account", url: "/account", icon: User },
+  { title: "Settings", url: "/settings", icon: Settings },
   { title: "Help", url: "/help", icon: HelpCircle },
 ];
 
-const comingSoonModules = ["ContractIQ", "MarketIQ", "LeaseIQ", "CapitalIQ"];
+
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -34,7 +35,9 @@ export function AppSidebar() {
   const { data: isAdmin } = useIsAdmin();
 
   const isActive = (path: string) => {
-    if (path === "/") return location.pathname === "/";
+    if (path === "/dashboard") {
+      return location.pathname === "/" || location.pathname === "/dashboard";
+    }
     return location.pathname.startsWith(path);
   };
 
@@ -50,7 +53,7 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex flex-col leading-tight">
               <span className="text-base font-semibold tracking-tight text-sidebar-primary">
-                BRIX
+                BRIQ
               </span>
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
                 Real Estate Intelligence
@@ -73,7 +76,7 @@ export function AppSidebar() {
                   >
                     <NavLink
                       to={item.url}
-                      end={item.url === "/"}
+                      end={item.url === "/dashboard"}
                       className="hover:bg-sidebar-accent"
                       activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                     >
@@ -87,24 +90,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {!collapsed && (
-          <div className="px-4 pt-6 pb-2">
-            <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-2">
-              Coming Soon
-            </p>
-            <ul className="space-y-1.5">
-              {comingSoonModules.map((m) => (
-                <li
-                  key={m}
-                  className="text-xs text-muted-foreground/80 flex items-center gap-2"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30" />
-                  {m}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </SidebarContent>
     </Sidebar>
   );

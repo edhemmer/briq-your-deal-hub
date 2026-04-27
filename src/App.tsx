@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { HelpProvider } from "@/contexts/HelpContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -14,6 +14,7 @@ import Landing from "./pages/Landing";
 import Deals from "./pages/Deals";
 import NewDeal from "./pages/NewDeal";
 import Analysis from "./pages/Analysis";
+import ContractIQ from "./pages/ContractIQ";
 import Reports from "./pages/Reports";
 import Account from "./pages/Account";
 import Admin from "./pages/Admin";
@@ -25,6 +26,11 @@ import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+const LegacyAnalysisRedirect = () => {
+  const { dealId } = useParams();
+  return <Navigate to={`/dealiq/${dealId ?? ""}`} replace />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -45,12 +51,12 @@ const App = () => (
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Protected app routes */}
+            {/* Root redirects to /dashboard */}
             <Route
               path="/"
               element={
                 <ProtectedRoute>
-                  <AppLayout><Index /></AppLayout>
+                  <Navigate to="/dashboard" replace />
                 </ProtectedRoute>
               }
             />
@@ -71,6 +77,14 @@ const App = () => (
               }
             />
             <Route
+              path="/contractiq"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><ContractIQ /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/deals"
               element={
                 <ProtectedRoute>
@@ -86,13 +100,14 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            {/* Legacy redirect: /analysis -> /dealiq */}
             <Route
-              path="/analysis/:dealId?"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><Analysis /></AppLayout>
-                </ProtectedRoute>
-              }
+              path="/analysis"
+              element={<Navigate to="/dealiq" replace />}
+            />
+            <Route
+              path="/analysis/:dealId"
+              element={<LegacyAnalysisRedirect />}
             />
             <Route
               path="/reports"
@@ -104,6 +119,14 @@ const App = () => (
             />
             <Route
               path="/account"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><Account /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
               element={
                 <ProtectedRoute>
                   <AppLayout><Account /></AppLayout>

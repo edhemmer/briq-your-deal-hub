@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Plus, User, HelpCircle, ShieldCheck, LogOut, ChevronDown } from "lucide-react";
+import { User, HelpCircle, ShieldCheck, LogOut, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,10 +13,10 @@ import { useIsAdmin } from "@/hooks/useAdminData";
 import BriqIcon from "@/components/BriqIcon";
 
 const navItems = [
-  { title: "Dashboard", url: "/" },
+  { title: "Dashboard", url: "/dashboard" },
   { title: "Deals", url: "/deals" },
-  { title: "Analysis", url: "/analysis" },
   { title: "Reports", url: "/reports" },
+  { title: "Settings", url: "/settings" },
 ];
 
 export function TopNav() {
@@ -26,7 +26,9 @@ export function TopNav() {
   const { data: isAdmin } = useIsAdmin();
 
   const isActive = (path: string) => {
-    if (path === "/") return location.pathname === "/";
+    if (path === "/dashboard") {
+      return location.pathname === "/" || location.pathname === "/dashboard";
+    }
     return location.pathname.startsWith(path);
   };
 
@@ -39,11 +41,11 @@ export function TopNav() {
     <header className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border bg-card/95 backdrop-blur-sm supports-[backdrop-filter]:bg-card/80">
       <div className="mx-auto flex h-full max-w-[1320px] items-center justify-between px-4 md:px-6">
         {/* Left: Brand */}
-        <Link to="/" className="flex items-center gap-2.5 shrink-0">
+        <Link to="/dashboard" className="flex items-center gap-2.5 shrink-0">
           <BriqIcon size={40} className="text-primary" />
           <div className="flex flex-col leading-none">
             <span className="text-base font-bold tracking-tight text-foreground">BRIQ</span>
-            <span className="text-[10px] text-muted-foreground font-medium tracking-wide">Real Estate Deal IQ</span>
+            <span className="text-[10px] text-muted-foreground font-medium tracking-wide">Real Estate Intelligence</span>
           </div>
         </Link>
 
@@ -69,12 +71,6 @@ export function TopNav() {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
-          <Link to="/deals/new">
-            <Button size="sm" className="gap-1.5 rounded-lg text-xs font-medium">
-              <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Analyze Deal</span>
-            </Button>
-          </Link>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
