@@ -41,6 +41,89 @@ export type Database = {
         }
         Relationships: []
       }
+      contracts: {
+        Row: {
+          appraisal_contingency: boolean | null
+          buyer_name: string | null
+          closing_date: string | null
+          contract_file_url: string | null
+          contract_name: string
+          contract_text: string | null
+          contract_type: string | null
+          contractiq_analysis: Json | null
+          created_at: string
+          deal_id: string | null
+          earnest_money: number | null
+          financing_contingency: boolean | null
+          id: string
+          inspection_contingency: boolean | null
+          inspection_period_days: number | null
+          perspective: string
+          property_address: string | null
+          purchase_price: number | null
+          seller_name: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appraisal_contingency?: boolean | null
+          buyer_name?: string | null
+          closing_date?: string | null
+          contract_file_url?: string | null
+          contract_name: string
+          contract_text?: string | null
+          contract_type?: string | null
+          contractiq_analysis?: Json | null
+          created_at?: string
+          deal_id?: string | null
+          earnest_money?: number | null
+          financing_contingency?: boolean | null
+          id?: string
+          inspection_contingency?: boolean | null
+          inspection_period_days?: number | null
+          perspective?: string
+          property_address?: string | null
+          purchase_price?: number | null
+          seller_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appraisal_contingency?: boolean | null
+          buyer_name?: string | null
+          closing_date?: string | null
+          contract_file_url?: string | null
+          contract_name?: string
+          contract_text?: string | null
+          contract_type?: string | null
+          contractiq_analysis?: Json | null
+          created_at?: string
+          deal_id?: string | null
+          earnest_money?: number | null
+          financing_contingency?: boolean | null
+          id?: string
+          inspection_contingency?: boolean | null
+          inspection_period_days?: number | null
+          perspective?: string
+          property_address?: string | null
+          purchase_price?: number | null
+          seller_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deals: {
         Row: {
           annual_property_tax: number | null
