@@ -1,36 +1,36 @@
-import { Upload, BarChart3, Brain, TrendingUp, ShieldCheck, FileText } from "lucide-react";
+import { FileSignature, Calculator, Brain, TrendingUp, ShieldCheck, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 
 const features = [
   {
-    icon: Upload,
-    title: "Drop a Listing, Get Answers",
-    description: "Paste text or drop a screenshot from any listing site. BRIX extracts the data and runs the numbers — no manual entry required.",
+    icon: FileSignature,
+    title: "ContractIQ Intake",
+    description: "Drop a PDF purchase agreement, .eml or pasted email, XLSX terms sheet, or Word contract. ContractIQ parses, maps, and pre-fills every field with a confidence badge — you review before analyze.",
   },
   {
-    icon: BarChart3,
-    title: "Complete Financial Analysis",
-    description: "Cap rate, cash-on-cash return, monthly cash flow, debt service — calculated instantly from your deal inputs.",
+    icon: Calculator,
+    title: "Real-Time Deterministic Math",
+    description: "Cap rate, cash-on-cash, DSCR, and cash flow recompute live on every input change. Same inputs always produce the same answer — no AI guessing on the numbers.",
   },
   {
     icon: Brain,
     title: "Deal Intelligence Scoring",
-    description: "Every deal gets a composite score based on financials, market conditions, and risk factors. One number to guide your decision.",
+    description: "A canonical engine combines financials, market signals, and risk into one composite score with a clear Proceed / Caution / Pass guidance.",
   },
   {
     icon: TrendingUp,
-    title: "Local Market Signals",
-    description: "Price trends, rent growth, days on market, supply levels, and demand pressure — pulled together for the market you're evaluating.",
+    title: "Forward-Looking Market Signals",
+    description: "3–5 year outlook on population, jobs, supply, and rent growth — pulled from a dated, transparent rate table so you always see when the data was sourced.",
   },
   {
     icon: ShieldCheck,
-    title: "Stress Testing Built In",
-    description: "See how your deal holds up under rate increases, vacancy spikes, and rent drops before you commit capital.",
+    title: "Stress Testing & Hidden Risk",
+    description: "Rate hikes, vacancy spikes, rent drops, and structural risk flags — surfaced before you commit capital. Conservative defaults (6% closing, 25% down, 7.0% rate) when data is missing.",
   },
   {
     icon: FileText,
-    title: "Export-Ready Reports",
-    description: "Generate professional deal reports you can share with partners, lenders, or your own records.",
+    title: "Investor-Ready Reports",
+    description: "Export structured PDF and CSV briefs that summarize every analysis layer — share with partners, lenders, or keep for your own records.",
   },
 ];
 
