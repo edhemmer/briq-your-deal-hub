@@ -26,6 +26,14 @@ import {
   useDeleteContract,
 } from "@/hooks/useContracts";
 import { analyzeContract, type Perspective } from "@/lib/contractIQEngine";
+import {
+  ContractIntakeUploader,
+  confidenceBadgeColor,
+} from "@/components/contractiq/ContractIntakeUploader";
+import {
+  extractionToFormValues,
+  type CanonicalContractExtraction,
+} from "@/lib/contractDataMapper";
 
 const ContractIQ = () => {
   const navigate = useNavigate();
@@ -51,8 +59,15 @@ const ContractIQ = () => {
     contract_text: "",
   });
 
+  const [extraction, setExtraction] = useState<CanonicalContractExtraction | null>(null);
+  const [extractionMeta, setExtractionMeta] = useState<Record<string, unknown> | null>(null);
+  const [sourceFiles, setSourceFiles] = useState<unknown[]>([]);
+
   const reset = () => {
     setPerspective("buyer");
+    setExtraction(null);
+    setExtractionMeta(null);
+    setSourceFiles([]);
     setForm({
       contract_name: "",
       contract_type: "",
@@ -68,6 +83,37 @@ const ContractIQ = () => {
       inspection_contingency: false,
       contract_text: "",
     });
+  };
+
+  const handleExtracted = (
+    e: CanonicalContractExtraction,
+    files: unknown[],
+    meta: Record<string, unknown>,
+  ) => {
+    setExtraction(e);
+    setSourceFiles(files);
+    setExtractionMeta(meta);
+    const v = extractionToFormValues(e);
+    setForm((prev) => ({
+      ...prev,
+      // Auto-fill, but don't overwrite a value the user already typed.
+      contract_type: prev.contract_type || v.contract_type,
+      buyer_name: prev.buyer_name || v.buyer_name,
+      seller_name: prev.seller_name || v.seller_name,
+      property_address: prev.property_address || v.property_address,
+      purchase_price: prev.purchase_price || v.purchase_price,
+      earnest_money: prev.earnest_money || v.earnest_money,
+      closing_date: prev.closing_date || v.closing_date,
+      inspection_period_days: prev.inspection_period_days || v.inspection_period_days,
+      financing_contingency: prev.financing_contingency || v.financing_contingency,
+      appraisal_contingency: prev.appraisal_contingency || v.appraisal_contingency,
+      inspection_contingency: prev.inspection_contingency || v.inspection_contingency,
+      contract_name:
+        prev.contract_name ||
+        v.property_address ||
+        v.contract_type ||
+        "Untitled contract",
+    }));
   };
 
   const handleCreate = async () => {
@@ -111,6 +157,16 @@ const ContractIQ = () => {
         inspection_contingency: form.inspection_contingency,
         contract_text: form.contract_text || null,
         contractiq_analysis: analysis as unknown as never,
+        source_files: sourceFiles as never,
+        extraction_meta: extractionMeta as never,
+        extraction_confidence: (extraction
+          ? Object.fromEntries(
+              Object.entries(extraction).map(([k, v]) => [
+                k,
+                { confidence: v.confidence, excerpt: v.excerpt },
+              ]),
+            )
+          : null) as never,
         status: "analyzed",
       });
       setOpen(false);
@@ -195,6 +251,14 @@ const ContractIQ = () => {
               </div>
             </div>
 
+            <ContractIntakeUploader onExtracted={handleExtracted} />
+
+            {extraction && (
+              <p className="text-[11px] text-muted-foreground">
+                Auto-filled from documents. Confidence chips show how confident the AI was per field — review and edit before analyzing.
+              </p>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2">
                 <Label htmlFor="cname">Contract name *</Label>
@@ -205,8 +269,10 @@ const ContractIQ = () => {
                   placeholder="e.g. Hemmer–Pulte Purchase Agreement"
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="contract_type">
                 <Label htmlFor="ctype">Contract type</Label>
+              </FieldChip>
+              <div className="md:col-span-1">
                 <Input
                   id="ctype"
                   value={form.contract_type}
@@ -214,32 +280,40 @@ const ContractIQ = () => {
                   placeholder="Purchase, LOI, Lease..."
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="property_address">
                 <Label htmlFor="addr">Property address</Label>
+              </FieldChip>
+              <div>
                 <Input
                   id="addr"
                   value={form.property_address}
                   onChange={(e) => setForm({ ...form, property_address: e.target.value })}
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="buyer_name">
                 <Label htmlFor="buyer">Buyer name</Label>
+              </FieldChip>
+              <div>
                 <Input
                   id="buyer"
                   value={form.buyer_name}
                   onChange={(e) => setForm({ ...form, buyer_name: e.target.value })}
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="seller_name">
                 <Label htmlFor="seller">Seller name</Label>
+              </FieldChip>
+              <div>
                 <Input
                   id="seller"
                   value={form.seller_name}
                   onChange={(e) => setForm({ ...form, seller_name: e.target.value })}
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="purchase_price">
                 <Label htmlFor="price">Purchase price</Label>
+              </FieldChip>
+              <div>
                 <Input
                   id="price"
                   type="number"
@@ -247,8 +321,10 @@ const ContractIQ = () => {
                   onChange={(e) => setForm({ ...form, purchase_price: e.target.value })}
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="earnest_money">
                 <Label htmlFor="em">Earnest money</Label>
+              </FieldChip>
+              <div>
                 <Input
                   id="em"
                   type="number"
@@ -256,8 +332,10 @@ const ContractIQ = () => {
                   onChange={(e) => setForm({ ...form, earnest_money: e.target.value })}
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="closing_date">
                 <Label htmlFor="close">Closing date</Label>
+              </FieldChip>
+              <div>
                 <Input
                   id="close"
                   type="date"
@@ -265,8 +343,10 @@ const ContractIQ = () => {
                   onChange={(e) => setForm({ ...form, closing_date: e.target.value })}
                 />
               </div>
-              <div>
+              <FieldChip extraction={extraction} field="inspection_period_days">
                 <Label htmlFor="ip">Inspection period (days)</Label>
+              </FieldChip>
+              <div>
                 <Input
                   id="ip"
                   type="number"
@@ -385,6 +465,48 @@ const ContractIQ = () => {
         )}
       </CardContainer>
     </SectionContainer>
+  );
+};
+
+type ExtractableField =
+  | "contract_type"
+  | "buyer_name"
+  | "seller_name"
+  | "property_address"
+  | "purchase_price"
+  | "earnest_money"
+  | "closing_date"
+  | "inspection_period_days";
+
+const FieldChip = ({
+  extraction,
+  field,
+  children,
+}: {
+  extraction: CanonicalContractExtraction | null;
+  field: ExtractableField;
+  children: React.ReactNode;
+}) => {
+  const f = extraction?.[field];
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        {children}
+        {f && f.confidence !== "none" && (
+          <span
+            title={f.excerpt || "Source excerpt unavailable"}
+            className={`text-[10px] px-1.5 py-0.5 rounded border ${confidenceBadgeColor(f.confidence)}`}
+          >
+            {f.confidence}
+          </span>
+        )}
+      </div>
+      {f?.excerpt && f.confidence !== "none" && (
+        <p className="text-[10px] text-muted-foreground italic line-clamp-1" title={f.excerpt}>
+          “{f.excerpt}”
+        </p>
+      )}
+    </div>
   );
 };
 
