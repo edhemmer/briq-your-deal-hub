@@ -468,4 +468,46 @@ const ContractIQ = () => {
   );
 };
 
+type ExtractableField =
+  | "contract_type"
+  | "buyer_name"
+  | "seller_name"
+  | "property_address"
+  | "purchase_price"
+  | "earnest_money"
+  | "closing_date"
+  | "inspection_period_days";
+
+const FieldChip = ({
+  extraction,
+  field,
+  children,
+}: {
+  extraction: CanonicalContractExtraction | null;
+  field: ExtractableField;
+  children: React.ReactNode;
+}) => {
+  const f = extraction?.[field];
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        {children}
+        {f && f.confidence !== "none" && (
+          <span
+            title={f.excerpt || "Source excerpt unavailable"}
+            className={`text-[10px] px-1.5 py-0.5 rounded border ${confidenceBadgeColor(f.confidence)}`}
+          >
+            {f.confidence}
+          </span>
+        )}
+      </div>
+      {f?.excerpt && f.confidence !== "none" && (
+        <p className="text-[10px] text-muted-foreground italic line-clamp-1" title={f.excerpt}>
+          “{f.excerpt}”
+        </p>
+      )}
+    </div>
+  );
+};
+
 export default ContractIQ;
