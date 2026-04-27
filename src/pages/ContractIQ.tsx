@@ -59,8 +59,15 @@ const ContractIQ = () => {
     contract_text: "",
   });
 
+  const [extraction, setExtraction] = useState<CanonicalContractExtraction | null>(null);
+  const [extractionMeta, setExtractionMeta] = useState<Record<string, unknown> | null>(null);
+  const [sourceFiles, setSourceFiles] = useState<unknown[]>([]);
+
   const reset = () => {
     setPerspective("buyer");
+    setExtraction(null);
+    setExtractionMeta(null);
+    setSourceFiles([]);
     setForm({
       contract_name: "",
       contract_type: "",
@@ -76,6 +83,37 @@ const ContractIQ = () => {
       inspection_contingency: false,
       contract_text: "",
     });
+  };
+
+  const handleExtracted = (
+    e: CanonicalContractExtraction,
+    files: unknown[],
+    meta: Record<string, unknown>,
+  ) => {
+    setExtraction(e);
+    setSourceFiles(files);
+    setExtractionMeta(meta);
+    const v = extractionToFormValues(e);
+    setForm((prev) => ({
+      ...prev,
+      // Auto-fill, but don't overwrite a value the user already typed.
+      contract_type: prev.contract_type || v.contract_type,
+      buyer_name: prev.buyer_name || v.buyer_name,
+      seller_name: prev.seller_name || v.seller_name,
+      property_address: prev.property_address || v.property_address,
+      purchase_price: prev.purchase_price || v.purchase_price,
+      earnest_money: prev.earnest_money || v.earnest_money,
+      closing_date: prev.closing_date || v.closing_date,
+      inspection_period_days: prev.inspection_period_days || v.inspection_period_days,
+      financing_contingency: prev.financing_contingency || v.financing_contingency,
+      appraisal_contingency: prev.appraisal_contingency || v.appraisal_contingency,
+      inspection_contingency: prev.inspection_contingency || v.inspection_contingency,
+      contract_name:
+        prev.contract_name ||
+        v.property_address ||
+        v.contract_type ||
+        "Untitled contract",
+    }));
   };
 
   const handleCreate = async () => {
