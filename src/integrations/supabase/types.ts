@@ -46,13 +46,18 @@ export type Database = {
           annual_property_tax: number | null
           arv: number
           assessed_value: number | null
+          asset_type: string | null
+          buyer_name: string | null
           capex_percent: number
           city: string
           closing_costs: number
           created_at: string
+          deal_name: string | null
           deal_status: string | null
+          dealiq_analysis: Json | null
           down_payment_percent: number
           estimated_arv: number | null
+          future_contractiq_analysis: Json | null
           id: string
           insurance: number
           interest_rate: number
@@ -68,9 +73,11 @@ export type Database = {
           purchase_price: number | null
           rehab_contingency: number
           rehab_cost: number
+          seller_name: string | null
           state: string
           strategy_primary: string | null
           taxes: number
+          updated_at: string
           user_id: string
           vacancy_percent: number
           year_built: number | null
@@ -81,13 +88,18 @@ export type Database = {
           annual_property_tax?: number | null
           arv?: number
           assessed_value?: number | null
+          asset_type?: string | null
+          buyer_name?: string | null
           capex_percent?: number
           city: string
           closing_costs?: number
           created_at?: string
+          deal_name?: string | null
           deal_status?: string | null
+          dealiq_analysis?: Json | null
           down_payment_percent?: number
           estimated_arv?: number | null
+          future_contractiq_analysis?: Json | null
           id?: string
           insurance?: number
           interest_rate?: number
@@ -103,9 +115,11 @@ export type Database = {
           purchase_price?: number | null
           rehab_contingency?: number
           rehab_cost?: number
+          seller_name?: string | null
           state: string
           strategy_primary?: string | null
           taxes?: number
+          updated_at?: string
           user_id: string
           vacancy_percent?: number
           year_built?: number | null
@@ -116,13 +130,18 @@ export type Database = {
           annual_property_tax?: number | null
           arv?: number
           assessed_value?: number | null
+          asset_type?: string | null
+          buyer_name?: string | null
           capex_percent?: number
           city?: string
           closing_costs?: number
           created_at?: string
+          deal_name?: string | null
           deal_status?: string | null
+          dealiq_analysis?: Json | null
           down_payment_percent?: number
           estimated_arv?: number | null
+          future_contractiq_analysis?: Json | null
           id?: string
           insurance?: number
           interest_rate?: number
@@ -138,9 +157,11 @@ export type Database = {
           purchase_price?: number | null
           rehab_contingency?: number
           rehab_cost?: number
+          seller_name?: string | null
           state?: string
           strategy_primary?: string | null
           taxes?: number
+          updated_at?: string
           user_id?: string
           vacancy_percent?: number
           year_built?: number | null

@@ -1,4 +1,4 @@
-import { Plus, Briefcase, TrendingUp, Clock, ArrowRight } from "lucide-react";
+import { Plus, Briefcase, TrendingUp, Clock, ArrowRight, BarChart3, FileSignature, Building2, FileText as FileTextIcon, Landmark } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SectionContainer } from "@/components/ui/section-container";
 import { CardContainer } from "@/components/ui/card-container";
@@ -27,8 +27,11 @@ const Index = () => {
       <div className="mx-auto max-w-[900px] mb-8">
         <CardContainer className="relative overflow-hidden p-8 md:p-10 bg-gradient-to-br from-primary/[0.04] via-card to-card border-primary/10">
           <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-muted-foreground mb-2">
+              BRIX Platform
+            </span>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-              Deal  IQ Workspace
+              Deal Intelligence Workspace
             </h1>
             <p className="mt-2 text-base font-medium text-primary tracking-wide">
               Information Chaos → Deal Clarity
@@ -45,6 +48,55 @@ const Index = () => {
             </Link>
           </div>
         </CardContainer>
+      </div>
+
+      {/* Module Grid */}
+      <div className="mb-8">
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="text-sm font-semibold text-foreground">Modules</h2>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+            BRIX Suite
+          </span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Active: DealIQ */}
+          <Link to="/dealiq" className="group">
+            <CardContainer className="p-5 h-full border-primary/20 bg-gradient-to-br from-primary/[0.03] to-card hover:border-primary/40 hover:shadow-md transition-all">
+              <div className="flex items-start justify-between mb-3">
+                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <BarChart3 className="h-4.5 w-4.5 text-primary" />
+                </div>
+                <Badge variant="default" className="text-[10px]">Active</Badge>
+              </div>
+              <h3 className="text-base font-semibold text-foreground">DealIQ</h3>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Analyze the deal. Address-based intelligence, market review, pricing, underwriting support, and opportunity scoring.
+              </p>
+              <div className="mt-4 flex items-center gap-1 text-xs font-medium text-primary group-hover:gap-2 transition-all">
+                Open DealIQ <ArrowRight className="h-3 w-3" />
+              </div>
+            </CardContainer>
+          </Link>
+
+          {/* Coming Soon */}
+          {[
+            { name: "ContractIQ", icon: FileSignature, desc: "Review and structure deal contracts." },
+            { name: "MarketIQ", icon: Building2, desc: "Submarket trends and benchmark comps." },
+            { name: "LeaseIQ", icon: FileTextIcon, desc: "Lease abstraction and risk review." },
+            { name: "CapitalIQ", icon: Landmark, desc: "Capital stack and financing intelligence." },
+          ].map(({ name, icon: Icon, desc }) => (
+            <CardContainer key={name} className="p-5 h-full opacity-75">
+              <div className="flex items-start justify-between mb-3">
+                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                  <Icon className="h-4.5 w-4.5 text-muted-foreground" />
+                </div>
+                <Badge variant="outline" className="text-[10px]">Coming Soon</Badge>
+              </div>
+              <h3 className="text-base font-semibold text-foreground">{name}</h3>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{desc}</p>
+            </CardContainer>
+          ))}
+        </div>
       </div>
 
       {isLoading ?
@@ -66,7 +118,7 @@ const Index = () => {
               No deals yet
             </h2>
             <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-              Create your first deal analysis to get started with BRIQ.
+              Create your first deal analysis to get started with BRIX.
             </p>
           </div>
         </CardContainer> :

@@ -18,12 +18,14 @@ import {
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "DealIQ", url: "/dealiq", icon: BarChart3 },
   { title: "Deals", url: "/deals", icon: Briefcase },
-  { title: "Analysis", url: "/analysis", icon: BarChart3 },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "Account", url: "/account", icon: User },
   { title: "Help", url: "/help", icon: HelpCircle },
 ];
+
+const comingSoonModules = ["ContractIQ", "MarketIQ", "LeaseIQ", "CapitalIQ"];
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -46,9 +48,14 @@ export function AppSidebar() {
         <div className="flex items-center gap-2.5">
           <BriqIcon size={26} className="text-primary" />
           {!collapsed && (
-            <span className="text-base font-semibold tracking-tight text-sidebar-primary">
-              BRIQ
-            </span>
+            <div className="flex flex-col leading-tight">
+              <span className="text-base font-semibold tracking-tight text-sidebar-primary">
+                BRIX
+              </span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                Real Estate Intelligence
+              </span>
+            </div>
           )}
         </div>
       </SidebarHeader>
@@ -79,6 +86,25 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {!collapsed && (
+          <div className="px-4 pt-6 pb-2">
+            <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-2">
+              Coming Soon
+            </p>
+            <ul className="space-y-1.5">
+              {comingSoonModules.map((m) => (
+                <li
+                  key={m}
+                  className="text-xs text-muted-foreground/80 flex items-center gap-2"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30" />
+                  {m}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </SidebarContent>
     </Sidebar>
   );
