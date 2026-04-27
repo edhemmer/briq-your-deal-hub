@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Upload, FileText, FileSpreadsheet, Mail, Image as ImageIcon, X, Loader2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,20 @@ export function ContractIntakeUploader({ onExtracted }: ContractIntakeUploaderPr
       setBusy(null);
       if (inputRef.current) inputRef.current.value = "";
     }
+  }, []);
+
+  // Prevent the browser from navigating away (opening the PDF/email)
+  // when a file is dropped outside the dropzone.
+  useEffect(() => {
+    const prevent = (e: DragEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("dragover", prevent);
+    window.addEventListener("drop", prevent);
+    return () => {
+      window.removeEventListener("dragover", prevent);
+      window.removeEventListener("drop", prevent);
+    };
   }, []);
 
   const removeFile = (idx: number) =>
@@ -145,9 +159,11 @@ export function ContractIntakeUploader({ onExtracted }: ContractIntakeUploaderPr
 
       <div
         onClick={() => inputRef.current?.click()}
-        onDragOver={(e) => e.preventDefault()}
+        onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "copy"; }}
         onDrop={(e) => {
           e.preventDefault();
+          e.stopPropagation();
           onFiles(e.dataTransfer.files);
         }}
         className="cursor-pointer rounded-md border border-border bg-background p-4 text-center hover:bg-muted/40 transition-colors"
