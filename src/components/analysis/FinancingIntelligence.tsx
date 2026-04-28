@@ -96,7 +96,7 @@ function FinancingCard({ result }: { result: FinancingResult }) {
               <p key={i} className="text-xs text-signal-risk">− {c}</p>
             ))}
           </div>
-          <p className="text-[9px] text-muted-foreground italic">
+          <p className="text-[9px] text-muted-foreground">
             {result.sourceTag}
           </p>
         </div>

@@ -216,7 +216,7 @@ export default function Admin() {
                                 </div>
                               )}
                               {(u as any).manual_override_note && isPremium && (
-                                <p className="text-xs text-muted-foreground italic">
+                                <p className="text-xs text-muted-foreground">
                                   Note: {(u as any).manual_override_note}
                                 </p>
                               )}
