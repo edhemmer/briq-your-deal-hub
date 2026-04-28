@@ -1,5 +1,5 @@
 /**
- * BRIX v1.7.2 — Deal Confidence & Guidance Panel
+ * BRIQ v1.7.2 — Deal Confidence & Guidance Panel
  *
  * Displays overall confidence score, guidance level,
  * reasoning bullets, and tiered uncertainties.

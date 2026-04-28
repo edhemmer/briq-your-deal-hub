@@ -1,5 +1,5 @@
 /**
- * BRIX — Canonical Market Rate Reference
+ * BRIQ — Canonical Market Rate Reference
  *
  * Centralized, dated source of base financing rate ranges and assumption defaults.
  * Deterministic. Update `RATE_TABLE_AS_OF` whenever ranges change.

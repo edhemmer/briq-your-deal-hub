@@ -40,7 +40,7 @@ export default function LandingHero() {
           transition={{ duration: 0.6, delay: 0.35 }}
           className="mt-6 text-lg md:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto"
         >
-          BRIX runs every deal through two deterministic engines. <span className="text-foreground font-medium">DealIQ</span> scores the numbers in real time. <span className="text-foreground font-medium">ContractIQ</span> reads PDFs, emails, spreadsheets, and Word docs — then maps every clause, date, and dollar to a canonical structure. No guesswork. Same answer every time.
+          BRIQ runs every deal through two deterministic engines. <span className="text-foreground font-medium">DealIQ</span> scores the numbers in real time. <span className="text-foreground font-medium">ContractIQ</span> reads PDFs, emails, spreadsheets, and Word docs — then maps every clause, date, and dollar to a canonical structure. No guesswork. Same answer every time.
         </motion.p>
 
         <motion.div

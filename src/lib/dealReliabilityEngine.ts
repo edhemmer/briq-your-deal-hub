@@ -1,4 +1,4 @@
-// BRIX Deal Reliability Engine v1.7.3 — deterministic downside testing,
+// BRIQ Deal Reliability Engine v1.7.3 — deterministic downside testing,
 // break detection, and fragility scoring.
 // Runs AFTER the financial engine. Uses existing inputs only.
 // No UI logic. No mutation of upstream data.

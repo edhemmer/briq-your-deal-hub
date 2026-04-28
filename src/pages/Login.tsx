@@ -46,7 +46,7 @@ export default function Login() {
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-2">
           <BrixIcon size={32} className="text-primary" />
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">Sign in to BRIX</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Sign in to BRIQ</h1>
           <p className="text-sm text-muted-foreground">Real Estate Deal Intelligence</p>
         </div>
         <CardContainer className="p-6">

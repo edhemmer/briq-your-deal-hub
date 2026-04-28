@@ -4,7 +4,7 @@ const steps = [
   {
     step: "01",
     title: "Add your deal",
-    description: "Paste a listing, drop a screenshot, or type the address. BRIX pulls in the details.",
+    description: "Paste a listing, drop a screenshot, or type the address. BRIQ pulls in the details.",
   },
   {
     step: "02",

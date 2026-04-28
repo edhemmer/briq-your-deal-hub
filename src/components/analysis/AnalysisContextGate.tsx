@@ -1,5 +1,5 @@
 /**
- * BRIX v1.6.0 — Analysis Context Gate Component
+ * BRIQ v1.6.0 — Analysis Context Gate Component
  *
  * Required market type, asset type, strategy, and risk tolerance selection
  * before analysis can run. Clean, minimal UI.

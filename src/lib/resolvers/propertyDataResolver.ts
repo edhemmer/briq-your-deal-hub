@@ -1,5 +1,5 @@
 /**
- * BRIX v1.5.2 — Property Data Resolver
+ * BRIQ v1.5.2 — Property Data Resolver
  *
  * Canonical pathway for property data ingestion.
  * Resolves property information via county-based logic

@@ -1,5 +1,5 @@
 /**
- * BRIX v1.9.0 — Canonical Analysis Data Resolver
+ * BRIQ v1.9.0 — Canonical Analysis Data Resolver
  *
  * Single canonical helper that resolves which values are used in analysis.
  * This is the ONLY allowed source for analysis-driving property values.

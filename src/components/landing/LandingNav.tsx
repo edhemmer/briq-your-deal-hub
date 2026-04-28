@@ -15,7 +15,7 @@ export default function LandingNav() {
         <Link to="/landing" className="flex items-center gap-2.5">
           <BrixIcon size={36} className="text-primary" />
           <div className="flex flex-col leading-none">
-            <span className="text-base font-bold tracking-tight text-foreground">BRIX</span>
+            <span className="text-base font-bold tracking-tight text-foreground">BRIQ</span>
             <span className="text-[10px] text-muted-foreground font-medium">Real Estate Deal IQ</span>
           </div>
         </Link>

@@ -11,7 +11,7 @@ export default function Help() {
 
   return (
     <SectionContainer>
-      <PageHeader title="Help Center" description="Learn how to use BRIX effectively">
+      <PageHeader title="Help Center" description="Learn how to use BRIQ effectively">
         <Button variant="outline" size="sm" onClick={reopenOnboarding} className="gap-2">
           <RotateCcw className="h-3.5 w-3.5" />
           Replay Onboarding

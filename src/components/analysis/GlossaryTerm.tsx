@@ -1,5 +1,5 @@
 /**
- * BRIX v1.6.0 — Inline Glossary Tooltip Component
+ * BRIQ v1.6.0 — Inline Glossary Tooltip Component
  *
  * Lightweight contextual definition for key terms.
  * Wraps any trigger element and shows the definition on hover.

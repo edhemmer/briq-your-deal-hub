@@ -1,5 +1,5 @@
 /**
- * BRIX v1.7.0 — Hidden Risk Panel
+ * BRIQ v1.7.0 — Hidden Risk Panel
  * Premium, calm, investor-grade risk signal display.
  * No alarmist tone. Source badges. Visual disclaimers.
  */
