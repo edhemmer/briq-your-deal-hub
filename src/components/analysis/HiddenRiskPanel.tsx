@@ -82,7 +82,7 @@ function RiskFlagCard({ flag }: { flag: HiddenRiskFlag }) {
         <p className="text-xs text-muted-foreground mt-0.5">{flag.description}</p>
       </div>
 
-      <p className="text-[10px] text-muted-foreground/80 italic">{flag.evidence}</p>
+      <p className="text-[10px] text-muted-foreground/80">{flag.evidence}</p>
 
       {flag.sourceType === "visual" && (
         <p className="text-[10px] text-muted-foreground/60">

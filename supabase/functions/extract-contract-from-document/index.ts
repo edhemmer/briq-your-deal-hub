@@ -255,7 +255,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-2.5-pro",
           temperature: 0,
           max_tokens: 8000,
           messages: [
@@ -336,7 +336,7 @@ serve(async (req) => {
       JSON.stringify({
         extracted,
         meta: {
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-2.5-pro",
           temperature: 0,
           input_hash: inputHash,
           input_length: text?.length ?? null,

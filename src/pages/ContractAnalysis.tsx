@@ -62,6 +62,7 @@ const ContractAnalysisPage = () => {
   const { contractId } = useParams<{ contractId: string }>();
   const navigate = useNavigate();
   const { data: contract, isLoading } = useContract(contractId);
+  const { user } = useAuth();
   const [perspective, setPerspective] = useState<Perspective | null>(null);
 
   const activePerspective: Perspective =
@@ -91,6 +92,32 @@ const ContractAnalysisPage = () => {
     };
     return analyzeContract(input);
   }, [contract, activePerspective]);
+
+  const buildReportCtx = (): ContractReportContext | null => {
+    if (!contract || !analysis) return null;
+    return {
+      contractTitle: contract.contract_name ?? "Contract",
+      contractType: contract.contract_type,
+      propertyAddress: contract.property_address,
+      counterparty: activePerspective === "buyer" ? contract.seller_name : contract.buyer_name,
+      buyerName: contract.buyer_name,
+      sellerName: contract.seller_name,
+      purchasePrice: contract.purchase_price,
+      earnestMoney: contract.earnest_money,
+      closingDate: contract.closing_date,
+      preparedBy: user?.email ?? "BRIX User",
+      analysis,
+    };
+  };
+
+  const downloadReport = (kind: "full" | "highlight" | "attorney" | "broker") => {
+    const ctx = buildReportCtx();
+    if (!ctx) return;
+    if (kind === "full") generateFullDealBookPDF(ctx);
+    else if (kind === "highlight") generateHighlightBriefPDF(ctx);
+    else if (kind === "attorney") generateAttorneyQuestionsPDF(ctx);
+    else generateBrokerQuestionsPDF(ctx);
+  };
 
   if (isLoading) {
     return (
@@ -190,6 +217,42 @@ const ContractAnalysisPage = () => {
           </div>
         </div>
       </CardContainer>
+
+      {/* Reports */}
+      <CardContainer className="p-5 mb-5">
+        <div className="flex items-center gap-2 mb-3">
+          <FileText className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">Reports</h3>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => downloadReport("full")}>
+            <Download className="h-3.5 w-3.5 mr-1.5" /> Full Deal Book
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => downloadReport("highlight")}>
+            <Download className="h-3.5 w-3.5 mr-1.5" /> Highlight Brief
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => downloadReport("attorney")}>
+            <Gavel className="h-3.5 w-3.5 mr-1.5" /> Attorney Questions
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => downloadReport("broker")}>
+            <Briefcase className="h-3.5 w-3.5 mr-1.5" /> Broker Questions
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-2">
+          Prepared for {user?.email ?? "you"} · {new Date().toLocaleDateString()} · BRIX ContractIQ — Confidential
+        </p>
+      </CardContainer>
+
+      {/* Executive Summary */}
+      {analysis.executiveSummary && (
+        <CardContainer className="p-5 mb-5">
+          <div className="flex items-center gap-2 mb-2">
+            <FileText className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">Executive summary</h3>
+          </div>
+          <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-line">{analysis.executiveSummary}</p>
+        </CardContainer>
+      )}
 
       {/* Takeaways */}
       <CardContainer className="p-5 mb-5">
@@ -356,7 +419,126 @@ const ContractAnalysisPage = () => {
         </div>
       </CardContainer>
 
-      {/* Risk/Leverage legend */}
+      {/* Risk Matrix */}
+      {analysis.riskMatrix.length > 0 && (
+        <CardContainer className="p-5 mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <h3 className="text-sm font-semibold text-foreground">Risk matrix</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b border-border">
+                  <th className="py-2 pr-3 font-medium">Risk</th>
+                  <th className="py-2 pr-3 font-medium">Severity</th>
+                  <th className="py-2 pr-3 font-medium">Owner</th>
+                  <th className="py-2 font-medium">Mitigation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analysis.riskMatrix.map((r) => (
+                  <tr key={r.id} className="border-b border-border/50 align-top">
+                    <td className="py-2 pr-3 font-medium text-foreground">{r.risk}</td>
+                    <td className="py-2 pr-3">
+                      <Badge variant="outline" className={`text-[10px] capitalize ${sevColor(r.severity)}`}>
+                        {r.severity}
+                      </Badge>
+                    </td>
+                    <td className="py-2 pr-3 capitalize text-foreground/80">{r.owner}</td>
+                    <td className="py-2 text-muted-foreground leading-relaxed">{r.mitigation}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContainer>
+      )}
+
+      {/* Liability allocation */}
+      {analysis.liabilityAllocation.length > 0 && (
+        <CardContainer className="p-5 mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Scale className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground">Liability allocation</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b border-border">
+                  <th className="py-2 pr-3 font-medium">Item</th>
+                  <th className="py-2 pr-3 font-medium">Responsible party</th>
+                  <th className="py-2 pr-3 font-medium">When</th>
+                  <th className="py-2 font-medium">Why</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analysis.liabilityAllocation.map((r) => (
+                  <tr key={r.id} className="border-b border-border/50 align-top">
+                    <td className="py-2 pr-3 font-medium text-foreground">{r.item}</td>
+                    <td className="py-2 pr-3 capitalize text-foreground/80">{r.party}</td>
+                    <td className="py-2 pr-3 text-foreground/80">{r.when}</td>
+                    <td className="py-2 text-muted-foreground leading-relaxed">{r.why}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContainer>
+      )}
+
+      {/* Who pays what */}
+      {analysis.whoPaysWhat.length > 0 && (
+        <CardContainer className="p-5 mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground">Who pays what</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b border-border">
+                  <th className="py-2 pr-3 font-medium">Item</th>
+                  <th className="py-2 pr-3 font-medium text-center">Buyer</th>
+                  <th className="py-2 pr-3 font-medium text-center">Seller</th>
+                  <th className="py-2 font-medium">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analysis.whoPaysWhat.map((r) => (
+                  <tr key={r.id} className="border-b border-border/50 align-top">
+                    <td className="py-2 pr-3 font-medium text-foreground">{r.item}</td>
+                    <td className="py-2 pr-3 text-center">{r.buyer ? "✓" : "—"}</td>
+                    <td className="py-2 pr-3 text-center">{r.seller ? "✓" : "—"}</td>
+                    <td className="py-2 text-muted-foreground leading-relaxed">{r.notes}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContainer>
+      )}
+
+      {/* Broker questions */}
+      {analysis.brokerQuestions.length > 0 && (
+        <CardContainer className="p-5 mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Briefcase className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">Questions for the broker</h3>
+            <Badge variant="outline" className="text-[10px] ml-auto">{analysis.brokerQuestions.length}</Badge>
+          </div>
+          <ul className="space-y-3">
+            {analysis.brokerQuestions.map((q) => (
+              <li key={q.id} className="border-l-2 border-primary/30 pl-3">
+                <p className="text-sm font-medium text-foreground">{q.question}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{q.why}</p>
+              </li>
+            ))}
+          </ul>
+        </CardContainer>
+      )}
+
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
         <CardContainer className="p-5">
           <div className="flex items-center gap-2 mb-2">

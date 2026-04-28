@@ -752,7 +752,7 @@ const Analysis = () => {
         </div>
         ) : (
           <CardContainer className="p-4">
-            <p className="text-sm text-muted-foreground italic">No market data entered. Enter market conditions below to generate intelligence scores.</p>
+            <p className="text-sm text-muted-foreground">No market data entered. Enter market conditions below to generate intelligence scores.</p>
           </CardContainer>
         )}
 
@@ -816,7 +816,7 @@ const Analysis = () => {
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground italic">Crime data unavailable for this location.</p>
+            <p className="text-sm text-muted-foreground">Crime data unavailable for this location.</p>
           )}
         </CardContainer>
 
@@ -1109,7 +1109,7 @@ function DealIntelligenceSummary({
       </div>
 
       {/* Summary */}
-      <p className="text-sm text-muted-foreground italic border-t border-border pt-4">{intelligence.summary}</p>
+      <p className="text-sm text-muted-foreground border-t border-border pt-4">{intelligence.summary}</p>
 
       {/* Deal Killers */}
       {intelligence.dealKillers.length > 0 && (

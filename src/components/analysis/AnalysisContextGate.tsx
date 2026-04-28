@@ -207,7 +207,7 @@ export function AnalysisContextGate({ onContextComplete, initialContext }: Analy
               </label>
             ))}
           </RadioGroup>
-          <p className="text-xs text-muted-foreground italic">
+          <p className="text-xs text-muted-foreground">
             Additional strategies (Fix & Flip, Value-Add, BRRRR) will be available in future updates.
           </p>
         </CardContainer>
