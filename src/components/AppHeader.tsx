@@ -9,9 +9,10 @@ export function AppHeader() {
     <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-card">
       <div className="flex items-center">
         <SidebarTrigger className="mr-3" />
-        <div className="flex items-center gap-2 md:hidden">
-          <BrixIcon size={22} className="text-primary" />
-          <span className="text-sm font-semibold tracking-tight text-foreground">BRIX</span>
+        <div className="flex items-baseline gap-1.5 md:hidden">
+          <BrixIcon size={22} className="text-primary self-center" />
+          <span className="text-sm font-extrabold tracking-tight text-foreground leading-none">BRIX</span>
+          <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-none">Real Estate</span>
         </div>
       </div>
       <Link to="/help">
