@@ -491,6 +491,10 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
   else if (riskScore >= 25) recommendation = "negotiate";
   else recommendation = "proceed";
 
+  // Decision label (CBRE-style)
+  const decision: "Proceed" | "Renegotiate" | "Pause" =
+    recommendation === "proceed" ? "Proceed" : recommendation === "negotiate" ? "Renegotiate" : "Pause";
+
   // ===== Summary =====
   const partyLabel = p === "buyer" ? "buyer" : "seller";
   const summary =
@@ -499,6 +503,223 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
       : recommendation === "negotiate"
       ? `From the ${partyLabel}'s perspective, this contract has terms worth negotiating. ${cons.filter((c) => c.severity !== "low").length} material concern${cons.filter((c) => c.severity !== "low").length === 1 ? "" : "s"} identified — see negotiation moves below before signing.`
       : `From the ${partyLabel}'s perspective, this contract carries significant risk. ${cons.filter((c) => c.severity === "high").length} high-severity issue${cons.filter((c) => c.severity === "high").length === 1 ? "" : "s"} require resolution before signing.`;
+
+  // ===== Executive summary (CBRE/McKinsey deal-book voice) =====
+  const counterparty = p === "buyer" ? input.seller_name : input.buyer_name;
+  const cpLabel = counterparty ? counterparty : `the ${opp}`;
+  const priceLabel = price > 0 ? ` at ${fmtMoney(price)}` : "";
+  const propLabel = input.property_address ? ` for ${input.property_address}` : "";
+  const highCount = cons.filter((c) => c.severity === "high").length;
+  const modCount = cons.filter((c) => c.severity === "moderate").length;
+  const execParts: string[] = [];
+  execParts.push(
+    `Bottom line: ${decision.toUpperCase()}. This ${input.contract_type ?? "contract"}${propLabel}${priceLabel} is being evaluated from the ${partyLabel}'s side against ${cpLabel}.`,
+  );
+  if (highCount > 0 || modCount > 0) {
+    execParts.push(
+      `We identified ${highCount} high-severity and ${modCount} moderate-severity issue${highCount + modCount === 1 ? "" : "s"}, balanced against ${pros.length} favorable term${pros.length === 1 ? "" : "s"}.`,
+    );
+  } else {
+    execParts.push(
+      `No material risks were detected. ${pros.length} favorable term${pros.length === 1 ? "" : "s"} support a clean close.`,
+    );
+  }
+  if (recommendation === "caution") {
+    execParts.push(
+      `Recommend pausing execution until the high-severity items below are resolved or repriced. Forwarding to counsel before any further commitment is appropriate.`,
+    );
+  } else if (recommendation === "negotiate") {
+    execParts.push(
+      `Recommend a focused negotiation pass on the moderate items below before signing. The negotiation playbook lists each ask with rationale.`,
+    );
+  } else {
+    execParts.push(
+      `Recommend proceeding with standard diligence. Confirm the deadlines section is calendared and the disclosures are received.`,
+    );
+  }
+  const executiveSummary = execParts.join(" ");
+
+  const decisionRationale =
+    decision === "Proceed"
+      ? `Risk score is ${Math.round(riskScore)}/100 with no high-severity items. Leverage for the ${partyLabel} is ${Math.round(leverageScore)}/100. Standard close path.`
+      : decision === "Renegotiate"
+      ? `Risk score is ${Math.round(riskScore)}/100, driven by ${modCount} moderate item${modCount === 1 ? "" : "s"}. Leverage is ${Math.round(leverageScore)}/100 — sufficient to push back. See negotiation playbook.`
+      : `Risk score is ${Math.round(riskScore)}/100 with ${highCount} high-severity item${highCount === 1 ? "" : "s"}. Pause execution until resolved; route to attorney.`;
+
+  // ===== Risk matrix (one row per con) =====
+  const riskMatrix: RiskMatrixRow[] = cons.map((c) => {
+    const move = negotiation.find((n) => n.id.startsWith(c.id) || n.rationale.toLowerCase().includes(c.label.toLowerCase().slice(0, 12)));
+    return {
+      id: `rm_${c.id}`,
+      risk: c.label,
+      severity: c.severity,
+      mitigation: move ? move.ask : "Flag to counsel; document the trade-off in writing before signing.",
+      owner: p,
+    };
+  });
+
+  // ===== Liability allocation =====
+  const liabilityAllocation: LiabilityRow[] = [];
+  const allocLabels2: Record<string, string> = {
+    title_insurance_paid_by: "Title insurance",
+    survey_paid_by: "Survey",
+    transfer_tax_paid_by: "Transfer tax",
+    hoa_transfer_fee_paid_by: "HOA transfer fee",
+    home_warranty_paid_by: "Home warranty",
+  };
+  if (e) {
+    Object.keys(allocLabels2).forEach((k) => {
+      const paidBy = val(e[k as keyof CanonicalContractExtraction] as { value: string | null } | null);
+      const item = allocLabels2[k];
+      const party: LiabilityRow["party"] =
+        paidBy === "buyer" || paidBy === "seller" || paidBy === "split" ? paidBy : "unspecified";
+      liabilityAllocation.push({
+        id: `liab_${k}`,
+        item,
+        party,
+        when: "At closing",
+        why: party === "unspecified"
+          ? "Not allocated in the contract — defaults to local custom. Confirm in writing."
+          : party === "split"
+          ? "Contract splits this cost between parties."
+          : `Contract assigns this to the ${party}.`,
+      });
+    });
+  }
+  // Property tax / rezoning liability
+  liabilityAllocation.push({
+    id: "liab_proptax",
+    item: "Property tax (post-close, including any reassessment after rezoning)",
+    party: "buyer",
+    when: "Pro-rated at closing; full liability post-close",
+    why: "Buyer assumes property tax obligations from closing forward. If rezoning occurs (pre- or post-close), the reassessed tax bill follows the buyer. Verify pending reassessment notices in title work.",
+  });
+  liabilityAllocation.push({
+    id: "liab_ins",
+    item: "Hazard / property insurance",
+    party: "buyer",
+    when: "From closing",
+    why: "Buyer must bind coverage effective at closing. Lender will require proof.",
+  });
+  liabilityAllocation.push({
+    id: "liab_env",
+    item: "Environmental conditions discovered post-close",
+    party: val(e?.as_is_clause) === true ? "buyer" : "unspecified",
+    when: "Post-close",
+    why: val(e?.as_is_clause) === true
+      ? "AS-IS clause shifts environmental risk to the buyer. Order Phase I if any commercial use was historic."
+      : "Allocation is unclear in the contract. Confirm seller representations and warranties on environmental status.",
+  });
+  liabilityAllocation.push({
+    id: "liab_liens",
+    item: "Existing liens / unpaid assessments",
+    party: "seller",
+    when: "Cleared at closing",
+    why: "Seller is responsible for delivering clear title. Title commitment will reveal any liens or unpaid HOA/special assessments.",
+  });
+  if (val(e?.liquidated_damages_clause) === true) {
+    liabilityAllocation.push({
+      id: "liab_liq",
+      item: "Buyer default — damages",
+      party: "buyer",
+      when: "On default",
+      why: "Liquidated damages clause caps seller's recovery at the earnest money. Buyer forfeits earnest money but no further liability.",
+    });
+  }
+
+  // ===== Who pays what (table for highlight brief) =====
+  const whoPaysWhat: WhoPaysRow[] = [];
+  const pushPays = (id: string, item: string, paidBy: PaidBy | "unspecified", notes: string) => {
+    whoPaysWhat.push({
+      id,
+      item,
+      buyer: paidBy === "buyer",
+      seller: paidBy === "seller",
+      notes: paidBy === "split" ? "Split between buyer and seller" : paidBy === "unspecified" ? "Not specified — defaults to local custom" : notes,
+    });
+  };
+  pushPays("wp_title", "Title insurance", (val(e?.title_insurance_paid_by) as PaidBy) ?? "unspecified", "Per contract");
+  pushPays("wp_survey", "Survey", (val(e?.survey_paid_by) as PaidBy) ?? "unspecified", "Per contract");
+  pushPays("wp_transfer", "Transfer / recording tax", (val(e?.transfer_tax_paid_by) as PaidBy) ?? "unspecified", "Per contract");
+  pushPays("wp_hoa", "HOA transfer fee", (val(e?.hoa_transfer_fee_paid_by) as PaidBy) ?? "unspecified", "Per contract");
+  pushPays("wp_warranty", "Home warranty", (val(e?.home_warranty_paid_by) as PaidBy) ?? "unspecified", "Per contract");
+  whoPaysWhat.push({
+    id: "wp_proptax",
+    item: "Property tax (post-close)",
+    buyer: true,
+    seller: false,
+    notes: "Pro-rated at closing. Reassessment after rezoning is buyer's responsibility.",
+  });
+  whoPaysWhat.push({
+    id: "wp_ins",
+    item: "Property insurance (post-close)",
+    buyer: true,
+    seller: false,
+    notes: "Buyer binds coverage at close.",
+  });
+  whoPaysWhat.push({
+    id: "wp_em",
+    item: "Earnest money",
+    buyer: true,
+    seller: false,
+    notes: em > 0 ? `${fmtMoney(em)} (${(emRatio * 100).toFixed(2)}% of price)` : "Not yet posted",
+  });
+
+  // ===== Timeline rows from deadlines =====
+  const timeline: TimelineRow[] = deadlines.map((d) => ({
+    id: `tl_${d.id}`,
+    milestone: d.label,
+    date: d.date ?? null,
+    daysFromEffective: d.daysFromEffective ?? null,
+    party:
+      d.id.includes("inspection") || d.id.includes("financing") || d.id.includes("appraisal") || d.id.includes("em_due")
+        ? "buyer"
+        : d.id === "close" || d.id === "possession"
+        ? "both"
+        : "both",
+  }));
+
+  // ===== Split questions: attorney vs broker =====
+  const attorneyQuestions: Question[] = questions.filter((q) => q.category === "legal" || q.category === "contingency" || q.category === "financial");
+  const brokerQuestions: BrokerQuestion[] = [];
+  // Property/timeline questions become broker questions; add CBRE-style broker prompts
+  questions
+    .filter((q) => q.category === "property" || q.category === "timeline")
+    .forEach((q) => brokerQuestions.push({ id: `bq_${q.id}`, question: q.question, why: q.why }));
+
+  brokerQuestions.push({
+    id: "bq_market",
+    question: "What comparable sales support the contract price within the last 90 days?",
+    why: "Validates price discipline and informs appraisal exposure.",
+  });
+  brokerQuestions.push({
+    id: "bq_dom",
+    question: "How long was the property on market and how many offers were received?",
+    why: "Gauges true market demand and seller leverage.",
+  });
+  brokerQuestions.push({
+    id: "bq_back",
+    question: "Are there backup offers, and at what terms?",
+    why: "Affects re-negotiation leverage if a contingency triggers.",
+  });
+  brokerQuestions.push({
+    id: "bq_zone",
+    question: "Has the seller received any rezoning, special-assessment, or eminent-domain notices?",
+    why: "Pending zoning or assessment changes can swing post-close property tax materially.",
+  });
+  if (p === "seller") {
+    brokerQuestions.push({
+      id: "bq_buyer_strength",
+      question: "What is the buyer's verified financial strength beyond pre-approval?",
+      why: "Lender pre-approval is not a commitment; verify reserves and DTI before reliance.",
+    });
+  } else {
+    brokerQuestions.push({
+      id: "bq_seller_motive",
+      question: "What is the seller's motivation and timing flexibility?",
+      why: "Drives both pricing leverage and willingness to credit repairs.",
+    });
+  }
 
   // Order deadlines chronologically (set first, then missing)
   deadlines.sort((a, b) => {
@@ -527,14 +748,23 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
   return {
     perspective: p,
     summary,
+    executiveSummary,
     riskScore: Math.round(riskScore),
     leverageScore: Math.round(leverageScore),
     recommendation,
+    decision,
+    decisionRationale,
     pros,
     cons,
     weaknesses,
     questions,
+    attorneyQuestions,
+    brokerQuestions,
     deadlines,
+    timeline,
+    riskMatrix,
+    liabilityAllocation,
+    whoPaysWhat,
     negotiation,
     takeaways,
     missingInputs: missing,
