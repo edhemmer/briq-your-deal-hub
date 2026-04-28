@@ -19,10 +19,10 @@ export default function LandingCTA() {
       >
         <BrixIcon size={56} className="text-primary mx-auto mb-6" />
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
-          Your next deal deserves better analysis
+          Better analysis. Faster decisions. Stronger deals.
         </h2>
         <p className="mt-4 text-base text-muted-foreground max-w-lg mx-auto leading-relaxed">
-          Stop wrestling with spreadsheets. Start with the intelligence you need to invest with clarity.
+          Run your next deal through DealIQ and ContractIQ — and make sure nothing important gets missed.
         </p>
         <div className="mt-8">
           <Link to="/register">
