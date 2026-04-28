@@ -3,8 +3,9 @@
 //   plus optional file metadata. Or sends image_base64 for OCR-only flows.
 // - We call Gemini 2.5 Flash with a strict tool-call schema (temperature 0)
 //   so the model is forced to return our canonical fields. No free-form JSON.
-// - We compute a SHA-256 hash of the input text so the same input always maps
-//   to a stable, traceable extraction record.
+// - The model is ONLY responsible for EXTRACTION (pulling stated text into
+//   structured slots). All scoring / pros / cons / questions are computed
+//   deterministically downstream by contractIQEngine.ts.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -19,106 +20,138 @@ const CANONICAL_TOOL = {
   function: {
     name: "extract_contract_fields",
     description:
-      "Extract canonical real estate contract fields from the provided document text. " +
-      "Use null for any field that is not explicitly stated. Do NOT infer or guess. " +
-      "Return monetary values as plain numbers (no currency symbols or commas).",
+      "Extract canonical real estate contract fields and clauses from the provided document text. " +
+      "Use null (or empty array) for any field that is not explicitly stated. Do NOT infer or guess. " +
+      "Return monetary values as plain numbers (no currency symbols or commas). " +
+      "Return dates as YYYY-MM-DD when an explicit date is given.",
     parameters: {
       type: "object",
       additionalProperties: false,
       properties: {
+        // ---- Core deal terms ----
         contract_type: {
           type: ["string", "null"],
           description:
-            "Type of contract, e.g. 'Purchase Agreement', 'LOI', 'Lease', 'Option'.",
+            "Type of contract, e.g. 'Purchase Agreement', 'LOI', 'Lease', 'Option', 'Assignment'.",
         },
         buyer_name: { type: ["string", "null"] },
         seller_name: { type: ["string", "null"] },
+        buyer_entity_type: {
+          type: ["string", "null"],
+          description: "e.g. 'individual', 'LLC', 'trust', 'corporation' if stated.",
+        },
+        seller_entity_type: { type: ["string", "null"] },
         property_address: {
           type: ["string", "null"],
           description: "Full street address including city/state/zip if present.",
+        },
+        property_legal_description: {
+          type: ["string", "null"],
+          description: "Legal description / parcel ID / lot & block if present.",
         },
         purchase_price: {
           type: ["number", "null"],
           description: "Total purchase price as a number, e.g. 450000.",
         },
         earnest_money: { type: ["number", "null"] },
-        closing_date: {
-          type: ["string", "null"],
-          description: "ISO 8601 date YYYY-MM-DD if a specific closing date is stated.",
-        },
-        inspection_period_days: {
+        earnest_money_due_days: {
           type: ["integer", "null"],
-          description: "Inspection / due diligence period in days.",
+          description: "Days after effective date earnest money is due, if stated.",
         },
-        financing_contingency: {
-          type: ["boolean", "null"],
-          description: "True if a financing contingency is explicitly present.",
-        },
+        down_payment: { type: ["number", "null"] },
+        loan_amount: { type: ["number", "null"] },
+        seller_concessions: { type: ["number", "null"] },
+
+        // ---- Dates / timeline ----
+        effective_date: { type: ["string", "null"], description: "YYYY-MM-DD" },
+        closing_date: { type: ["string", "null"], description: "YYYY-MM-DD" },
+        possession_date: { type: ["string", "null"], description: "YYYY-MM-DD" },
+        inspection_period_days: { type: ["integer", "null"] },
+        financing_contingency_days: { type: ["integer", "null"] },
+        appraisal_contingency_days: { type: ["integer", "null"] },
+        title_review_days: { type: ["integer", "null"] },
+
+        // ---- Contingencies ----
+        financing_contingency: { type: ["boolean", "null"] },
         appraisal_contingency: { type: ["boolean", "null"] },
         inspection_contingency: { type: ["boolean", "null"] },
+        sale_of_other_home_contingency: { type: ["boolean", "null"] },
+        as_is_clause: {
+          type: ["boolean", "null"],
+          description: "True if property is sold as-is.",
+        },
+
+        // ---- Allocations & responsibilities ----
+        title_insurance_paid_by: {
+          type: ["string", "null"],
+          enum: ["buyer", "seller", "split", null],
+        },
+        survey_paid_by: {
+          type: ["string", "null"],
+          enum: ["buyer", "seller", "split", null],
+        },
+        transfer_tax_paid_by: {
+          type: ["string", "null"],
+          enum: ["buyer", "seller", "split", null],
+        },
+        hoa_transfer_fee_paid_by: {
+          type: ["string", "null"],
+          enum: ["buyer", "seller", "split", null],
+        },
+        home_warranty_paid_by: {
+          type: ["string", "null"],
+          enum: ["buyer", "seller", "split", null],
+        },
+
+        // ---- Risk-bearing clauses (free-text quotes) ----
+        special_stipulations: {
+          type: "array",
+          description:
+            "Verbatim text of special stipulations, addenda, or non-standard clauses (each <=400 chars).",
+          items: { type: "string" },
+        },
+        included_personal_property: {
+          type: "array",
+          description: "Items conveyed (appliances, fixtures, etc.) if listed.",
+          items: { type: "string" },
+        },
+        excluded_personal_property: {
+          type: "array",
+          description: "Items explicitly excluded from sale.",
+          items: { type: "string" },
+        },
+        seller_disclosures_referenced: {
+          type: "array",
+          description: "Disclosure documents referenced by name.",
+          items: { type: "string" },
+        },
+        liquidated_damages_clause: {
+          type: ["boolean", "null"],
+          description: "True if a liquidated damages clause is present.",
+        },
+        specific_performance_clause: { type: ["boolean", "null"] },
+        attorney_review_period_days: { type: ["integer", "null"] },
+        assignment_allowed: {
+          type: ["boolean", "null"],
+          description: "True if buyer can assign the contract.",
+        },
+        governing_law_state: {
+          type: ["string", "null"],
+          description: "Two-letter state code if specified.",
+        },
+
+        // ---- Confidence & evidence ----
         confidence: {
           type: "object",
-          additionalProperties: false,
+          additionalProperties: true,
           description:
             "Per-field confidence on a 0–1 scale (0 = not found, 1 = explicitly stated).",
-          properties: {
-            contract_type: { type: "number" },
-            buyer_name: { type: "number" },
-            seller_name: { type: "number" },
-            property_address: { type: "number" },
-            purchase_price: { type: "number" },
-            earnest_money: { type: "number" },
-            closing_date: { type: "number" },
-            inspection_period_days: { type: "number" },
-            financing_contingency: { type: "number" },
-            appraisal_contingency: { type: "number" },
-            inspection_contingency: { type: "number" },
-          },
-          required: [
-            "contract_type",
-            "buyer_name",
-            "seller_name",
-            "property_address",
-            "purchase_price",
-            "earnest_money",
-            "closing_date",
-            "inspection_period_days",
-            "financing_contingency",
-            "appraisal_contingency",
-            "inspection_contingency",
-          ],
         },
         source_excerpts: {
           type: "object",
-          additionalProperties: false,
+          additionalProperties: true,
           description:
-            "Short verbatim quote (<=160 chars) from the document supporting each populated field. Empty string if the field is null.",
-          properties: {
-            contract_type: { type: "string" },
-            buyer_name: { type: "string" },
-            seller_name: { type: "string" },
-            property_address: { type: "string" },
-            purchase_price: { type: "string" },
-            earnest_money: { type: "string" },
-            closing_date: { type: "string" },
-            inspection_period_days: { type: "string" },
-            financing_contingency: { type: "string" },
-            appraisal_contingency: { type: "string" },
-            inspection_contingency: { type: "string" },
-          },
-          required: [
-            "contract_type",
-            "buyer_name",
-            "seller_name",
-            "property_address",
-            "purchase_price",
-            "earnest_money",
-            "closing_date",
-            "inspection_period_days",
-            "financing_contingency",
-            "appraisal_contingency",
-            "inspection_contingency",
-          ],
+            "Short verbatim quote (<=200 chars) from the document supporting each populated field.",
         },
       },
       required: [
@@ -133,6 +166,7 @@ const CANONICAL_TOOL = {
         "financing_contingency",
         "appraisal_contingency",
         "inspection_contingency",
+        "special_stipulations",
         "confidence",
         "source_excerpts",
       ],
@@ -177,12 +211,12 @@ serve(async (req) => {
     // Cap the text we send to keep latency + cost predictable.
     // Front-loaded + tail-loaded so we capture the parties at the top
     // and signatures/closing terms at the bottom.
-    const MAX = 60_000;
+    const MAX = 90_000;
     let normalized = text ?? "";
     if (normalized.length > MAX) {
       const head = normalized.slice(0, Math.floor(MAX * 0.7));
       const tail = normalized.slice(-Math.floor(MAX * 0.3));
-      normalized = `${head}\n\n...[truncated]...\n\n${tail}`;
+      normalized = `${head}\n\n...[truncated middle]...\n\n${tail}`;
     }
 
     const userContent: Array<Record<string, unknown>> = [];
@@ -190,10 +224,9 @@ serve(async (req) => {
       userContent.push({
         type: "text",
         text:
-          "Extract canonical contract fields from the document text below. " +
-          "Only use information that is explicitly stated. Use null for missing fields.\n\n" +
-          "DOCUMENT TEXT:\n" +
-          normalized,
+          "Extract canonical real-estate contract fields from the document text below. " +
+          "Pull verbatim text where requested. Use null / empty arrays for any field not present. " +
+          "Do not infer.\n\nDOCUMENT TEXT:\n" + normalized,
       });
     }
     if (image_base64) {
@@ -224,12 +257,14 @@ serve(async (req) => {
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           temperature: 0,
+          max_tokens: 8000,
           messages: [
             {
               role: "system",
               content:
                 "You are a deterministic real-estate contract parser. Extract only fields that are explicitly present. " +
-                "Never infer, estimate, or hallucinate. If a field is not in the document, return null with confidence 0. " +
+                "Never infer, estimate, or hallucinate. If a field is not in the document, return null (or empty array) with confidence 0. " +
+                "For verbatim fields like special_stipulations, copy the EXACT wording from the document. " +
                 "You MUST call the extract_contract_fields tool with the canonical schema.",
             },
             { role: "user", content: userContent },
@@ -279,7 +314,15 @@ serve(async (req) => {
 
     let extracted: Record<string, unknown>;
     try {
-      extracted = JSON.parse(toolCall.function.arguments);
+      // Be defensive — model can return slightly malformed JSON. Strip control
+      // chars and try once more before failing.
+      const raw = toolCall.function.arguments as string;
+      try {
+        extracted = JSON.parse(raw);
+      } catch {
+        const cleaned = raw.replace(/[\x00-\x1F\x7F]/g, "").replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
+        extracted = JSON.parse(cleaned);
+      }
     } catch {
       return new Response(
         JSON.stringify({ error: "Invalid extraction payload" }),

@@ -1,9 +1,29 @@
 /**
- * ContractIQ Engine — deterministic contract intelligence.
- * Mirrors DealIQ pattern: rules-based, no AI in scoring, perspective-aware (buyer/seller).
+ * ContractIQ Engine v2 — comprehensive deterministic contract intelligence.
+ *
+ * Pure rules-based — no AI in scoring. Same input -> same output.
+ * Perspective-aware: every finding is evaluated for buyer or seller.
+ *
+ * Inputs come from two sources:
+ *   1. Structured form fields (price, EM, dates, contingency toggles)
+ *   2. Optional `extraction` object — the canonical extraction from the AI,
+ *      which carries deeper signals (special stipulations, allocations,
+ *      attorney review window, as-is, assignment, etc.)
+ *
+ * Output covers what an investor / attorney / broker actually needs:
+ *   - Decision summary + scores
+ *   - Pros (favorable to your side)
+ *   - Cons (unfavorable to your side, severity-graded)
+ *   - Weakness areas (drafting gaps that put you at risk)
+ *   - Questions to ask (concrete diligence prompts before signing)
+ *   - Deadlines (every dated milestone, sorted)
+ *   - Negotiation moves (specific asks)
  */
 
+import type { CanonicalContractExtraction } from "./contractDataMapper";
+
 export type Perspective = "buyer" | "seller";
+export type Severity = "high" | "moderate" | "low";
 
 export interface ContractInput {
   perspective: Perspective;
@@ -13,308 +33,449 @@ export interface ContractInput {
   property_address?: string | null;
   purchase_price?: number | null;
   earnest_money?: number | null;
-  closing_date?: string | null; // ISO
+  closing_date?: string | null; // ISO YYYY-MM-DD
   inspection_period_days?: number | null;
   financing_contingency?: boolean | null;
   appraisal_contingency?: boolean | null;
   inspection_contingency?: boolean | null;
   contract_text?: string | null;
+  /** Optional richer signals from the AI extraction layer. */
+  extraction?: CanonicalContractExtraction | null;
 }
 
-export type Severity = "high" | "moderate" | "low";
+export interface Pro {
+  id: string;
+  label: string;
+  detail: string;
+}
 
-export interface RiskFlag {
+export interface Con {
   id: string;
   label: string;
   severity: Severity;
   detail: string;
-  affects: Perspective | "both";
 }
 
-export interface LeveragePoint {
+export interface Weakness {
   id: string;
   label: string;
   detail: string;
-  favors: Perspective;
 }
 
-export interface TimelineItem {
+export interface Question {
+  id: string;
+  question: string;
+  why: string;
+  category: "financial" | "legal" | "timeline" | "property" | "contingency";
+}
+
+export interface Deadline {
   id: string;
   label: string;
   date?: string | null;
   daysFromNow?: number | null;
-  status: "set" | "missing" | "tight";
+  daysFromEffective?: number | null;
+  status: "set" | "missing" | "tight" | "past";
+}
+
+export interface NegotiationMove {
+  id: string;
+  ask: string;
+  rationale: string;
 }
 
 export interface ContractAnalysis {
   perspective: Perspective;
   summary: string;
-  riskScore: number;        // 0-100, higher = riskier for the chosen perspective
-  leverageScore: number;    // 0-100, higher = more leverage for the chosen perspective
+  riskScore: number; // 0-100, higher = riskier for chosen perspective
+  leverageScore: number; // 0-100
   recommendation: "proceed" | "negotiate" | "caution";
-  risks: RiskFlag[];
-  leverage: LeveragePoint[];
-  timeline: TimelineItem[];
+  pros: Pro[];
+  cons: Con[];
+  weaknesses: Weakness[];
+  questions: Question[];
+  deadlines: Deadline[];
+  negotiation: NegotiationMove[];
   takeaways: string[];
-  actions: string[];
   missingInputs: string[];
+  computedAt: string;
 }
 
-const daysBetween = (iso?: string | null): number | null => {
+// ----- helpers -----
+const daysBetween = (iso?: string | null, from?: string | null): number | null => {
   if (!iso) return null;
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return null;
-  return Math.round((t - Date.now()) / (1000 * 60 * 60 * 24));
+  const base = from ? new Date(from).getTime() : Date.now();
+  if (Number.isNaN(base)) return null;
+  return Math.round((t - base) / (1000 * 60 * 60 * 24));
 };
 
+const fmtMoney = (n: number) =>
+  n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+const fmtPct = (n: number) => `${(n * 100).toFixed(2)}%`;
+
+const val = <T>(f?: { value: T | null } | null): T | null => (f ? f.value : null);
+
+// ----- engine -----
 export function analyzeContract(input: ContractInput): ContractAnalysis {
   const p = input.perspective;
-  const opposite: Perspective = p === "buyer" ? "seller" : "buyer";
+  const opp: Perspective = p === "buyer" ? "seller" : "buyer";
+  const e = input.extraction ?? null;
 
-  const risks: RiskFlag[] = [];
-  const leverage: LeveragePoint[] = [];
-  const timeline: TimelineItem[] = [];
+  const pros: Pro[] = [];
+  const cons: Con[] = [];
+  const weaknesses: Weakness[] = [];
+  const questions: Question[] = [];
+  const deadlines: Deadline[] = [];
+  const negotiation: NegotiationMove[] = [];
   const missing: string[] = [];
 
-  // ---- Inputs validation ----
+  const addCon = (id: string, label: string, severity: Severity, detail: string, perspectiveAffected: Perspective | "both" = p) => {
+    if (perspectiveAffected === p || perspectiveAffected === "both") {
+      cons.push({ id, label, severity, detail });
+    }
+  };
+  const addPro = (id: string, label: string, detail: string, favors: Perspective | "both" = p) => {
+    if (favors === p || favors === "both") pros.push({ id, label, detail });
+  };
+  const addWeak = (id: string, label: string, detail: string) =>
+    weaknesses.push({ id, label, detail });
+  const addQ = (id: string, question: string, why: string, category: Question["category"]) =>
+    questions.push({ id, question, why, category });
+  const addMove = (id: string, ask: string, rationale: string) =>
+    negotiation.push({ id, ask, rationale });
+
+  // ===== Required field coverage =====
   if (input.purchase_price == null) missing.push("Purchase price");
   if (input.earnest_money == null) missing.push("Earnest money");
   if (!input.closing_date) missing.push("Closing date");
   if (input.inspection_period_days == null) missing.push("Inspection period");
 
-  // ---- Earnest money ratio ----
   const price = input.purchase_price ?? 0;
   const em = input.earnest_money ?? 0;
   const emRatio = price > 0 ? em / price : 0;
 
+  // ===== Earnest money =====
   if (price > 0 && em > 0) {
     if (emRatio < 0.005) {
-      risks.push({
-        id: "em_low",
-        label: "Earnest money is unusually low",
-        severity: p === "seller" ? "high" : "low",
-        detail: `Earnest money is ${(emRatio * 100).toFixed(2)}% of purchase price (typical range is 1–3%).`,
-        affects: "seller",
-      });
-      if (p === "buyer") {
-        leverage.push({
-          id: "em_low_buyer",
-          label: "Low capital at risk",
-          detail: "Buyer has minimal capital exposed if the deal terminates.",
-          favors: "buyer",
-        });
+      addCon(
+        "em_low",
+        "Earnest money is unusually low",
+        p === "seller" ? "high" : "low",
+        `Earnest money is ${fmtPct(emRatio)} of purchase price (typical 1–3%). Weak commitment signal.`,
+        "seller",
+      );
+      if (p === "buyer") addPro("em_low_b", "Minimal capital at risk", `Only ${fmtMoney(em)} exposed if you terminate.`);
+      if (p === "seller") {
+        addMove("em_increase", `Increase earnest money to 1–3% (${fmtMoney(price * 0.01)}–${fmtMoney(price * 0.03)})`, "Standard market range; signals genuine buyer commitment.");
+        addQ("em_proof", "What proof of funds will the buyer provide?", "Low earnest money + no proof = high re-trade risk.", "financial");
       }
     } else if (emRatio > 0.05) {
-      risks.push({
-        id: "em_high",
-        label: "Earnest money is unusually high",
-        severity: p === "buyer" ? "high" : "low",
-        detail: `Earnest money is ${(emRatio * 100).toFixed(2)}% of purchase price — significant capital at risk.`,
-        affects: "buyer",
-      });
-      if (p === "seller") {
-        leverage.push({
-          id: "em_high_seller",
-          label: "Strong buyer commitment",
-          detail: "Buyer has substantial capital at risk, signaling commitment.",
-          favors: "seller",
-        });
+      addCon(
+        "em_high",
+        "Earnest money is unusually high",
+        p === "buyer" ? "high" : "low",
+        `Earnest money is ${fmtPct(emRatio)} of purchase price — significant capital at risk.`,
+        "buyer",
+      );
+      if (p === "seller") addPro("em_high_s", "Strong buyer commitment", `${fmtMoney(em)} on the line indicates serious buyer.`);
+      if (p === "buyer") {
+        addMove("em_reduce", "Negotiate earnest money down to 1–3%", "Reduces capital exposure if a contingency triggers.");
+        addQ("em_release", "Under what conditions does the earnest money become non-refundable?", "Any 'hard' EM milestones materially raise your downside.", "financial");
       }
+    } else {
+      addPro("em_market", "Earnest money is within market norms", `${fmtPct(emRatio)} of price — standard commitment.`, "both");
     }
+  } else if (price > 0 && em === 0) {
+    addCon("em_zero", "No earnest money documented", p === "seller" ? "high" : "low", "Buyer has no skin in the game.", "seller");
   }
 
-  // ---- Contingencies ----
+  // ===== Contingencies =====
   const cFin = !!input.financing_contingency;
   const cApp = !!input.appraisal_contingency;
   const cIns = !!input.inspection_contingency;
-  const contingencyCount = [cFin, cApp, cIns].filter(Boolean).length;
+  const asIs = val(e?.as_is_clause) === true;
+  const saleHome = val(e?.sale_of_other_home_contingency) === true;
 
+  // Financing
   if (cFin) {
-    if (p === "seller") {
-      risks.push({
-        id: "fin_cont",
-        label: "Financing contingency present",
-        severity: "moderate",
-        detail: "Buyer can terminate if financing falls through.",
-        affects: "seller",
-      });
-    } else {
-      leverage.push({
-        id: "fin_cont_b",
-        label: "Financing contingency protects buyer",
-        detail: "Buyer can exit without forfeiting earnest money if financing fails.",
-        favors: "buyer",
-      });
-    }
+    if (p === "buyer") addPro("fin_pro", "Financing contingency protects you", "Exit without forfeiting earnest money if financing fails.");
+    else addCon("fin_con", "Financing contingency present", "moderate", "Buyer can terminate if loan falls through.", "seller");
   } else if (price > 0) {
     if (p === "buyer") {
-      risks.push({
-        id: "no_fin",
-        label: "No financing contingency",
-        severity: "high",
-        detail: "Buyer is on the hook even if a loan is denied.",
-        affects: "buyer",
-      });
+      addCon("no_fin", "No financing contingency", "high", "You are obligated to close even if the loan is denied — earnest money at risk.", "buyer");
+      addQ("fin_proof", "Do you have a written loan commitment, not just pre-approval?", "Without a financing contingency, only a firm commitment protects your earnest money.", "financial");
+      addMove("add_fin_cont", "Add a 21-day financing contingency", "Standard protection against lender denial.");
     } else {
-      leverage.push({
-        id: "no_fin_s",
-        label: "Cash-equivalent commitment",
-        detail: "Seller is protected from financing-related fall-through.",
-        favors: "seller",
-      });
+      addPro("no_fin_s", "No financing contingency", "Buyer cannot exit due to loan issues.");
+      addQ("cash_proof_s", "Has the buyer demonstrated proof of funds?", "Confirms cash-equivalent strength of the offer.", "financial");
     }
   }
 
+  // Appraisal
   if (cApp) {
-    if (p === "seller") {
-      risks.push({
-        id: "app_cont",
-        label: "Appraisal contingency present",
-        severity: "moderate",
-        detail: "Buyer can renegotiate or exit if appraisal comes in low.",
-        affects: "seller",
-      });
+    if (p === "buyer") addPro("app_pro", "Appraisal contingency protects you", "Renegotiate or exit if the property appraises low.");
+    else addCon("app_con", "Appraisal contingency present", "moderate", "Buyer may renegotiate or walk if appraisal is low.", "seller");
+  } else if (price > 0) {
+    if (p === "buyer") {
+      addCon("no_app", "No appraisal contingency", "moderate", "If appraisal comes in low, you must cover the gap or forfeit EM.", "buyer");
+      addQ("app_gap", "How will you cover an appraisal shortfall in cash?", "Without an appraisal contingency, gaps come out of your pocket.", "financial");
+      addMove("add_app_cont", "Add appraisal contingency or appraisal gap cap", "Caps your exposure to a low appraisal.");
+    } else {
+      addPro("no_app_s", "No appraisal contingency", "Sale price is locked even if appraisal is low.");
     }
-  } else if (p === "buyer") {
-    risks.push({
-      id: "no_app",
-      label: "No appraisal contingency",
-      severity: "moderate",
-      detail: "Buyer must close even if the property appraises below contract price.",
-      affects: "buyer",
-    });
   }
 
+  // Inspection
   if (cIns) {
-    if (p === "seller") {
-      risks.push({
-        id: "ins_cont",
-        label: "Inspection contingency present",
-        severity: "low",
-        detail: "Buyer may request repairs, credits, or termination after inspection.",
-        affects: "seller",
-      });
+    if (p === "buyer") addPro("ins_pro", "Inspection contingency protects you", "You can negotiate repairs, credits, or terminate after inspection.");
+    else addCon("ins_con", "Inspection contingency present", "low", "Buyer may request repairs, credits, or termination.", "seller");
+  } else if (price > 0) {
+    if (p === "buyer") {
+      addCon("no_ins", "No inspection contingency", "high", "You accept the property as-is with no recourse for defects.", "buyer");
+      addQ("ins_pre", "Have you completed pre-offer inspections?", "Without an inspection contingency, defects are 100% your problem post-close.", "property");
+      addMove("add_ins_cont", "Add a 7–10 day inspection contingency", "Provides minimum due-diligence window without delaying close.");
+    } else {
+      addPro("no_ins_s", "No inspection contingency", "Buyer cannot use inspection findings to retrade.");
     }
-  } else if (p === "buyer") {
-    risks.push({
-      id: "no_ins",
-      label: "No inspection contingency",
-      severity: "high",
-      detail: "Buyer accepts property condition as-is with no recourse.",
-      affects: "buyer",
-    });
   }
 
-  // ---- Inspection period ----
+  // ===== Inspection period length =====
   const ip = input.inspection_period_days;
   if (ip != null) {
-    if (ip < 7 && cIns) {
-      risks.push({
-        id: "ip_tight",
-        label: "Tight inspection period",
-        severity: p === "buyer" ? "moderate" : "low",
-        detail: `Only ${ip} days to complete inspections — limited time to identify issues.`,
-        affects: "buyer",
-      });
-    }
-    if (ip > 21) {
+    if (cIns && ip < 7) {
+      addCon("ip_tight", "Tight inspection period", p === "buyer" ? "moderate" : "low", `Only ${ip} days — limited time to schedule contractors and review reports.`, "buyer");
+      if (p === "buyer") addMove("extend_ip", "Extend inspection to 10–14 days", "Standard window for thorough due diligence.");
+    } else if (ip > 21) {
       if (p === "seller") {
-        risks.push({
-          id: "ip_long",
-          label: "Long inspection period",
-          severity: "low",
-          detail: `${ip}-day inspection window keeps the property off-market longer.`,
-          affects: "seller",
-        });
+        addCon("ip_long", "Long inspection period", "low", `${ip}-day window keeps property off-market and gives buyer optionality.`, "seller");
+        addMove("shorten_ip", "Shorten inspection to ≤14 days", "Reduces seller risk window.");
       } else {
-        leverage.push({
-          id: "ip_long_b",
-          label: "Generous inspection window",
-          detail: `${ip} days provides ample time for due diligence.`,
-          favors: "buyer",
-        });
+        addPro("ip_long_b", "Generous inspection window", `${ip} days for full diligence.`);
       }
+    } else if (ip >= 7 && ip <= 21) {
+      addPro("ip_market", "Inspection period within market norms", `${ip} days is standard.`, "both");
     }
   }
 
-  // ---- Timeline ----
-  const daysToClose = daysBetween(input.closing_date);
-  if (input.closing_date) {
-    timeline.push({
-      id: "close",
-      label: "Closing",
-      date: input.closing_date,
-      daysFromNow: daysToClose,
-      status: daysToClose != null && daysToClose < 14 ? "tight" : "set",
-    });
-    if (daysToClose != null && daysToClose < 14) {
-      risks.push({
-        id: "close_tight",
-        label: "Tight closing timeline",
-        severity: "moderate",
-        detail: `${daysToClose} days to closing — limited room for delays.`,
-        affects: "both",
-      });
+  // ===== As-is clause =====
+  if (asIs) {
+    if (p === "buyer") {
+      addCon("as_is", "Property sold AS-IS", "high", "Seller has no obligation to repair or credit any defects discovered.", "buyer");
+      addQ("as_is_dd", "Have you budgeted for unknown repair costs?", "AS-IS shifts all post-inspection risk to you.", "property");
+    } else {
+      addPro("as_is_s", "AS-IS clause limits seller exposure", "No obligation to remediate inspection findings.");
     }
+  }
+
+  // ===== Sale-of-other-home contingency =====
+  if (saleHome) {
+    if (p === "seller") {
+      addCon("kick_out", "Sale-of-other-home contingency", "high", "Buyer's offer depends on selling another property — closing is uncertain.", "seller");
+      addMove("kick_out_clause", "Add a 'kick-out' clause (48–72 hr) allowing seller to accept a stronger offer", "Preserves seller flexibility if buyer's home does not sell.");
+      addQ("home_listed", "Is the buyer's home already listed and under contract?", "If not, this deal could drag for months.", "timeline");
+    } else {
+      addPro("kick_out_b", "Sale-of-other-home contingency protects you", "You can terminate if your current home does not sell.");
+    }
+  }
+
+  // ===== Allocations / who pays what =====
+  type AllocKey =
+    | "title_insurance_paid_by"
+    | "survey_paid_by"
+    | "transfer_tax_paid_by"
+    | "hoa_transfer_fee_paid_by"
+    | "home_warranty_paid_by";
+  const allocLabels: Record<AllocKey, string> = {
+    title_insurance_paid_by: "Title insurance",
+    survey_paid_by: "Survey",
+    transfer_tax_paid_by: "Transfer tax",
+    hoa_transfer_fee_paid_by: "HOA transfer fee",
+    home_warranty_paid_by: "Home warranty",
+  };
+
+  if (e) {
+    (Object.keys(allocLabels) as AllocKey[]).forEach((k) => {
+      const paidBy = val(e[k]);
+      const label = allocLabels[k];
+      if (paidBy === p) {
+        addCon(`alloc_${k}`, `${label} paid by you`, "low", `Allocation: ${p} pays ${label.toLowerCase()}. Estimate the cost as part of net proceeds.`);
+      } else if (paidBy === opp) {
+        addPro(`alloc_${k}_p`, `${label} paid by ${opp}`, `Reduces your closing costs.`);
+      } else if (paidBy === "split") {
+        addPro(`alloc_${k}_s`, `${label} split`, `Costs shared between parties.`, "both");
+      }
+    });
+  }
+
+  // ===== Liquidated damages / specific performance =====
+  if (val(e?.liquidated_damages_clause) === true) {
+    if (p === "buyer") addCon("liq_dmg", "Liquidated damages clause", "moderate", "Earnest money is the seller's exclusive remedy if you default.", "buyer");
+    else addCon("liq_dmg_s", "Liquidated damages cap seller recovery", "moderate", "You're limited to retaining the earnest money on buyer default.", "seller");
+    addQ("liq_calc", "How is the liquidated damages amount calculated?", "Confirms your maximum financial exposure on default.", "legal");
+  }
+  if (val(e?.specific_performance_clause) === true) {
+    if (p === "seller") addCon("spec_perf", "Specific performance available to buyer", "moderate", "Buyer can sue to force the sale, not just claim damages.", "seller");
+    else addPro("spec_perf_b", "Specific performance available", "You can compel the seller to close, not just collect damages.");
+  }
+
+  // ===== Assignment =====
+  const assign = val(e?.assignment_allowed);
+  if (assign === true) {
+    if (p === "seller") {
+      addCon("assign", "Buyer can assign the contract", "moderate", "Final buyer may differ from signer — undermines buyer vetting.", "seller");
+      addQ("assign_who", "Will an assignee be vetted before closing?", "Protects against assignment to an unqualified party.", "legal");
+      addMove("limit_assign", "Restrict assignment to affiliates or require seller consent", "Preserves your control over the counterparty.");
+    } else {
+      addPro("assign_b", "Assignment allowed", "Flexibility to assign to a partner, entity, or 1031 exchange accommodator.");
+    }
+  } else if (assign === false && p === "buyer") {
+    addCon("no_assign", "No assignment allowed", "low", "Cannot assign to an entity, partner, or 1031 accommodator.", "buyer");
+  }
+
+  // ===== Attorney review =====
+  const arev = val(e?.attorney_review_period_days);
+  if (arev != null && arev > 0) {
+    addPro("att_rev", `${arev}-day attorney review`, "Provides legal escape hatch and amendment window after signing.", "both");
+  } else if (e && val(e.attorney_review_period_days) === null && val(e.governing_law_state) && ["IL", "NJ", "NY"].includes(val(e.governing_law_state) ?? "")) {
+    addWeak("no_att_rev", "No attorney review period detected", "In IL/NJ/NY, attorney review is customary. Confirm this period exists in the contract.");
+  }
+
+  // ===== Special stipulations =====
+  const stips = val(e?.special_stipulations) ?? [];
+  stips.forEach((s, i) => {
+    addQ(
+      `stip_${i}`,
+      `What does this stipulation mean for you: "${s.slice(0, 120)}${s.length > 120 ? "…" : ""}"`,
+      "Custom stipulations override standard language and frequently shift risk.",
+      "legal",
+    );
+  });
+  if (stips.length >= 5) {
+    addCon("many_stips", `${stips.length} special stipulations`, "moderate", "Heavy customization increases risk of overlooked terms.", "both" as Perspective);
+  }
+
+  // ===== Disclosures =====
+  const disc = val(e?.seller_disclosures_referenced) ?? [];
+  if (p === "buyer" && disc.length === 0 && price > 0) {
+    addWeak("no_disc", "No seller disclosures referenced", "Verify lead-based paint, property condition, and HOA disclosures were delivered.");
+    addQ("disc_q", "Have you received and reviewed all seller disclosures?", "Required by law in most states; protects against undisclosed defects.", "property");
+  }
+
+  // ===== Personal property included/excluded =====
+  const incl = val(e?.included_personal_property) ?? [];
+  const excl = val(e?.excluded_personal_property) ?? [];
+  if (p === "buyer" && incl.length === 0 && price > 0) {
+    addWeak("no_incl", "No included personal property listed", "Confirm appliances, fixtures, and any negotiated items are explicitly listed.");
+  }
+  if (excl.length > 0 && p === "buyer") {
+    addQ("excl_q", `Are you OK with ${excl.length} explicitly excluded item${excl.length > 1 ? "s" : ""}?`, "Excluded items will not convey at closing.", "property");
+  }
+
+  // ===== Timeline / deadlines =====
+  const eff = val(e?.effective_date);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const pushDeadline = (id: string, label: string, isoDate?: string | null, daysFromEff?: number | null) => {
+    let date = isoDate ?? null;
+    if (!date && eff && daysFromEff != null) {
+      const d = new Date(eff);
+      d.setDate(d.getDate() + daysFromEff);
+      date = d.toISOString().slice(0, 10);
+    }
+    const dfn = daysBetween(date);
+    let status: Deadline["status"] = "set";
+    if (!date) status = "missing";
+    else if (dfn != null && dfn < 0) status = "past";
+    else if (dfn != null && dfn < 7) status = "tight";
+    deadlines.push({
+      id,
+      label,
+      date,
+      daysFromNow: dfn,
+      daysFromEffective: daysFromEff ?? null,
+      status,
+    });
+  };
+
+  if (eff) pushDeadline("effective", "Effective date", eff);
+  pushDeadline("em_due", "Earnest money due", null, val(e?.earnest_money_due_days));
+  pushDeadline("inspection_end", "Inspection period ends", null, ip);
+  pushDeadline("financing_end", "Financing contingency ends", null, val(e?.financing_contingency_days));
+  pushDeadline("appraisal_end", "Appraisal contingency ends", null, val(e?.appraisal_contingency_days));
+  pushDeadline("title_review", "Title review ends", null, val(e?.title_review_days));
+  pushDeadline("attorney_review", "Attorney review ends", null, val(e?.attorney_review_period_days));
+  pushDeadline("close", "Closing", input.closing_date ?? val(e?.closing_date));
+  pushDeadline("possession", "Possession", val(e?.possession_date));
+
+  const daysToClose = daysBetween(input.closing_date ?? val(e?.closing_date));
+  if (daysToClose != null && daysToClose >= 0 && daysToClose < 14) {
+    addCon("close_tight", "Tight closing timeline", "moderate", `${daysToClose} days to close — limited room for delays in title, financing, or repairs.`, "both" as Perspective);
+  }
+  if (daysToClose != null && daysToClose < 0) {
+    addCon("close_past", "Closing date is in the past", "high", "Update the contract or confirm extension was executed.", "both" as Perspective);
+  }
+
+  // ===== Standard buyer/seller diligence questions =====
+  if (p === "buyer") {
+    if (val(e?.property_legal_description) == null) addQ("legal_desc", "Has the legal description been verified against title?", "Catches parcel-ID or boundary errors that cause closing delays.", "property");
+    if (val(e?.title_insurance_paid_by) == null) addQ("title_who", "Who is paying for title insurance?", "Local custom varies; confirm in writing to avoid closing-cost surprises.", "financial");
+    addQ("hoa_q", "Are HOA fees, special assessments, and rules disclosed?", "Undisclosed assessments are a common post-close surprise.", "property");
   } else {
-    timeline.push({ id: "close", label: "Closing", status: "missing" });
+    if (val(e?.buyer_entity_type) == null) addQ("buyer_entity", "Is the buyer a person or an entity?", "Entity buyers may have weaker recourse if they default.", "legal");
+    addQ("backup_offer", "Should we accept backup offers during the contingency period?", "Maintains leverage if the primary buyer terminates.", "timeline");
   }
 
-  if (ip != null && input.closing_date) {
-    timeline.push({
-      id: "insp_end",
-      label: "Inspection period ends",
-      daysFromNow: ip,
-      status: "set",
-    });
-  }
-
-  // ---- Scoring ----
+  // ===== Scoring =====
   const sevWeight: Record<Severity, number> = { high: 30, moderate: 15, low: 5 };
-  const myRisks = risks.filter((r) => r.affects === p || r.affects === "both");
-  const rawRisk = myRisks.reduce((sum, r) => sum + sevWeight[r.severity], 0);
+  const rawRisk = cons.reduce((sum, c) => sum + sevWeight[c.severity], 0);
   const riskScore = Math.min(100, rawRisk);
 
-  const myLeverage = leverage.filter((l) => l.favors === p);
-  const oppLeverage = leverage.filter((l) => l.favors === opposite);
   const leverageScore = Math.min(
     100,
-    Math.max(0, 50 + myLeverage.length * 12 - oppLeverage.length * 12 - riskScore * 0.3)
+    Math.max(0, 50 + pros.length * 6 - cons.length * 4 - riskScore * 0.2),
   );
 
   let recommendation: ContractAnalysis["recommendation"];
-  if (riskScore >= 60) recommendation = "caution";
-  else if (riskScore >= 30 || myRisks.some((r) => r.severity === "high")) recommendation = "negotiate";
+  const hasHighCon = cons.some((c) => c.severity === "high");
+  if (riskScore >= 60 || hasHighCon) recommendation = "caution";
+  else if (riskScore >= 25) recommendation = "negotiate";
   else recommendation = "proceed";
 
-  // ---- Plain English ----
+  // ===== Summary =====
   const partyLabel = p === "buyer" ? "buyer" : "seller";
   const summary =
     recommendation === "proceed"
-      ? `From the ${partyLabel}'s perspective, this contract appears balanced with manageable risk.`
+      ? `From the ${partyLabel}'s perspective, this contract is balanced. ${pros.length} favorable term${pros.length === 1 ? "" : "s"}, ${cons.length} concern${cons.length === 1 ? "" : "s"}, and no high-severity issues. Standard due diligence applies.`
       : recommendation === "negotiate"
-      ? `From the ${partyLabel}'s perspective, this contract has terms worth negotiating before signing.`
-      : `From the ${partyLabel}'s perspective, this contract carries significant risk and warrants careful review.`;
+      ? `From the ${partyLabel}'s perspective, this contract has terms worth negotiating. ${cons.filter((c) => c.severity !== "low").length} material concern${cons.filter((c) => c.severity !== "low").length === 1 ? "" : "s"} identified — see negotiation moves below before signing.`
+      : `From the ${partyLabel}'s perspective, this contract carries significant risk. ${cons.filter((c) => c.severity === "high").length} high-severity issue${cons.filter((c) => c.severity === "high").length === 1 ? "" : "s"} require resolution before signing.`;
 
+  // Order deadlines chronologically (set first, then missing)
+  deadlines.sort((a, b) => {
+    if (a.status === "missing" && b.status !== "missing") return 1;
+    if (b.status === "missing" && a.status !== "missing") return -1;
+    if (!a.date && !b.date) return 0;
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return a.date.localeCompare(b.date);
+  });
+
+  // Sort cons by severity desc
+  const sevOrder: Record<Severity, number> = { high: 0, moderate: 1, low: 2 };
+  cons.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity]);
+
+  // Takeaways = top 3 cons + leverage count
   const takeaways: string[] = [];
-  if (myRisks.length === 0) takeaways.push(`No material risks detected for the ${partyLabel}.`);
-  myRisks
-    .filter((r) => r.severity === "high")
+  cons
+    .filter((c) => c.severity === "high")
     .slice(0, 3)
-    .forEach((r) => takeaways.push(r.label));
-  if (myLeverage.length > 0) takeaways.push(`${myLeverage.length} leverage point${myLeverage.length > 1 ? "s" : ""} favor the ${partyLabel}.`);
+    .forEach((c) => takeaways.push(c.label));
+  if (cons.length === 0) takeaways.push(`No material concerns detected for the ${partyLabel}.`);
+  if (pros.length > 0) takeaways.push(`${pros.length} favorable term${pros.length > 1 ? "s" : ""} identified.`);
   if (missing.length > 0) takeaways.push(`Missing inputs may affect accuracy: ${missing.join(", ")}.`);
-
-  const actions: string[] = [];
-  myRisks
-    .filter((r) => r.severity === "high")
-    .forEach((r) => actions.push(`Negotiate or address: ${r.label.toLowerCase()}.`));
-  if (recommendation === "proceed" && actions.length === 0) {
-    actions.push("Proceed to standard due diligence.");
-  }
-  if (missing.length > 0) {
-    actions.push("Provide the missing fields to refine analysis.");
-  }
 
   return {
     perspective: p,
@@ -322,11 +483,14 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
     riskScore: Math.round(riskScore),
     leverageScore: Math.round(leverageScore),
     recommendation,
-    risks,
-    leverage,
-    timeline,
+    pros,
+    cons,
+    weaknesses,
+    questions,
+    deadlines,
+    negotiation,
     takeaways,
-    actions,
     missingInputs: missing,
+    computedAt: new Date().toISOString(),
   };
 }

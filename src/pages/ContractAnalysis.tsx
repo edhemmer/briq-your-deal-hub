@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -8,6 +8,11 @@ import {
   CheckCircle2,
   Sparkles,
   ListChecks,
+  ThumbsUp,
+  ThumbsDown,
+  HelpCircle,
+  Lightbulb,
+  ShieldAlert,
 } from "lucide-react";
 import { SectionContainer } from "@/components/ui/section-container";
 import { CardContainer } from "@/components/ui/card-container";
@@ -22,6 +27,7 @@ import {
   type ContractInput,
   type Perspective,
 } from "@/lib/contractIQEngine";
+import type { CanonicalContractExtraction } from "@/lib/contractDataMapper";
 
 const sevColor = (s: "high" | "moderate" | "low") =>
   s === "high"
@@ -44,14 +50,19 @@ const ContractAnalysisPage = () => {
   const { contractId } = useParams<{ contractId: string }>();
   const navigate = useNavigate();
   const { data: contract, isLoading } = useContract(contractId);
+  const [perspective, setPerspective] = useState<Perspective | null>(null);
+
+  const activePerspective: Perspective =
+    perspective ?? ((contract?.perspective as Perspective) ?? "buyer");
 
   const analysis = useMemo<ContractAnalysis | null>(() => {
     if (!contract) return null;
-    // Prefer stored analysis; fall back to recompute (deterministic).
-    const stored = contract.contractiq_analysis as unknown as ContractAnalysis | null;
-    if (stored && stored.perspective) return stored;
+    // Always recompute deterministically so perspective toggle works live.
+    const extractionConf = contract.extraction_confidence as unknown as
+      | CanonicalContractExtraction
+      | null;
     const input: ContractInput = {
-      perspective: (contract.perspective as Perspective) ?? "buyer",
+      perspective: activePerspective,
       contract_type: contract.contract_type,
       buyer_name: contract.buyer_name,
       seller_name: contract.seller_name,
@@ -64,9 +75,10 @@ const ContractAnalysisPage = () => {
       appraisal_contingency: contract.appraisal_contingency,
       inspection_contingency: contract.inspection_contingency,
       contract_text: contract.contract_text,
+      extraction: extractionConf,
     };
     return analyzeContract(input);
-  }, [contract]);
+  }, [contract, activePerspective]);
 
   if (isLoading) {
     return (
@@ -112,10 +124,23 @@ const ContractAnalysisPage = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="capitalize">
-              {analysis.perspective} perspective
-            </Badge>
-            <Badge className={`border ${recoColor(analysis.recommendation)} bg-opacity-100`} variant="outline">
+            <div className="flex rounded-md border border-border bg-background p-0.5">
+              {(["buyer", "seller"] as Perspective[]).map((side) => (
+                <button
+                  key={side}
+                  type="button"
+                  onClick={() => setPerspective(side)}
+                  className={`px-3 py-1 text-xs font-medium rounded-sm capitalize transition-colors ${
+                    activePerspective === side
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {side}
+                </button>
+              ))}
+            </div>
+            <Badge className={`border ${recoColor(analysis.recommendation)}`} variant="outline">
               {recoLabel(analysis.recommendation)}
             </Badge>
           </div>
@@ -154,21 +179,40 @@ const ContractAnalysisPage = () => {
         </div>
       </CardContainer>
 
-      {/* Takeaways + Actions */}
+      {/* Takeaways */}
+      <CardContainer className="p-5 mb-5">
+        <div className="flex items-center gap-2 mb-3">
+          <ListChecks className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold text-foreground">Key takeaways</h3>
+        </div>
+        <ul className="space-y-2">
+          {analysis.takeaways.map((t, i) => (
+            <li key={i} className="text-sm text-foreground/90 flex items-start gap-2">
+              <CheckCircle2 className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+              <span>{t}</span>
+            </li>
+          ))}
+        </ul>
+      </CardContainer>
+
+      {/* Pros / Cons grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
         <CardContainer className="p-5">
           <div className="flex items-center gap-2 mb-3">
-            <ListChecks className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">Key takeaways</h3>
+            <ThumbsUp className="h-4 w-4 text-emerald-600" />
+            <h3 className="text-sm font-semibold text-foreground">
+              Pros for {analysis.perspective}
+            </h3>
+            <Badge variant="outline" className="text-[10px] ml-auto">{analysis.pros.length}</Badge>
           </div>
-          {analysis.takeaways.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No takeaways.</p>
+          {analysis.pros.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No favorable terms identified.</p>
           ) : (
-            <ul className="space-y-2">
-              {analysis.takeaways.map((t, i) => (
-                <li key={i} className="text-sm text-foreground/90 flex items-start gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
-                  <span>{t}</span>
+            <ul className="space-y-2.5">
+              {analysis.pros.map((pr) => (
+                <li key={pr.id} className="text-sm">
+                  <p className="font-medium text-foreground">{pr.label}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{pr.detail}</p>
                 </li>
               ))}
             </ul>
@@ -177,17 +221,25 @@ const ContractAnalysisPage = () => {
 
         <CardContainer className="p-5">
           <div className="flex items-center gap-2 mb-3">
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">Recommended actions</h3>
+            <ThumbsDown className="h-4 w-4 text-destructive" />
+            <h3 className="text-sm font-semibold text-foreground">
+              Cons for {analysis.perspective}
+            </h3>
+            <Badge variant="outline" className="text-[10px] ml-auto">{analysis.cons.length}</Badge>
           </div>
-          {analysis.actions.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No actions required.</p>
+          {analysis.cons.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No concerns identified.</p>
           ) : (
             <ul className="space-y-2">
-              {analysis.actions.map((a, i) => (
-                <li key={i} className="text-sm text-foreground/90 flex items-start gap-2">
-                  <span className="text-primary font-semibold">{i + 1}.</span>
-                  <span>{a}</span>
+              {analysis.cons.map((c) => (
+                <li key={c.id} className={`rounded-md border p-2.5 ${sevColor(c.severity)}`}>
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <p className="text-sm font-semibold">{c.label}</p>
+                    <Badge variant="outline" className="text-[10px] capitalize">
+                      {c.severity}
+                    </Badge>
+                  </div>
+                  <p className="text-xs leading-relaxed opacity-90">{c.detail}</p>
                 </li>
               ))}
             </ul>
@@ -195,82 +247,96 @@ const ContractAnalysisPage = () => {
         </CardContainer>
       </div>
 
-      {/* Risks */}
+      {/* Weaknesses */}
+      {analysis.weaknesses.length > 0 && (
+        <CardContainer className="p-5 mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldAlert className="h-4 w-4 text-amber-600" />
+            <h3 className="text-sm font-semibold text-foreground">Areas of weakness</h3>
+            <Badge variant="outline" className="text-[10px] ml-auto">{analysis.weaknesses.length}</Badge>
+          </div>
+          <ul className="space-y-2">
+            {analysis.weaknesses.map((w) => (
+              <li key={w.id} className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 p-3">
+                <p className="text-sm font-medium text-foreground">{w.label}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{w.detail}</p>
+              </li>
+            ))}
+          </ul>
+        </CardContainer>
+      )}
+
+      {/* Questions to ask */}
       <CardContainer className="p-5 mb-5">
-        <div className="flex items-center gap-2 mb-4">
-          <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold text-foreground">Risk flags</h3>
+        <div className="flex items-center gap-2 mb-3">
+          <HelpCircle className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">Questions to ask</h3>
+          <Badge variant="outline" className="text-[10px] ml-auto">{analysis.questions.length}</Badge>
         </div>
-        {analysis.risks.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No material risks detected.</p>
+        {analysis.questions.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No outstanding questions.</p>
         ) : (
-          <div className="space-y-2">
-            {analysis.risks.map((r) => (
-              <div
-                key={r.id}
-                className={`rounded-md border p-3 ${sevColor(r.severity)}`}
-              >
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <p className="text-sm font-semibold">{r.label}</p>
-                  <Badge variant="outline" className="text-[10px] capitalize">
-                    {r.severity}
-                  </Badge>
-                </div>
-                <p className="text-xs leading-relaxed opacity-90">{r.detail}</p>
-                <p className="text-[10px] uppercase tracking-wide mt-1.5 opacity-70">
-                  Affects: {r.affects}
+          <ul className="space-y-3">
+            {analysis.questions.map((q) => (
+              <li key={q.id} className="border-l-2 border-primary/30 pl-3">
+                <p className="text-sm font-medium text-foreground">{q.question}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  <span className="capitalize text-[10px] font-semibold tracking-wide text-primary mr-1.5">{q.category}</span>
+                  {q.why}
                 </p>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </CardContainer>
 
-      {/* Leverage */}
-      <CardContainer className="p-5 mb-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Scale className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold text-foreground">Leverage points</h3>
-        </div>
-        {analysis.leverage.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No leverage points identified.</p>
-        ) : (
-          <div className="space-y-2">
-            {analysis.leverage.map((l) => (
-              <div key={l.id} className="rounded-md border border-border bg-muted/20 p-3">
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <p className="text-sm font-semibold text-foreground">{l.label}</p>
-                  <Badge variant="outline" className="text-[10px] capitalize">
-                    Favors {l.favors}
-                  </Badge>
+      {/* Negotiation moves */}
+      {analysis.negotiation.length > 0 && (
+        <CardContainer className="p-5 mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Lightbulb className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">Recommended negotiation moves</h3>
+          </div>
+          <ul className="space-y-2.5">
+            {analysis.negotiation.map((n, i) => (
+              <li key={n.id} className="text-sm flex items-start gap-2">
+                <span className="text-primary font-semibold shrink-0">{i + 1}.</span>
+                <div>
+                  <p className="font-medium text-foreground">{n.ask}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{n.rationale}</p>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">{l.detail}</p>
-              </div>
+              </li>
             ))}
-          </div>
-        )}
-      </CardContainer>
+          </ul>
+        </CardContainer>
+      )}
 
-      {/* Timeline */}
-      <CardContainer className="p-5">
-        <div className="flex items-center gap-2 mb-4">
+      {/* Deadlines */}
+      <CardContainer className="p-5 mb-5">
+        <div className="flex items-center gap-2 mb-3">
           <Clock className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold text-foreground">Timeline</h3>
+          <h3 className="text-sm font-semibold text-foreground">Deadlines</h3>
         </div>
-        <div className="space-y-2">
-          {analysis.timeline.map((t) => (
+        <div className="space-y-1.5">
+          {analysis.deadlines.map((d) => (
             <div
-              key={t.id}
-              className="flex items-center justify-between py-2 border-b border-border last:border-0"
+              key={d.id}
+              className={`flex items-center justify-between py-2 px-3 rounded-md border ${
+                d.status === "tight" || d.status === "past"
+                  ? "border-amber-200 bg-amber-50/50 dark:bg-amber-900/10 dark:border-amber-800"
+                  : d.status === "missing"
+                  ? "border-dashed border-border bg-muted/20"
+                  : "border-border bg-background"
+              }`}
             >
-              <span className="text-sm text-foreground">{t.label}</span>
+              <span className="text-sm text-foreground">{d.label}</span>
               <span className="text-xs text-muted-foreground">
-                {t.status === "missing"
+                {d.status === "missing"
                   ? "Not set"
-                  : t.date
-                  ? new Date(t.date).toLocaleDateString()
-                  : t.daysFromNow != null
-                  ? `${t.daysFromNow} days`
+                  : d.date
+                  ? `${new Date(d.date).toLocaleDateString()}${d.daysFromNow != null ? ` · ${d.daysFromNow >= 0 ? `in ${d.daysFromNow}d` : `${Math.abs(d.daysFromNow)}d ago`}` : ""}`
+                  : d.daysFromEffective != null
+                  ? `${d.daysFromEffective} days from effective`
                   : "—"}
               </span>
             </div>
@@ -278,9 +344,31 @@ const ContractAnalysisPage = () => {
         </div>
       </CardContainer>
 
+      {/* Risk/Leverage legend */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+        <CardContainer className="p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground">Risk score breakdown</h3>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Computed deterministically from {analysis.cons.length} concern{analysis.cons.length === 1 ? "" : "s"} weighted by severity (high=30, moderate=15, low=5). Capped at 100.
+          </p>
+        </CardContainer>
+        <CardContainer className="p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <Scale className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground">Leverage score breakdown</h3>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Baseline 50, +6 per favorable term, −4 per concern, −20% of risk score. Reflects relative bargaining position.
+          </p>
+        </CardContainer>
+      </div>
+
       {analysis.missingInputs.length > 0 && (
-        <p className="text-xs text-muted-foreground mt-4">
-          Missing inputs: {analysis.missingInputs.join(", ")}.
+        <p className="text-xs text-muted-foreground">
+          Missing inputs may affect accuracy: {analysis.missingInputs.join(", ")}.
         </p>
       )}
     </SectionContainer>
