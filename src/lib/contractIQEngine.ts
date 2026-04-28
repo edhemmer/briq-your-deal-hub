@@ -20,7 +20,7 @@
  *   - Negotiation moves (specific asks)
  */
 
-import type { CanonicalContractExtraction } from "./contractDataMapper";
+import type { CanonicalContractExtraction, PaidBy } from "./contractDataMapper";
 
 export type Perspective = "buyer" | "seller";
 export type Severity = "high" | "moderate" | "low";
