@@ -13,6 +13,10 @@ import {
   HelpCircle,
   Lightbulb,
   ShieldAlert,
+  Download,
+  FileText,
+  Briefcase,
+  Gavel,
 } from "lucide-react";
 import { SectionContainer } from "@/components/ui/section-container";
 import { CardContainer } from "@/components/ui/card-container";
@@ -20,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
 import { useContract } from "@/hooks/useContracts";
 import {
   analyzeContract,
@@ -27,6 +32,13 @@ import {
   type ContractInput,
   type Perspective,
 } from "@/lib/contractIQEngine";
+import {
+  generateFullDealBookPDF,
+  generateHighlightBriefPDF,
+  generateAttorneyQuestionsPDF,
+  generateBrokerQuestionsPDF,
+  type ContractReportContext,
+} from "@/lib/contractReports";
 import type { CanonicalContractExtraction } from "@/lib/contractDataMapper";
 
 const sevColor = (s: "high" | "moderate" | "low") =>
