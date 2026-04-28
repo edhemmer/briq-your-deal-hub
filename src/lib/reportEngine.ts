@@ -1,4 +1,4 @@
-// BRIQ Investor Report Engine v1.8.0 — deterministic report assembly.
+// BRIX Investor Report Engine v1.8.0 — deterministic report assembly.
 // Reads finalized analysis outputs only. Never recalculates metrics.
 
 import jsPDF from "jspdf";
@@ -93,11 +93,11 @@ export function generateInvestorPDF(report: DealReport): void {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
-  doc.text("BRIQ Investment Report", margin, 36);
+  doc.text("BRIX Investment Report", margin, 36);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text(`Generated ${report.reportDate}`, margin, 54);
-  doc.text("Powered by BRIQ • InLight AI", pageW - margin, 54, { align: "right" });
+  doc.text("Powered by BRIX • InLight AI", pageW - margin, 54, { align: "right" });
   y = 100;
 
   // -- Property Summary --
@@ -314,11 +314,11 @@ export function generateInvestorPDF(report: DealReport): void {
     const pageH = doc.internal.pageSize.getHeight();
     doc.setFontSize(7);
     doc.setTextColor(...textMuted);
-    doc.text("BRIQ • InLight AI — Confidential Investment Analysis", margin, pageH - 20);
+    doc.text("BRIX • InLight AI — Confidential Investment Analysis", margin, pageH - 20);
     doc.text(`Page ${i} of ${totalPages}`, pageW - margin, pageH - 20, { align: "right" });
   }
 
-  const filename = `BRIQ_Report_${report.property.address.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
+  const filename = `BRIX_Report_${report.property.address.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
   doc.save(filename);
 }
 
@@ -328,7 +328,7 @@ export function generateCSVExport(report: DealReport): void {
   const rows: string[][] = [];
 
   // Header
-  rows.push(["BRIQ Investment Report"]);
+  rows.push(["BRIX Investment Report"]);
   rows.push(["Generated", report.reportDate]);
   rows.push([]);
 
@@ -393,7 +393,7 @@ export function generateCSVExport(report: DealReport): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `BRIQ_Export_${report.property.address.replace(/[^a-zA-Z0-9]/g, "_")}.csv`;
+  a.download = `BRIX_Export_${report.property.address.replace(/[^a-zA-Z0-9]/g, "_")}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }

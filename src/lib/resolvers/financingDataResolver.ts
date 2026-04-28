@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.5.2 — Financing Data Resolver
+ * BRIX v1.5.2 — Financing Data Resolver
  *
  * Canonical pathway for financing/rate data ingestion.
  * Structured for future real rate source integration.

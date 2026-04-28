@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.5.2 — Canonical Data Source Layer
+ * BRIX v1.5.2 — Canonical Data Source Layer
  * 
  * Centralized data orchestration for analytical inputs.
  * All future data ingestion (property APIs, rental intelligence,

@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.6.3 — Global Market Outlook Engine (3–5 Year Forward Intelligence)
+ * BRIX v1.6.3 — Global Market Outlook Engine (3–5 Year Forward Intelligence)
  *
  * Deterministic, source-aware, confidence-graded forward outlook.
  * Uses only defensible public data signals. Returns null for missing data — never estimates.

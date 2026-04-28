@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.6.3 — Market Outlook (3–5 Year) UI Component
+ * BRIX v1.6.3 — Market Outlook (3–5 Year) UI Component
  * Premium, compact, investor-grade forward intelligence display.
  */
 

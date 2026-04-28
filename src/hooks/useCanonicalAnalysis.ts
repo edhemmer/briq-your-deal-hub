@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.6.1 — Reactive Canonical Analysis Hook
+ * BRIX v1.6.1 — Reactive Canonical Analysis Hook
  *
  * Wraps runCanonicalAnalysis with debounced execution, concurrency guard,
  * and source quality awareness.

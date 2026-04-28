@@ -1,5 +1,5 @@
 /**
- * BRIQ Billing Access Helper
+ * BRIX Billing Access Helper
  * Single source of truth for subscription state, deal creation access, and Stripe readiness.
  */
 
@@ -140,7 +140,7 @@ export function getUpgradeMessage(access: BillingAccessResult): string {
   if (!access.isStripeConfigured) {
     return "Subscription billing will be enabled once platform configuration is completed.";
   }
-  return "Upgrade to BRIQ Pro at $155.99/month for unlimited deal analysis.";
+  return "Upgrade to BRIX Pro at $155.99/month for unlimited deal analysis.";
 }
 
 export function getAccessSourceLabel(source: AccessSource): string {

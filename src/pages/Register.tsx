@@ -51,7 +51,7 @@ export default function Register() {
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-2">
           <BrixIcon size={32} className="text-primary" />
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">Create your BRIQ account</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Create your BRIX account</h1>
           <p className="text-sm text-muted-foreground">Start analyzing real estate deals</p>
         </div>
         <CardContainer className="p-6">

@@ -7,23 +7,23 @@ import { BarChart3, PlusCircle, Brain, Target, FileText } from "lucide-react";
 const steps = [
   {
     icon: BarChart3,
-    title: "Welcome to BRIQ",
-    description: "BRIQ is a deal intelligence platform that analyzes real estate investments using financial data, market signals, and strategy evaluation to help you make informed decisions.",
+    title: "Welcome to BRIX",
+    description: "BRIX is a deal intelligence platform that analyzes real estate investments using financial data, market signals, and strategy evaluation to help you make informed decisions.",
   },
   {
     icon: PlusCircle,
     title: "Create Your First Deal",
-    description: "Start by entering a property address and basic financial assumptions. BRIQ uses these inputs to build a comprehensive investment analysis.",
+    description: "Start by entering a property address and basic financial assumptions. BRIX uses these inputs to build a comprehensive investment analysis.",
   },
   {
     icon: Brain,
     title: "Run the Analysis",
-    description: "BRIQ calculates key investment metrics including cap rate, cash-on-cash return, DSCR, and cash flow. It also identifies deal killers and strengths automatically.",
+    description: "BRIX calculates key investment metrics including cap rate, cash-on-cash return, DSCR, and cash flow. It also identifies deal killers and strengths automatically.",
   },
   {
     icon: Target,
     title: "Review Strategy Insights",
-    description: "BRIQ evaluates your deal against common investment strategies like Buy & Hold, Fix & Flip, BRRRR, and Wholesale — showing fit signals for each approach.",
+    description: "BRIX evaluates your deal against common investment strategies like Buy & Hold, Fix & Flip, BRRRR, and Wholesale — showing fit signals for each approach.",
   },
   {
     icon: FileText,

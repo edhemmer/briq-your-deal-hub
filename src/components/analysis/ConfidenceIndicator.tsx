@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.6.0 — Confidence Indicator Component
+ * BRIX v1.6.0 — Confidence Indicator Component
  *
  * Displays the confidence level of the analysis alongside results.
  */

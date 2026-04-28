@@ -23,7 +23,7 @@ const Index = () => {
             </span>
             <Sparkles className="h-3.5 w-3.5 text-primary" />
             <span className="text-[11px] font-semibold uppercase tracking-[0.16em] bg-gradient-to-r from-primary to-[hsl(174_62%_47%)] bg-clip-text text-transparent">
-              BRIQ Intelligence Suite
+              BRIX Intelligence Suite
             </span>
           </div>
 

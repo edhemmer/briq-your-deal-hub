@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.5.0 — Local Market Conditions Intelligence Engine
+ * BRIX v1.5.0 — Local Market Conditions Intelligence Engine
  * Deterministic market signal evaluation and scoring.
  * Never modifies financial analysis outputs.
  */
