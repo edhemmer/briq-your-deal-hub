@@ -1,5 +1,5 @@
 /**
- * BRIX v1.7.3.1 — Investor Interpretation Layer
+ * BRIQ v1.7.3.1 — Investor Interpretation Layer
  * 
  * Translates technical stress test and deal reliability outputs
  * into plain-English insights and action guidance.

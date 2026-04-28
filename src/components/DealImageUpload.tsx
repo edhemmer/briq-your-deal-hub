@@ -165,7 +165,7 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
               <Clipboard className="h-5 w-5" />
             </div>
             <p className="text-sm font-medium text-foreground">Drop a screenshot, take a photo, or paste an image</p>
-            <p className="text-xs text-muted-foreground">BRIX extracts property details automatically</p>
+            <p className="text-xs text-muted-foreground">BRIQ extracts property details automatically</p>
           </div>
         )}
       </div>

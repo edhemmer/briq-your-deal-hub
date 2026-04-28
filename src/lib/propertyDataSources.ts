@@ -1,5 +1,5 @@
 /**
- * BRIX v1.9.0 — Canonical Property Data Sources
+ * BRIQ v1.9.0 — Canonical Property Data Sources
  *
  * Single source of truth for source-aware property input structure.
  * Raw storage and resolved analysis data are distinct types.

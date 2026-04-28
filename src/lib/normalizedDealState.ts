@@ -1,5 +1,5 @@
 /**
- * BRIX v1.5.2 — Canonical Normalized Deal State
+ * BRIQ v1.5.2 — Canonical Normalized Deal State
  * 
  * Single source of truth for downstream calculations.
  * Clearly distinguishes sourced, user-entered, and unavailable values.

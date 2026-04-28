@@ -1,5 +1,5 @@
 /**
- * BRIX v1.9.0 — Data Confidence & Sources Panel
+ * BRIQ v1.9.0 — Data Confidence & Sources Panel
  *
  * Display-only trust visibility for the canonical data layer.
  * Shows completeness score, detected conflicts, and source labels.

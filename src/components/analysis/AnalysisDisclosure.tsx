@@ -1,5 +1,5 @@
 /**
- * BRIX v1.6.0 — Analysis Disclosure Banner
+ * BRIQ v1.6.0 — Analysis Disclosure Banner
  *
  * Professional, non-intrusive global disclosure for the analysis experience.
  */

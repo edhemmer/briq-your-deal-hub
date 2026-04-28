@@ -1,5 +1,5 @@
 /**
- * BRIX v1.6.0 — Market Profile & Strategy Profile Definitions
+ * BRIQ v1.6.0 — Market Profile & Strategy Profile Definitions
  *
  * Canonical type system for market-aware, strategy-aware, risk-adjusted decisioning.
  * Pure types and deterministic config — no side effects.

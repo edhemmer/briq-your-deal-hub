@@ -1,4 +1,4 @@
-// BRIX Deal Intelligence Engine — deterministic, no AI judgement.
+// BRIQ Deal Intelligence Engine — deterministic, no AI judgement.
 
 import type { AnalysisResult } from "./dealAnalysisEngine";
 

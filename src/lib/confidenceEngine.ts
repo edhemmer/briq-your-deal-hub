@@ -1,5 +1,5 @@
 /**
- * BRIX v1.6.1 — Confidence-Aware Decisioning Engine
+ * BRIQ v1.6.1 — Confidence-Aware Decisioning Engine
  *
  * Evaluates the strength of available inputs and produces a confidence
  * score that accompanies analytical results. When data is insufficient,

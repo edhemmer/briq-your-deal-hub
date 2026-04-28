@@ -1,5 +1,5 @@
 /**
- * BRIX v1.6.0 — Canonical Engine Layer
+ * BRIQ v1.6.0 — Canonical Engine Layer
  * 
  * Single orchestration point: normalizedDealState → all analytical engines → outputs.
  * Pure functions only. No side effects. No component-level math.

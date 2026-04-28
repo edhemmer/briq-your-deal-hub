@@ -37,7 +37,7 @@ export default function LandingProblem() {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="mt-4 text-base md:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto"
         >
-          Most investors spend hours copying data into spreadsheets, cross-referencing market reports, and second-guessing their numbers. BRIX consolidates every step into one structured workflow.
+          Most investors spend hours copying data into spreadsheets, cross-referencing market reports, and second-guessing their numbers. BRIQ consolidates every step into one structured workflow.
         </motion.p>
       </div>
 
@@ -74,7 +74,7 @@ export default function LandingProblem() {
             transition={{ duration: 0.5, delay: 0.15 }}
             className="rounded-2xl border-2 border-primary/20 bg-primary/[0.03] p-7"
           >
-            <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-5">With BRIX</p>
+            <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-5">With BRIQ</p>
             <div className="space-y-3.5">
               {afterItems.map((item) => (
                 <div key={item} className="flex items-center gap-3 text-sm text-foreground font-medium">

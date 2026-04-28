@@ -1,5 +1,5 @@
 /**
- * BRIX v1.9.0 — Property Conflict Detector
+ * BRIQ v1.9.0 — Property Conflict Detector
  *
  * Detects meaningful disagreements between available source values.
  * Conflicts are informational — they do not block analysis.
