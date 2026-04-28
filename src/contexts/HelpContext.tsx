@@ -24,7 +24,7 @@ export function HelpProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
-    const key = `briq_onboarding_complete_${user.id}`;
+    const key = `brix_onboarding_complete_${user.id}`;
     const done = localStorage.getItem(key) === "true";
     setOnboardingComplete(done);
     if (!done) setShowOnboarding(true);
@@ -32,7 +32,7 @@ export function HelpProvider({ children }: { children: ReactNode }) {
 
   const completeOnboarding = useCallback(() => {
     if (!user) return;
-    localStorage.setItem(`briq_onboarding_complete_${user.id}`, "true");
+    localStorage.setItem(`brix_onboarding_complete_${user.id}`, "true");
     setOnboardingComplete(true);
     setShowOnboarding(false);
   }, [user]);

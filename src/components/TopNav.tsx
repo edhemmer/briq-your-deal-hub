@@ -45,7 +45,7 @@ export function TopNav() {
         <Link to="/dashboard" className="flex items-center gap-2.5 shrink-0">
           <BrixIcon size={40} className="text-primary" />
           <div className="flex flex-col leading-none">
-            <span className="text-base font-bold tracking-tight text-foreground">BRIQ</span>
+            <span className="text-base font-bold tracking-tight text-foreground">BRIX</span>
             <span className="text-[10px] text-muted-foreground font-medium tracking-wide">Real Estate Intelligence</span>
           </div>
         </Link>

@@ -40,7 +40,7 @@ export default function LandingHero() {
           transition={{ duration: 0.6, delay: 0.35 }}
           className="mt-6 text-lg md:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto"
         >
-          BRIQ helps real estate investors and operators move faster with two modules built for real transactions. <span className="text-foreground font-medium">DealIQ</span> analyzes pricing, underwriting, risk, and upside from a property address and key inputs. <span className="text-foreground font-medium">ContractIQ</span> reviews contracts from the buyer or seller perspective — surfacing pros, cons, deadlines, and smart questions to ask.
+          BRIX helps real estate investors and operators move faster with two modules built for real transactions. <span className="text-foreground font-medium">DealIQ</span> analyzes pricing, underwriting, risk, and upside from a property address and key inputs. <span className="text-foreground font-medium">ContractIQ</span> reviews contracts from the buyer or seller perspective — surfacing pros, cons, deadlines, and smart questions to ask.
         </motion.p>
 
         <motion.div

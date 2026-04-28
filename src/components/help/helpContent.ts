@@ -37,8 +37,8 @@ export const HELP_CENTER_SECTIONS = [
     id: "getting-started",
     title: "Getting Started",
     content: [
-      "BRIQ is a deal intelligence platform that helps real estate investors evaluate properties using financial analysis, market data, and strategy evaluation.",
-      "To begin, create a new deal from the Dashboard or Deals page. Enter the property address and basic financial assumptions. BRIQ will calculate key investment metrics automatically.",
+      "BRIX is a deal intelligence platform that helps real estate investors evaluate properties using financial analysis, market data, and strategy evaluation.",
+      "To begin, create a new deal from the Dashboard or Deals page. Enter the property address and basic financial assumptions. BRIX will calculate key investment metrics automatically.",
       "Your first deal analysis is free. Additional analyses require an active subscription.",
     ],
   },
@@ -71,7 +71,7 @@ export const HELP_CENTER_SECTIONS = [
       "Market Strength Score reflects the overall health of the local real estate market based on price trends, rent growth, and demand indicators.",
       "Demand Pressure measures buyer and renter competition using inventory levels, days on market, and absorption rates.",
       "Crime Score provides a relative safety signal for the property's area on a 0-10 scale. Lower scores indicate less crime risk.",
-      "All market data should be entered manually from trusted local sources. BRIQ evaluates the data you provide to generate market intelligence signals.",
+      "All market data should be entered manually from trusted local sources. BRIX evaluates the data you provide to generate market intelligence signals.",
     ],
   },
   {

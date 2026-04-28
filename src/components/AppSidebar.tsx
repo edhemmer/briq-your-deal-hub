@@ -52,7 +52,7 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex flex-col leading-tight">
               <span className="text-base font-semibold tracking-tight text-sidebar-primary">
-                BRIQ
+                BRIX
               </span>
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
                 Real Estate Intelligence

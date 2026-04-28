@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.6.1 — Guided Property Retrieval Component
+ * BRIX v1.6.1 — Guided Property Retrieval Component
  *
  * Sits within the existing analysis container. Provides address/URL input,
  * source resolution, draft state workflow (accept/edit/discard).

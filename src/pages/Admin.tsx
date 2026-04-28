@@ -22,7 +22,7 @@ const SUBSCRIPTION_OPTIONS = ["free", "active", "inactive", "canceled"] as const
 function AccessSourceBadge({ source }: { source: AccessSource }) {
   const styles: Record<AccessSource, string> = {
     manual_override: "bg-primary/10 text-primary border-primary/20",
-    stripe_active: "bg-[hsl(var(--briq-success)/0.12)] text-[hsl(var(--briq-success))] border-[hsl(var(--briq-success)/0.2)]",
+    stripe_active: "bg-[hsl(var(--brix-success)/0.12)] text-[hsl(var(--brix-success))] border-[hsl(var(--brix-success)/0.2)]",
     free_tier: "bg-secondary text-secondary-foreground border-border",
     locked: "bg-destructive/10 text-destructive border-destructive/20",
   };
@@ -112,11 +112,11 @@ export default function Admin() {
           </div>
         </CardContainer>
         <CardContainer className="p-4 flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${stripeReady ? "bg-[hsl(var(--briq-success)/0.12)]" : "bg-[hsl(var(--briq-warning)/0.12)]"}`}>
+          <div className={`p-2 rounded-lg ${stripeReady ? "bg-[hsl(var(--brix-success)/0.12)]" : "bg-[hsl(var(--brix-warning)/0.12)]"}`}>
             {stripeReady ? (
-              <CheckCircle2 className="h-4 w-4 text-[hsl(var(--briq-success))]" />
+              <CheckCircle2 className="h-4 w-4 text-[hsl(var(--brix-success))]" />
             ) : (
-              <AlertTriangle className="h-4 w-4 text-[hsl(var(--briq-warning))]" />
+              <AlertTriangle className="h-4 w-4 text-[hsl(var(--brix-warning))]" />
             )}
           </div>
           <div>

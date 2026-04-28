@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.5.2 — Rent Data Resolver
+ * BRIX v1.5.2 — Rent Data Resolver
  *
  * Canonical pathway for rent data ingestion.
  * Structured for future rental intelligence API integration.

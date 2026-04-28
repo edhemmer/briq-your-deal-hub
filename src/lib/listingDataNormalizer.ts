@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.9.0 — Listing Data Normalizer
+ * BRIX v1.9.0 — Listing Data Normalizer
  *
  * Accepts listing-derived property values and normalizes them
  * into the canonical source-aware model.

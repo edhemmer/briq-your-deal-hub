@@ -1,4 +1,4 @@
-// BRIQ Strategy Fit Engine v1.6.0 — deterministic, no external data.
+// BRIX Strategy Fit Engine v1.6.0 — deterministic, no external data.
 
 import type { AnalysisResult } from "./dealAnalysisEngine";
 

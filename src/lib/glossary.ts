@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.6.0 — Inline Glossary & Strategy Education
+ * BRIX v1.6.0 — Inline Glossary & Strategy Education
  *
  * Lightweight, plain-English definitions for key investment terms
  * and strategy explanations. Designed for inline contextual display

@@ -1,5 +1,5 @@
 /**
- * BRIQ v1.6.2 — Financing Intelligence Engine
+ * BRIX v1.6.2 — Financing Intelligence Engine
  *
  * Deterministic, rules-based financing path evaluation.
  * No AI, no external APIs, no approval language.
