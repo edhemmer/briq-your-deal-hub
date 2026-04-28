@@ -218,6 +218,42 @@ const ContractAnalysisPage = () => {
         </div>
       </CardContainer>
 
+      {/* Reports */}
+      <CardContainer className="p-5 mb-5">
+        <div className="flex items-center gap-2 mb-3">
+          <FileText className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">Reports</h3>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => downloadReport("full")}>
+            <Download className="h-3.5 w-3.5 mr-1.5" /> Full Deal Book
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => downloadReport("highlight")}>
+            <Download className="h-3.5 w-3.5 mr-1.5" /> Highlight Brief
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => downloadReport("attorney")}>
+            <Gavel className="h-3.5 w-3.5 mr-1.5" /> Attorney Questions
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => downloadReport("broker")}>
+            <Briefcase className="h-3.5 w-3.5 mr-1.5" /> Broker Questions
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-2">
+          Prepared for {user?.email ?? "you"} · {new Date().toLocaleDateString()} · BRIX ContractIQ — Confidential
+        </p>
+      </CardContainer>
+
+      {/* Executive Summary */}
+      {analysis.executiveSummary && (
+        <CardContainer className="p-5 mb-5">
+          <div className="flex items-center gap-2 mb-2">
+            <FileText className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">Executive summary</h3>
+          </div>
+          <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-line">{analysis.executiveSummary}</p>
+        </CardContainer>
+      )}
+
       {/* Takeaways */}
       <CardContainer className="p-5 mb-5">
         <div className="flex items-center gap-2 mb-3">
