@@ -47,17 +47,13 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-2.5">
-          <BrixIcon size={26} className="text-primary" />
+        <div className="flex items-baseline gap-1.5">
+          <BrixIcon size={26} className="text-primary self-center" />
           {!collapsed && (
-            <div className="flex flex-col leading-tight">
-              <span className="text-base font-semibold tracking-tight text-sidebar-primary">
-                BRIX
-              </span>
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-                Real Estate Intelligence
-              </span>
-            </div>
+            <>
+              <span className="text-base font-extrabold tracking-tight text-sidebar-primary leading-none">BRIX</span>
+              <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-none">Real Estate</span>
+            </>
           )}
         </div>
       </SidebarHeader>

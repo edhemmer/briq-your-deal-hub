@@ -12,12 +12,10 @@ export default function LandingNav() {
       className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border/40 bg-background/70 backdrop-blur-xl"
     >
       <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-5">
-        <Link to="/landing" className="flex items-center gap-2.5">
-          <BrixIcon size={36} className="text-primary" />
-          <div className="flex flex-col leading-none">
-            <span className="text-base font-bold tracking-tight text-foreground">BRIX</span>
-            <span className="text-[10px] text-muted-foreground font-medium">Real Estate Deal IQ</span>
-          </div>
+        <Link to="/landing" className="flex items-baseline gap-1.5">
+          <BrixIcon size={36} className="text-primary self-center" />
+          <span className="text-lg font-extrabold tracking-tight text-foreground leading-none">BRIX</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-none">Real Estate</span>
         </Link>
         <div className="flex items-center gap-3">
           <Link to="/login">
