@@ -51,9 +51,13 @@ export default function Register() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <SEO title="Create Your BRIX Account" description="Start analyzing real estate deals free with BRIX. DealIQ scores deals; ContractIQ reviews contracts. No credit card required." path="/register" />
       <div className="w-full max-w-sm space-y-6">
-        <div className="flex flex-col items-center gap-2">
-          <BrixIcon size={32} className="text-primary" />
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">Create your BRIX account</h1>
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex items-baseline gap-1.5">
+            <BrixIcon size={32} className="text-primary self-center" />
+            <span className="text-xl font-extrabold tracking-tight text-foreground leading-none">BRIX</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-none">Real Estate</span>
+          </div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Create your account</h1>
           <p className="text-sm text-muted-foreground">Start analyzing real estate deals</p>
         </div>
         <CardContainer className="p-6">

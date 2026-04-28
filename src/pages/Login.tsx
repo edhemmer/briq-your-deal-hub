@@ -46,9 +46,13 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <SEO title="Sign In to BRIX" description="Sign in to BRIX — real estate deal intelligence with DealIQ and ContractIQ." path="/login" />
       <div className="w-full max-w-sm space-y-6">
-        <div className="flex flex-col items-center gap-2">
-          <BrixIcon size={32} className="text-primary" />
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">Sign in to BRIX</h1>
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex items-baseline gap-1.5">
+            <BrixIcon size={32} className="text-primary self-center" />
+            <span className="text-xl font-extrabold tracking-tight text-foreground leading-none">BRIX</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-none">Real Estate</span>
+          </div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Sign in</h1>
           <p className="text-sm text-muted-foreground">Real Estate Deal Intelligence</p>
         </div>
         <CardContainer className="p-6">
