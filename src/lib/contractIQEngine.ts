@@ -84,17 +84,64 @@ export interface NegotiationMove {
   rationale: string;
 }
 
+export interface RiskMatrixRow {
+  id: string;
+  risk: string;
+  severity: Severity;
+  mitigation: string;
+  owner: Perspective | "both";
+}
+
+export interface LiabilityRow {
+  id: string;
+  item: string;
+  party: Perspective | "split" | "unspecified";
+  when: string;
+  why: string;
+}
+
+export interface WhoPaysRow {
+  id: string;
+  item: string;
+  buyer: boolean;
+  seller: boolean;
+  notes: string;
+}
+
+export interface TimelineRow {
+  id: string;
+  milestone: string;
+  date: string | null;
+  daysFromEffective: number | null;
+  party: Perspective | "both";
+}
+
+export interface BrokerQuestion {
+  id: string;
+  question: string;
+  why: string;
+}
+
 export interface ContractAnalysis {
   perspective: Perspective;
   summary: string;
+  executiveSummary: string;
   riskScore: number; // 0-100, higher = riskier for chosen perspective
   leverageScore: number; // 0-100
   recommendation: "proceed" | "negotiate" | "caution";
+  decision: "Proceed" | "Renegotiate" | "Pause";
+  decisionRationale: string;
   pros: Pro[];
   cons: Con[];
   weaknesses: Weakness[];
   questions: Question[];
+  attorneyQuestions: Question[];
+  brokerQuestions: BrokerQuestion[];
   deadlines: Deadline[];
+  timeline: TimelineRow[];
+  riskMatrix: RiskMatrixRow[];
+  liabilityAllocation: LiabilityRow[];
+  whoPaysWhat: WhoPaysRow[];
   negotiation: NegotiationMove[];
   takeaways: string[];
   missingInputs: string[];
