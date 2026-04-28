@@ -15,5 +15,6 @@ Allow: /
 Disallow: /admin
 Disallow: /account
 Disallow: /reset-password
+Disallow: /forgot-password
 
-Sitemap: https://briq-ai.lovable.app/sitemap.xml
+Sitemap: https://brixrealestate.app/sitemap.xml

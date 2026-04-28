@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CardContainer } from "@/components/ui/card-container";
 import BrixIcon from "@/components/BrixIcon";
+import SEO from "@/components/SEO";
 import { toast } from "@/hooks/use-toast";
 import { lovable } from "@/integrations/lovable";
 
@@ -43,6 +44,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <SEO title="Sign In to BRIX" description="Sign in to BRIX — real estate deal intelligence with DealIQ and ContractIQ." path="/login" />
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-2">
           <BrixIcon size={32} className="text-primary" />

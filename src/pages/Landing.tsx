@@ -1,3 +1,4 @@
+import SEO from "@/components/SEO";
 import LandingNav from "@/components/landing/LandingNav";
 import LandingHero from "@/components/landing/LandingHero";
 import LandingMetrics from "@/components/landing/LandingMetrics";
@@ -11,6 +12,11 @@ import LandingFooter from "@/components/landing/LandingFooter";
 export default function Landing() {
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="BRIX — Real Estate Deal & Contract Intelligence"
+        description="BRIX helps investors, developers, brokers, attorneys, and lenders move faster. DealIQ analyzes pricing, risk, and upside. ContractIQ reviews contracts. Better analysis. Faster decisions. Stronger deals."
+        path="/landing"
+      />
       <LandingNav />
       <main>
         <LandingHero />
