@@ -65,23 +65,6 @@ const ContractAnalysisPage = () => {
   const { user } = useAuth();
   const [perspective, setPerspective] = useState<Perspective | null>(null);
 
-  const buildReportCtx = (): ContractReportContext | null => {
-    if (!contract || !analysis) return null;
-    return {
-      contractTitle: contract.contract_name ?? "Contract",
-      contractType: contract.contract_type,
-      propertyAddress: contract.property_address,
-      counterparty: activePerspective === "buyer" ? contract.seller_name : contract.buyer_name,
-      buyerName: contract.buyer_name,
-      sellerName: contract.seller_name,
-      purchasePrice: contract.purchase_price,
-      earnestMoney: contract.earnest_money,
-      closingDate: contract.closing_date,
-      preparedBy: user?.email ?? "BRIX User",
-      analysis,
-    };
-  };
-
   const activePerspective: Perspective =
     perspective ?? ((contract?.perspective as Perspective) ?? "buyer");
 
@@ -109,6 +92,32 @@ const ContractAnalysisPage = () => {
     };
     return analyzeContract(input);
   }, [contract, activePerspective]);
+
+  const buildReportCtx = (): ContractReportContext | null => {
+    if (!contract || !analysis) return null;
+    return {
+      contractTitle: contract.contract_name ?? "Contract",
+      contractType: contract.contract_type,
+      propertyAddress: contract.property_address,
+      counterparty: activePerspective === "buyer" ? contract.seller_name : contract.buyer_name,
+      buyerName: contract.buyer_name,
+      sellerName: contract.seller_name,
+      purchasePrice: contract.purchase_price,
+      earnestMoney: contract.earnest_money,
+      closingDate: contract.closing_date,
+      preparedBy: user?.email ?? "BRIX User",
+      analysis,
+    };
+  };
+
+  const downloadReport = (kind: "full" | "highlight" | "attorney" | "broker") => {
+    const ctx = buildReportCtx();
+    if (!ctx) return;
+    if (kind === "full") generateFullDealBookPDF(ctx);
+    else if (kind === "highlight") generateHighlightBriefPDF(ctx);
+    else if (kind === "attorney") generateAttorneyQuestionsPDF(ctx);
+    else generateBrokerQuestionsPDF(ctx);
+  };
 
   if (isLoading) {
     return (
