@@ -82,9 +82,24 @@ const toStr = (v: unknown): string | null => {
 const toNum = (v: unknown): number | null => {
   if (typeof v === "number" && Number.isFinite(v)) return v;
   if (typeof v === "string") {
-    const cleaned = v.replace(/[$,\s]/g, "");
-    const n = Number(cleaned);
-    return Number.isFinite(n) ? n : null;
+    let s = v.trim();
+    if (!s) return null;
+    // Handle accounting-style negatives: (1,234.56) -> -1234.56
+    let negative = false;
+    if (/^\(.*\)$/.test(s)) {
+      negative = true;
+      s = s.slice(1, -1);
+    }
+    // Strip currency symbols, codes, commas, whitespace
+    s = s.replace(/USD|usd|\$|€|£|,|\s/g, "");
+    if (s.startsWith("-")) {
+      negative = !negative;
+      s = s.slice(1);
+    }
+    if (!/^\d+(\.\d+)?$/.test(s)) return null;
+    const n = Number(s);
+    if (!Number.isFinite(n)) return null;
+    return negative ? -n : n;
   }
   return null;
 };
@@ -94,13 +109,59 @@ const toInt = (v: unknown): number | null => {
   return n == null ? null : Math.round(n);
 };
 
+const MONTHS: Record<string, number> = {
+  jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3,
+  apr: 4, april: 4, may: 5, jun: 6, june: 6, jul: 7, july: 7,
+  aug: 8, august: 8, sep: 9, sept: 9, september: 9, oct: 10, october: 10,
+  nov: 11, november: 11, dec: 12, december: 12,
+};
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
 const toIsoDate = (v: unknown): string | null => {
   const s = toStr(v);
   if (!s) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  const t = new Date(s).getTime();
-  if (Number.isNaN(t)) return null;
-  return new Date(t).toISOString().slice(0, 10);
+  // Already ISO
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  // US M/D/YYYY or M-D-YYYY (most common in US real-estate contracts)
+  const us = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+  if (us) {
+    let [, m, d, y] = us;
+    let yr = parseInt(y, 10);
+    if (yr < 100) yr += yr >= 50 ? 1900 : 2000;
+    const mn = parseInt(m, 10);
+    const dn = parseInt(d, 10);
+    if (mn >= 1 && mn <= 12 && dn >= 1 && dn <= 31) {
+      return `${yr}-${pad2(mn)}-${pad2(dn)}`;
+    }
+    return null;
+  }
+  // "January 15, 2026" / "15 January 2026" / "Jan 15 2026"
+  const named = s.match(/([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/);
+  if (named) {
+    const mn = MONTHS[named[1].toLowerCase()];
+    const dn = parseInt(named[2], 10);
+    const yr = parseInt(named[3], 10);
+    if (mn && dn >= 1 && dn <= 31) return `${yr}-${pad2(mn)}-${pad2(dn)}`;
+  }
+  const named2 = s.match(/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+  if (named2) {
+    const mn = MONTHS[named2[2].toLowerCase()];
+    const dn = parseInt(named2[1], 10);
+    const yr = parseInt(named2[3], 10);
+    if (mn && dn >= 1 && dn <= 31) return `${yr}-${pad2(mn)}-${pad2(dn)}`;
+  }
+  // Last resort — Date.parse, but only accept if it returns something sane.
+  const t = Date.parse(s);
+  if (!Number.isNaN(t)) {
+    const dt = new Date(t);
+    const y = dt.getUTCFullYear();
+    if (y >= 1900 && y <= 2100) {
+      return `${y}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
+    }
+  }
+  return null;
 };
 
 const toBool = (v: unknown): boolean | null => {
