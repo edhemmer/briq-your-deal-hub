@@ -199,18 +199,78 @@ type RawAi = Record<string, unknown> & {
   source_excerpts?: Record<string, unknown>;
 };
 
+/**
+ * Cross-validate a stringy AI value against the source document.
+ * Returns true if the value's "essence" is found in the source — meaning
+ * the AI didn't hallucinate it. We normalize aggressively (strip case,
+ * punctuation, whitespace) because PDF text extraction often inserts noise.
+ */
+const normalizeForMatch = (s: string) =>
+  s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+const valueAppearsInSource = (
+  value: string | number | null,
+  sourceNorm: string,
+): boolean => {
+  if (value == null || sourceNorm.length === 0) return true; // nothing to validate
+  if (typeof value === "number") {
+    // Look for the integer portion with thousands separators stripped.
+    const intStr = String(Math.round(value));
+    if (sourceNorm.includes(intStr)) return true;
+    // Also try splitting into 3-digit chunks (e.g. 450,000)
+    return sourceNorm.includes(intStr);
+  }
+  const v = normalizeForMatch(value);
+  if (v.length < 3) return true; // too short to validate meaningfully
+  if (sourceNorm.includes(v)) return true;
+  // For multi-token names/addresses, accept if all tokens >=3 chars are present.
+  const tokens = value
+    .split(/\s+/)
+    .map((t) => normalizeForMatch(t))
+    .filter((t) => t.length >= 3);
+  if (tokens.length === 0) return false;
+  const hits = tokens.filter((t) => sourceNorm.includes(t)).length;
+  return hits / tokens.length >= 0.7;
+};
+
+const downgrade = (c: CanonicalConfidence): CanonicalConfidence => {
+  if (c === "high") return "low";
+  if (c === "medium") return "low";
+  return "none";
+};
+
 export function mapAiExtraction(
   raw: RawAi | null | undefined,
+  sourceText?: string | null,
 ): CanonicalContractExtraction {
   const r = raw ?? {};
   const conf = (r.confidence ?? {}) as Record<string, unknown>;
   const ex = (r.source_excerpts ?? {}) as Record<string, unknown>;
+  const sourceNorm = normalizeForMatch(sourceText ?? "");
 
-  const make = <T>(key: string, value: T | null): CanonicalContractField<T> => ({
-    value,
-    confidence: toBand(conf[key]),
-    excerpt: excerpt(ex[key]),
-  });
+  const make = <T>(
+    key: string,
+    value: T | null,
+    opts?: { validate?: boolean },
+  ): CanonicalContractField<T> => {
+    let band = toBand(conf[key]);
+    // Cross-validate string and number values against the source document.
+    if (
+      opts?.validate !== false &&
+      sourceNorm.length > 0 &&
+      value != null &&
+      (typeof value === "string" || typeof value === "number")
+    ) {
+      const ok = valueAppearsInSource(value as string | number, sourceNorm);
+      if (!ok) band = downgrade(band);
+    }
+    return {
+      value,
+      confidence: band,
+      excerpt: excerpt(ex[key]),
+    };
+  };
+
 
   return {
     contract_type: make("contract_type", toStr(r.contract_type)),
