@@ -14,6 +14,7 @@ interface ContractIntakeUploaderProps {
     extraction: CanonicalContractExtraction,
     sourceFiles: { filename: string; size: number; parser: string }[],
     meta: Record<string, unknown>,
+    rawText: string,
   ) => void;
 }
 
