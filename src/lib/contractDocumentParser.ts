@@ -54,19 +54,74 @@ async function parsePdf(file: File): Promise<ParsedDocument> {
   const buf = await readAsArrayBuffer(file);
   const doc = await pdfjs.getDocument({ data: buf }).promise;
   const pages: string[] = [];
+
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
-    const text = content.items
-      .map((it) => ("str" in it ? it.str : ""))
-      .join(" ");
-    pages.push(text);
+
+    // Reconstruct line structure using Y position from each text item's
+    // transform matrix. PDF text items can arrive out of order; grouping
+    // them by Y (rounded) and sorting by X reproduces visual reading order
+    // far more reliably than naive `.join(" ")`. This is critical for names,
+    // addresses, dates, and dollar amounts that line up in columns.
+    type Item = { str: string; x: number; y: number; hasEOL?: boolean };
+    const items: Item[] = [];
+    for (const it of content.items as Array<{
+      str?: string;
+      transform?: number[];
+      hasEOL?: boolean;
+    }>) {
+      if (!("str" in it) || typeof it.str !== "string") continue;
+      const tr = it.transform ?? [1, 0, 0, 1, 0, 0];
+      items.push({
+        str: it.str,
+        x: tr[4] ?? 0,
+        y: tr[5] ?? 0,
+        hasEOL: !!it.hasEOL,
+      });
+    }
+
+    // Bucket by Y (rounded to 2px to absorb sub-pixel jitter).
+    const lines = new Map<number, Item[]>();
+    for (const it of items) {
+      const key = Math.round(it.y / 2) * 2;
+      const arr = lines.get(key) ?? [];
+      arr.push(it);
+      lines.set(key, arr);
+    }
+
+    // Higher Y = nearer the top of the page in PDF coordinates.
+    const sortedY = Array.from(lines.keys()).sort((a, b) => b - a);
+    const rendered: string[] = [];
+    for (const y of sortedY) {
+      const row = (lines.get(y) ?? []).sort((a, b) => a.x - b.x);
+      // Insert a space when the gap between two glyphs is wider than ~3px,
+      // so words don't get glued together but tightly spaced characters
+      // (kerning) stay as one token.
+      let line = "";
+      let lastEnd = -Infinity;
+      for (const it of row) {
+        if (line.length === 0) {
+          line = it.str;
+        } else if (it.x - lastEnd > 3) {
+          line += " " + it.str;
+        } else {
+          line += it.str;
+        }
+        lastEnd = it.x + it.str.length * 4; // approximate
+      }
+      const trimmed = line.replace(/\s+/g, " ").trim();
+      if (trimmed) rendered.push(trimmed);
+    }
+
+    pages.push(rendered.join("\n"));
   }
+
   return {
     filename: file.name,
     mime: file.type || "application/pdf",
     size: file.size,
-    text: pages.join("\n\n"),
+    text: pages.join("\n\n--- PAGE BREAK ---\n\n"),
     pageCount: doc.numPages,
     parser: "pdfjs",
   };
