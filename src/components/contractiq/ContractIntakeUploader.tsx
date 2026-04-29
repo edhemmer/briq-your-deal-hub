@@ -14,6 +14,7 @@ interface ContractIntakeUploaderProps {
     extraction: CanonicalContractExtraction,
     sourceFiles: { filename: string; size: number; parser: string }[],
     meta: Record<string, unknown>,
+    rawText: string,
   ) => void;
 }
 
@@ -131,8 +132,9 @@ export function ContractIntakeUploader({ onExtracted }: ContractIntakeUploaderPr
       if (fnErr) throw new Error(fnErr.message);
       if (!data?.extracted) throw new Error(data?.error ?? "Extraction returned no data");
 
-      const canonical = mapAiExtraction(data.extracted);
-      onExtracted(canonical, payload.source_files as never, data.meta ?? {});
+      const rawText = (payload.text as string | undefined) ?? "";
+      const canonical = mapAiExtraction(data.extracted, rawText);
+      onExtracted(canonical, payload.source_files as never, data.meta ?? {}, rawText);
       toast({ title: "Document parsed", description: "Review the auto-filled fields below." });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Extraction failed";

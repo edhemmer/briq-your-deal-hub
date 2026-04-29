@@ -91,6 +91,7 @@ const ContractIQ = () => {
     e: CanonicalContractExtraction,
     files: unknown[],
     meta: Record<string, unknown>,
+    rawText: string,
   ) => {
     setExtraction(e);
     setSourceFiles(files);
@@ -98,7 +99,6 @@ const ContractIQ = () => {
     const v = extractionToFormValues(e);
     setForm((prev) => ({
       ...prev,
-      // Auto-fill, but don't overwrite a value the user already typed.
       contract_type: prev.contract_type || v.contract_type,
       buyer_name: prev.buyer_name || v.buyer_name,
       seller_name: prev.seller_name || v.seller_name,
@@ -110,6 +110,9 @@ const ContractIQ = () => {
       financing_contingency: prev.financing_contingency || v.financing_contingency,
       appraisal_contingency: prev.appraisal_contingency || v.appraisal_contingency,
       inspection_contingency: prev.inspection_contingency || v.inspection_contingency,
+      // Persist the parsed text so the engine and downstream review can
+      // trace every extracted value back to its source.
+      contract_text: prev.contract_text || rawText,
       contract_name:
         prev.contract_name ||
         v.property_address ||
@@ -410,7 +413,9 @@ type FormShape = {
   contract_text: string;
 };
 
-// Compact summary of fields the AI captured with high/medium confidence.
+// Compact summary of fields the AI captured. We surface confidence bands
+// (verified / unverified) so the user can spot any value that didn't trace
+// back to the source document during cross-validation.
 const ExtractedSummary = ({
   extraction,
   form,
@@ -420,23 +425,52 @@ const ExtractedSummary = ({
 }) => {
   const captured = FIELD_DEFS.filter((f) => {
     const ex = extraction[f.key];
-    return ex && ex.confidence !== "none" && ex.confidence !== "low" && form[f.key];
+    return ex && ex.confidence !== "none" && form[f.key];
   });
   if (captured.length === 0) return null;
+  const lowCount = captured.filter(
+    (f) => extraction[f.key]?.confidence === "low",
+  ).length;
   return (
     <div className="rounded-lg border border-border bg-muted/20 p-3">
-      <p className="text-[11px] font-semibold text-foreground uppercase tracking-wide mb-2">
-        Extracted from contract
-      </p>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[11px] font-semibold text-foreground uppercase tracking-wide">
+          Extracted from contract
+        </p>
+        {lowCount > 0 && (
+          <span className="text-[10px] font-medium text-amber-700 dark:text-amber-400">
+            {lowCount} field{lowCount > 1 ? "s" : ""} need review
+          </span>
+        )}
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
         {captured.map((f) => {
           const ex = extraction[f.key];
+          const conf = ex?.confidence ?? "none";
+          const dot =
+            conf === "high"
+              ? "bg-emerald-500"
+              : conf === "medium"
+              ? "bg-amber-500"
+              : "bg-rose-500";
+          const label =
+            conf === "high"
+              ? "Verified in document"
+              : conf === "medium"
+              ? "Partial match — please verify"
+              : "Not found in source — please verify";
           return (
             <div key={f.key} className="flex items-start justify-between gap-2 text-xs">
-              <span className="text-muted-foreground">{f.label}</span>
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${dot}`}
+                  title={label}
+                />
+                {f.label}
+              </span>
               <span
                 className="font-medium text-foreground text-right truncate max-w-[60%]"
-                title={ex?.excerpt || ""}
+                title={ex?.excerpt ? `Source: "${ex.excerpt}"` : label}
               >
                 {String(form[f.key])}
               </span>
