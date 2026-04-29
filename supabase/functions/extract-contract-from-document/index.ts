@@ -209,14 +209,16 @@ serve(async (req) => {
     }
 
     // Cap the text we send to keep latency + cost predictable.
-    // Front-loaded + tail-loaded so we capture the parties at the top
-    // and signatures/closing terms at the bottom.
-    const MAX = 90_000;
+    // Real-estate purchase contracts (incl. addenda) are typically 30–80k chars
+    // after PDF text extraction, so we cap at 180k and only truncate the
+    // middle if we exceed it. Truncating loses contingency and stipulation
+    // language, so we keep both ends generous.
+    const MAX = 180_000;
     let normalized = text ?? "";
     if (normalized.length > MAX) {
-      const head = normalized.slice(0, Math.floor(MAX * 0.7));
-      const tail = normalized.slice(-Math.floor(MAX * 0.3));
-      normalized = `${head}\n\n...[truncated middle]...\n\n${tail}`;
+      const head = normalized.slice(0, Math.floor(MAX * 0.65));
+      const tail = normalized.slice(-Math.floor(MAX * 0.35));
+      normalized = `${head}\n\n...[truncated middle ${normalized.length - MAX} chars]...\n\n${tail}`;
     }
 
     const userContent: Array<Record<string, unknown>> = [];
@@ -224,9 +226,17 @@ serve(async (req) => {
       userContent.push({
         type: "text",
         text:
-          "Extract canonical real-estate contract fields from the document text below. " +
-          "Pull verbatim text where requested. Use null / empty arrays for any field not present. " +
-          "Do not infer.\n\nDOCUMENT TEXT:\n" + normalized,
+          "Extract canonical real-estate contract fields from the document text below.\n\n" +
+          "RULES (production-grade, zero tolerance for hallucination):\n" +
+          "1. Every populated field MUST be supported by a verbatim quote from the document, returned in source_excerpts[field_name].\n" +
+          "2. If a value is not literally written in the document, return null and confidence 0. Do NOT infer party names from email signatures, do NOT infer addresses from headers, do NOT round numbers.\n" +
+          "3. Names: copy the exact party name as written (including LLC / Trust / Inc.). Do not strip suffixes.\n" +
+          "4. Addresses: copy the full address as written, in one line, with city/state/zip.\n" +
+          "5. Money: return as a plain number (450000, not '$450,000.00'). Confidence = 1 only if the dollar amount appears verbatim.\n" +
+          "6. Dates: return as YYYY-MM-DD. If the document says 'on or before March 1, 2026', the closing_date is 2026-03-01. If it says 'TBD' or '___', return null.\n" +
+          "7. Contingency booleans: true ONLY if the contract explicitly grants that contingency to the buyer. 'Buyer waives financing contingency' = false.\n" +
+          "8. special_stipulations: copy each non-standard clause verbatim (one per array entry, ≤400 chars each).\n\n" +
+          "DOCUMENT TEXT:\n" + normalized,
       });
     }
     if (image_base64) {
@@ -234,7 +244,8 @@ serve(async (req) => {
         type: "text",
         text:
           "Extract canonical contract fields from the contract image. " +
-          "Only use information that is explicitly visible. Use null for missing fields.",
+          "Only use information that is explicitly visible. Use null for missing fields. " +
+          "Provide a verbatim source_excerpt for every populated field.",
       });
       userContent.push({
         type: "image_url",
@@ -257,14 +268,17 @@ serve(async (req) => {
         body: JSON.stringify({
           model: "google/gemini-2.5-pro",
           temperature: 0,
-          max_tokens: 8000,
+          max_tokens: 12000,
           messages: [
             {
               role: "system",
               content:
-                "You are a deterministic real-estate contract parser. Extract only fields that are explicitly present. " +
-                "Never infer, estimate, or hallucinate. If a field is not in the document, return null (or empty array) with confidence 0. " +
-                "For verbatim fields like special_stipulations, copy the EXACT wording from the document. " +
+                "You are a deterministic real-estate contract parser used in a production legal-tech pipeline. " +
+                "Extract only fields that are EXPLICITLY present in the document. " +
+                "Never infer, estimate, paraphrase, or hallucinate. " +
+                "If a field is not literally stated, return null (or empty array) with confidence 0. " +
+                "For every populated field you MUST return a verbatim source_excerpts entry — a copied snippet (≤200 chars) from the document where that exact value appears. " +
+                "If you cannot produce a verbatim excerpt, the field is not extractable; return null. " +
                 "You MUST call the extract_contract_fields tool with the canonical schema.",
             },
             { role: "user", content: userContent },
