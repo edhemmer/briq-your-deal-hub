@@ -91,6 +91,7 @@ const ContractIQ = () => {
     e: CanonicalContractExtraction,
     files: unknown[],
     meta: Record<string, unknown>,
+    rawText: string,
   ) => {
     setExtraction(e);
     setSourceFiles(files);
@@ -98,7 +99,6 @@ const ContractIQ = () => {
     const v = extractionToFormValues(e);
     setForm((prev) => ({
       ...prev,
-      // Auto-fill, but don't overwrite a value the user already typed.
       contract_type: prev.contract_type || v.contract_type,
       buyer_name: prev.buyer_name || v.buyer_name,
       seller_name: prev.seller_name || v.seller_name,
@@ -110,6 +110,9 @@ const ContractIQ = () => {
       financing_contingency: prev.financing_contingency || v.financing_contingency,
       appraisal_contingency: prev.appraisal_contingency || v.appraisal_contingency,
       inspection_contingency: prev.inspection_contingency || v.inspection_contingency,
+      // Persist the parsed text so the engine and downstream review can
+      // trace every extracted value back to its source.
+      contract_text: prev.contract_text || rawText,
       contract_name:
         prev.contract_name ||
         v.property_address ||
