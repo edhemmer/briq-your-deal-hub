@@ -22,6 +22,7 @@
 
 import type { CanonicalContractExtraction, PaidBy } from "./contractDataMapper";
 import { runParalegalRules, type ClosingAccountingRow } from "./contractIQRules";
+export type { ClosingAccountingRow } from "./contractIQRules";
 
 export type Perspective = "buyer" | "seller";
 export type Severity = "high" | "moderate" | "low";
@@ -146,6 +147,8 @@ export interface ContractAnalysis {
   negotiation: NegotiationMove[];
   takeaways: string[];
   missingInputs: string[];
+  dealStructureLabel?: string;
+  closingAccounting?: ClosingAccountingRow[];
   computedAt: string;
 }
 
@@ -476,6 +479,14 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
     addQ("backup_offer", "Should we accept backup offers during the contingency period?", "Maintains leverage if the primary buyer terminates.", "timeline");
   }
 
+  // ===== Paralegal rules merge (deal structure, tax, commercial diligence) =====
+  const paralegal = runParalegalRules(e, p, price, val(e?.governing_law_state) ?? null);
+  pros.push(...paralegal.pros);
+  cons.push(...paralegal.cons);
+  weaknesses.push(...paralegal.weaknesses);
+  questions.push(...paralegal.questions);
+  negotiation.push(...paralegal.negotiation);
+
   // ===== Scoring =====
   const sevWeight: Record<Severity, number> = { high: 30, moderate: 15, low: 5 };
   const rawRisk = cons.reduce((sum, c) => sum + sevWeight[c.severity], 0);
@@ -722,7 +733,15 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
     });
   }
 
-  // Order deadlines chronologically (set first, then missing)
+  // Merge paralegal-rules supplemental rows (deal-structure aware allocations,
+  // commercial diligence, broker prompts). De-dup by id where keys overlap.
+  const mergeById = <T extends { id: string }>(base: T[], extra: T[]): T[] => {
+    const ids = new Set(base.map((x) => x.id));
+    return [...base, ...extra.filter((x) => !ids.has(x.id))];
+  };
+  const mergedWhoPays = mergeById(whoPaysWhat, paralegal.whoPaysWhat);
+  const mergedLiability = mergeById(liabilityAllocation, paralegal.liabilityAllocation);
+  const mergedBrokerQs = mergeById(brokerQuestions, paralegal.brokerQuestions);
   deadlines.sort((a, b) => {
     if (a.status === "missing" && b.status !== "missing") return 1;
     if (b.status === "missing" && a.status !== "missing") return -1;
@@ -760,15 +779,17 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
     weaknesses,
     questions,
     attorneyQuestions,
-    brokerQuestions,
+    brokerQuestions: mergedBrokerQs,
     deadlines,
     timeline,
     riskMatrix,
-    liabilityAllocation,
-    whoPaysWhat,
+    liabilityAllocation: mergedLiability,
+    whoPaysWhat: mergedWhoPays,
     negotiation,
     takeaways,
     missingInputs: missing,
+    dealStructureLabel: paralegal.dealStructureLabel,
+    closingAccounting: paralegal.closingAccounting,
     computedAt: new Date().toISOString(),
   };
 }

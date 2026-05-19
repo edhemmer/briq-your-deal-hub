@@ -161,6 +161,11 @@ const ContractAnalysisPage = () => {
             <p className="text-sm text-muted-foreground mt-1">
               {contract.property_address ?? "No address"}
             </p>
+            {analysis.dealStructureLabel && (
+              <Badge variant="outline" className="mt-2 text-[10px]">
+                Structure: {analysis.dealStructureLabel}
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <div className="flex rounded-md border border-border bg-background p-0.5">
@@ -484,6 +489,50 @@ const ContractAnalysisPage = () => {
               </tbody>
             </table>
           </div>
+        </CardContainer>
+      )}
+
+      {/* Closing accounting (estimated settlement statement) */}
+      {analysis.closingAccounting && analysis.closingAccounting.length > 0 && (
+        <CardContainer className="p-5 mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Scale className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">Closing accounting (estimated)</h3>
+            <Badge variant="outline" className="text-[10px] ml-auto">{analysis.closingAccounting.length} lines</Badge>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b border-border">
+                  <th className="py-2 pr-3 font-medium">Category</th>
+                  <th className="py-2 pr-3 font-medium">Line item</th>
+                  <th className="py-2 pr-3 font-medium text-center">Buyer</th>
+                  <th className="py-2 pr-3 font-medium text-center">Seller</th>
+                  <th className="py-2 pr-3 font-medium text-right">Est. amount</th>
+                  <th className="py-2 font-medium">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analysis.closingAccounting.map((r) => (
+                  <tr key={r.id} className="border-b border-border/50 align-top">
+                    <td className="py-2 pr-3 text-foreground/80">{r.category}</td>
+                    <td className="py-2 pr-3 font-medium text-foreground">{r.item}</td>
+                    <td className="py-2 pr-3 text-center">{r.buyer ? "✓" : "—"}</td>
+                    <td className="py-2 pr-3 text-center">{r.seller ? "✓" : "—"}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-foreground">
+                      {r.estimatedAmount != null
+                        ? r.estimatedAmount.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })
+                        : "—"}
+                    </td>
+                    <td className="py-2 text-muted-foreground leading-relaxed">{r.notes}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            Estimated lines combine contract allocations with industry-standard defaults (title ~0.5%, transfer tax ~0.4%, etc.). Confirm with closing agent.
+          </p>
         </CardContainer>
       )}
 
