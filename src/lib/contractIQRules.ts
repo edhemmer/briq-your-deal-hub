@@ -160,7 +160,148 @@ export function runParalegalRules(
     }
   }
 
-  if (structure === "seller_financing" || structure === "installment_sale") {
+  // ===== Agency / GSE multifamily (Fannie DUS, Freddie Optigo) =====
+  if (structure === "fannie_mae" || structure === "freddie_mac") {
+    const agency = structure === "fannie_mae" ? "Fannie Mae DUS" : "Freddie Mac Optigo";
+    addPro("agency_terms", `${agency} financing`, "Non-recourse (with standard carve-outs), 10-yr fixed, 30-yr amortization, assumable. Best-in-class CRE debt terms for stabilized multifamily.", "both");
+    if (p === "buyer") {
+      addQ("agency_size", "Does the deal meet agency minimums (typically $1M Small Balance / $7.5M conventional)?", "Below-threshold deals fall to portfolio or CMBS execution with worse terms.", "financial");
+      addQ("agency_occ", "Is the property ≥90% physical and 85% economic occupancy for 90+ days?", "Agency seasoning requirements for stabilized execution.", "financial");
+      addQ("agency_repl", "Are replacement-reserve and tax/insurance escrows underwritten ($250–$300/unit/yr typical)?", "Mandatory escrows reduce free cash flow vs proforma.", "financial");
+      addCon("agency_prepay", "Yield maintenance / defeasance prepayment", "moderate", "Agency loans carry YM or defeasance — refinance/sale before maturity can cost 5–15% of loan balance in a falling-rate environment.", "buyer");
+      addQ("agency_carve", "Have the bad-boy carve-outs and sponsor net-worth / liquidity tests been reviewed?", "Carve-outs convert non-recourse to recourse on fraud, waste, environmental, bankruptcy.", "legal");
+    }
+    addAcct({ id: "acct_agency_fee", category: "Lender", item: `${agency} origination + due diligence`, buyer: true, seller: false, estimatedAmount: price > 0 ? price * 0.01 : null, notes: "Typical 1% origination + $25–75k third-party reports (appraisal, PCNA, Phase I, seismic if applicable)." });
+    addAcct({ id: "acct_agency_esc", category: "Lender", item: "Replacement / T&I escrows (initial deposit)", buyer: true, seller: false, estimatedAmount: null, notes: "Funded at close; recurring monthly thereafter." });
+  }
+
+  // ===== HUD / FHA multifamily & healthcare =====
+  if (structure === "hud_223f" || structure === "hud_221d4" || structure === "hud_232" || structure === "fha_multifamily") {
+    const prog = structure === "hud_223f" ? "HUD 223(f)" : structure === "hud_221d4" ? "HUD 221(d)(4)" : structure === "hud_232" ? "HUD 232" : "FHA multifamily";
+    addPro("hud_terms", `${prog} financing`, "35–40 yr fully-amortizing, non-recourse, low fixed rate, assumable. Best long-duration CRE debt available.", "both");
+    if (p === "buyer") {
+      addCon("hud_time", `${prog} timeline`, "high", "HUD processing runs 6–12 months from application to firm commitment. Standard 30–60 day contracts cannot accommodate — secure extensions or bridge-to-HUD.", "buyer");
+      addQ("hud_extensions", "Are sufficient closing extensions or bridge financing arranged for HUD's 6–12 month timeline?", "HUD deals routinely die at close from timing mismatch.", "timeline");
+      addQ("hud_davis", "Does Davis-Bacon prevailing-wage apply (221(d)(4))?", "Raises construction cost ~10–20% and lengthens schedule.", "financial");
+      addQ("hud_regagree", "Has the HUD Regulatory Agreement been reviewed (rent restrictions, distributions, reserves)?", "Reg-A binds for the life of the loan — caps distributions and operational flexibility.", "legal");
+      addQ("hud_lihtc", "Is LIHTC, Section 8 HAP, or other affordability layered with the HUD loan?", "Layered subsidies add compliance and impact equity returns.", "legal");
+    }
+    addAcct({ id: "acct_hud_mip", category: "Lender", item: `${prog} MIP (mortgage insurance premium)`, buyer: true, seller: false, estimatedAmount: price > 0 ? price * 0.0025 : null, notes: "Upfront ~0.25% + ongoing ~0.25–0.65%/yr on loan balance." });
+    addAcct({ id: "acct_hud_app", category: "Lender", item: "HUD application + third-party reports", buyer: true, seller: false, estimatedAmount: 75000, notes: "Appraisal, market study, PCNA, environmental, architectural — typically $50–125k." });
+  }
+
+  // ===== CMBS conduit =====
+  if (structure === "cmbs") {
+    addPro("cmbs_lev", "CMBS execution", "Higher leverage (up to 75% LTV), non-recourse, fixed rate, IO available — best for stabilized commercial.", "both");
+    if (p === "buyer") {
+      addCon("cmbs_def", "Defeasance prepayment", "moderate", "CMBS loans are defeased (Treasury portfolio substitution), not prepaid. Defeasance cost can exceed 10% of balance in falling-rate periods.", "buyer");
+      addCon("cmbs_serv", "Special-servicer risk", "moderate", "Modifications, assumptions, lease consents go through master/special servicer with 30–90 day response times and fees.", "buyer");
+      addQ("cmbs_carve", "Have non-recourse carve-outs and sponsor net-worth covenants been reviewed?", "Same bad-boy carve-out exposure as agency loans.", "legal");
+      addQ("cmbs_cash", "Are cash-management / lockbox triggers (DSCR, occupancy) set at reasonable thresholds?", "Springing lockboxes can sweep cash flow during temporary dips.", "financial");
+    }
+    addAcct({ id: "acct_cmbs", category: "Lender", item: "CMBS origination + legal", buyer: true, seller: false, estimatedAmount: price > 0 ? price * 0.012 : null, notes: "1% origination + lender legal ~$50–100k + third-party reports." });
+  }
+
+  // ===== SBA 504 / 7(a) — owner-user =====
+  if (structure === "sba_504" || structure === "sba_7a") {
+    const prog = structure === "sba_504" ? "SBA 504" : "SBA 7(a)";
+    addPro("sba_terms", `${prog} financing`, "Up to 90% LTV, low down payment, 25-yr amortization, below-market blended rates for owner-user real estate.", "buyer");
+    if (p === "buyer") {
+      addCon("sba_owneruser", `${prog} owner-occupancy requirement`, "moderate", "Borrower must occupy ≥51% of an existing building (60% new construction). Pure investment use is ineligible.", "buyer");
+      addCon("sba_pg", "Personal guaranty required", "moderate", "All 20%+ owners must personally guarantee. No non-recourse option.", "buyer");
+      addQ("sba_size", "Does the borrower meet SBA size standards (NAICS-based)?", "Affiliation rules can disqualify deals with related entities.", "financial");
+      addQ("sba_environmental", "Has SBA environmental screening (RSRA or Phase I) been ordered?", "SBA has strict environmental triggers — typically required even on low-risk property.", "property");
+    }
+    addAcct({ id: "acct_sba", category: "Lender", item: `${prog} guaranty / CDC fees`, buyer: true, seller: false, estimatedAmount: price > 0 ? price * 0.025 : null, notes: prog === "SBA 504" ? "CDC fee ~2.15% on debenture + bank fees" : "Guaranty fee 2–3.75% of guaranteed portion." });
+  }
+
+  // ===== DSCR investor loan =====
+  if (structure === "dscr_loan") {
+    addPro("dscr_noincome", "DSCR loan", "Qualifies on property cash flow (DSCR ≥1.0–1.25), not personal income — entity-friendly, fast close.", "buyer");
+    if (p === "buyer") {
+      addCon("dscr_rate", "DSCR rate premium", "low", "Typically 1.0–2.0% above conforming. Prepay penalties (3-2-1, 5-4-3-2-1) standard.", "buyer");
+      addQ("dscr_ratio", "What DSCR threshold is the loan sized to, and at what stress vacancy?", "Lender stress assumptions drive max loan amount and reserve requirements.", "financial");
+    }
+  }
+
+  // ===== Construction / bridge =====
+  if (structure === "construction_loan") {
+    addCon("constr_complex", "Construction loan", "high", "Interest reserve, draw schedule, completion guaranty, retainage — material default exposure if budget slips or schedule lengthens.", "buyer");
+    addQ("constr_gc", "Has the GC contract (lump-sum vs GMP vs cost-plus) and surety bonding been reviewed?", "Owner bears overruns absent a bonded lump-sum or GMP with hard cap.", "financial");
+    addQ("constr_takeout", "Is permanent (mini-perm or agency) takeout commitment in place?", "Construction-only loans without forward takeout face refinance risk at C/O.", "financial");
+    addAcct({ id: "acct_constr_res", category: "Lender", item: "Interest reserve + contingency", buyer: true, seller: false, estimatedAmount: null, notes: "Typically 10–15% of hard costs + 6–12 mo interest reserve." });
+  }
+
+  if (structure === "bridge_loan") {
+    addCon("bridge_cost", "Bridge / transitional loan", "moderate", "Typically SOFR+300–600, 12–36 mo term, 1–2 points in + out, extensions on milestones (lease-up, DSCR).", "buyer");
+    addQ("bridge_exit", "What is the takeout (agency, CMBS, sale)? Is the underwriting consistent with current market rates?", "Bridge defaults concentrate at maturity when takeout underwrites tighter than initial proforma.", "financial");
+  }
+
+  if (structure === "mezzanine" || structure === "preferred_equity") {
+    const layer = structure === "mezzanine" ? "Mezzanine debt" : "Preferred equity";
+    addCon("mezz_cost", layer, "moderate", `${layer} typically 10–14% pay rate + accrual, intercreditor with senior lender required. Forced-sale rights on default.`, "buyer");
+    addQ("mezz_inter", "Has the intercreditor / recognition agreement with senior been finalized?", "Most mezz deals die on intercreditor terms (cure rights, standstill, voting).", "legal");
+  }
+
+  // ===== USDA Rural =====
+  if (structure === "usda") {
+    addPro("usda_100", "USDA Rural Development loan", "Up to 100% LTV, no down payment, for eligible rural properties and income-qualified borrowers.", "buyer");
+    addQ("usda_eligible", "Has the property address been confirmed eligible in the USDA Property Eligibility map?", "Eligibility is parcel-specific — recent boundary changes can disqualify.", "property");
+    addQ("usda_income", "Is the borrower under the USDA income limit for the county (typically 115% of AMI)?", "Income cap is an absolute disqualifier.", "financial");
+  }
+
+  // ===== FHA / VA residential =====
+  if (structure === "fha") {
+    addCon("fha_minprop", "FHA minimum property standards", "moderate", "HUD Handbook 4000.1 — peeling paint, missing handrails, roof life <2 yr, exposed wiring all trigger repair conditions before funding.", p);
+    addQ("fha_appraisal", "Has an FHA-approved appraiser ordered and reviewed the property?", "FHA appraisals are stricter than conventional and often require repair escrows.", "property");
+    addAcct({ id: "acct_fha_mip", category: "Lender", item: "FHA upfront MIP (1.75%)", buyer: true, seller: false, estimatedAmount: price > 0 ? price * 0.0175 : null, notes: "Plus annual MIP 0.45–1.05% added to monthly payment." });
+  }
+  if (structure === "va") {
+    addPro("va_nodp", "VA loan", "0% down, no PMI, capped fees — best residential financing for eligible veterans.", "buyer");
+    addQ("va_funding", "Has the VA funding fee (1.4–3.6%) been factored, or is the borrower exempt (disability)?", "Funding fee can be financed but materially impacts LTV and payment.", "financial");
+    addQ("va_mpr", "Has a VA-approved appraiser confirmed Minimum Property Requirements?", "MPRs (heating, water, roof, termite in southern states) drive repair conditions.", "property");
+  }
+
+  // ===== Distressed acquisitions =====
+  if (structure === "reo_bank_owned") {
+    addCon("reo_asis", "REO / bank-owned sale", "moderate", "Banks sell as-is, refuse repair credits, use proprietary addenda that override standard contract terms, and impose per-diem late penalties.", p);
+    addQ("reo_addenda", "Has the bank's addendum been reviewed for override of inspection, title, and timing terms?", "REO addenda routinely waive seller disclosures and shorten timelines.", "legal");
+  }
+  if (structure === "short_sale") {
+    addCon("ss_time", "Short sale", "high", "Requires lender approval — 60–180 day process with no guarantee. Bank may counter price, demand seller cash contribution, or reject.", p);
+    addQ("ss_approval", "Has the short-sale package been submitted and is there a written approval letter?", "Verbal approvals are not binding; written approval letters have expiration dates.", "legal");
+  }
+  if (structure === "tax_deed" || structure === "foreclosure") {
+    addCon("td_title", structure === "tax_deed" ? "Tax-deed acquisition" : "Foreclosure / trustee sale", "high", "Title delivered subject to clouds (IRS liens, junior mortgages, redemption rights). Quiet-title action often required (6–18 months, $3–10k).", "buyer");
+    addQ("td_redeem", "What is the statutory redemption period in this state?", "Owner / lienholder can redeem and unwind the sale during the period (e.g. IL: 2.5 yr tax-deed; CA: 1 yr judicial foreclosure).", "legal");
+    addQ("td_title_ins", "Will a title insurer underwrite this property without a quiet-title judgment?", "Most insurers require quiet-title before issuing a clean policy.", "legal");
+  }
+
+  // ===== Ground lease / sale-leaseback =====
+  if (structure === "ground_lease") {
+    addCon("gl_leasehold", "Ground-lease (leasehold) interest", "moderate", "You own improvements, not the land. Lease term, rent reset, reversion, and lender estoppels drive all value.", "buyer");
+    addQ("gl_term", "What is the remaining lease term, and are rent resets CPI-capped or fair-market?", "Remaining term <50 yr or uncapped FMV resets materially impair financeability and resale.", "financial");
+    addQ("gl_lender", "Will conventional lenders finance a leasehold with this remaining term?", "Most lenders require remaining term ≥ loan term + 10–20 yr.", "financial");
+    addQ("gl_sndaa", "Is there a recorded SNDA / non-disturbance from the fee owner?", "Without it, lender loses leasehold if fee owner defaults / lease terminates.", "legal");
+  }
+  if (structure === "sale_leaseback") {
+    addPro("slb_capital", "Sale-leaseback", "Unlocks owner-occupant equity while retaining operational control via lease.", p === "seller" ? "seller" : "buyer");
+    addQ("slb_term", "What are lease term, rent escalators, renewal options, and credit of the operating tenant?", "Cap-rate and resale of leased-back property depend entirely on lease economics and tenant credit.", "financial");
+    addQ("slb_nnn", "Is the lease NNN with tenant-paid taxes, insurance, and CAM?", "Gross or modified-gross leases shift operating risk back to landlord.", "financial");
+  }
+
+  // ===== TIC / DST and Opportunity Zone =====
+  if (structure === "tic_delaware_statutory_trust") {
+    addPro("dst_1031", "DST / TIC interest", "Eligible 1031 replacement property; passive ownership; institutional-quality assets accessible at low minimums.", "buyer");
+    addCon("dst_control", "No operational control", "moderate", "DST sponsor has full control; investors cannot vote on financing, sale, or major leases ('7 deadly sins' restrictions).", "buyer");
+    addQ("dst_fees", "What are upfront load, ongoing sponsor fees, and projected exit cap?", "DST loads (8–15%) materially reduce 1031-equivalent equity vs direct ownership.", "financial");
+  }
+  if (structure === "opportunity_zone") {
+    addPro("oz_tax", "Qualified Opportunity Zone (QOZ) investment", "Deferral of original capital gain to 2026, and tax-free appreciation on QOF investment held ≥10 yr.", "buyer");
+    addQ("oz_substantial", "Will the substantial improvement test be met (double the basis of improvements within 30 months)?", "Failure forfeits OZ benefits and triggers full gain recognition.", "financial");
+    addQ("oz_180", "Was the QOF investment made within 180 days of the triggering gain?", "Hard deadline — no extensions.", "timeline");
+  }
+
     const amt = val(e?.seller_carry_amount);
     const rate = val(e?.seller_carry_rate);
     const term = val(e?.seller_carry_term_years);
