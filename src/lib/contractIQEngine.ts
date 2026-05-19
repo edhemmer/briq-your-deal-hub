@@ -733,7 +733,15 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
     });
   }
 
-  // Order deadlines chronologically (set first, then missing)
+  // Merge paralegal-rules supplemental rows (deal-structure aware allocations,
+  // commercial diligence, broker prompts). De-dup by id where keys overlap.
+  const mergeById = <T extends { id: string }>(base: T[], extra: T[]): T[] => {
+    const ids = new Set(base.map((x) => x.id));
+    return [...base, ...extra.filter((x) => !ids.has(x.id))];
+  };
+  const mergedWhoPays = mergeById(whoPaysWhat, paralegal.whoPaysWhat);
+  const mergedLiability = mergeById(liabilityAllocation, paralegal.liabilityAllocation);
+  const mergedBrokerQs = mergeById(brokerQuestions, paralegal.brokerQuestions);
   deadlines.sort((a, b) => {
     if (a.status === "missing" && b.status !== "missing") return 1;
     if (b.status === "missing" && a.status !== "missing") return -1;
