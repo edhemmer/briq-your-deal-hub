@@ -479,6 +479,14 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
     addQ("backup_offer", "Should we accept backup offers during the contingency period?", "Maintains leverage if the primary buyer terminates.", "timeline");
   }
 
+  // ===== Paralegal rules merge (deal structure, tax, commercial diligence) =====
+  const paralegal = runParalegalRules(e, p, price, val(e?.governing_law_state) ?? null);
+  pros.push(...paralegal.pros);
+  cons.push(...paralegal.cons);
+  weaknesses.push(...paralegal.weaknesses);
+  questions.push(...paralegal.questions);
+  negotiation.push(...paralegal.negotiation);
+
   // ===== Scoring =====
   const sevWeight: Record<Severity, number> = { high: 30, moderate: 15, low: 5 };
   const rawRisk = cons.reduce((sum, c) => sum + sevWeight[c.severity], 0);
