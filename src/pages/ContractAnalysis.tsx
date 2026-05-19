@@ -161,6 +161,11 @@ const ContractAnalysisPage = () => {
             <p className="text-sm text-muted-foreground mt-1">
               {contract.property_address ?? "No address"}
             </p>
+            {analysis.dealStructureLabel && (
+              <Badge variant="outline" className="mt-2 text-[10px]">
+                Structure: {analysis.dealStructureLabel}
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <div className="flex rounded-md border border-border bg-background p-0.5">
