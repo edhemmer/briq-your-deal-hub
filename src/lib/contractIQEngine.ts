@@ -147,6 +147,8 @@ export interface ContractAnalysis {
   negotiation: NegotiationMove[];
   takeaways: string[];
   missingInputs: string[];
+  dealStructureLabel?: string;
+  closingAccounting?: ClosingAccountingRow[];
   computedAt: string;
 }
 
