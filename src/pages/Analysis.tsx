@@ -1239,7 +1239,7 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
         <Target className="h-5 w-5 text-muted-foreground" /> Strategy Fit Analysis <HelpTooltip content={STRATEGY_HELP} />
       </h2>
       <p className="text-sm text-muted-foreground">
-        Deterministic strategy scoring based on deal financials, property metrics, and market signals.
+        Analsys strategy scoring based on deal financials, property metrics, and market signals.
       </p>
 
       {topScore > 0 && (

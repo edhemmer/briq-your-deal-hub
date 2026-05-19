@@ -36,7 +36,7 @@ const Index = () => {
             </span>
           </h1>
           <p className="text-base md:text-lg text-muted-foreground mt-5 leading-relaxed max-w-2xl">
-            Two precision-built modules for real estate transaction intelligence.
+            Precision-built modules for real estate transaction intelligence.
             Choose where to begin — every signal, deterministic, defensible.
           </p>
         </div>
@@ -44,7 +44,7 @@ const Index = () => {
         {/* Stat strip */}
         <div className="grid grid-cols-3 gap-3 md:gap-4 mb-10 animate-fade-in-up [animation-delay:120ms]">
           {[
-            { icon: TrendingUp, label: "10-Layer Engine", value: "Deterministic" },
+            { icon: TrendingUp, label: "10-Layer Engine", value: "Analsys" },
             { icon: Shield, label: "Risk Detection", value: "32 Signals" },
             { icon: Zap, label: "Decision Time", value: "< 60 sec" },
           ].map(({ icon: Icon, label, value }) => (
@@ -70,13 +70,13 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ModuleCard
             to="/dealiq"
-            eyebrow="Module 01 · Analyze the Deal"
+            eyebrow="Module 01 · Analyze the Contract"
             title="DealIQ"
             description="Property, market, pricing, underwriting, financing, risk, and strategy intelligence — synthesized into a single decision."
             cta="Open DealIQ"
             icon={<BarChart3 className="h-7 w-7" />}
             gradient="from-[hsl(217_91%_60%)] via-[hsl(217_91%_55%)] to-[hsl(199_89%_48%)]"
-            highlights={["10-layer engine", "Deterministic math", "Strategy fit scoring"]}
+            highlights={["10-layer engine", "Deterministic", "Strategy fit scoring"]}
             delay="200ms"
           />
           <ModuleCard
