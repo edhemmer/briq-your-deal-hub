@@ -244,16 +244,25 @@ serve(async (req) => {
       userContent.push({
         type: "text",
         text:
-          "Extract canonical real-estate contract fields from the document text below.\n\n" +
-          "RULES (production-grade, zero tolerance for hallucination):\n" +
-          "1. Every populated field MUST be supported by a verbatim quote from the document, returned in source_excerpts[field_name].\n" +
-          "2. If a value is not literally written in the document, return null and confidence 0. Do NOT infer party names from email signatures, do NOT infer addresses from headers, do NOT round numbers.\n" +
-          "3. Names: copy the exact party name as written (including LLC / Trust / Inc.). Do not strip suffixes.\n" +
-          "4. Addresses: copy the full address as written, in one line, with city/state/zip.\n" +
-          "5. Money: return as a plain number (450000, not '$450,000.00'). Confidence = 1 only if the dollar amount appears verbatim.\n" +
-          "6. Dates: return as YYYY-MM-DD. If the document says 'on or before March 1, 2026', the closing_date is 2026-03-01. If it says 'TBD' or '___', return null.\n" +
-          "7. Contingency booleans: true ONLY if the contract explicitly grants that contingency to the buyer. 'Buyer waives financing contingency' = false.\n" +
-          "8. special_stipulations: copy each non-standard clause verbatim (one per array entry, ≤400 chars each).\n\n" +
+          "You are reading a real-estate transaction document as an experienced real-estate paralegal would. " +
+          "Identify the deal structure (cash, conventional, FHA/VA, hard-money, seller-financing, subject-to, wrap, assumption, " +
+          "lease-option, pure option, wholesale assignment, 1031 exchange, installment sale, JV, auction, build-to-suit). " +
+          "Extract every closing accounting line (title, survey, transfer/recordation tax, mansion tax, doc stamps, escrow, attorney, HOA transfer, warranty) " +
+          "and proration item (taxes, rent, utilities, HOA, insurance) with the responsible party as written. " +
+          "Capture FIRPTA, 1031 intermediary, 1099-S responsibility, opportunity zone, option fee + strike + period + credit, assignment fee, " +
+          "rent-credit, lease-option monthly rent, seller-carry terms (amount/rate/term/balloon/prepay), commercial diligence items " +
+          "(rent roll, estoppels, SNDA, security deposits, CAM reconciliation, environmental Phase I, indemnity), and risk-shifting clauses " +
+          "(ROFR/ROFO, mediation/arbitration, venue, time-is-of-essence, per-diem late fees).\n\n" +
+          "RULES (zero tolerance for hallucination):\n" +
+          "1. Every populated field MUST be supported by a verbatim quote in source_excerpts[field_name].\n" +
+          "2. If a value is not literally written, return null and confidence 0. Never infer.\n" +
+          "3. Names: copy verbatim including LLC / Trust / Inc. Do not strip suffixes.\n" +
+          "4. Addresses: copy full address as written including city/state/zip.\n" +
+          "5. Money: plain number (450000, not '$450,000'). Confidence 1 only if amount appears verbatim.\n" +
+          "6. Dates: YYYY-MM-DD. 'TBD' / blanks return null.\n" +
+          "7. Contingencies: true only if explicitly granted to buyer. 'Buyer waives' = false.\n" +
+          "8. deal_structure: pick the single best fit; if cash + 1031 addendum present and exchange_party is seller, deal_structure may still be 'cash'.\n" +
+          "9. special_stipulations: copy each non-standard clause verbatim (≤400 chars each).\n\n" +
           "DOCUMENT TEXT:\n" + normalized,
       });
     }
@@ -261,16 +270,14 @@ serve(async (req) => {
       userContent.push({
         type: "text",
         text:
-          "Extract canonical contract fields from the contract image. " +
-          "Only use information that is explicitly visible. Use null for missing fields. " +
+          "Extract canonical contract fields from the contract image at paralegal level. " +
+          "Only use information explicitly visible. Use null for missing fields. " +
           "Provide a verbatim source_excerpt for every populated field.",
       });
       userContent.push({
         type: "image_url",
         image_url: {
-          url: image_base64.startsWith("data:")
-            ? image_base64
-            : `data:image/jpeg;base64,${image_base64}`,
+          url: image_base64.startsWith("data:") ? image_base64 : `data:image/jpeg;base64,${image_base64}`,
         },
       });
     }
@@ -279,33 +286,28 @@ serve(async (req) => {
       "https://ai.gateway.lovable.dev/v1/chat/completions",
       {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "google/gemini-2.5-pro",
           temperature: 0,
-          max_tokens: 12000,
+          max_tokens: 16000,
           messages: [
             {
               role: "system",
               content:
-                "You are a deterministic real-estate contract parser used in a production legal-tech pipeline. " +
-                "Extract only fields that are EXPLICITLY present in the document. " +
-                "Never infer, estimate, paraphrase, or hallucinate. " +
-                "If a field is not literally stated, return null (or empty array) with confidence 0. " +
-                "For every populated field you MUST return a verbatim source_excerpts entry — a copied snippet (≤200 chars) from the document where that exact value appears. " +
+                "You are a senior real-estate paralegal extraction engine used in a production legal-tech pipeline. " +
+                "You understand residential, multifamily, commercial, land, option, lease-option, wholesale, sub-to, seller-carry, " +
+                "1031, installment sale, and JV structures, plus FIRPTA, mansion tax, transfer/recordation tax, prorations, and " +
+                "commercial diligence (estoppels, SNDA, rent roll, CAM, Phase I). " +
+                "Extract ONLY fields explicitly present. Never infer, estimate, paraphrase, or hallucinate. " +
+                "For every populated field return a verbatim source_excerpts entry (≤200 chars). " +
                 "If you cannot produce a verbatim excerpt, the field is not extractable; return null. " +
                 "You MUST call the extract_contract_fields tool with the canonical schema.",
             },
             { role: "user", content: userContent },
           ],
           tools: [CANONICAL_TOOL],
-          tool_choice: {
-            type: "function",
-            function: { name: "extract_contract_fields" },
-          },
+          tool_choice: { type: "function", function: { name: "extract_contract_fields" } },
         }),
       },
     );
