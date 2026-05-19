@@ -302,6 +302,7 @@ export function runParalegalRules(
     addQ("oz_180", "Was the QOF investment made within 180 days of the triggering gain?", "Hard deadline — no extensions.", "timeline");
   }
 
+  if (structure === "seller_financing" || structure === "installment_sale") {
     const amt = val(e?.seller_carry_amount);
     const rate = val(e?.seller_carry_rate);
     const term = val(e?.seller_carry_term_years);
