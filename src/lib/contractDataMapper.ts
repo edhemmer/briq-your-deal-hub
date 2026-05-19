@@ -10,6 +10,30 @@
 
 export type CanonicalConfidence = "high" | "medium" | "low" | "none";
 export type PaidBy = "buyer" | "seller" | "split" | null;
+export type DealStructure =
+  | "cash"
+  | "conventional"
+  | "fha"
+  | "va"
+  | "hard_money"
+  | "private_lender"
+  | "seller_financing"
+  | "subject_to"
+  | "wrap_mortgage"
+  | "assumption"
+  | "lease_option"
+  | "option_to_purchase"
+  | "assignment_wholesale"
+  | "1031_exchange"
+  | "installment_sale"
+  | "joint_venture"
+  | "auction"
+  | "reverse_exchange"
+  | "build_to_suit"
+  | "unknown"
+  | null;
+export type DeedForm = "warranty" | "special_warranty" | "quitclaim" | "grant" | "bargain_sale" | "trustee" | null;
+export type ProrationMethod = "calendar_day" | "30_360" | null;
 
 export interface CanonicalContractField<T> {
   value: T | null;
@@ -20,15 +44,20 @@ export interface CanonicalContractField<T> {
 export interface CanonicalContractExtraction {
   // Core
   contract_type: CanonicalContractField<string>;
+  deal_structure: CanonicalContractField<DealStructure>;
   buyer_name: CanonicalContractField<string>;
   seller_name: CanonicalContractField<string>;
   buyer_entity_type: CanonicalContractField<string>;
   seller_entity_type: CanonicalContractField<string>;
   property_address: CanonicalContractField<string>;
   property_legal_description: CanonicalContractField<string>;
+  parcel_id: CanonicalContractField<string>;
+  property_use: CanonicalContractField<string>; // residential, multifamily, commercial, mixed-use, land
   purchase_price: CanonicalContractField<number>;
   earnest_money: CanonicalContractField<number>;
   earnest_money_due_days: CanonicalContractField<number>;
+  earnest_money_hard_date: CanonicalContractField<string>;
+  earnest_money_holder: CanonicalContractField<string>;
   down_payment: CanonicalContractField<number>;
   loan_amount: CanonicalContractField<number>;
   seller_concessions: CanonicalContractField<number>;
@@ -41,28 +70,107 @@ export interface CanonicalContractExtraction {
   appraisal_contingency_days: CanonicalContractField<number>;
   title_review_days: CanonicalContractField<number>;
   attorney_review_period_days: CanonicalContractField<number>;
+  due_diligence_period_days: CanonicalContractField<number>;
   // Contingencies
   financing_contingency: CanonicalContractField<boolean>;
   appraisal_contingency: CanonicalContractField<boolean>;
   inspection_contingency: CanonicalContractField<boolean>;
   sale_of_other_home_contingency: CanonicalContractField<boolean>;
   as_is_clause: CanonicalContractField<boolean>;
-  // Allocations
+  time_is_of_essence: CanonicalContractField<boolean>;
+  per_diem_late_close: CanonicalContractField<number>;
+  post_close_occupancy_days: CanonicalContractField<number>;
+  post_close_occupancy_rent: CanonicalContractField<number>;
+  // Closing accounting / allocations
   title_insurance_paid_by: CanonicalContractField<PaidBy>;
+  owners_title_policy: CanonicalContractField<boolean>;
+  lenders_title_policy: CanonicalContractField<boolean>;
   survey_paid_by: CanonicalContractField<PaidBy>;
+  survey_type: CanonicalContractField<string>; // alta, boundary, none
   transfer_tax_paid_by: CanonicalContractField<PaidBy>;
+  transfer_tax_amount: CanonicalContractField<number>;
+  recordation_tax_paid_by: CanonicalContractField<PaidBy>;
+  recordation_tax_amount: CanonicalContractField<number>;
+  mansion_tax_applies: CanonicalContractField<boolean>;
+  documentary_stamps_paid_by: CanonicalContractField<PaidBy>;
   hoa_transfer_fee_paid_by: CanonicalContractField<PaidBy>;
+  hoa_assessments_outstanding: CanonicalContractField<number>;
   home_warranty_paid_by: CanonicalContractField<PaidBy>;
-  // Clauses
+  home_warranty_amount: CanonicalContractField<number>;
+  escrow_fee_split: CanonicalContractField<PaidBy>;
+  attorney_fees_paid_by: CanonicalContractField<PaidBy>;
+  // Prorations
+  proration_method: CanonicalContractField<ProrationMethod>;
+  property_tax_proration: CanonicalContractField<boolean>;
+  rent_proration: CanonicalContractField<boolean>;
+  utilities_proration: CanonicalContractField<boolean>;
+  hoa_dues_proration: CanonicalContractField<boolean>;
+  insurance_proration: CanonicalContractField<boolean>;
+  tax_proration_basis: CanonicalContractField<string>; // last_known, current_year_estimate, supplemental
+  // Tax structure
+  is_1031_exchange: CanonicalContractField<boolean>;
+  exchange_party: CanonicalContractField<string>; // buyer, seller, both
+  qualified_intermediary: CanonicalContractField<string>;
+  firpta_applies: CanonicalContractField<boolean>;
+  firpta_withholding_pct: CanonicalContractField<number>;
+  responsible_for_1099s: CanonicalContractField<string>; // buyer, seller, closing_agent
+  opportunity_zone: CanonicalContractField<boolean>;
+  // Closing agent
+  title_company: CanonicalContractField<string>;
+  escrow_holder: CanonicalContractField<string>;
+  closing_agent: CanonicalContractField<string>;
+  deed_form: CanonicalContractField<DeedForm>;
+  // Broker / commissions
+  listing_broker: CanonicalContractField<string>;
+  buyer_broker: CanonicalContractField<string>;
+  broker_commission_pct: CanonicalContractField<number>;
+  broker_commission_amount: CanonicalContractField<number>;
+  commission_paid_by: CanonicalContractField<PaidBy>;
+  dual_agency_disclosed: CanonicalContractField<boolean>;
+  // Financing detail
+  financing_type: CanonicalContractField<string>; // conventional, FHA, VA, hard_money, etc.
+  interest_rate_max: CanonicalContractField<number>;
+  loan_program: CanonicalContractField<string>;
+  seller_carry_amount: CanonicalContractField<number>;
+  seller_carry_rate: CanonicalContractField<number>;
+  seller_carry_term_years: CanonicalContractField<number>;
+  balloon_payment: CanonicalContractField<boolean>;
+  prepayment_penalty: CanonicalContractField<boolean>;
+  // Option / lease-option / wholesale
+  option_fee: CanonicalContractField<number>;
+  option_period_days: CanonicalContractField<number>;
+  option_strike_price: CanonicalContractField<number>;
+  option_fee_credited: CanonicalContractField<boolean>;
+  extension_fee: CanonicalContractField<number>;
+  extension_periods: CanonicalContractField<number>;
+  assignment_fee: CanonicalContractField<number>;
+  rent_credit_to_purchase: CanonicalContractField<number>;
+  monthly_rent_lease_option: CanonicalContractField<number>;
+  // Commercial / investment
+  rent_roll_attached: CanonicalContractField<boolean>;
+  estoppel_required: CanonicalContractField<boolean>;
+  snda_required: CanonicalContractField<boolean>;
+  existing_leases_assigned: CanonicalContractField<boolean>;
+  security_deposits_amount: CanonicalContractField<number>;
+  cam_reconciliation: CanonicalContractField<boolean>;
+  environmental_phase_required: CanonicalContractField<boolean>;
+  environmental_indemnity: CanonicalContractField<boolean>;
+  // Risk shifting
   liquidated_damages_clause: CanonicalContractField<boolean>;
   specific_performance_clause: CanonicalContractField<boolean>;
   assignment_allowed: CanonicalContractField<boolean>;
+  right_of_first_refusal: CanonicalContractField<boolean>;
+  right_of_first_offer: CanonicalContractField<boolean>;
+  mediation_required: CanonicalContractField<boolean>;
+  arbitration_required: CanonicalContractField<boolean>;
+  jurisdiction_venue: CanonicalContractField<string>;
   governing_law_state: CanonicalContractField<string>;
   // Free-text arrays
   special_stipulations: CanonicalContractField<string[]>;
   included_personal_property: CanonicalContractField<string[]>;
   excluded_personal_property: CanonicalContractField<string[]>;
   seller_disclosures_referenced: CanonicalContractField<string[]>;
+  addenda_referenced: CanonicalContractField<string[]>;
 }
 
 const toBand = (n: unknown): CanonicalConfidence => {
