@@ -70,7 +70,7 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ModuleCard
             to="/dealiq"
-            eyebrow="Module 01 · Analyze the Contract"
+            eyebrow="Analyze the Contract"
             title="DealIQ"
             description="Property, market, pricing, underwriting, financing, risk, and strategy intelligence — synthesized into a single decision."
             cta="Open DealIQ"
