@@ -408,11 +408,17 @@ export function mapAiExtraction(
     const s = toStr(v)?.toLowerCase().replace(/[\s-]+/g, "_");
     if (!s) return null;
     const allowed: DealStructure[] = [
-      "cash", "conventional", "fha", "va", "hard_money", "private_lender",
+      "cash", "conventional", "fha", "va", "usda",
+      "fannie_mae", "freddie_mac", "hud_223f", "hud_221d4", "hud_232", "fha_multifamily",
+      "cmbs", "sba_504", "sba_7a", "dscr_loan", "non_qm",
+      "construction_loan", "bridge_loan", "mezzanine", "preferred_equity",
+      "hard_money", "private_lender",
       "seller_financing", "subject_to", "wrap_mortgage", "assumption",
       "lease_option", "option_to_purchase", "assignment_wholesale",
       "1031_exchange", "installment_sale", "joint_venture", "auction",
-      "reverse_exchange", "build_to_suit", "unknown",
+      "reo_bank_owned", "short_sale", "tax_deed", "foreclosure",
+      "reverse_exchange", "build_to_suit", "ground_lease", "sale_leaseback",
+      "tic_delaware_statutory_trust", "opportunity_zone", "unknown",
     ];
     return (allowed as string[]).includes(s) ? (s as DealStructure) : "unknown";
   };
