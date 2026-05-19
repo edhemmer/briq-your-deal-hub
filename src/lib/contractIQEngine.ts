@@ -21,6 +21,7 @@
  */
 
 import type { CanonicalContractExtraction, PaidBy } from "./contractDataMapper";
+import { runParalegalRules, type ClosingAccountingRow } from "./contractIQRules";
 
 export type Perspective = "buyer" | "seller";
 export type Severity = "high" | "moderate" | "low";
