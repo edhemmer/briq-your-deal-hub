@@ -199,6 +199,74 @@ const fmtPct = (n: number) => `${(n * 100).toFixed(2)}%`;
 
 const val = <T>(f?: { value: T | null } | null): T | null => (f ? f.value : null);
 
+// ----- evidence helpers -----
+
+/**
+ * Build a ClauseEvidence entry from a canonical extraction field.
+ * Returns null when the field is missing entirely (no value AND no excerpt),
+ * so callers can spread the result and skip empty evidence safely.
+ */
+const ev = (
+  field: string,
+  label: string,
+  f: CanonicalContractField<unknown> | undefined | null,
+): ClauseEvidence | null => {
+  if (!f) return null;
+  const hasExcerpt = typeof f.excerpt === "string" && f.excerpt.trim().length > 0;
+  const hasValue = f.value !== null && f.value !== undefined;
+  if (!hasExcerpt && !hasValue) return null;
+  return {
+    field,
+    label,
+    excerpt: hasExcerpt ? f.excerpt.trim() : "(no clause excerpt captured)",
+    confidence: f.confidence ?? "none",
+    value: hasValue ? String(f.value) : null,
+  };
+};
+
+/**
+ * Derived evidence — for findings computed from structured form inputs
+ * with no direct clause excerpt (e.g., EM/price ratio).
+ */
+const derivedEv = (
+  field: string,
+  label: string,
+  computation: string,
+  value?: string | number | null,
+): ClauseEvidence => ({
+  field,
+  label,
+  excerpt: computation,
+  confidence: "derived",
+  value: value == null ? null : String(value),
+});
+
+/** Drop nulls and return undefined when list is empty. */
+const compact = (items: (ClauseEvidence | null | undefined)[]): ClauseEvidence[] | undefined => {
+  const out = items.filter((x): x is ClauseEvidence => !!x);
+  return out.length > 0 ? out : undefined;
+};
+
+/**
+ * Confidence-gated severity. If every piece of evidence is low/none
+ * confidence (i.e., the AI is not sure what it read), we de-rate by one
+ * notch so a hallucinated extraction never drives a "high" finding.
+ * Derived (form-input) evidence is treated as high-confidence.
+ */
+const gateSeverity = (
+  severity: Severity,
+  evidence: ClauseEvidence[] | undefined,
+): { severity: Severity; adjusted: boolean } => {
+  if (!evidence || evidence.length === 0) return { severity, adjusted: false };
+  const allWeak = evidence.every(
+    (x) => x.confidence === "low" || x.confidence === "none",
+  );
+  if (!allWeak) return { severity, adjusted: false };
+  if (severity === "high") return { severity: "moderate", adjusted: true };
+  if (severity === "moderate") return { severity: "low", adjusted: true };
+  return { severity, adjusted: false };
+};
+
 // ----- engine -----
 export function analyzeContract(input: ContractInput): ContractAnalysis {
   const p = input.perspective;
@@ -213,20 +281,58 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
   const negotiation: NegotiationMove[] = [];
   const missing: string[] = [];
 
-  const addCon = (id: string, label: string, severity: Severity, detail: string, perspectiveAffected: Perspective | "both" = p) => {
+  const addCon = (
+    id: string,
+    label: string,
+    severity: Severity,
+    detail: string,
+    perspectiveAffected: Perspective | "both" = p,
+    evidence?: (ClauseEvidence | null | undefined)[],
+  ) => {
     if (perspectiveAffected === p || perspectiveAffected === "both") {
-      cons.push({ id, label, severity, detail });
+      const ev = compact(evidence ?? []);
+      const gated = gateSeverity(severity, ev);
+      cons.push({
+        id,
+        label,
+        severity: gated.severity,
+        detail: gated.adjusted
+          ? `${detail} Severity de-rated because the source clause was extracted with low confidence — verify in the contract.`
+          : detail,
+        evidence: ev,
+        confidenceAdjusted: gated.adjusted || undefined,
+      });
     }
   };
-  const addPro = (id: string, label: string, detail: string, favors: Perspective | "both" = p) => {
-    if (favors === p || favors === "both") pros.push({ id, label, detail });
+  const addPro = (
+    id: string,
+    label: string,
+    detail: string,
+    favors: Perspective | "both" = p,
+    evidence?: (ClauseEvidence | null | undefined)[],
+  ) => {
+    if (favors === p || favors === "both")
+      pros.push({ id, label, detail, evidence: compact(evidence ?? []) });
   };
-  const addWeak = (id: string, label: string, detail: string) =>
-    weaknesses.push({ id, label, detail });
-  const addQ = (id: string, question: string, why: string, category: Question["category"]) =>
-    questions.push({ id, question, why, category });
-  const addMove = (id: string, ask: string, rationale: string) =>
-    negotiation.push({ id, ask, rationale });
+  const addWeak = (
+    id: string,
+    label: string,
+    detail: string,
+    evidence?: (ClauseEvidence | null | undefined)[],
+  ) => weaknesses.push({ id, label, detail, evidence: compact(evidence ?? []) });
+  const addQ = (
+    id: string,
+    question: string,
+    why: string,
+    category: Question["category"],
+    evidence?: (ClauseEvidence | null | undefined)[],
+  ) => questions.push({ id, question, why, category, evidence: compact(evidence ?? []) });
+  const addMove = (
+    id: string,
+    ask: string,
+    rationale: string,
+    evidence?: (ClauseEvidence | null | undefined)[],
+  ) => negotiation.push({ id, ask, rationale, evidence: compact(evidence ?? []) });
 
   // ===== Required field coverage =====
   if (input.purchase_price == null) missing.push("Purchase price");
