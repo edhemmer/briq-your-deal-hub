@@ -317,11 +317,19 @@ const ContractAnalysisPage = () => {
                 <li key={c.id} className={`rounded-md border p-2.5 ${sevColor(c.severity)}`}>
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <p className="text-sm font-semibold">{c.label}</p>
-                    <Badge variant="outline" className="text-[10px] capitalize">
-                      {c.severity}
-                    </Badge>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {c.confidenceAdjusted && (
+                        <Badge variant="outline" className="text-[9px] uppercase tracking-wide bg-background/60">
+                          Adj.
+                        </Badge>
+                      )}
+                      <Badge variant="outline" className="text-[10px] capitalize">
+                        {c.severity}
+                      </Badge>
+                    </div>
                   </div>
                   <p className="text-xs leading-relaxed opacity-90">{c.detail}</p>
+                  <ClauseEvidenceBlock evidence={c.evidence} />
                 </li>
               ))}
             </ul>
