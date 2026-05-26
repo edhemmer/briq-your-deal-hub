@@ -779,11 +779,13 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
 
   // ===== Paralegal rules merge (deal structure, tax, commercial diligence) =====
   const paralegal = runParalegalRules(e, p, price, val(e?.governing_law_state) ?? null);
-  pros.push(...paralegal.pros);
-  cons.push(...paralegal.cons);
-  weaknesses.push(...paralegal.weaknesses);
+  // Enrich paralegal findings with deterministic dollar impact (Module D-bis)
+  const priceIt = (id: string) => priceFinding(id, pricingCtx) ?? undefined;
+  pros.push(...paralegal.pros.map((x) => ({ ...x, dollarImpact: x.dollarImpact ?? priceIt(x.id) })));
+  cons.push(...paralegal.cons.map((x) => ({ ...x, dollarImpact: x.dollarImpact ?? priceIt(x.id) })));
+  weaknesses.push(...paralegal.weaknesses.map((x) => ({ ...x, dollarImpact: x.dollarImpact ?? priceIt(x.id) })));
   questions.push(...paralegal.questions);
-  negotiation.push(...paralegal.negotiation);
+  negotiation.push(...paralegal.negotiation.map((x) => ({ ...x, dollarImpact: x.dollarImpact ?? priceIt(x.id) })));
 
   // ===== Scoring =====
   const sevWeight: Record<Severity, number> = { high: 30, moderate: 15, low: 5 };
