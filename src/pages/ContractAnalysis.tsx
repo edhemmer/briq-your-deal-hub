@@ -988,6 +988,7 @@ const ContractAnalysisPage = () => {
         </TabsContent>
 
 
+        {/* ════════════ REPORTS TAB ════════════ */}
         <TabsContent value="reports" className="mt-0">
           <CardContainer className="p-5 mb-5">
             <div className="flex items-center gap-2 mb-3">
