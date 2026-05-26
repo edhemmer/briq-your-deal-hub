@@ -393,9 +393,10 @@ const ContractAnalysisPage = () => {
             {analysis.negotiation.map((n, i) => (
               <li key={n.id} className="text-sm flex items-start gap-2">
                 <span className="text-primary font-semibold shrink-0">{i + 1}.</span>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground">{n.ask}</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">{n.rationale}</p>
+                  <ClauseEvidenceBlock evidence={n.evidence} emphasis="muted" />
                 </div>
               </li>
             ))}
