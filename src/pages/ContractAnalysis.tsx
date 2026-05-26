@@ -245,6 +245,33 @@ const ContractAnalysisPage = () => {
             <Progress value={analysis.leverageScore} className="h-2" />
           </div>
         </div>
+
+        {analysis.totalExposure && (
+          <div className="mt-5 rounded-md border border-destructive/20 bg-destructive/[0.04] p-3 flex items-start gap-3">
+            <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-xs font-semibold uppercase tracking-wide text-destructive">
+                  Estimated dollar exposure
+                </span>
+                <span className="text-sm font-semibold tabular-nums text-destructive">
+                  {fmtImpactRange({
+                    low: analysis.totalExposure.low,
+                    mid: analysis.totalExposure.mid,
+                    high: analysis.totalExposure.high,
+                    basis: "",
+                    formula: "",
+                    kind: "exposure",
+                    isDownside: true,
+                  })}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                Sum of priced downside across {analysis.totalExposure.count} concern{analysis.totalExposure.count === 1 ? "" : "s"}. Each pill below shows the per-item range and formula. Caps and savings excluded.
+              </p>
+            </div>
+          </div>
+        )}
       </CardContainer>
 
       {/* Reports */}
