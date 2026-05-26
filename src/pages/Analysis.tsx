@@ -36,6 +36,7 @@ import type { DealReliabilityResult, BreakStatus, FragilityLevel } from "@/lib/d
 import { generateDealInterpretation, type DealInterpretation } from "@/lib/dealInterpretationEngine";
 import { assembleDealReport, generateInvestorPDF, generateCSVExport } from "@/lib/reportEngine";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { HelpTooltip } from "@/components/help/HelpTooltip";
 import { DealWorkflowIndicator } from "@/components/help/DealWorkflowIndicator";
 import { METRIC_HELP, STRATEGY_HELP, MARKET_HELP, CRIME_HELP, DEAL_INPUT_HELP } from "@/components/help/helpContent";
