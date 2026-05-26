@@ -477,6 +477,7 @@ const ContractAnalysisPage = () => {
                 <tr className="text-left text-muted-foreground border-b border-border">
                   <th className="py-2 pr-3 font-medium">Risk</th>
                   <th className="py-2 pr-3 font-medium">Severity</th>
+                  <th className="py-2 pr-3 font-medium">Exposure</th>
                   <th className="py-2 pr-3 font-medium">Owner</th>
                   <th className="py-2 font-medium">Mitigation</th>
                 </tr>
@@ -490,6 +491,7 @@ const ContractAnalysisPage = () => {
                         {r.severity}
                       </Badge>
                     </td>
+                    <td className="py-2 pr-3"><DollarImpactPill impact={r.dollarImpact} /></td>
                     <td className="py-2 pr-3 capitalize text-foreground/80">{r.owner}</td>
                     <td className="py-2 text-muted-foreground leading-relaxed">{r.mitigation}</td>
                   </tr>
