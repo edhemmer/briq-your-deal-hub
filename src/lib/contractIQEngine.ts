@@ -20,12 +20,35 @@
  *   - Negotiation moves (specific asks)
  */
 
-import type { CanonicalContractExtraction, PaidBy } from "./contractDataMapper";
+import type {
+  CanonicalConfidence,
+  CanonicalContractExtraction,
+  CanonicalContractField,
+  PaidBy,
+} from "./contractDataMapper";
 import { runParalegalRules, type ClosingAccountingRow } from "./contractIQRules";
 export type { ClosingAccountingRow } from "./contractIQRules";
 
 export type Perspective = "buyer" | "seller";
 export type Severity = "high" | "moderate" | "low";
+
+/**
+ * ClauseEvidence — a traceable, auditable pointer from a finding back to
+ * the source clause that triggered it. Findings without evidence are
+ * implicitly derived from structured form inputs.
+ */
+export interface ClauseEvidence {
+  /** Canonical field name (e.g., "earnest_money", "as_is_clause"). */
+  field: string;
+  /** Human-readable label for the field (e.g., "Earnest money"). */
+  label: string;
+  /** Verbatim excerpt from the contract, or a derived computation note. */
+  excerpt: string;
+  /** Confidence in the underlying extraction (or "derived" for form inputs). */
+  confidence: CanonicalConfidence | "derived";
+  /** Stringified value at the time of evaluation. */
+  value?: string | null;
+}
 
 export interface ContractInput {
   perspective: Perspective;
@@ -49,6 +72,7 @@ export interface Pro {
   id: string;
   label: string;
   detail: string;
+  evidence?: ClauseEvidence[];
 }
 
 export interface Con {
@@ -56,12 +80,16 @@ export interface Con {
   label: string;
   severity: Severity;
   detail: string;
+  evidence?: ClauseEvidence[];
+  /** True when severity was downgraded due to low-confidence evidence. */
+  confidenceAdjusted?: boolean;
 }
 
 export interface Weakness {
   id: string;
   label: string;
   detail: string;
+  evidence?: ClauseEvidence[];
 }
 
 export interface Question {
@@ -69,6 +97,7 @@ export interface Question {
   question: string;
   why: string;
   category: "financial" | "legal" | "timeline" | "property" | "contingency";
+  evidence?: ClauseEvidence[];
 }
 
 export interface Deadline {
@@ -84,6 +113,7 @@ export interface NegotiationMove {
   id: string;
   ask: string;
   rationale: string;
+  evidence?: ClauseEvidence[];
 }
 
 export interface RiskMatrixRow {
