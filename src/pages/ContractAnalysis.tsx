@@ -136,6 +136,58 @@ const ContractAnalysisPage = () => {
     return analyzeContract(input);
   }, [contract, activePerspective]);
 
+  // ── DealIQ ↔ ContractIQ Bridge ───────────────────────────────────
+  const [linkedDeal, setLinkedDeal] = useState<DealLite | null>(null);
+  const [dealLoading, setDealLoading] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    const dealId = contract?.deal_id;
+    if (!dealId) {
+      setLinkedDeal(null);
+      return;
+    }
+    setDealLoading(true);
+    supabase
+      .from("deals")
+      .select("property_address,city,state,purchase_price,closing_costs,rehab_cost,estimated_arv,buyer_name,seller_name,strategy_primary")
+      .eq("id", dealId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setLinkedDeal((data as DealLite) ?? null);
+      })
+      .then(undefined, () => {
+        if (!cancelled) setLinkedDeal(null);
+      })
+      .then(() => {
+        if (!cancelled) setDealLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contract?.deal_id]);
+
+  const bridge = useMemo(() => {
+    if (!contract) return null;
+    return bridgeContractWithDeal(
+      {
+        property_address: contract.property_address,
+        purchase_price: contract.purchase_price,
+        earnest_money: contract.earnest_money,
+        closing_date: contract.closing_date,
+        inspection_period_days: contract.inspection_period_days,
+        buyer_name: contract.buyer_name,
+        seller_name: contract.seller_name,
+        financing_contingency: contract.financing_contingency,
+        appraisal_contingency: contract.appraisal_contingency,
+        inspection_contingency: contract.inspection_contingency,
+        created_at: contract.created_at,
+      },
+      linkedDeal,
+      activePerspective,
+    );
+  }, [contract, linkedDeal, activePerspective]);
+
+
   const buildReportCtx = (): ContractReportContext | null => {
     if (!contract || !analysis) return null;
     return {
