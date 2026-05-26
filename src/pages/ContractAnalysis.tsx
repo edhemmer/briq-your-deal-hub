@@ -216,6 +216,31 @@ const ContractAnalysisPage = () => {
         </div>
       </div>
 
+      <Tabs defaultValue="decision" className="w-full">
+        <TabsList className="mb-5 flex flex-wrap h-auto">
+          <TabsTrigger value="decision">Decision</TabsTrigger>
+          <TabsTrigger value="clauses">
+            Clauses
+            <Badge variant="outline" className="ml-1.5 text-[9px] h-4 px-1">
+              {analysis.pros.length + analysis.cons.length + analysis.weaknesses.length + analysis.questions.length}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="deadlines">
+            Deadlines
+            <Badge variant="outline" className="ml-1.5 text-[9px] h-4 px-1">{analysis.deadlines.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="risk">
+            Risk
+            <Badge variant="outline" className="ml-1.5 text-[9px] h-4 px-1">{analysis.riskMatrix.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="negotiation">
+            Negotiation
+            <Badge variant="outline" className="ml-1.5 text-[9px] h-4 px-1">{analysis.negotiation.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="decision" className="mt-0">
       {/* Decision summary */}
       <CardContainer className="p-6 mb-5 border-primary/15 bg-gradient-to-br from-primary/[0.03] to-card">
         <div className="flex items-start gap-3">
