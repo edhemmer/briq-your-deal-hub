@@ -55,6 +55,13 @@ import {
   deadlineToIcsEvent,
   bucketDeadlinesByWeek,
 } from "@/lib/contractIQCalendar";
+import {
+  bridgeContractWithDeal,
+  formatBridgeMoney,
+  type BridgeFinding,
+  type BridgeSeverity,
+  type DealLite,
+} from "@/lib/contractIQBridge";
 
 const sevColor = (s: "high" | "moderate" | "low") =>
   s === "high"
