@@ -294,6 +294,7 @@ const ContractAnalysisPage = () => {
                 <li key={pr.id} className="text-sm">
                   <p className="font-medium text-foreground">{pr.label}</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">{pr.detail}</p>
+                  <ClauseEvidenceBlock evidence={pr.evidence} emphasis="muted" />
                 </li>
               ))}
             </ul>
