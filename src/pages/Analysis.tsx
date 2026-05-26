@@ -1080,6 +1080,26 @@ const Analysis = () => {
                 <Download className="h-4 w-4" />
                 CSV Data Export
               </Button>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  if (!canonicalOutput) return;
+                  const { exportInvestorModel } = await import("@/lib/underwriting/xlsxExport");
+                  await exportInvestorModel({
+                    dealName: deal?.deal_name || deal?.property_address || "Deal",
+                    address: [deal?.property_address, deal?.city, deal?.state, deal?.zip_code].filter(Boolean).join(", "),
+                    input: canonicalOutput.dealInput,
+                    analysis: canonicalOutput.analysis,
+                    proForma,
+                    returns,
+                    returnsAssumptions,
+                  });
+                }}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                XLSX Investor Model
+              </Button>
             </div>
           </CardContainer>
 
