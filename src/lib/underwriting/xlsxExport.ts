@@ -177,22 +177,21 @@ function buildAssumptionsSheet(wb: ExcelJS.Workbook, args: BuildArgs) {
   inp("Rehab Contingency", args.input.rehab_contingency || 0);
 
   sec("Financing");
-  inp("Down Payment %", (args.input.down_payment_percent || 0) / 100, FMT.pct);
+  inp("Down Payment %", args.input.down_payment_percent || 0, FMT.pct);
   inp("Interest Rate", args.input.interest_rate || 0, FMT.pct);
   inp("Loan Term (Years)", args.input.loan_term_years || 0, FMT.number);
 
   sec("Income");
   inp("Monthly Rent", (args.input.monthly_rent || 0), FMT.currency);
-  inp("Other Monthly Income", (args.input.other_monthly_income || 0), FMT.currency);
+  inp("Other Income (Annual)", (args.input.other_income || 0), FMT.currency);
   inp("Vacancy %", args.input.vacancy_percent || 0, FMT.pct);
 
-  sec("Operating Expenses (Annual)");
-  inp("Property Tax", args.input.annual_property_tax || 0);
-  inp("Insurance", args.input.annual_insurance || 0);
-  inp("Property Mgmt %", args.input.property_management_percent || 0, FMT.pct);
+  sec("Operating Expenses");
+  inp("Property Tax (Annual)", args.input.taxes || 0);
+  inp("Insurance (Annual)", args.input.insurance || 0);
+  inp("Property Mgmt %", args.input.management_percent || 0, FMT.pct);
   inp("Maintenance %", args.input.maintenance_percent || 0, FMT.pct);
   inp("CapEx Reserve %", args.input.capex_percent || 0, FMT.pct);
-  inp("HOA / Other (Monthly)", args.input.monthly_hoa_other || 0);
 
   sec("Hold Assumptions");
   inp("Hold Period (Years)", args.returnsAssumptions.hold_years, FMT.number);
