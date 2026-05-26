@@ -307,6 +307,19 @@ const ContractAnalysisPage = () => {
             Negotiation
             <Badge variant="outline" className="ml-1.5 text-[9px] h-4 px-1">{analysis.negotiation.length}</Badge>
           </TabsTrigger>
+          <TabsTrigger value="bridge">
+            Bridge
+            {bridge && bridge.hasDeal && (
+              <Badge variant="outline" className="ml-1.5 text-[9px] h-4 px-1">
+                {bridge.findings.length}
+              </Badge>
+            )}
+            {bridge && !bridge.hasDeal && (
+              <Badge variant="outline" className="ml-1.5 text-[9px] h-4 px-1 text-amber-700 border-amber-300">
+                !
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
 
