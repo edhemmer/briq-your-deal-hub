@@ -340,7 +340,8 @@ const ContractAnalysisPage = () => {
                 <li key={c.id} className={`rounded-md border p-2.5 ${sevColor(c.severity)}`}>
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <p className="text-sm font-semibold">{c.label}</p>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                      <DollarImpactPill impact={c.dollarImpact} />
                       {c.confidenceAdjusted && (
                         <Badge variant="outline" className="text-[9px] uppercase tracking-wide bg-background/60">
                           Adj.
