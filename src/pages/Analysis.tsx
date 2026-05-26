@@ -568,6 +568,8 @@ const Analysis = () => {
           <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
           <TabsTrigger value="property" className="text-xs sm:text-sm">Property</TabsTrigger>
           <TabsTrigger value="inputs" className="text-xs sm:text-sm">Inputs</TabsTrigger>
+          <TabsTrigger value="proforma" className="text-xs sm:text-sm">Pro Forma</TabsTrigger>
+          <TabsTrigger value="returns" className="text-xs sm:text-sm">Returns</TabsTrigger>
           <TabsTrigger value="financing" className="text-xs sm:text-sm">Financing</TabsTrigger>
           <TabsTrigger value="market" className="text-xs sm:text-sm">Market & Risk</TabsTrigger>
           <TabsTrigger value="reports" className="text-xs sm:text-sm">Reports</TabsTrigger>
