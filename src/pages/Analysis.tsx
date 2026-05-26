@@ -58,6 +58,10 @@ import { resolvePropertyForAnalysis } from "@/lib/analysisDataResolver";
 import type { RawPropertyData, ResolvedPropertyData } from "@/lib/propertyDataSources";
 import { DataConfidencePanel } from "@/components/analysis/DataConfidencePanel";
 import { DealIQLanding } from "@/components/dealiq/DealIQLanding";
+import { buildProForma } from "@/lib/underwriting/proFormaEngine";
+import { buildReturns, DEFAULT_RETURNS_ASSUMPTIONS, type ReturnsAssumptions } from "@/lib/underwriting/returnsEngine";
+import { ProFormaPanel } from "@/components/analysis/ProFormaPanel";
+import { ReturnsPanel } from "@/components/analysis/ReturnsPanel";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   { key: "purchase_price", label: "Purchase Price", group: "Acquisition" },
