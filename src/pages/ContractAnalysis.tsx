@@ -40,6 +40,7 @@ import {
   type ContractReportContext,
 } from "@/lib/contractReports";
 import type { CanonicalContractExtraction } from "@/lib/contractDataMapper";
+import { ClauseEvidenceBlock } from "@/components/contractiq/ClauseEvidence";
 
 const sevColor = (s: "high" | "moderate" | "low") =>
   s === "high"
