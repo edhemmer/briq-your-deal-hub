@@ -51,6 +51,27 @@ const sevColor = (s: "high" | "moderate" | "low") =>
     ? "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-900/20 dark:border-amber-800"
     : "text-muted-foreground bg-muted border-border";
 
+const DollarImpactPill = ({ impact }: { impact?: DollarImpact }) => {
+  if (!impact) return null;
+  const tone =
+    impact.kind === "savings"
+      ? "border-emerald-300 text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-900/20 dark:border-emerald-800"
+      : impact.kind === "cap"
+      ? "border-border text-foreground/80 bg-muted/40"
+      : "border-destructive/30 text-destructive bg-destructive/5";
+  const prefix = impact.kind === "savings" ? "Value " : impact.kind === "cap" ? "Cap " : "Exposure ";
+  return (
+    <span
+      title={`${impact.basis} (${impact.formula})`}
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tabular-nums ${tone}`}
+    >
+      {prefix}
+      {fmtImpactRange(impact)}
+    </span>
+  );
+};
+
+
 const recoLabel = (r: ContractAnalysis["recommendation"]) =>
   r === "proceed" ? "Proceed" : r === "negotiate" ? "Negotiate" : "Caution";
 
