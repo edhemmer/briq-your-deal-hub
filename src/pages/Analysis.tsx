@@ -63,6 +63,7 @@ import { buildReturns, DEFAULT_RETURNS_ASSUMPTIONS, type ReturnsAssumptions } fr
 import { ProFormaPanel } from "@/components/analysis/ProFormaPanel";
 import { ReturnsPanel } from "@/components/analysis/ReturnsPanel";
 import { SensitivityPanel } from "@/components/analysis/SensitivityPanel";
+import { CapitalStackPanel } from "@/components/analysis/CapitalStackPanel";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   { key: "purchase_price", label: "Purchase Price", group: "Acquisition" },
@@ -572,6 +573,7 @@ const Analysis = () => {
           <TabsTrigger value="proforma" className="text-xs sm:text-sm">Pro Forma</TabsTrigger>
           <TabsTrigger value="returns" className="text-xs sm:text-sm">Returns</TabsTrigger>
           <TabsTrigger value="sensitivity" className="text-xs sm:text-sm">Sensitivity</TabsTrigger>
+          <TabsTrigger value="capital" className="text-xs sm:text-sm">Capital Stack</TabsTrigger>
           <TabsTrigger value="financing" className="text-xs sm:text-sm">Financing</TabsTrigger>
           <TabsTrigger value="market" className="text-xs sm:text-sm">Market & Risk</TabsTrigger>
           <TabsTrigger value="reports" className="text-xs sm:text-sm">Reports</TabsTrigger>
@@ -837,6 +839,25 @@ const Analysis = () => {
                 icon={<Activity className="h-10 w-10" />}
                 title="Sensitivity unavailable"
                 description="Complete the deal inputs to run two-variable matrices, tornado charts, and break-even thresholds."
+              />
+            </CardContainer>
+          )}
+        </TabsContent>
+
+        {/* ── CAPITAL STACK ── */}
+        <TabsContent value="capital" className="space-y-6 mt-4">
+          {canonicalOutput && inputSufficiency.canAnalyze ? (
+            <CapitalStackPanel
+              input={canonicalOutput.dealInput}
+              analysis={canonicalOutput.analysis}
+              returns={returns}
+            />
+          ) : (
+            <CardContainer className="p-6">
+              <EmptyStateContainer
+                icon={<Landmark className="h-10 w-10" />}
+                title="Capital stack unavailable"
+                description="Complete acquisition, rehab, and financing inputs to model sources & uses and the GP/LP waterfall."
               />
             </CardContainer>
           )}
