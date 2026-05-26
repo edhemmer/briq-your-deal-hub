@@ -28,8 +28,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useContract } from "@/hooks/useContracts";
 import {
   analyzeContract,
+  fmtImpactRange,
   type ContractAnalysis,
   type ContractInput,
+  type DollarImpact,
   type Perspective,
 } from "@/lib/contractIQEngine";
 import {
