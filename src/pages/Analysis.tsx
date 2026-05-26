@@ -63,6 +63,7 @@ import { buildReturns, DEFAULT_RETURNS_ASSUMPTIONS, type ReturnsAssumptions } fr
 import { ProFormaPanel } from "@/components/analysis/ProFormaPanel";
 import { ReturnsPanel } from "@/components/analysis/ReturnsPanel";
 import { SensitivityPanel } from "@/components/analysis/SensitivityPanel";
+import { CapitalStackPanel } from "@/components/analysis/CapitalStackPanel";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   { key: "purchase_price", label: "Purchase Price", group: "Acquisition" },
@@ -572,6 +573,7 @@ const Analysis = () => {
           <TabsTrigger value="proforma" className="text-xs sm:text-sm">Pro Forma</TabsTrigger>
           <TabsTrigger value="returns" className="text-xs sm:text-sm">Returns</TabsTrigger>
           <TabsTrigger value="sensitivity" className="text-xs sm:text-sm">Sensitivity</TabsTrigger>
+          <TabsTrigger value="capital" className="text-xs sm:text-sm">Capital Stack</TabsTrigger>
           <TabsTrigger value="financing" className="text-xs sm:text-sm">Financing</TabsTrigger>
           <TabsTrigger value="market" className="text-xs sm:text-sm">Market & Risk</TabsTrigger>
           <TabsTrigger value="reports" className="text-xs sm:text-sm">Reports</TabsTrigger>
