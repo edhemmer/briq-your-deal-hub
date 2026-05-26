@@ -58,6 +58,10 @@ import { resolvePropertyForAnalysis } from "@/lib/analysisDataResolver";
 import type { RawPropertyData, ResolvedPropertyData } from "@/lib/propertyDataSources";
 import { DataConfidencePanel } from "@/components/analysis/DataConfidencePanel";
 import { DealIQLanding } from "@/components/dealiq/DealIQLanding";
+import { buildProForma } from "@/lib/underwriting/proFormaEngine";
+import { buildReturns, DEFAULT_RETURNS_ASSUMPTIONS, type ReturnsAssumptions } from "@/lib/underwriting/returnsEngine";
+import { ProFormaPanel } from "@/components/analysis/ProFormaPanel";
+import { ReturnsPanel } from "@/components/analysis/ReturnsPanel";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   { key: "purchase_price", label: "Purchase Price", group: "Acquisition" },
@@ -174,6 +178,7 @@ const Analysis = () => {
   const [marketFields, setMarketFields] = useState<Record<string, string>>({});
   const [analysisContext, setAnalysisContext] = useState<AnalysisContext | null>(null);
   const [sourceQualityMap, setSourceQualityMap] = useState<Record<string, SourceQuality>>({});
+  const [returnsAssumptions, setReturnsAssumptions] = useState<ReturnsAssumptions>(DEFAULT_RETURNS_ASSUMPTIONS);
 
   const sourceQualityInput = useMemo<SourceQualityInput | null>(() => {
     if (Object.keys(sourceQualityMap).length === 0) return null;
@@ -318,6 +323,17 @@ const Analysis = () => {
   const marketIntelligence = canonicalOutput?.marketIntelligence!;
   const strategyFit = canonicalOutput?.strategyFit!;
   const stressResults = canonicalOutput?.stressResults!;
+
+  // ── Pro Forma + Returns (Phase 2 engines) ──
+  const proForma = useMemo(() => {
+    if (!canonicalOutput?.analysis || !canonicalOutput?.dealInput) return null;
+    return buildProForma(canonicalOutput.dealInput, canonicalOutput.analysis, { propertyType: deal?.property_type ?? null });
+  }, [canonicalOutput, deal?.property_type]);
+
+  const returns = useMemo(() => {
+    if (!canonicalOutput?.analysis || !canonicalOutput?.dealInput) return null;
+    return buildReturns(canonicalOutput.dealInput, canonicalOutput.analysis, returnsAssumptions);
+  }, [canonicalOutput, returnsAssumptions]);
 
   // ── Input Sufficiency Check ──
   const inputSufficiency: InputSufficiency = useMemo(() => {
@@ -552,6 +568,8 @@ const Analysis = () => {
           <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
           <TabsTrigger value="property" className="text-xs sm:text-sm">Property</TabsTrigger>
           <TabsTrigger value="inputs" className="text-xs sm:text-sm">Inputs</TabsTrigger>
+          <TabsTrigger value="proforma" className="text-xs sm:text-sm">Pro Forma</TabsTrigger>
+          <TabsTrigger value="returns" className="text-xs sm:text-sm">Returns</TabsTrigger>
           <TabsTrigger value="financing" className="text-xs sm:text-sm">Financing</TabsTrigger>
           <TabsTrigger value="market" className="text-xs sm:text-sm">Market & Risk</TabsTrigger>
           <TabsTrigger value="reports" className="text-xs sm:text-sm">Reports</TabsTrigger>
@@ -769,6 +787,40 @@ const Analysis = () => {
         </TabsContent>
 
         {/* ── FINANCING ── */}
+        {/* ── PRO FORMA ── */}
+        <TabsContent value="proforma" className="space-y-6 mt-4">
+          {proForma && inputSufficiency.canAnalyze ? (
+            <ProFormaPanel result={proForma} />
+          ) : (
+            <CardContainer className="p-6">
+              <EmptyStateContainer
+                icon={<BarChart3 className="h-10 w-10" />}
+                title="Pro forma unavailable"
+                description="Enter purchase price, rent, and operating expenses to generate the T-12 pro forma."
+              />
+            </CardContainer>
+          )}
+        </TabsContent>
+
+        {/* ── RETURNS ── */}
+        <TabsContent value="returns" className="space-y-6 mt-4">
+          {returns && inputSufficiency.canAnalyze ? (
+            <ReturnsPanel
+              result={returns}
+              assumptions={returnsAssumptions}
+              onAssumptionsChange={(next) => setReturnsAssumptions(prev => ({ ...prev, ...next }))}
+            />
+          ) : (
+            <CardContainer className="p-6">
+              <EmptyStateContainer
+                icon={<TrendingUp className="h-10 w-10" />}
+                title="Returns model unavailable"
+                description="Enter financing and income inputs to project IRR, equity multiple, and year-by-year cash flow."
+              />
+            </CardContainer>
+          )}
+        </TabsContent>
+
         <TabsContent value="financing" className="space-y-6 mt-4">
           {inputSufficiency.canAnalyze && canonicalOutput?.financingOptions ? (
             <FinancingIntelligence results={canonicalOutput.financingOptions} />
