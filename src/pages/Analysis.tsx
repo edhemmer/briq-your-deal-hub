@@ -178,6 +178,7 @@ const Analysis = () => {
   const [marketFields, setMarketFields] = useState<Record<string, string>>({});
   const [analysisContext, setAnalysisContext] = useState<AnalysisContext | null>(null);
   const [sourceQualityMap, setSourceQualityMap] = useState<Record<string, SourceQuality>>({});
+  const [returnsAssumptions, setReturnsAssumptions] = useState<ReturnsAssumptions>(DEFAULT_RETURNS_ASSUMPTIONS);
 
   const sourceQualityInput = useMemo<SourceQualityInput | null>(() => {
     if (Object.keys(sourceQualityMap).length === 0) return null;
