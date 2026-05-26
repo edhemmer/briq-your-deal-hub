@@ -865,8 +865,12 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
       severity: c.severity,
       mitigation: move ? move.ask : "Flag to counsel; document the trade-off in writing before signing.",
       owner: p,
+      dollarImpact: c.dollarImpact,
     };
   });
+
+  // ===== Dollar exposure roll-up =====
+  const exposureTotal = sumExposure(cons.map((c) => c.dollarImpact));
 
   // ===== Liability allocation =====
   const liabilityAllocation: LiabilityRow[] = [];
