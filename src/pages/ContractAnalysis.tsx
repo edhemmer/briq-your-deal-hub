@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft,
   AlertTriangle,
@@ -17,6 +18,10 @@ import {
   FileText,
   Briefcase,
   Gavel,
+  GitCompareArrows,
+  Link2,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import { SectionContainer } from "@/components/ui/section-container";
 import { CardContainer } from "@/components/ui/card-container";
@@ -50,6 +55,13 @@ import {
   deadlineToIcsEvent,
   bucketDeadlinesByWeek,
 } from "@/lib/contractIQCalendar";
+import {
+  bridgeContractWithDeal,
+  formatBridgeMoney,
+  type BridgeFinding,
+  type BridgeSeverity,
+  type DealLite,
+} from "@/lib/contractIQBridge";
 
 const sevColor = (s: "high" | "moderate" | "low") =>
   s === "high"
@@ -123,6 +135,58 @@ const ContractAnalysisPage = () => {
     };
     return analyzeContract(input);
   }, [contract, activePerspective]);
+
+  // ── DealIQ ↔ ContractIQ Bridge ───────────────────────────────────
+  const [linkedDeal, setLinkedDeal] = useState<DealLite | null>(null);
+  const [dealLoading, setDealLoading] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    const dealId = contract?.deal_id;
+    if (!dealId) {
+      setLinkedDeal(null);
+      return;
+    }
+    setDealLoading(true);
+    supabase
+      .from("deals")
+      .select("property_address,city,state,purchase_price,closing_costs,rehab_cost,estimated_arv,buyer_name,seller_name,strategy_primary")
+      .eq("id", dealId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setLinkedDeal((data as DealLite) ?? null);
+      })
+      .then(undefined, () => {
+        if (!cancelled) setLinkedDeal(null);
+      })
+      .then(() => {
+        if (!cancelled) setDealLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contract?.deal_id]);
+
+  const bridge = useMemo(() => {
+    if (!contract) return null;
+    return bridgeContractWithDeal(
+      {
+        property_address: contract.property_address,
+        purchase_price: contract.purchase_price,
+        earnest_money: contract.earnest_money,
+        closing_date: contract.closing_date,
+        inspection_period_days: contract.inspection_period_days,
+        buyer_name: contract.buyer_name,
+        seller_name: contract.seller_name,
+        financing_contingency: contract.financing_contingency,
+        appraisal_contingency: contract.appraisal_contingency,
+        inspection_contingency: contract.inspection_contingency,
+        created_at: contract.created_at,
+      },
+      linkedDeal,
+      activePerspective,
+    );
+  }, [contract, linkedDeal, activePerspective]);
+
 
   const buildReportCtx = (): ContractReportContext | null => {
     if (!contract || !analysis) return null;
@@ -242,6 +306,19 @@ const ContractAnalysisPage = () => {
           <TabsTrigger value="negotiation">
             Negotiation
             <Badge variant="outline" className="ml-1.5 text-[9px] h-4 px-1">{analysis.negotiation.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="bridge">
+            Bridge
+            {bridge && bridge.hasDeal && (
+              <Badge variant="outline" className="ml-1.5 text-[9px] h-4 px-1">
+                {bridge.findings.length}
+              </Badge>
+            )}
+            {bridge && !bridge.hasDeal && (
+              <Badge variant="outline" className="ml-1.5 text-[9px] h-4 px-1 text-amber-700 border-amber-300">
+                !
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
@@ -754,6 +831,162 @@ const ContractAnalysisPage = () => {
             </CardContainer>
           )}
         </TabsContent>
+
+        {/* ════════════ BRIDGE TAB ════════════ */}
+        <TabsContent value="bridge" className="mt-0">
+          {!bridge || dealLoading ? (
+            <CardContainer className="p-5 mb-5">
+              <p className="text-xs text-muted-foreground">Loading deal link…</p>
+            </CardContainer>
+          ) : !bridge.hasDeal ? (
+            <CardContainer className="p-6 mb-5 border-amber-200 bg-amber-50/40 dark:bg-amber-900/10 dark:border-amber-800">
+              <div className="flex items-start gap-3">
+                <Link2 className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-foreground mb-1">No DealIQ underwriting linked</h3>
+                  <p className="text-sm text-foreground/90 leading-relaxed">
+                    Link this contract to a DealIQ deal to cross-check price, timing, parties, and contingencies against your underwriting model. Without a link the contract is reviewed on its own merits only.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => navigate("/contractiq")}
+                  >
+                    Go to ContractIQ
+                  </Button>
+                </div>
+              </div>
+            </CardContainer>
+          ) : (
+            <>
+              <CardContainer className="p-6 mb-5 border-primary/15 bg-gradient-to-br from-primary/[0.03] to-card">
+                <div className="flex items-start gap-3">
+                  <GitCompareArrows className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <h2 className="text-sm font-semibold text-foreground mb-1">
+                      Contract ↔ DealIQ Bridge
+                    </h2>
+                    <p className="text-sm text-foreground/90 leading-relaxed">
+                      Deterministic cross-check between the signed/draft contract and your underwriting in DealIQ. Variances are scored from the {activePerspective}'s perspective.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Alignment
+                      </span>
+                      <span className="text-xs font-semibold text-foreground">{bridge.alignmentScore}/100</span>
+                    </div>
+                    <Progress value={bridge.alignmentScore} className="h-2" />
+                  </div>
+                  <div className="rounded-md border border-destructive/20 bg-destructive/[0.04] px-3 py-2">
+                    <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-destructive font-semibold">
+                      <TrendingDown className="h-3 w-3" /> Downside vs model
+                    </div>
+                    <div className="text-sm font-semibold tabular-nums text-destructive mt-0.5">
+                      {bridge.totalDownside > 0 ? formatBridgeMoney(bridge.totalDownside) : "—"}
+                    </div>
+                  </div>
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50/60 dark:bg-emerald-900/10 dark:border-emerald-800 px-3 py-2">
+                    <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide font-semibold text-emerald-700 dark:text-emerald-300">
+                      <TrendingUp className="h-3 w-3" /> Upside vs model
+                    </div>
+                    <div className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-300 mt-0.5">
+                      {bridge.totalUpside > 0 ? formatBridgeMoney(bridge.totalUpside) : "—"}
+                    </div>
+                  </div>
+                </div>
+              </CardContainer>
+
+              <CardContainer className="p-5 mb-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <ListChecks className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-semibold text-foreground">Variances</h3>
+                  <Badge variant="outline" className="text-[10px] ml-auto">{bridge.findings.length}</Badge>
+                </div>
+                {bridge.findings.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Contract matches the underwriting model on all checked dimensions.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {bridge.findings.map((f: BridgeFinding) => {
+                      const tone: Record<BridgeSeverity, string> =
+                        {
+                          high: "border-destructive/30 bg-destructive/5",
+                          moderate: "border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800",
+                          low: "border-border bg-muted/40",
+                          info: "border-border bg-background",
+                        };
+                      const sevPill: Record<BridgeSeverity, string> =
+                        {
+                          high: "text-destructive border-destructive/30",
+                          moderate: "text-amber-700 dark:text-amber-300 border-amber-300",
+                          low: "text-muted-foreground border-border",
+                          info: "text-muted-foreground border-border",
+                        };
+                      return (
+                        <li key={f.id} className={`rounded-md border p-3 ${tone[f.severity]}`}>
+                          <div className="flex items-start justify-between gap-2 mb-1 flex-wrap">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                {f.field}
+                              </span>
+                              <Badge variant="outline" className={`text-[10px] capitalize ${sevPill[f.severity]}`}>
+                                {f.severity}
+                              </Badge>
+                              {f.direction === "better" && (
+                                <Badge variant="outline" className="text-[10px] text-emerald-700 border-emerald-300 dark:text-emerald-300">
+                                  Favorable
+                                </Badge>
+                              )}
+                              {f.direction === "missing" && (
+                                <Badge variant="outline" className="text-[10px]">Missing</Badge>
+                              )}
+                            </div>
+                            {f.dollarImpact != null && (
+                              <span
+                                className={`text-xs font-semibold tabular-nums ${
+                                  f.dollarImpact < 0
+                                    ? "text-destructive"
+                                    : "text-emerald-700 dark:text-emerald-300"
+                                }`}
+                              >
+                                {f.dollarImpact < 0 ? "−" : "+"}
+                                {formatBridgeMoney(Math.abs(f.dollarImpact))}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm font-medium text-foreground">{f.label}</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{f.detail}</p>
+                          {(f.contractValue || f.dealValue) && (
+                            <div className="grid grid-cols-2 gap-2 mt-2 text-[11px]">
+                              <div className="rounded border border-border bg-background/60 px-2 py-1">
+                                <div className="text-muted-foreground uppercase tracking-wide text-[9px]">Contract</div>
+                                <div className="font-medium text-foreground tabular-nums truncate">{f.contractValue ?? "—"}</div>
+                              </div>
+                              <div className="rounded border border-border bg-background/60 px-2 py-1">
+                                <div className="text-muted-foreground uppercase tracking-wide text-[9px]">DealIQ</div>
+                                <div className="font-medium text-foreground tabular-nums truncate">{f.dealValue ?? "—"}</div>
+                              </div>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </CardContainer>
+
+              <p className="text-[11px] text-muted-foreground">
+                Bridge logic is fully deterministic — no AI. Severities and dollar deltas come from explicit rules over the linked deal's purchase price, ARV, rehab, closing costs, and strategy.
+              </p>
+            </>
+          )}
+        </TabsContent>
+
 
         {/* ════════════ REPORTS TAB ════════════ */}
         <TabsContent value="reports" className="mt-0">
