@@ -275,6 +275,256 @@ export function priceFinding(id: string, ctx: PricingContext): DollarImpact | nu
       };
     }
 
+    // ── Paralegal rules — financing structure (Module D-bis) ────────
+    case "hm_cost": {
+      // 2–4 pts + ~3% rate premium over ~12 mo on a ~70% LTV loan ≈ 4% of price
+      return {
+        ...range(price * 0.04, 0.4),
+        basis: "Hard-money premium: 2–4 origination points plus a ~3% rate spread over a typical 12-month hold, on roughly 70% LTV.",
+        formula: "~4% × price",
+        kind: "cost",
+        isDownside: p === "buyer",
+      };
+    }
+    case "hm_seller": {
+      return {
+        ...range(em > 0 ? em : price * 0.02, 0.3),
+        basis: "Hard-money lenders pull funding more often than banks; seller's downside if buyer's loan fails is the EM forfeit (which may not cover days-on-market lost).",
+        formula: em > 0 ? "= EM (best-case recovery)" : "~2% × price",
+        kind: "exposure",
+        isDownside: p === "seller",
+      };
+    }
+    case "agency_prepay":
+    case "cmbs_def": {
+      return {
+        ...range(price * 0.05, 0.6),
+        basis: "Yield maintenance / defeasance on agency or CMBS debt can cost 3%–15% of loan balance in a falling-rate exit. Estimate ~5% of price assuming ~70% LTV.",
+        formula: "~5% × price (rate-environment dependent)",
+        kind: "exposure",
+        isDownside: p === "buyer",
+      };
+    }
+    case "cmbs_serv": {
+      return {
+        ...range(75_000, 0.5),
+        basis: "Special-servicer fees, legal, and rating-agency consents on CMBS modifications / assumptions.",
+        formula: "Flat ~$50k–$125k",
+        kind: "cost",
+        isDownside: p === "buyer",
+      };
+    }
+    case "dscr_rate": {
+      // ~1.25% spread × 70% LTV × price × 5 yr hold
+      return {
+        ...range(price * 0.7 * 0.0125 * 5, 0.4),
+        basis: "DSCR rate premium (~1.25% over conforming) on a ~70% LTV loan across a 5-year hold.",
+        formula: "spread × LTV × price × years",
+        kind: "cost",
+        isDownside: p === "buyer",
+      };
+    }
+    case "constr_complex": {
+      return {
+        ...range(price * 0.05, 0.6),
+        basis: "Construction overruns and schedule slippage typically consume 5%–15% of project cost; reserve at least 5% of price-equivalent.",
+        formula: "~5% × price (contingency)",
+        kind: "exposure",
+        isDownside: p === "buyer",
+      };
+    }
+    case "bridge_cost": {
+      // 1 pt in + 1 pt out + ~3% spread over 18 mo on 70% LTV
+      return {
+        ...range(price * 0.035, 0.4),
+        basis: "Bridge debt: 1–2 points in + out, plus ~3% spread over an 18-month hold, on roughly 70% LTV.",
+        formula: "~3.5% × price",
+        kind: "cost",
+        isDownside: p === "buyer",
+      };
+    }
+    case "mezz_cost": {
+      return {
+        ...range(price * 0.025, 0.5),
+        basis: "Mezzanine / pref pay rate of 10–14% on a ~15% slice of capital stack across a 2-year hold.",
+        formula: "~2.5% × price",
+        kind: "cost",
+        isDownside: p === "buyer",
+      };
+    }
+    case "sba_pg": {
+      return {
+        ...range(price * 0.1, 0.5),
+        basis: "Personal-guaranty exposure on SBA debt — typically 10%–20% of price recoverable post-foreclosure deficiency.",
+        formula: "~10% × price (recourse risk)",
+        kind: "exposure",
+        isDownside: p === "buyer",
+      };
+    }
+
+    // ── Paralegal rules — distressed / title ─────────────────────────
+    case "reo_asis": {
+      return {
+        ...range(price * 0.03, 0.7),
+        basis: "REO sellers refuse repair credits and use override addenda. Reserve ~3% of price for post-close repairs and per-diem late penalties.",
+        formula: "~3% × price",
+        kind: "exposure",
+        isDownside: p === "buyer",
+      };
+    }
+    case "ss_time": {
+      if (daysToClose == null) return { ...range(price * 0.005, 0.6), basis: "Short-sale carry while awaiting lender approval (60–180 days).", formula: "~0.5% × price", kind: "exposure", isDownside: true };
+      return {
+        ...range(price * 0.005, 0.6),
+        basis: "Carrying cost (rate-lock extensions, opportunity cost) over a 60–180 day short-sale approval window.",
+        formula: "~0.5% × price",
+        kind: "exposure",
+        isDownside: true,
+      };
+    }
+    case "td_title": {
+      return {
+        ...range(8_000, 0.5),
+        basis: "Quiet-title action to clear redemption / junior-lien clouds — typically 6–18 months and $3k–$10k in legal fees.",
+        formula: "Flat ~$3k–$12k legal",
+        kind: "cost",
+        isDownside: p === "buyer",
+      };
+    }
+    case "quitclaim": {
+      return {
+        ...range(price * 0.03, 0.7),
+        basis: "Quitclaim deed offers no title warranties; if the title policy has any gap, the buyer absorbs the loss. Reserve ~3% of price.",
+        formula: "~3% × price",
+        kind: "exposure",
+        isDownside: p === "buyer",
+      };
+    }
+    case "spec_warr": {
+      return {
+        ...range(price * 0.005, 0.5),
+        basis: "Special warranty deed leaves pre-seller defects uncovered by the deed itself — small residual exposure beyond the title policy.",
+        formula: "~0.5% × price",
+        kind: "exposure",
+        isDownside: p === "buyer",
+      };
+    }
+
+    // ── Paralegal rules — seller carry / sub-to ──────────────────────
+    case "sf_risk": {
+      return {
+        ...range(price * 0.08, 0.5),
+        basis: "Seller-carryback default exposure: foreclosure cost, lost interest, and re-sale discount typically consume 5%–15% of price.",
+        formula: "~8% × price",
+        kind: "exposure",
+        isDownside: p === "seller",
+      };
+    }
+    case "sf_balloon": {
+      return {
+        ...range(price * 0.05, 0.5),
+        basis: "Balloon refinance risk: if rates rise or DSCR slips, buyer faces a forced sale at the balloon date.",
+        formula: "~5% × price",
+        kind: "exposure",
+        isDownside: p === "buyer",
+      };
+    }
+    case "sub2_dos":
+    case "wrap_dos": {
+      return {
+        ...range(price * 0.7, 0.3),
+        basis: "Due-on-sale acceleration on a sub-to / wrap can force full payoff of the underlying loan at any time post-close (~70% LTV exposure).",
+        formula: "~70% × price (loan balance at risk)",
+        kind: "exposure",
+        isDownside: true,
+      };
+    }
+    case "assume_qual": {
+      return {
+        ...range(price * 0.7 * 0.0075, 0.3),
+        basis: "Loan assumption fees typically run 0.5%–1% of the assumed balance.",
+        formula: "~0.75% × loan balance",
+        kind: "cost",
+        isDownside: p === "buyer",
+      };
+    }
+
+    // ── Paralegal rules — tax / regulatory ───────────────────────────
+    case "firpta": {
+      const pct = 0.15;
+      return {
+        ...range(price * pct, 0.1),
+        basis: "FIRPTA requires the buyer to withhold 15% of gross sales price from a foreign seller and remit to the IRS within 20 days of close.",
+        formula: "15% × price",
+        kind: "cost",
+        isDownside: p === "buyer",
+      };
+    }
+    case "mansion": {
+      return {
+        ...range(price * 0.01, 0.2),
+        basis: "Mansion / additional transfer tax on sales ≥ $1M; brackets escalate in NY above $2M.",
+        formula: "~1% × price (base bracket)",
+        kind: "cost",
+        isDownside: p === "buyer",
+      };
+    }
+
+    // ── Paralegal rules — commercial diligence ───────────────────────
+    case "no_estoppel": {
+      return {
+        ...range(price * 0.01, 0.6),
+        basis: "Without tenant estoppels, lease economics and deposits cannot be confirmed at close — reserve ~1% of price for post-close lease disputes.",
+        formula: "~1% × price",
+        kind: "exposure",
+        isDownside: p === "buyer",
+      };
+    }
+
+    // ── Paralegal rules — risk-shifting clauses ──────────────────────
+    case "toe": {
+      return {
+        ...range(em > 0 ? em : price * 0.02, 0.2),
+        basis: "Time-is-of-essence converts any missed deadline into a material breach with no cure — the full earnest money is at risk.",
+        formula: em > 0 ? "= EM" : "~2% × price",
+        kind: "exposure",
+        isDownside: p === "buyer",
+      };
+    }
+    case "perdiem": {
+      const perDiemEst = price * 0.0002; // ~2bps/day proxy
+      return {
+        ...range(perDiemEst * 14, 0.6),
+        basis: "Per-diem late-close penalty over a typical 14-day slip in lender funding.",
+        formula: "per-diem × ~14 days",
+        kind: "exposure",
+        isDownside: p === "buyer",
+      };
+    }
+    case "occ_buyer": {
+      return {
+        ...range(price * 0.005, 0.6),
+        basis: "Seller rent-back exposes the buyer to holdover, damage, and insurance gap risk during occupancy.",
+        formula: "~0.5% × price",
+        kind: "exposure",
+        isDownside: p === "buyer",
+      };
+    }
+    case "rofr_b": {
+      return {
+        ...range(price * 0.005, 0.6),
+        basis: "ROFR exposure: sunk diligence cost (inspection, legal, appraisal) if the holder exercises and takes the property.",
+        formula: "~0.5% × price (DD sunk cost)",
+        kind: "exposure",
+        isDownside: p === "buyer",
+      };
+    }
+    case "hoa_assess": {
+      // Pulled from contract value if present; engine passes id only, but we can't see amount here.
+      // Skip — accounting line already captures the dollar figure.
+      return null;
+    }
+
     default:
       return null;
   }
