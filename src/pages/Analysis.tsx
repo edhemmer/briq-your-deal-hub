@@ -62,6 +62,7 @@ import { buildProForma } from "@/lib/underwriting/proFormaEngine";
 import { buildReturns, DEFAULT_RETURNS_ASSUMPTIONS, type ReturnsAssumptions } from "@/lib/underwriting/returnsEngine";
 import { ProFormaPanel } from "@/components/analysis/ProFormaPanel";
 import { ReturnsPanel } from "@/components/analysis/ReturnsPanel";
+import { SensitivityPanel } from "@/components/analysis/SensitivityPanel";
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   { key: "purchase_price", label: "Purchase Price", group: "Acquisition" },
@@ -570,6 +571,7 @@ const Analysis = () => {
           <TabsTrigger value="inputs" className="text-xs sm:text-sm">Inputs</TabsTrigger>
           <TabsTrigger value="proforma" className="text-xs sm:text-sm">Pro Forma</TabsTrigger>
           <TabsTrigger value="returns" className="text-xs sm:text-sm">Returns</TabsTrigger>
+          <TabsTrigger value="sensitivity" className="text-xs sm:text-sm">Sensitivity</TabsTrigger>
           <TabsTrigger value="financing" className="text-xs sm:text-sm">Financing</TabsTrigger>
           <TabsTrigger value="market" className="text-xs sm:text-sm">Market & Risk</TabsTrigger>
           <TabsTrigger value="reports" className="text-xs sm:text-sm">Reports</TabsTrigger>
@@ -816,6 +818,25 @@ const Analysis = () => {
                 icon={<TrendingUp className="h-10 w-10" />}
                 title="Returns model unavailable"
                 description="Enter financing and income inputs to project IRR, equity multiple, and year-by-year cash flow."
+              />
+            </CardContainer>
+          )}
+        </TabsContent>
+
+        {/* ── SENSITIVITY ── */}
+        <TabsContent value="sensitivity" className="space-y-6 mt-4">
+          {canonicalOutput && inputSufficiency.canAnalyze ? (
+            <SensitivityPanel
+              input={canonicalOutput.dealInput}
+              analysis={canonicalOutput.analysis}
+              assumptions={returnsAssumptions}
+            />
+          ) : (
+            <CardContainer className="p-6">
+              <EmptyStateContainer
+                icon={<Activity className="h-10 w-10" />}
+                title="Sensitivity unavailable"
+                description="Complete the deal inputs to run two-variable matrices, tornado charts, and break-even thresholds."
               />
             </CardContainer>
           )}
