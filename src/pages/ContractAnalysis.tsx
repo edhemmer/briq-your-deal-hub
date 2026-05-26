@@ -375,6 +375,7 @@ const ContractAnalysisPage = () => {
                   <span className="capitalize text-[10px] font-semibold tracking-wide text-primary mr-1.5">{q.category}</span>
                   {q.why}
                 </p>
+                <ClauseEvidenceBlock evidence={q.evidence} emphasis="muted" />
               </li>
             ))}
           </ul>
