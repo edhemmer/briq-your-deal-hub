@@ -350,6 +350,7 @@ const ContractAnalysisPage = () => {
               <li key={w.id} className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 p-3">
                 <p className="text-sm font-medium text-foreground">{w.label}</p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{w.detail}</p>
+                <ClauseEvidenceBlock evidence={w.evidence} emphasis="muted" />
               </li>
             ))}
           </ul>
