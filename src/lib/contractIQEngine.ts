@@ -20,12 +20,35 @@
  *   - Negotiation moves (specific asks)
  */
 
-import type { CanonicalContractExtraction, PaidBy } from "./contractDataMapper";
+import type {
+  CanonicalConfidence,
+  CanonicalContractExtraction,
+  CanonicalContractField,
+  PaidBy,
+} from "./contractDataMapper";
 import { runParalegalRules, type ClosingAccountingRow } from "./contractIQRules";
 export type { ClosingAccountingRow } from "./contractIQRules";
 
 export type Perspective = "buyer" | "seller";
 export type Severity = "high" | "moderate" | "low";
+
+/**
+ * ClauseEvidence — a traceable, auditable pointer from a finding back to
+ * the source clause that triggered it. Findings without evidence are
+ * implicitly derived from structured form inputs.
+ */
+export interface ClauseEvidence {
+  /** Canonical field name (e.g., "earnest_money", "as_is_clause"). */
+  field: string;
+  /** Human-readable label for the field (e.g., "Earnest money"). */
+  label: string;
+  /** Verbatim excerpt from the contract, or a derived computation note. */
+  excerpt: string;
+  /** Confidence in the underlying extraction (or "derived" for form inputs). */
+  confidence: CanonicalConfidence | "derived";
+  /** Stringified value at the time of evaluation. */
+  value?: string | null;
+}
 
 export interface ContractInput {
   perspective: Perspective;
@@ -49,6 +72,7 @@ export interface Pro {
   id: string;
   label: string;
   detail: string;
+  evidence?: ClauseEvidence[];
 }
 
 export interface Con {
@@ -56,12 +80,16 @@ export interface Con {
   label: string;
   severity: Severity;
   detail: string;
+  evidence?: ClauseEvidence[];
+  /** True when severity was downgraded due to low-confidence evidence. */
+  confidenceAdjusted?: boolean;
 }
 
 export interface Weakness {
   id: string;
   label: string;
   detail: string;
+  evidence?: ClauseEvidence[];
 }
 
 export interface Question {
@@ -69,6 +97,7 @@ export interface Question {
   question: string;
   why: string;
   category: "financial" | "legal" | "timeline" | "property" | "contingency";
+  evidence?: ClauseEvidence[];
 }
 
 export interface Deadline {
@@ -84,6 +113,7 @@ export interface NegotiationMove {
   id: string;
   ask: string;
   rationale: string;
+  evidence?: ClauseEvidence[];
 }
 
 export interface RiskMatrixRow {
@@ -169,6 +199,74 @@ const fmtPct = (n: number) => `${(n * 100).toFixed(2)}%`;
 
 const val = <T>(f?: { value: T | null } | null): T | null => (f ? f.value : null);
 
+// ----- evidence helpers -----
+
+/**
+ * Build a ClauseEvidence entry from a canonical extraction field.
+ * Returns null when the field is missing entirely (no value AND no excerpt),
+ * so callers can spread the result and skip empty evidence safely.
+ */
+const ev = (
+  field: string,
+  label: string,
+  f: CanonicalContractField<unknown> | undefined | null,
+): ClauseEvidence | null => {
+  if (!f) return null;
+  const hasExcerpt = typeof f.excerpt === "string" && f.excerpt.trim().length > 0;
+  const hasValue = f.value !== null && f.value !== undefined;
+  if (!hasExcerpt && !hasValue) return null;
+  return {
+    field,
+    label,
+    excerpt: hasExcerpt ? f.excerpt.trim() : "(no clause excerpt captured)",
+    confidence: f.confidence ?? "none",
+    value: hasValue ? String(f.value) : null,
+  };
+};
+
+/**
+ * Derived evidence — for findings computed from structured form inputs
+ * with no direct clause excerpt (e.g., EM/price ratio).
+ */
+const derivedEv = (
+  field: string,
+  label: string,
+  computation: string,
+  value?: string | number | null,
+): ClauseEvidence => ({
+  field,
+  label,
+  excerpt: computation,
+  confidence: "derived",
+  value: value == null ? null : String(value),
+});
+
+/** Drop nulls and return undefined when list is empty. */
+const compact = (items: (ClauseEvidence | null | undefined)[]): ClauseEvidence[] | undefined => {
+  const out = items.filter((x): x is ClauseEvidence => !!x);
+  return out.length > 0 ? out : undefined;
+};
+
+/**
+ * Confidence-gated severity. If every piece of evidence is low/none
+ * confidence (i.e., the AI is not sure what it read), we de-rate by one
+ * notch so a hallucinated extraction never drives a "high" finding.
+ * Derived (form-input) evidence is treated as high-confidence.
+ */
+const gateSeverity = (
+  severity: Severity,
+  evidence: ClauseEvidence[] | undefined,
+): { severity: Severity; adjusted: boolean } => {
+  if (!evidence || evidence.length === 0) return { severity, adjusted: false };
+  const allWeak = evidence.every(
+    (x) => x.confidence === "low" || x.confidence === "none",
+  );
+  if (!allWeak) return { severity, adjusted: false };
+  if (severity === "high") return { severity: "moderate", adjusted: true };
+  if (severity === "moderate") return { severity: "low", adjusted: true };
+  return { severity, adjusted: false };
+};
+
 // ----- engine -----
 export function analyzeContract(input: ContractInput): ContractAnalysis {
   const p = input.perspective;
@@ -183,20 +281,58 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
   const negotiation: NegotiationMove[] = [];
   const missing: string[] = [];
 
-  const addCon = (id: string, label: string, severity: Severity, detail: string, perspectiveAffected: Perspective | "both" = p) => {
+  const addCon = (
+    id: string,
+    label: string,
+    severity: Severity,
+    detail: string,
+    perspectiveAffected: Perspective | "both" = p,
+    evidence?: (ClauseEvidence | null | undefined)[],
+  ) => {
     if (perspectiveAffected === p || perspectiveAffected === "both") {
-      cons.push({ id, label, severity, detail });
+      const ev = compact(evidence ?? []);
+      const gated = gateSeverity(severity, ev);
+      cons.push({
+        id,
+        label,
+        severity: gated.severity,
+        detail: gated.adjusted
+          ? `${detail} Severity de-rated because the source clause was extracted with low confidence — verify in the contract.`
+          : detail,
+        evidence: ev,
+        confidenceAdjusted: gated.adjusted || undefined,
+      });
     }
   };
-  const addPro = (id: string, label: string, detail: string, favors: Perspective | "both" = p) => {
-    if (favors === p || favors === "both") pros.push({ id, label, detail });
+  const addPro = (
+    id: string,
+    label: string,
+    detail: string,
+    favors: Perspective | "both" = p,
+    evidence?: (ClauseEvidence | null | undefined)[],
+  ) => {
+    if (favors === p || favors === "both")
+      pros.push({ id, label, detail, evidence: compact(evidence ?? []) });
   };
-  const addWeak = (id: string, label: string, detail: string) =>
-    weaknesses.push({ id, label, detail });
-  const addQ = (id: string, question: string, why: string, category: Question["category"]) =>
-    questions.push({ id, question, why, category });
-  const addMove = (id: string, ask: string, rationale: string) =>
-    negotiation.push({ id, ask, rationale });
+  const addWeak = (
+    id: string,
+    label: string,
+    detail: string,
+    evidence?: (ClauseEvidence | null | undefined)[],
+  ) => weaknesses.push({ id, label, detail, evidence: compact(evidence ?? []) });
+  const addQ = (
+    id: string,
+    question: string,
+    why: string,
+    category: Question["category"],
+    evidence?: (ClauseEvidence | null | undefined)[],
+  ) => questions.push({ id, question, why, category, evidence: compact(evidence ?? []) });
+  const addMove = (
+    id: string,
+    ask: string,
+    rationale: string,
+    evidence?: (ClauseEvidence | null | undefined)[],
+  ) => negotiation.push({ id, ask, rationale, evidence: compact(evidence ?? []) });
 
   // ===== Required field coverage =====
   if (input.purchase_price == null) missing.push("Purchase price");
@@ -208,6 +344,16 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
   const em = input.earnest_money ?? 0;
   const emRatio = price > 0 ? em / price : 0;
 
+  // Pre-build commonly-reused evidence for form-derived findings.
+  const emEv = derivedEv(
+    "earnest_money",
+    "Earnest money vs. purchase price",
+    `Earnest money ${fmtMoney(em)} ÷ purchase price ${fmtMoney(price)} = ${fmtPct(emRatio)}`,
+    em,
+  );
+  const emExtractionEv = ev("earnest_money", "Earnest money", e?.earnest_money);
+  const priceExtractionEv = ev("purchase_price", "Purchase price", e?.purchase_price);
+
   // ===== Earnest money =====
   if (price > 0 && em > 0) {
     if (emRatio < 0.005) {
@@ -217,11 +363,30 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
         p === "seller" ? "high" : "low",
         `Earnest money is ${fmtPct(emRatio)} of purchase price (typical 1–3%). Weak commitment signal.`,
         "seller",
+        [emEv, emExtractionEv, priceExtractionEv],
       );
-      if (p === "buyer") addPro("em_low_b", "Minimal capital at risk", `Only ${fmtMoney(em)} exposed if you terminate.`);
+      if (p === "buyer")
+        addPro(
+          "em_low_b",
+          "Minimal capital at risk",
+          `Only ${fmtMoney(em)} exposed if you terminate.`,
+          p,
+          [emEv, emExtractionEv],
+        );
       if (p === "seller") {
-        addMove("em_increase", `Increase earnest money to 1–3% (${fmtMoney(price * 0.01)}–${fmtMoney(price * 0.03)})`, "Standard market range; signals genuine buyer commitment.");
-        addQ("em_proof", "What proof of funds will the buyer provide?", "Low earnest money + no proof = high re-trade risk.", "financial");
+        addMove(
+          "em_increase",
+          `Increase earnest money to 1–3% (${fmtMoney(price * 0.01)}–${fmtMoney(price * 0.03)})`,
+          "Standard market range; signals genuine buyer commitment.",
+          [emEv, emExtractionEv],
+        );
+        addQ(
+          "em_proof",
+          "What proof of funds will the buyer provide?",
+          "Low earnest money + no proof = high re-trade risk.",
+          "financial",
+          [emEv],
+        );
       }
     } else if (emRatio > 0.05) {
       addCon(
@@ -230,17 +395,49 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
         p === "buyer" ? "high" : "low",
         `Earnest money is ${fmtPct(emRatio)} of purchase price — significant capital at risk.`,
         "buyer",
+        [emEv, emExtractionEv, priceExtractionEv],
       );
-      if (p === "seller") addPro("em_high_s", "Strong buyer commitment", `${fmtMoney(em)} on the line indicates serious buyer.`);
+      if (p === "seller")
+        addPro(
+          "em_high_s",
+          "Strong buyer commitment",
+          `${fmtMoney(em)} on the line indicates serious buyer.`,
+          p,
+          [emEv, emExtractionEv],
+        );
       if (p === "buyer") {
-        addMove("em_reduce", "Negotiate earnest money down to 1–3%", "Reduces capital exposure if a contingency triggers.");
-        addQ("em_release", "Under what conditions does the earnest money become non-refundable?", "Any 'hard' EM milestones materially raise your downside.", "financial");
+        addMove(
+          "em_reduce",
+          "Negotiate earnest money down to 1–3%",
+          "Reduces capital exposure if a contingency triggers.",
+          [emEv],
+        );
+        addQ(
+          "em_release",
+          "Under what conditions does the earnest money become non-refundable?",
+          "Any 'hard' EM milestones materially raise your downside.",
+          "financial",
+          [emEv],
+        );
       }
     } else {
-      addPro("em_market", "Earnest money is within market norms", `${fmtPct(emRatio)} of price — standard commitment.`, "both");
+      addPro(
+        "em_market",
+        "Earnest money is within market norms",
+        `${fmtPct(emRatio)} of price — standard commitment.`,
+        "both",
+        [emEv, emExtractionEv],
+      );
     }
   } else if (price > 0 && em === 0) {
-    addCon("em_zero", "No earnest money documented", p === "seller" ? "high" : "low", "Buyer has no skin in the game.", "seller");
+    addCon(
+      "em_zero",
+      "No earnest money documented",
+      p === "seller" ? "high" : "low",
+      "Buyer has no skin in the game.",
+      "seller",
+      [derivedEv("earnest_money", "Earnest money", "Value is $0 / not present in structured inputs.", 0)],
+    );
   }
 
   // ===== Contingencies =====
@@ -250,85 +447,120 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
   const asIs = val(e?.as_is_clause) === true;
   const saleHome = val(e?.sale_of_other_home_contingency) === true;
 
+  const finEv = ev("financing_contingency", "Financing contingency", e?.financing_contingency);
+  const appEv = ev("appraisal_contingency", "Appraisal contingency", e?.appraisal_contingency);
+  const insEv = ev("inspection_contingency", "Inspection contingency", e?.inspection_contingency);
+  const asIsEv = ev("as_is_clause", "AS-IS clause", e?.as_is_clause);
+  const saleHomeEv = ev("sale_of_other_home_contingency", "Sale-of-other-home contingency", e?.sale_of_other_home_contingency);
+
+  const finDerived = derivedEv(
+    "financing_contingency",
+    "Financing contingency (form input)",
+    cFin ? "Toggle: present" : "Toggle: absent",
+    cFin ? "true" : "false",
+  );
+  const appDerived = derivedEv(
+    "appraisal_contingency",
+    "Appraisal contingency (form input)",
+    cApp ? "Toggle: present" : "Toggle: absent",
+    cApp ? "true" : "false",
+  );
+  const insDerived = derivedEv(
+    "inspection_contingency",
+    "Inspection contingency (form input)",
+    cIns ? "Toggle: present" : "Toggle: absent",
+    cIns ? "true" : "false",
+  );
+
   // Financing
   if (cFin) {
-    if (p === "buyer") addPro("fin_pro", "Financing contingency protects you", "Exit without forfeiting earnest money if financing fails.");
-    else addCon("fin_con", "Financing contingency present", "moderate", "Buyer can terminate if loan falls through.", "seller");
+    if (p === "buyer")
+      addPro("fin_pro", "Financing contingency protects you", "Exit without forfeiting earnest money if financing fails.", p, [finEv, finDerived]);
+    else
+      addCon("fin_con", "Financing contingency present", "moderate", "Buyer can terminate if loan falls through.", "seller", [finEv, finDerived]);
   } else if (price > 0) {
     if (p === "buyer") {
-      addCon("no_fin", "No financing contingency", "high", "You are obligated to close even if the loan is denied — earnest money at risk.", "buyer");
-      addQ("fin_proof", "Do you have a written loan commitment, not just pre-approval?", "Without a financing contingency, only a firm commitment protects your earnest money.", "financial");
-      addMove("add_fin_cont", "Add a 21-day financing contingency", "Standard protection against lender denial.");
+      addCon("no_fin", "No financing contingency", "high", "You are obligated to close even if the loan is denied — earnest money at risk.", "buyer", [finEv, finDerived]);
+      addQ("fin_proof", "Do you have a written loan commitment, not just pre-approval?", "Without a financing contingency, only a firm commitment protects your earnest money.", "financial", [finDerived]);
+      addMove("add_fin_cont", "Add a 21-day financing contingency", "Standard protection against lender denial.", [finDerived]);
     } else {
-      addPro("no_fin_s", "No financing contingency", "Buyer cannot exit due to loan issues.");
-      addQ("cash_proof_s", "Has the buyer demonstrated proof of funds?", "Confirms cash-equivalent strength of the offer.", "financial");
+      addPro("no_fin_s", "No financing contingency", "Buyer cannot exit due to loan issues.", p, [finEv, finDerived]);
+      addQ("cash_proof_s", "Has the buyer demonstrated proof of funds?", "Confirms cash-equivalent strength of the offer.", "financial", [finDerived]);
     }
   }
 
   // Appraisal
   if (cApp) {
-    if (p === "buyer") addPro("app_pro", "Appraisal contingency protects you", "Renegotiate or exit if the property appraises low.");
-    else addCon("app_con", "Appraisal contingency present", "moderate", "Buyer may renegotiate or walk if appraisal is low.", "seller");
+    if (p === "buyer")
+      addPro("app_pro", "Appraisal contingency protects you", "Renegotiate or exit if the property appraises low.", p, [appEv, appDerived]);
+    else
+      addCon("app_con", "Appraisal contingency present", "moderate", "Buyer may renegotiate or walk if appraisal is low.", "seller", [appEv, appDerived]);
   } else if (price > 0) {
     if (p === "buyer") {
-      addCon("no_app", "No appraisal contingency", "moderate", "If appraisal comes in low, you must cover the gap or forfeit EM.", "buyer");
-      addQ("app_gap", "How will you cover an appraisal shortfall in cash?", "Without an appraisal contingency, gaps come out of your pocket.", "financial");
-      addMove("add_app_cont", "Add appraisal contingency or appraisal gap cap", "Caps your exposure to a low appraisal.");
+      addCon("no_app", "No appraisal contingency", "moderate", "If appraisal comes in low, you must cover the gap or forfeit EM.", "buyer", [appEv, appDerived]);
+      addQ("app_gap", "How will you cover an appraisal shortfall in cash?", "Without an appraisal contingency, gaps come out of your pocket.", "financial", [appDerived]);
+      addMove("add_app_cont", "Add appraisal contingency or appraisal gap cap", "Caps your exposure to a low appraisal.", [appDerived]);
     } else {
-      addPro("no_app_s", "No appraisal contingency", "Sale price is locked even if appraisal is low.");
+      addPro("no_app_s", "No appraisal contingency", "Sale price is locked even if appraisal is low.", p, [appEv, appDerived]);
     }
   }
 
   // Inspection
   if (cIns) {
-    if (p === "buyer") addPro("ins_pro", "Inspection contingency protects you", "You can negotiate repairs, credits, or terminate after inspection.");
-    else addCon("ins_con", "Inspection contingency present", "low", "Buyer may request repairs, credits, or termination.", "seller");
+    if (p === "buyer")
+      addPro("ins_pro", "Inspection contingency protects you", "You can negotiate repairs, credits, or terminate after inspection.", p, [insEv, insDerived]);
+    else
+      addCon("ins_con", "Inspection contingency present", "low", "Buyer may request repairs, credits, or termination.", "seller", [insEv, insDerived]);
   } else if (price > 0) {
     if (p === "buyer") {
-      addCon("no_ins", "No inspection contingency", "high", "You accept the property as-is with no recourse for defects.", "buyer");
-      addQ("ins_pre", "Have you completed pre-offer inspections?", "Without an inspection contingency, defects are 100% your problem post-close.", "property");
-      addMove("add_ins_cont", "Add a 7–10 day inspection contingency", "Provides minimum due-diligence window without delaying close.");
+      addCon("no_ins", "No inspection contingency", "high", "You accept the property as-is with no recourse for defects.", "buyer", [insEv, insDerived]);
+      addQ("ins_pre", "Have you completed pre-offer inspections?", "Without an inspection contingency, defects are 100% your problem post-close.", "property", [insDerived]);
+      addMove("add_ins_cont", "Add a 7–10 day inspection contingency", "Provides minimum due-diligence window without delaying close.", [insDerived]);
     } else {
-      addPro("no_ins_s", "No inspection contingency", "Buyer cannot use inspection findings to retrade.");
+      addPro("no_ins_s", "No inspection contingency", "Buyer cannot use inspection findings to retrade.", p, [insEv, insDerived]);
     }
   }
 
   // ===== Inspection period length =====
   const ip = input.inspection_period_days;
+  const ipEv = ev("inspection_period_days", "Inspection period", e?.inspection_period_days);
+  const ipDerived = ip != null
+    ? derivedEv("inspection_period_days", "Inspection period (form input)", `${ip} days`, ip)
+    : null;
   if (ip != null) {
     if (cIns && ip < 7) {
-      addCon("ip_tight", "Tight inspection period", p === "buyer" ? "moderate" : "low", `Only ${ip} days — limited time to schedule contractors and review reports.`, "buyer");
-      if (p === "buyer") addMove("extend_ip", "Extend inspection to 10–14 days", "Standard window for thorough due diligence.");
+      addCon("ip_tight", "Tight inspection period", p === "buyer" ? "moderate" : "low", `Only ${ip} days — limited time to schedule contractors and review reports.`, "buyer", [ipEv, ipDerived]);
+      if (p === "buyer") addMove("extend_ip", "Extend inspection to 10–14 days", "Standard window for thorough due diligence.", [ipEv, ipDerived]);
     } else if (ip > 21) {
       if (p === "seller") {
-        addCon("ip_long", "Long inspection period", "low", `${ip}-day window keeps property off-market and gives buyer optionality.`, "seller");
-        addMove("shorten_ip", "Shorten inspection to ≤14 days", "Reduces seller risk window.");
+        addCon("ip_long", "Long inspection period", "low", `${ip}-day window keeps property off-market and gives buyer optionality.`, "seller", [ipEv, ipDerived]);
+        addMove("shorten_ip", "Shorten inspection to ≤14 days", "Reduces seller risk window.", [ipEv, ipDerived]);
       } else {
-        addPro("ip_long_b", "Generous inspection window", `${ip} days for full diligence.`);
+        addPro("ip_long_b", "Generous inspection window", `${ip} days for full diligence.`, p, [ipEv, ipDerived]);
       }
     } else if (ip >= 7 && ip <= 21) {
-      addPro("ip_market", "Inspection period within market norms", `${ip} days is standard.`, "both");
+      addPro("ip_market", "Inspection period within market norms", `${ip} days is standard.`, "both", [ipEv, ipDerived]);
     }
   }
 
   // ===== As-is clause =====
   if (asIs) {
     if (p === "buyer") {
-      addCon("as_is", "Property sold AS-IS", "high", "Seller has no obligation to repair or credit any defects discovered.", "buyer");
-      addQ("as_is_dd", "Have you budgeted for unknown repair costs?", "AS-IS shifts all post-inspection risk to you.", "property");
+      addCon("as_is", "Property sold AS-IS", "high", "Seller has no obligation to repair or credit any defects discovered.", "buyer", [asIsEv]);
+      addQ("as_is_dd", "Have you budgeted for unknown repair costs?", "AS-IS shifts all post-inspection risk to you.", "property", [asIsEv]);
     } else {
-      addPro("as_is_s", "AS-IS clause limits seller exposure", "No obligation to remediate inspection findings.");
+      addPro("as_is_s", "AS-IS clause limits seller exposure", "No obligation to remediate inspection findings.", p, [asIsEv]);
     }
   }
 
   // ===== Sale-of-other-home contingency =====
   if (saleHome) {
     if (p === "seller") {
-      addCon("kick_out", "Sale-of-other-home contingency", "high", "Buyer's offer depends on selling another property — closing is uncertain.", "seller");
-      addMove("kick_out_clause", "Add a 'kick-out' clause (48–72 hr) allowing seller to accept a stronger offer", "Preserves seller flexibility if buyer's home does not sell.");
-      addQ("home_listed", "Is the buyer's home already listed and under contract?", "If not, this deal could drag for months.", "timeline");
+      addCon("kick_out", "Sale-of-other-home contingency", "high", "Buyer's offer depends on selling another property — closing is uncertain.", "seller", [saleHomeEv]);
+      addMove("kick_out_clause", "Add a 'kick-out' clause (48–72 hr) allowing seller to accept a stronger offer", "Preserves seller flexibility if buyer's home does not sell.", [saleHomeEv]);
+      addQ("home_listed", "Is the buyer's home already listed and under contract?", "If not, this deal could drag for months.", "timeline", [saleHomeEv]);
     } else {
-      addPro("kick_out_b", "Sale-of-other-home contingency protects you", "You can terminate if your current home does not sell.");
+      addPro("kick_out_b", "Sale-of-other-home contingency protects you", "You can terminate if your current home does not sell.", p, [saleHomeEv]);
     }
   }
 
@@ -351,61 +583,88 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
     (Object.keys(allocLabels) as AllocKey[]).forEach((k) => {
       const paidBy = val(e[k]);
       const label = allocLabels[k];
+      const allocEv = ev(k, label, e[k]);
       if (paidBy === p) {
-        addCon(`alloc_${k}`, `${label} paid by you`, "low", `Allocation: ${p} pays ${label.toLowerCase()}. Estimate the cost as part of net proceeds.`);
+        addCon(`alloc_${k}`, `${label} paid by you`, "low", `Allocation: ${p} pays ${label.toLowerCase()}. Estimate the cost as part of net proceeds.`, p, [allocEv]);
       } else if (paidBy === opp) {
-        addPro(`alloc_${k}_p`, `${label} paid by ${opp}`, `Reduces your closing costs.`);
+        addPro(`alloc_${k}_p`, `${label} paid by ${opp}`, `Reduces your closing costs.`, p, [allocEv]);
       } else if (paidBy === "split") {
-        addPro(`alloc_${k}_s`, `${label} split`, `Costs shared between parties.`, "both");
+        addPro(`alloc_${k}_s`, `${label} split`, `Costs shared between parties.`, "both", [allocEv]);
       }
     });
   }
 
   // ===== Liquidated damages / specific performance =====
+  const liqEv = ev("liquidated_damages_clause", "Liquidated damages clause", e?.liquidated_damages_clause);
   if (val(e?.liquidated_damages_clause) === true) {
-    if (p === "buyer") addCon("liq_dmg", "Liquidated damages clause", "moderate", "Earnest money is the seller's exclusive remedy if you default.", "buyer");
-    else addCon("liq_dmg_s", "Liquidated damages cap seller recovery", "moderate", "You're limited to retaining the earnest money on buyer default.", "seller");
-    addQ("liq_calc", "How is the liquidated damages amount calculated?", "Confirms your maximum financial exposure on default.", "legal");
+    if (p === "buyer") addCon("liq_dmg", "Liquidated damages clause", "moderate", "Earnest money is the seller's exclusive remedy if you default.", "buyer", [liqEv]);
+    else addCon("liq_dmg_s", "Liquidated damages cap seller recovery", "moderate", "You're limited to retaining the earnest money on buyer default.", "seller", [liqEv]);
+    addQ("liq_calc", "How is the liquidated damages amount calculated?", "Confirms your maximum financial exposure on default.", "legal", [liqEv]);
   }
+  const specEv = ev("specific_performance_clause", "Specific performance clause", e?.specific_performance_clause);
   if (val(e?.specific_performance_clause) === true) {
-    if (p === "seller") addCon("spec_perf", "Specific performance available to buyer", "moderate", "Buyer can sue to force the sale, not just claim damages.", "seller");
-    else addPro("spec_perf_b", "Specific performance available", "You can compel the seller to close, not just collect damages.");
+    if (p === "seller") addCon("spec_perf", "Specific performance available to buyer", "moderate", "Buyer can sue to force the sale, not just claim damages.", "seller", [specEv]);
+    else addPro("spec_perf_b", "Specific performance available", "You can compel the seller to close, not just collect damages.", p, [specEv]);
   }
 
   // ===== Assignment =====
   const assign = val(e?.assignment_allowed);
+  const assignEv = ev("assignment_allowed", "Assignment clause", e?.assignment_allowed);
   if (assign === true) {
     if (p === "seller") {
-      addCon("assign", "Buyer can assign the contract", "moderate", "Final buyer may differ from signer — undermines buyer vetting.", "seller");
-      addQ("assign_who", "Will an assignee be vetted before closing?", "Protects against assignment to an unqualified party.", "legal");
-      addMove("limit_assign", "Restrict assignment to affiliates or require seller consent", "Preserves your control over the counterparty.");
+      addCon("assign", "Buyer can assign the contract", "moderate", "Final buyer may differ from signer — undermines buyer vetting.", "seller", [assignEv]);
+      addQ("assign_who", "Will an assignee be vetted before closing?", "Protects against assignment to an unqualified party.", "legal", [assignEv]);
+      addMove("limit_assign", "Restrict assignment to affiliates or require seller consent", "Preserves your control over the counterparty.", [assignEv]);
     } else {
-      addPro("assign_b", "Assignment allowed", "Flexibility to assign to a partner, entity, or 1031 exchange accommodator.");
+      addPro("assign_b", "Assignment allowed", "Flexibility to assign to a partner, entity, or 1031 exchange accommodator.", p, [assignEv]);
     }
   } else if (assign === false && p === "buyer") {
-    addCon("no_assign", "No assignment allowed", "low", "Cannot assign to an entity, partner, or 1031 accommodator.", "buyer");
+    addCon("no_assign", "No assignment allowed", "low", "Cannot assign to an entity, partner, or 1031 accommodator.", "buyer", [assignEv]);
   }
 
   // ===== Attorney review =====
   const arev = val(e?.attorney_review_period_days);
+  const arevEv = ev("attorney_review_period_days", "Attorney review period", e?.attorney_review_period_days);
   if (arev != null && arev > 0) {
-    addPro("att_rev", `${arev}-day attorney review`, "Provides legal escape hatch and amendment window after signing.", "both");
+    addPro("att_rev", `${arev}-day attorney review`, "Provides legal escape hatch and amendment window after signing.", "both", [arevEv]);
   } else if (e && val(e.attorney_review_period_days) === null && val(e.governing_law_state) && ["IL", "NJ", "NY"].includes(val(e.governing_law_state) ?? "")) {
-    addWeak("no_att_rev", "No attorney review period detected", "In IL/NJ/NY, attorney review is customary. Confirm this period exists in the contract.");
+    addWeak(
+      "no_att_rev",
+      "No attorney review period detected",
+      "In IL/NJ/NY, attorney review is customary. Confirm this period exists in the contract.",
+      [ev("governing_law_state", "Governing law state", e.governing_law_state), arevEv],
+    );
   }
 
   // ===== Special stipulations =====
-  const stips = val(e?.special_stipulations) ?? [];
+  const stipsField = e?.special_stipulations;
+  const stips = val(stipsField) ?? [];
   stips.forEach((s, i) => {
     addQ(
       `stip_${i}`,
       `What does this stipulation mean for you: "${s.slice(0, 120)}${s.length > 120 ? "…" : ""}"`,
       "Custom stipulations override standard language and frequently shift risk.",
       "legal",
+      [
+        {
+          field: `special_stipulations[${i}]`,
+          label: `Special stipulation #${i + 1}`,
+          excerpt: s,
+          confidence: stipsField?.confidence ?? "none",
+          value: s,
+        },
+      ],
     );
   });
   if (stips.length >= 5) {
-    addCon("many_stips", `${stips.length} special stipulations`, "moderate", "Heavy customization increases risk of overlooked terms.", "both" as Perspective);
+    addCon(
+      "many_stips",
+      `${stips.length} special stipulations`,
+      "moderate",
+      "Heavy customization increases risk of overlooked terms.",
+      "both" as Perspective,
+      [ev("special_stipulations", "Special stipulations", stipsField)],
+    );
   }
 
   // ===== Disclosures =====

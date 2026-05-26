@@ -40,6 +40,7 @@ import {
   type ContractReportContext,
 } from "@/lib/contractReports";
 import type { CanonicalContractExtraction } from "@/lib/contractDataMapper";
+import { ClauseEvidenceBlock } from "@/components/contractiq/ClauseEvidence";
 
 const sevColor = (s: "high" | "moderate" | "low") =>
   s === "high"
@@ -293,6 +294,7 @@ const ContractAnalysisPage = () => {
                 <li key={pr.id} className="text-sm">
                   <p className="font-medium text-foreground">{pr.label}</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">{pr.detail}</p>
+                  <ClauseEvidenceBlock evidence={pr.evidence} emphasis="muted" />
                 </li>
               ))}
             </ul>
@@ -315,11 +317,19 @@ const ContractAnalysisPage = () => {
                 <li key={c.id} className={`rounded-md border p-2.5 ${sevColor(c.severity)}`}>
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <p className="text-sm font-semibold">{c.label}</p>
-                    <Badge variant="outline" className="text-[10px] capitalize">
-                      {c.severity}
-                    </Badge>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {c.confidenceAdjusted && (
+                        <Badge variant="outline" className="text-[9px] uppercase tracking-wide bg-background/60">
+                          Adj.
+                        </Badge>
+                      )}
+                      <Badge variant="outline" className="text-[10px] capitalize">
+                        {c.severity}
+                      </Badge>
+                    </div>
                   </div>
                   <p className="text-xs leading-relaxed opacity-90">{c.detail}</p>
+                  <ClauseEvidenceBlock evidence={c.evidence} />
                 </li>
               ))}
             </ul>
@@ -340,6 +350,7 @@ const ContractAnalysisPage = () => {
               <li key={w.id} className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 p-3">
                 <p className="text-sm font-medium text-foreground">{w.label}</p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{w.detail}</p>
+                <ClauseEvidenceBlock evidence={w.evidence} emphasis="muted" />
               </li>
             ))}
           </ul>
@@ -364,6 +375,7 @@ const ContractAnalysisPage = () => {
                   <span className="capitalize text-[10px] font-semibold tracking-wide text-primary mr-1.5">{q.category}</span>
                   {q.why}
                 </p>
+                <ClauseEvidenceBlock evidence={q.evidence} emphasis="muted" />
               </li>
             ))}
           </ul>
@@ -381,9 +393,10 @@ const ContractAnalysisPage = () => {
             {analysis.negotiation.map((n, i) => (
               <li key={n.id} className="text-sm flex items-start gap-2">
                 <span className="text-primary font-semibold shrink-0">{i + 1}.</span>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground">{n.ask}</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">{n.rationale}</p>
+                  <ClauseEvidenceBlock evidence={n.evidence} emphasis="muted" />
                 </div>
               </li>
             ))}
