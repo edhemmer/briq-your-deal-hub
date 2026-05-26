@@ -437,7 +437,71 @@ const ContractAnalysisPage = () => {
             <div className="flex items-center gap-2 mb-3">
               <Clock className="h-4 w-4 text-muted-foreground" />
               <h3 className="text-sm font-semibold text-foreground">Deadlines</h3>
+              {(() => {
+                const datedCount = analysis.deadlines.filter((d) => !!d.date).length;
+                return (
+                  <div className="ml-auto flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px]">{datedCount} dated</Badge>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={datedCount === 0}
+                      onClick={() => {
+                        const title = contract.contract_name ?? "Contract";
+                        const events = analysis.deadlines
+                          .map((d) => deadlineToIcsEvent(d, title))
+                          .filter((e): e is NonNullable<typeof e> => e !== null);
+                        if (events.length === 0) return;
+                        const ics = buildIcs(`${title} — Deadlines`, events);
+                        const safe = title.replace(/[^a-z0-9-_]+/gi, "_").slice(0, 60);
+                        downloadIcs(`${safe}_deadlines.ics`, ics);
+                      }}
+                    >
+                      <Download className="h-3.5 w-3.5 mr-1.5" />
+                      Add to calendar (.ics)
+                    </Button>
+                  </div>
+                );
+              })()}
             </div>
+
+            {/* Week-view buckets */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+              {bucketDeadlinesByWeek(analysis.deadlines).map((b) => {
+                if (b.deadlines.length === 0) return null;
+                const tone =
+                  b.key === "past"
+                    ? "border-destructive/30 bg-destructive/[0.04]"
+                    : b.key === "unscheduled"
+                    ? "border-dashed border-border bg-muted/20"
+                    : b.weekStart && b.key !== "later"
+                    ? "border-primary/20 bg-primary/[0.03]"
+                    : "border-border bg-background";
+                return (
+                  <div key={b.key} className={`rounded-md border p-3 ${tone}`}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                      {b.label}
+                    </p>
+                    <ul className="space-y-1.5">
+                      {b.deadlines.map((d) => (
+                        <li key={d.id} className="text-xs flex items-start justify-between gap-2">
+                          <span className="font-medium text-foreground">{d.label}</span>
+                          <span className="text-muted-foreground tabular-nums shrink-0">
+                            {d.date
+                              ? new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                              : d.daysFromEffective != null
+                              ? `+${d.daysFromEffective}d`
+                              : "—"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Full list (legacy detail) */}
             <div className="space-y-1.5">
               {analysis.deadlines.map((d) => (
                 <div
@@ -463,7 +527,11 @@ const ContractAnalysisPage = () => {
                 </div>
               ))}
             </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              .ics import works in Apple Calendar, Google Calendar, Outlook, and most CRMs. Deadlines without dates (e.g., "+10 days from effective") are not exported until the effective date is set.
+            </p>
           </CardContainer>
+
 
           {analysis.closingAccounting && analysis.closingAccounting.length > 0 && (
             <CardContainer className="p-5 mb-5">
