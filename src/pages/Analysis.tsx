@@ -324,6 +324,17 @@ const Analysis = () => {
   const strategyFit = canonicalOutput?.strategyFit!;
   const stressResults = canonicalOutput?.stressResults!;
 
+  // ── Pro Forma + Returns (Phase 2 engines) ──
+  const proForma = useMemo(() => {
+    if (!canonicalOutput?.analysis || !canonicalOutput?.dealInput) return null;
+    return buildProForma(canonicalOutput.dealInput, canonicalOutput.analysis, { propertyType: deal?.property_type ?? null });
+  }, [canonicalOutput, deal?.property_type]);
+
+  const returns = useMemo(() => {
+    if (!canonicalOutput?.analysis || !canonicalOutput?.dealInput) return null;
+    return buildReturns(canonicalOutput.dealInput, canonicalOutput.analysis, returnsAssumptions);
+  }, [canonicalOutput, returnsAssumptions]);
+
   // ── Input Sufficiency Check ──
   const inputSufficiency: InputSufficiency = useMemo(() => {
     const hasAnyMarketFields = MARKET_FIELD_KEYS.some(k => {
