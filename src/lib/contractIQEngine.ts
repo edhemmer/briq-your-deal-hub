@@ -27,7 +27,15 @@ import type {
   PaidBy,
 } from "./contractDataMapper";
 import { runParalegalRules, type ClosingAccountingRow } from "./contractIQRules";
+import {
+  priceFinding,
+  totalExposure as sumExposure,
+  type DollarImpact,
+  type PricingContext,
+} from "./contractIQDollarImpact";
 export type { ClosingAccountingRow } from "./contractIQRules";
+export type { DollarImpact } from "./contractIQDollarImpact";
+export { fmtUsd, fmtImpactRange } from "./contractIQDollarImpact";
 
 export type Perspective = "buyer" | "seller";
 export type Severity = "high" | "moderate" | "low";
