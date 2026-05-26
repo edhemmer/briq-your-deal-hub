@@ -81,6 +81,7 @@ export interface Pro {
   label: string;
   detail: string;
   evidence?: ClauseEvidence[];
+  dollarImpact?: DollarImpact;
 }
 
 export interface Con {
@@ -91,6 +92,7 @@ export interface Con {
   evidence?: ClauseEvidence[];
   /** True when severity was downgraded due to low-confidence evidence. */
   confidenceAdjusted?: boolean;
+  dollarImpact?: DollarImpact;
 }
 
 export interface Weakness {
@@ -98,6 +100,7 @@ export interface Weakness {
   label: string;
   detail: string;
   evidence?: ClauseEvidence[];
+  dollarImpact?: DollarImpact;
 }
 
 export interface Question {
@@ -122,6 +125,7 @@ export interface NegotiationMove {
   ask: string;
   rationale: string;
   evidence?: ClauseEvidence[];
+  dollarImpact?: DollarImpact;
 }
 
 export interface RiskMatrixRow {
@@ -130,6 +134,7 @@ export interface RiskMatrixRow {
   severity: Severity;
   mitigation: string;
   owner: Perspective | "both";
+  dollarImpact?: DollarImpact;
 }
 
 export interface LiabilityRow {
