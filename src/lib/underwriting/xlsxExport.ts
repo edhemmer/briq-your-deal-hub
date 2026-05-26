@@ -362,7 +362,6 @@ function buildProFormaSheet(wb: ExcelJS.Workbook, _args: BuildArgs) {
     ["Property Management", `=B${egiRow}*PMPct`],
     ["Maintenance", `=B${egiRow}*MaintPct`],
     ["CapEx Reserve", `=B${egiRow}*CapExPct`],
-    ["HOA / Other", "=HOAMonthly*12"],
   ];
   opexLines.forEach(([label, f]) => {
     setLabel(ws.getCell(`A${r}`), label);
@@ -650,5 +649,5 @@ function buildSummarySheet(wb: ExcelJS.Workbook, args: BuildArgs) {
   ws.mergeCells(`A${r}:B${r}`);
 
   // Make Summary the first tab
-  wb.views = [{ activeTab: wb.worksheets.length - 1 }];
+  wb.views = [{ x: 0, y: 0, width: 12000, height: 24000, firstSheet: 0, activeTab: wb.worksheets.length - 1, visibility: "visible" }];
 }
