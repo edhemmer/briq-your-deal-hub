@@ -334,7 +334,7 @@ function buildProFormaSheet(wb: ExcelJS.Workbook, _args: BuildArgs) {
   r++;
 
   setLabel(ws.getCell(`A${r}`), "Other Income");
-  setFormula(ws.getCell(`B${r}`), `=OtherMonthlyIncome*12`, FMT.currency);
+  setFormula(ws.getCell(`B${r}`), `=OtherIncome`, FMT.currency);
   const otherRow = r;
   r++;
 
