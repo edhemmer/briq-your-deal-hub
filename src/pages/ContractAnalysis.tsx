@@ -44,6 +44,12 @@ import {
 } from "@/lib/contractReports";
 import type { CanonicalContractExtraction } from "@/lib/contractDataMapper";
 import { ClauseEvidenceBlock } from "@/components/contractiq/ClauseEvidence";
+import {
+  buildIcs,
+  downloadIcs,
+  deadlineToIcsEvent,
+  bucketDeadlinesByWeek,
+} from "@/lib/contractIQCalendar";
 
 const sevColor = (s: "high" | "moderate" | "low") =>
   s === "high"
