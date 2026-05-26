@@ -844,6 +844,25 @@ const Analysis = () => {
           )}
         </TabsContent>
 
+        {/* ── CAPITAL STACK ── */}
+        <TabsContent value="capital" className="space-y-6 mt-4">
+          {canonicalOutput && inputSufficiency.canAnalyze ? (
+            <CapitalStackPanel
+              input={canonicalOutput.dealInput}
+              analysis={canonicalOutput.analysis}
+              returns={returns}
+            />
+          ) : (
+            <CardContainer className="p-6">
+              <EmptyStateContainer
+                icon={<Landmark className="h-10 w-10" />}
+                title="Capital stack unavailable"
+                description="Complete acquisition, rehab, and financing inputs to model sources & uses and the GP/LP waterfall."
+              />
+            </CardContainer>
+          )}
+        </TabsContent>
+
         <TabsContent value="financing" className="space-y-6 mt-4">
           {inputSufficiency.canAnalyze && canonicalOutput?.financingOptions ? (
             <FinancingIntelligence results={canonicalOutput.financingOptions} />
