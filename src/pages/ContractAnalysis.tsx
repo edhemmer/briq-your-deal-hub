@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft,
   AlertTriangle,
