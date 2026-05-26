@@ -28,8 +28,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useContract } from "@/hooks/useContracts";
 import {
   analyzeContract,
+  fmtImpactRange,
   type ContractAnalysis,
   type ContractInput,
+  type DollarImpact,
   type Perspective,
 } from "@/lib/contractIQEngine";
 import {
@@ -48,6 +50,27 @@ const sevColor = (s: "high" | "moderate" | "low") =>
     : s === "moderate"
     ? "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-900/20 dark:border-amber-800"
     : "text-muted-foreground bg-muted border-border";
+
+const DollarImpactPill = ({ impact }: { impact?: DollarImpact }) => {
+  if (!impact) return null;
+  const tone =
+    impact.kind === "savings"
+      ? "border-emerald-300 text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-900/20 dark:border-emerald-800"
+      : impact.kind === "cap"
+      ? "border-border text-foreground/80 bg-muted/40"
+      : "border-destructive/30 text-destructive bg-destructive/5";
+  const prefix = impact.kind === "savings" ? "Value " : impact.kind === "cap" ? "Cap " : "Exposure ";
+  return (
+    <span
+      title={`${impact.basis} (${impact.formula})`}
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tabular-nums ${tone}`}
+    >
+      {prefix}
+      {fmtImpactRange(impact)}
+    </span>
+  );
+};
+
 
 const recoLabel = (r: ContractAnalysis["recommendation"]) =>
   r === "proceed" ? "Proceed" : r === "negotiate" ? "Negotiate" : "Caution";
@@ -222,6 +245,33 @@ const ContractAnalysisPage = () => {
             <Progress value={analysis.leverageScore} className="h-2" />
           </div>
         </div>
+
+        {analysis.totalExposure && (
+          <div className="mt-5 rounded-md border border-destructive/20 bg-destructive/[0.04] p-3 flex items-start gap-3">
+            <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-xs font-semibold uppercase tracking-wide text-destructive">
+                  Estimated dollar exposure
+                </span>
+                <span className="text-sm font-semibold tabular-nums text-destructive">
+                  {fmtImpactRange({
+                    low: analysis.totalExposure.low,
+                    mid: analysis.totalExposure.mid,
+                    high: analysis.totalExposure.high,
+                    basis: "",
+                    formula: "",
+                    kind: "exposure",
+                    isDownside: true,
+                  })}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                Sum of priced downside across {analysis.totalExposure.count} concern{analysis.totalExposure.count === 1 ? "" : "s"}. Each pill below shows the per-item range and formula. Caps and savings excluded.
+              </p>
+            </div>
+          </div>
+        )}
       </CardContainer>
 
       {/* Reports */}
@@ -317,7 +367,8 @@ const ContractAnalysisPage = () => {
                 <li key={c.id} className={`rounded-md border p-2.5 ${sevColor(c.severity)}`}>
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <p className="text-sm font-semibold">{c.label}</p>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                      <DollarImpactPill impact={c.dollarImpact} />
                       {c.confidenceAdjusted && (
                         <Badge variant="outline" className="text-[9px] uppercase tracking-wide bg-background/60">
                           Adj.
@@ -394,7 +445,10 @@ const ContractAnalysisPage = () => {
               <li key={n.id} className="text-sm flex items-start gap-2">
                 <span className="text-primary font-semibold shrink-0">{i + 1}.</span>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground">{n.ask}</p>
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                    <p className="font-medium text-foreground">{n.ask}</p>
+                    <DollarImpactPill impact={n.dollarImpact} />
+                  </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">{n.rationale}</p>
                   <ClauseEvidenceBlock evidence={n.evidence} emphasis="muted" />
                 </div>
@@ -450,6 +504,7 @@ const ContractAnalysisPage = () => {
                 <tr className="text-left text-muted-foreground border-b border-border">
                   <th className="py-2 pr-3 font-medium">Risk</th>
                   <th className="py-2 pr-3 font-medium">Severity</th>
+                  <th className="py-2 pr-3 font-medium">Exposure</th>
                   <th className="py-2 pr-3 font-medium">Owner</th>
                   <th className="py-2 font-medium">Mitigation</th>
                 </tr>
@@ -463,6 +518,7 @@ const ContractAnalysisPage = () => {
                         {r.severity}
                       </Badge>
                     </td>
+                    <td className="py-2 pr-3"><DollarImpactPill impact={r.dollarImpact} /></td>
                     <td className="py-2 pr-3 capitalize text-foreground/80">{r.owner}</td>
                     <td className="py-2 text-muted-foreground leading-relaxed">{r.mitigation}</td>
                   </tr>

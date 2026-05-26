@@ -27,7 +27,15 @@ import type {
   PaidBy,
 } from "./contractDataMapper";
 import { runParalegalRules, type ClosingAccountingRow } from "./contractIQRules";
+import {
+  priceFinding,
+  totalExposure as sumExposure,
+  type DollarImpact,
+  type PricingContext,
+} from "./contractIQDollarImpact";
 export type { ClosingAccountingRow } from "./contractIQRules";
+export type { DollarImpact } from "./contractIQDollarImpact";
+export { fmtUsd, fmtImpactRange } from "./contractIQDollarImpact";
 
 export type Perspective = "buyer" | "seller";
 export type Severity = "high" | "moderate" | "low";
@@ -73,6 +81,7 @@ export interface Pro {
   label: string;
   detail: string;
   evidence?: ClauseEvidence[];
+  dollarImpact?: DollarImpact;
 }
 
 export interface Con {
@@ -83,6 +92,7 @@ export interface Con {
   evidence?: ClauseEvidence[];
   /** True when severity was downgraded due to low-confidence evidence. */
   confidenceAdjusted?: boolean;
+  dollarImpact?: DollarImpact;
 }
 
 export interface Weakness {
@@ -90,6 +100,7 @@ export interface Weakness {
   label: string;
   detail: string;
   evidence?: ClauseEvidence[];
+  dollarImpact?: DollarImpact;
 }
 
 export interface Question {
@@ -114,6 +125,7 @@ export interface NegotiationMove {
   ask: string;
   rationale: string;
   evidence?: ClauseEvidence[];
+  dollarImpact?: DollarImpact;
 }
 
 export interface RiskMatrixRow {
@@ -122,6 +134,7 @@ export interface RiskMatrixRow {
   severity: Severity;
   mitigation: string;
   owner: Perspective | "both";
+  dollarImpact?: DollarImpact;
 }
 
 export interface LiabilityRow {
@@ -179,6 +192,8 @@ export interface ContractAnalysis {
   missingInputs: string[];
   dealStructureLabel?: string;
   closingAccounting?: ClosingAccountingRow[];
+  /** Sum of downside dollar exposure across cons that have a pricing rule. */
+  totalExposure?: { low: number; mid: number; high: number; count: number };
   computedAt: string;
 }
 
@@ -281,6 +296,21 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
   const negotiation: NegotiationMove[] = [];
   const missing: string[] = [];
 
+  // Pre-compute the pricing context so every helper can attach a
+  // deterministic dollar impact to its finding.
+  const price = input.purchase_price ?? 0;
+  const em = input.earnest_money ?? 0;
+  const emRatio = price > 0 ? em / price : 0;
+  const closingISO = input.closing_date ?? val(e?.closing_date) ?? null;
+  const daysToCloseCtx = daysBetween(closingISO);
+  const pricingCtx: PricingContext = {
+    perspective: p,
+    price,
+    earnestMoney: em,
+    daysToClose: daysToCloseCtx,
+    inspectionDays: input.inspection_period_days ?? null,
+  };
+
   const addCon = (
     id: string,
     label: string,
@@ -292,6 +322,7 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
     if (perspectiveAffected === p || perspectiveAffected === "both") {
       const ev = compact(evidence ?? []);
       const gated = gateSeverity(severity, ev);
+      const dollarImpact = priceFinding(id, pricingCtx) ?? undefined;
       cons.push({
         id,
         label,
@@ -301,6 +332,7 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
           : detail,
         evidence: ev,
         confidenceAdjusted: gated.adjusted || undefined,
+        dollarImpact,
       });
     }
   };
@@ -311,15 +343,20 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
     favors: Perspective | "both" = p,
     evidence?: (ClauseEvidence | null | undefined)[],
   ) => {
-    if (favors === p || favors === "both")
-      pros.push({ id, label, detail, evidence: compact(evidence ?? []) });
+    if (favors === p || favors === "both") {
+      const dollarImpact = priceFinding(id, pricingCtx) ?? undefined;
+      pros.push({ id, label, detail, evidence: compact(evidence ?? []), dollarImpact });
+    }
   };
   const addWeak = (
     id: string,
     label: string,
     detail: string,
     evidence?: (ClauseEvidence | null | undefined)[],
-  ) => weaknesses.push({ id, label, detail, evidence: compact(evidence ?? []) });
+  ) => {
+    const dollarImpact = priceFinding(id, pricingCtx) ?? undefined;
+    weaknesses.push({ id, label, detail, evidence: compact(evidence ?? []), dollarImpact });
+  };
   const addQ = (
     id: string,
     question: string,
@@ -332,7 +369,11 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
     ask: string,
     rationale: string,
     evidence?: (ClauseEvidence | null | undefined)[],
-  ) => negotiation.push({ id, ask, rationale, evidence: compact(evidence ?? []) });
+  ) => {
+    const dollarImpact = priceFinding(id, pricingCtx) ?? undefined;
+    negotiation.push({ id, ask, rationale, evidence: compact(evidence ?? []), dollarImpact });
+  };
+
 
   // ===== Required field coverage =====
   if (input.purchase_price == null) missing.push("Purchase price");
@@ -340,9 +381,7 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
   if (!input.closing_date) missing.push("Closing date");
   if (input.inspection_period_days == null) missing.push("Inspection period");
 
-  const price = input.purchase_price ?? 0;
-  const em = input.earnest_money ?? 0;
-  const emRatio = price > 0 ? em / price : 0;
+  // price/em/emRatio computed above with pricingCtx.
 
   // Pre-build commonly-reused evidence for form-derived findings.
   const emEv = derivedEv(
@@ -826,8 +865,12 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
       severity: c.severity,
       mitigation: move ? move.ask : "Flag to counsel; document the trade-off in writing before signing.",
       owner: p,
+      dollarImpact: c.dollarImpact,
     };
   });
+
+  // ===== Dollar exposure roll-up =====
+  const exposureTotal = sumExposure(cons.map((c) => c.dollarImpact));
 
   // ===== Liability allocation =====
   const liabilityAllocation: LiabilityRow[] = [];
@@ -1049,6 +1092,7 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
     missingInputs: missing,
     dealStructureLabel: paralegal.dealStructureLabel,
     closingAccounting: paralegal.closingAccounting,
+    totalExposure: exposureTotal.count > 0 ? exposureTotal : undefined,
     computedAt: new Date().toISOString(),
   };
 }
