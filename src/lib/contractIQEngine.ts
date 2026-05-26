@@ -296,6 +296,21 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
   const negotiation: NegotiationMove[] = [];
   const missing: string[] = [];
 
+  // Pre-compute the pricing context so every helper can attach a
+  // deterministic dollar impact to its finding.
+  const price = input.purchase_price ?? 0;
+  const em = input.earnest_money ?? 0;
+  const emRatio = price > 0 ? em / price : 0;
+  const closingISO = input.closing_date ?? val(e?.closing_date) ?? null;
+  const daysToCloseCtx = daysBetween(closingISO);
+  const pricingCtx: PricingContext = {
+    perspective: p,
+    price,
+    earnestMoney: em,
+    daysToClose: daysToCloseCtx,
+    inspectionDays: input.inspection_period_days ?? null,
+  };
+
   const addCon = (
     id: string,
     label: string,
@@ -307,6 +322,7 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
     if (perspectiveAffected === p || perspectiveAffected === "both") {
       const ev = compact(evidence ?? []);
       const gated = gateSeverity(severity, ev);
+      const dollarImpact = priceFinding(id, pricingCtx) ?? undefined;
       cons.push({
         id,
         label,
@@ -316,6 +332,7 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
           : detail,
         evidence: ev,
         confidenceAdjusted: gated.adjusted || undefined,
+        dollarImpact,
       });
     }
   };
@@ -326,15 +343,20 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
     favors: Perspective | "both" = p,
     evidence?: (ClauseEvidence | null | undefined)[],
   ) => {
-    if (favors === p || favors === "both")
-      pros.push({ id, label, detail, evidence: compact(evidence ?? []) });
+    if (favors === p || favors === "both") {
+      const dollarImpact = priceFinding(id, pricingCtx) ?? undefined;
+      pros.push({ id, label, detail, evidence: compact(evidence ?? []), dollarImpact });
+    }
   };
   const addWeak = (
     id: string,
     label: string,
     detail: string,
     evidence?: (ClauseEvidence | null | undefined)[],
-  ) => weaknesses.push({ id, label, detail, evidence: compact(evidence ?? []) });
+  ) => {
+    const dollarImpact = priceFinding(id, pricingCtx) ?? undefined;
+    weaknesses.push({ id, label, detail, evidence: compact(evidence ?? []), dollarImpact });
+  };
   const addQ = (
     id: string,
     question: string,
@@ -347,7 +369,11 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
     ask: string,
     rationale: string,
     evidence?: (ClauseEvidence | null | undefined)[],
-  ) => negotiation.push({ id, ask, rationale, evidence: compact(evidence ?? []) });
+  ) => {
+    const dollarImpact = priceFinding(id, pricingCtx) ?? undefined;
+    negotiation.push({ id, ask, rationale, evidence: compact(evidence ?? []), dollarImpact });
+  };
+
 
   // ===== Required field coverage =====
   if (input.purchase_price == null) missing.push("Purchase price");
