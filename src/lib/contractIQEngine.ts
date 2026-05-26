@@ -381,9 +381,7 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
   if (!input.closing_date) missing.push("Closing date");
   if (input.inspection_period_days == null) missing.push("Inspection period");
 
-  const price = input.purchase_price ?? 0;
-  const em = input.earnest_money ?? 0;
-  const emRatio = price > 0 ? em / price : 0;
+  // price/em/emRatio computed above with pricingCtx.
 
   // Pre-build commonly-reused evidence for form-derived findings.
   const emEv = derivedEv(
