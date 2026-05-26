@@ -36,6 +36,7 @@ import type { DealReliabilityResult, BreakStatus, FragilityLevel } from "@/lib/d
 import { generateDealInterpretation, type DealInterpretation } from "@/lib/dealInterpretationEngine";
 import { assembleDealReport, generateInvestorPDF, generateCSVExport } from "@/lib/reportEngine";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { HelpTooltip } from "@/components/help/HelpTooltip";
 import { DealWorkflowIndicator } from "@/components/help/DealWorkflowIndicator";
 import { METRIC_HELP, STRATEGY_HELP, MARKET_HELP, CRIME_HELP, DEAL_INPUT_HELP } from "@/components/help/helpContent";
@@ -464,60 +465,76 @@ const Analysis = () => {
   const strategyEntries = Object.entries(strategyFit) as [keyof StrategyFitResults, StrategyFitResults[keyof StrategyFitResults]][];
   const topStrategy = strategyEntries.reduce((best, curr) => curr[1].score > best[1].score ? curr : best, strategyEntries[0]);
 
+  const guidance = canonicalOutput?.dealGuidance?.guidance ?? null;
+  const verdictMeta = guidance === "proceed"
+    ? { label: "Proceed", className: "bg-signal-positive/15 text-signal-positive border-signal-positive/30" }
+    : guidance === "proceed_with_caution"
+    ? { label: "Caution", className: "bg-signal-warning/15 text-signal-warning border-signal-warning/30" }
+    : guidance === "high_risk"
+    ? { label: "High Risk", className: "bg-signal-risk/15 text-signal-risk border-signal-risk/30" }
+    : { label: "Pending", className: "bg-muted text-muted-foreground border-border" };
+
+  const reportMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" className="gap-2">
+          <FileText className="h-4 w-4" />
+          Report
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => { const r = buildReport(); if (r) generateInvestorPDF(r); }}>
+          <FileText className="h-4 w-4 mr-2" /> Investor PDF
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => { const r = buildReport(); if (r) generateCSVExport(r); }}>
+          <Download className="h-4 w-4 mr-2" /> CSV Export
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
     <SectionContainer>
-      <PageHeader
-        title={deal?.property_address ?? "Analysis"}
-        description={deal ? `${deal.city}, ${deal.state} ${deal.zip_code ?? ""}` : "Deal analysis"}
-      >
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button className="gap-2">
-              <FileText className="h-4 w-4" />
-              Generate Report
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => {
-              const report = buildReport();
-              if (report) generateInvestorPDF(report);
-            }}>
-              <FileText className="h-4 w-4 mr-2" />
-              Investor PDF Report
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => {
-              const report = buildReport();
-              if (report) generateCSVExport(report);
-            }}>
-              <Download className="h-4 w-4 mr-2" />
-              CSV Data Export
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </PageHeader>
-
-      <DealWorkflowIndicator activeStep={2} className="mb-2" />
-
-      {/* ── Analysis Context Summary ── */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <Badge variant="secondary" className="text-xs">{MARKET_TYPE_LABELS[analysisContext.marketType]}</Badge>
-        <Badge variant="secondary" className="text-xs">{STRATEGY_GATE_LABELS[analysisContext.strategy]}</Badge>
-        <Badge variant="secondary" className="text-xs">{RISK_TOLERANCE_LABELS[analysisContext.riskTolerance]}</Badge>
-        <button
-          onClick={() => setAnalysisContext(null)}
-          className="text-[10px] text-muted-foreground hover:text-foreground underline transition-colors ml-1"
-        >
-          Change
-        </button>
-        {canonicalOutput?.confidence && (
-          <div className="ml-auto">
-            <ConfidenceIndicator confidence={canonicalOutput.confidence} compact />
+      {/* ─── Sticky Verdict Header ─── */}
+      <div className="sticky top-16 z-30 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-3 bg-background/95 backdrop-blur-md border-b border-border mb-4">
+        <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-sm md:text-base font-bold text-foreground truncate">{deal?.property_address}</h1>
+            <p className="text-xs text-muted-foreground truncate">{deal?.city}, {deal?.state} {deal?.zip_code ?? ""}</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge variant="outline" className={`text-[11px] font-semibold uppercase tracking-wide ${verdictMeta.className}`}>
+              {verdictMeta.label}
+            </Badge>
+            {canonicalOutput?.confidence && <ConfidenceIndicator confidence={canonicalOutput.confidence} compact />}
+            {reportMenu}
+          </div>
+        </div>
+        {inputSufficiency.canAnalyze && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+            <HeaderKPI label="Cap Rate" value={fmtPct(analysis.metrics.cap_rate)} level={metricSignalLevel(analysis.metrics.cap_rate, [0.04, 0.06])} />
+            <HeaderKPI label="Cash on Cash" value={fmtPct(analysis.metrics.cash_on_cash)} level={metricSignalLevel(analysis.metrics.cash_on_cash, [0.04, 0.08])} />
+            <HeaderKPI label="DSCR" value={fmtX(analysis.metrics.dscr)} level={metricSignalLevel(analysis.metrics.dscr, [1.0, 1.25])} />
+            <HeaderKPI label="Cash Flow / mo" value={fmt(analysis.metrics.monthly_cashflow)} level={metricSignalLevel(analysis.metrics.monthly_cashflow, [0, 200])} />
           </div>
         )}
       </div>
-      {/* ── Input Sufficiency Warning ── */}
+
+      {/* ─── Context strip ─── */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <DealWorkflowIndicator activeStep={2} />
+        <div className="flex flex-wrap items-center gap-1.5 ml-auto">
+          <Badge variant="secondary" className="text-[10px]">{MARKET_TYPE_LABELS[analysisContext.marketType]}</Badge>
+          <Badge variant="secondary" className="text-[10px]">{STRATEGY_GATE_LABELS[analysisContext.strategy]}</Badge>
+          <Badge variant="secondary" className="text-[10px]">{RISK_TOLERANCE_LABELS[analysisContext.riskTolerance]}</Badge>
+          <button onClick={() => setAnalysisContext(null)} className="text-[10px] text-muted-foreground hover:text-foreground underline transition-colors">
+            Change
+          </button>
+        </div>
+      </div>
+
       {!inputSufficiency.canAnalyze && (
-        <Alert className="border-signal-warning/50 text-signal-warning [&>svg]:text-signal-warning">
+        <Alert className="border-signal-warning/50 text-signal-warning [&>svg]:text-signal-warning mb-4">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Awaiting Deal Data</AlertTitle>
           <AlertDescription>
@@ -529,481 +546,468 @@ const Analysis = () => {
         </Alert>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 1: DEAL INTELLIGENCE SUMMARY (Investment decision first)
-          ═══════════════════════════════════════════════════════════════════ */}
-      {inputSufficiency.canAnalyze ? (
-      <DealIntelligenceSummary
-        intelligence={intelligence}
-        topStrategyLabel={STRATEGY_FIT_LABELS[topStrategy[0]]}
-        marketStrength={marketIntelligence.market_strength_score}
-        crimeScore={marketIntelligence.crime.crime_score}
-        priceGrowth={marketConditionsInput.price_growth_12mo}
-        cashFlowMonthly={analysis.metrics.monthly_cashflow}
-      />
-      ) : (
-        <CardContainer className="p-6">
-          <EmptyStateContainer
-            icon={<Gauge className="h-10 w-10" />}
-            title="No analysis available"
-            description="Enter purchase price and monthly rent to generate deal intelligence."
-          />
-        </CardContainer>
-      )}
+      {/* ─── Tabbed Workspace ─── */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="w-full justify-start overflow-x-auto flex-nowrap h-auto p-1">
+          <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
+          <TabsTrigger value="property" className="text-xs sm:text-sm">Property</TabsTrigger>
+          <TabsTrigger value="inputs" className="text-xs sm:text-sm">Inputs</TabsTrigger>
+          <TabsTrigger value="financing" className="text-xs sm:text-sm">Financing</TabsTrigger>
+          <TabsTrigger value="market" className="text-xs sm:text-sm">Market & Risk</TabsTrigger>
+          <TabsTrigger value="reports" className="text-xs sm:text-sm">Reports</TabsTrigger>
+        </TabsList>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 1.25: DEAL CONFIDENCE & GUIDANCE
-          ═══════════════════════════════════════════════════════════════════ */}
-      {inputSufficiency.canAnalyze && canonicalOutput?.dealGuidance && (
-        <div className="space-y-3">
-          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-            <Shield className="h-5 w-5 text-muted-foreground" /> Deal Confidence & Guidance
-          </h2>
-          <DealGuidance result={canonicalOutput.dealGuidance} />
-        </div>
-      )}
+        {/* ── OVERVIEW ── */}
+        <TabsContent value="overview" className="space-y-6 mt-4">
+          {inputSufficiency.canAnalyze ? (
+            <DealIntelligenceSummary
+              intelligence={intelligence}
+              topStrategyLabel={STRATEGY_FIT_LABELS[topStrategy[0]]}
+              marketStrength={marketIntelligence.market_strength_score}
+              crimeScore={marketIntelligence.crime.crime_score}
+              priceGrowth={marketConditionsInput.price_growth_12mo}
+              cashFlowMonthly={analysis.metrics.monthly_cashflow}
+            />
+          ) : (
+            <CardContainer className="p-6">
+              <EmptyStateContainer
+                icon={<Gauge className="h-10 w-10" />}
+                title="No analysis available"
+                description="Enter purchase price and monthly rent in the Inputs tab to generate deal intelligence."
+              />
+            </CardContainer>
+          )}
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 1.5: GUIDED PROPERTY RETRIEVAL
-          ═══════════════════════════════════════════════════════════════════ */}
-      {deal && (
-        <GuidedPropertyRetrieval
-          dealAddress={{ property_address: deal.property_address, city: deal.city, state: deal.state, zip_code: deal.zip_code }}
-          onAcceptDraft={handleAcceptDraft}
-        />
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 1.75: DATA CONFIDENCE & SOURCES
-          ═══════════════════════════════════════════════════════════════════ */}
-      {resolvedPropertyData && (
-        <div className="space-y-3">
-          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-            <Database className="h-5 w-5 text-muted-foreground" /> Data Confidence & Sources
-          </h2>
-          <DataConfidencePanel resolved={resolvedPropertyData} conflicts={propertyConflicts} />
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 2: PROPERTY OVERVIEW
-          ═══════════════════════════════════════════════════════════════════ */}
-      {propertyIntelligence && (
-        <div className="space-y-4">
-          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-            <FileSearch className="h-5 w-5 text-muted-foreground" /> Property Intelligence
-          </h2>
-          <CardContainer className="p-6 space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-foreground">County Property Record</h3>
-                <p className="text-xs text-muted-foreground">
-                  {propertyIntelligence.countyLookup.county} County • {propertyIntelligence.countyLookup.source === "registry" ? "Direct link" : "Google search fallback"}
-                </p>
-              </div>
-              <Button onClick={() => openPropertyRecord(propertyIntelligence.countyLookup.url)} className="gap-2">
-                <ExternalLink className="h-4 w-4" />
-                Open County Property Record
-              </Button>
+          {inputSufficiency.canAnalyze && canonicalOutput?.dealGuidance && (
+            <div className="space-y-3">
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                <Shield className="h-5 w-5 text-muted-foreground" /> Deal Confidence & Guidance
+              </h2>
+              <DealGuidance result={canonicalOutput.dealGuidance} />
             </div>
-            <div className="border-t border-border pt-5">
-              <h3 className="text-sm font-semibold text-foreground mb-4">Property Data Enrichment</h3>
-              <p className="text-xs text-muted-foreground mb-4">Optionally enter verified property details from official records.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[
-                  { key: "assessed_value", label: "Assessed Value", type: "number", placeholder: "0" },
-                  { key: "annual_property_tax", label: "Annual Property Tax", type: "number", placeholder: "0" },
-                  { key: "year_built", label: "Year Built", type: "number", placeholder: "0" },
-                  { key: "lot_size", label: "Lot Size", type: "text", placeholder: "e.g. 0.25 acres" },
-                  { key: "zoning_type", label: "Zoning Type", type: "text", placeholder: "e.g. R-1, Commercial" },
-                ].map(f => (
-                  <div key={f.key} className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">{f.label}</Label>
-                    <Input
-                      type={f.type}
-                      className="h-8 text-sm"
-                      value={enrichmentFields[f.key] ?? ""}
-                      onChange={e => setEnrichmentField(f.key, e.target.value)}
-                      onBlur={handleEnrichmentBlur}
-                      placeholder={f.placeholder}
-                    />
+          )}
+
+          {inputSufficiency.canAnalyze && (
+            <div className="space-y-4">
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-muted-foreground" /> Key Metrics
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
+                <MetricCard
+                  icon={<Percent className="h-4 w-4" />}
+                  label={<span className="flex items-center gap-1">Cap Rate <HelpTooltip content={METRIC_HELP.cap_rate} /></span>}
+                  value={fmtPct(analysis.metrics.cap_rate)}
+                  level={metricSignalLevel(analysis.metrics.cap_rate, [0.04, 0.06])}
+                  badge={metricBadge(analysis.metrics.cap_rate, [0.04, 0.06])}
+                />
+                <MetricCard
+                  icon={<DollarSign className="h-4 w-4" />}
+                  label={<span className="flex items-center gap-1">Cash Flow / mo <HelpTooltip content={METRIC_HELP.monthly_cashflow} /></span>}
+                  value={fmt(analysis.metrics.monthly_cashflow)}
+                  level={metricSignalLevel(analysis.metrics.monthly_cashflow, [0, 200])}
+                  badge={metricBadge(analysis.metrics.monthly_cashflow, [0, 200])}
+                />
+                <MetricCard
+                  icon={<TrendingUp className="h-4 w-4" />}
+                  label={<span className="flex items-center gap-1">Cash on Cash <HelpTooltip content={METRIC_HELP.cash_on_cash} /></span>}
+                  value={fmtPct(analysis.metrics.cash_on_cash)}
+                  level={metricSignalLevel(analysis.metrics.cash_on_cash, [0.04, 0.08])}
+                  badge={metricBadge(analysis.metrics.cash_on_cash, [0.04, 0.08])}
+                />
+                <MetricCard
+                  icon={<ShieldCheck className="h-4 w-4" />}
+                  label={<span className="flex items-center gap-1">DSCR <HelpTooltip content={METRIC_HELP.dscr} /></span>}
+                  value={fmtX(analysis.metrics.dscr)}
+                  level={metricSignalLevel(analysis.metrics.dscr, [1.0, 1.25])}
+                  badge={metricBadge(analysis.metrics.dscr, [1.0, 1.25])}
+                />
+                <MetricCard
+                  icon={<TrendingUp className="h-4 w-4" />}
+                  label="Equity Created"
+                  value={fmt(analysis.refinance.equity_created)}
+                  level={metricSignalLevel(analysis.refinance.equity_created, [0, 20000])}
+                  badge={metricBadge(analysis.refinance.equity_created, [0, 20000])}
+                />
+              </div>
+
+              {analysis.strategyInsights.length > 0 && (
+                <CardContainer>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Lightbulb className="h-4 w-4 text-signal-warning" />
+                    <h3 className="text-sm font-semibold text-foreground">Strategy Insights</h3>
                   </div>
+                  <div className="space-y-1">
+                    {analysis.strategyInsights.map((s, i) => (
+                      <p key={i} className="text-sm text-muted-foreground">• {s}</p>
+                    ))}
+                  </div>
+                </CardContainer>
+              )}
+
+              <div className="space-y-4">
+                <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-muted-foreground" /> Financial Summary
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+                  <SummaryCard title="Income" rows={[
+                    ["Gross Rent", fmt(analysis.income.gross_rent)],
+                    ["Effective Rent", fmt(analysis.income.effective_rent)],
+                    ["Other Income", fmt(analysis.income.other_income)],
+                  ]} />
+                  <SummaryCard title="Expenses" rows={[
+                    ["Operating Expenses", fmt(analysis.expenses.operating_expenses)],
+                    ["Debt Service", fmt(analysis.financing.annual_debt_service)],
+                    ["NOI", fmt(analysis.metrics.noi)],
+                  ]} />
+                  <SummaryCard title="BRRRR / Refinance" rows={[
+                    ["Total Project Cost", fmt(analysis.refinance.total_project_cost)],
+                    ["Refinance (75% ARV)", fmt(analysis.refinance.refinance_amount)],
+                    ["Cash Out", fmt(analysis.refinance.cash_out)],
+                  ]} />
+                </div>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── PROPERTY ── */}
+        <TabsContent value="property" className="space-y-6 mt-4">
+          {deal && (
+            <GuidedPropertyRetrieval
+              dealAddress={{ property_address: deal.property_address, city: deal.city, state: deal.state, zip_code: deal.zip_code }}
+              onAcceptDraft={handleAcceptDraft}
+            />
+          )}
+
+          {resolvedPropertyData && (
+            <div className="space-y-3">
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                <Database className="h-5 w-5 text-muted-foreground" /> Data Confidence & Sources
+              </h2>
+              <DataConfidencePanel resolved={resolvedPropertyData} conflicts={propertyConflicts} />
+            </div>
+          )}
+
+          {propertyIntelligence && (
+            <div className="space-y-4">
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                <FileSearch className="h-5 w-5 text-muted-foreground" /> Property Intelligence
+              </h2>
+              <CardContainer className="p-6 space-y-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-semibold text-foreground">County Property Record</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {propertyIntelligence.countyLookup.county} County • {propertyIntelligence.countyLookup.source === "registry" ? "Direct link" : "Google search fallback"}
+                    </p>
+                  </div>
+                  <Button onClick={() => openPropertyRecord(propertyIntelligence.countyLookup.url)} className="gap-2">
+                    <ExternalLink className="h-4 w-4" />
+                    Open County Property Record
+                  </Button>
+                </div>
+                <div className="border-t border-border pt-5">
+                  <h3 className="text-sm font-semibold text-foreground mb-4">Property Data Enrichment</h3>
+                  <p className="text-xs text-muted-foreground mb-4">Optionally enter verified property details from official records.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[
+                      { key: "assessed_value", label: "Assessed Value", type: "number", placeholder: "0" },
+                      { key: "annual_property_tax", label: "Annual Property Tax", type: "number", placeholder: "0" },
+                      { key: "year_built", label: "Year Built", type: "number", placeholder: "0" },
+                      { key: "lot_size", label: "Lot Size", type: "text", placeholder: "e.g. 0.25 acres" },
+                      { key: "zoning_type", label: "Zoning Type", type: "text", placeholder: "e.g. R-1, Commercial" },
+                    ].map(f => (
+                      <div key={f.key} className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">{f.label}</Label>
+                        <Input
+                          type={f.type}
+                          className="h-8 text-sm"
+                          value={enrichmentFields[f.key] ?? ""}
+                          onChange={e => setEnrichmentField(f.key, e.target.value)}
+                          onBlur={handleEnrichmentBlur}
+                          placeholder={f.placeholder}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContainer>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── INPUTS ── */}
+        <TabsContent value="inputs" className="space-y-4 mt-4">
+          <div>
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-muted-foreground" /> Financial Assumptions
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">Acquisition, rehab, financing, income & operating expense inputs. Auto-saves on blur.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {groups.map(group => (
+              <CardContainer key={group}>
+                <h3 className="text-sm font-semibold text-foreground mb-4">{group}</h3>
+                <div className="space-y-3">
+                  {FINANCIAL_FIELDS.filter(f => f.group === group).map(f => (
+                    <div key={f.key} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                      <Label className="sm:w-40 text-xs text-muted-foreground shrink-0">{f.label}</Label>
+                      <Input
+                        type="number"
+                        step="any"
+                        className="h-8 text-sm"
+                        value={localFields[f.key] ?? ""}
+                        onChange={e => setField(f.key, e.target.value)}
+                        onBlur={handleBlur}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </CardContainer>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* ── FINANCING ── */}
+        <TabsContent value="financing" className="space-y-6 mt-4">
+          {inputSufficiency.canAnalyze && canonicalOutput?.financingOptions ? (
+            <FinancingIntelligence results={canonicalOutput.financingOptions} />
+          ) : (
+            <CardContainer className="p-6">
+              <EmptyStateContainer
+                icon={<Landmark className="h-10 w-10" />}
+                title="Financing intelligence unavailable"
+                description="Enter purchase price, rent, and financing inputs to evaluate financing paths."
+              />
+            </CardContainer>
+          )}
+        </TabsContent>
+
+        {/* ── MARKET & RISK ── */}
+        <TabsContent value="market" className="space-y-6 mt-4">
+          {canonicalOutput?.marketOutlook && (
+            <div className="space-y-3">
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-muted-foreground" /> Market Outlook (3–5 Year)
+              </h2>
+              <MarketOutlook outlook={canonicalOutput.marketOutlook} />
+            </div>
+          )}
+
+          {inputSufficiency.canAnalyze && canonicalOutput?.hiddenRisks && (
+            <div className="space-y-3">
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                <ShieldAlert className="h-5 w-5 text-muted-foreground" /> Hidden Risk Analysis
+              </h2>
+              <HiddenRiskPanel result={canonicalOutput.hiddenRisks} />
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-muted-foreground" /> Market Intelligence <HelpTooltip content={MARKET_HELP} />
+            </h2>
+            <p className="text-sm text-muted-foreground">Contextual market intelligence for {deal?.city}, {deal?.state}.</p>
+
+            {inputSufficiency.hasMarketData ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+                <ScoreCard label="Market Strength" score={marketIntelligence.market_strength_score} badgeText={marketIntelligence.strengthLabel} positive={marketIntelligence.market_strength_score >= 61} warning={marketIntelligence.market_strength_score >= 31 && marketIntelligence.market_strength_score < 61} />
+                <ScoreCard label="Market Risk" score={marketIntelligence.market_risk_score} badgeText={marketIntelligence.riskLabel} positive={marketIntelligence.market_risk_score <= 39} warning={marketIntelligence.market_risk_score <= 69 && marketIntelligence.market_risk_score > 39} />
+                <ScoreCard label="Demand Pressure" score={marketIntelligence.demand_pressure_score} badgeText={marketIntelligence.demand_pressure_score >= 61 ? "Strong" : marketIntelligence.demand_pressure_score >= 31 ? "Moderate" : "Weak"} positive={marketIntelligence.demand_pressure_score >= 61} warning={marketIntelligence.demand_pressure_score >= 31 && marketIntelligence.demand_pressure_score < 61} />
+              </div>
+            ) : (
+              <CardContainer className="p-4">
+                <p className="text-sm text-muted-foreground">No market data entered. Enter market conditions below to generate intelligence scores.</p>
+              </CardContainer>
+            )}
+
+            {inputSufficiency.hasMarketData && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
+                {Object.entries(marketIntelligence.signals).map(([key, signal]: [string, any]) => (
+                  <CardContainer key={key} className="flex flex-col items-start gap-1 p-4">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      {key === "rent" ? <Home className="h-4 w-4" /> :
+                       key === "price" ? <BarChart2 className="h-4 w-4" /> :
+                       key === "supply" ? <Activity className="h-4 w-4" /> :
+                       key === "liquidity" ? <TrendingUp className="h-4 w-4" /> :
+                       <Users className="h-4 w-4" />}
+                      <span className="text-xs font-medium">{signal.label}</span>
+                    </div>
+                    <span className={`text-2xl font-black ${signal.level === "strong" ? "text-signal-positive" : signal.level === "neutral" ? "text-signal-warning" : "text-signal-risk"}`}>
+                      {signal.score}
+                    </span>
+                    <Badge variant={signal.level === "strong" ? "default" : signal.level === "neutral" ? "secondary" : "destructive"} className="text-[10px] mt-1">
+                      {signal.level === "strong" ? "Strong" : signal.level === "neutral" ? "Neutral" : "Weak"}
+                    </Badge>
+                  </CardContainer>
                 ))}
               </div>
-            </div>
-          </CardContainer>
-        </div>
-      )}
+            )}
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 3: DEAL METRICS
-          ═══════════════════════════════════════════════════════════════════ */}
-      {inputSufficiency.canAnalyze ? (
-      <div className="space-y-4">
-        <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-muted-foreground" /> Deal Metrics
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
-          <MetricCard
-            icon={<Percent className="h-4 w-4" />}
-            label={<span className="flex items-center gap-1">Cap Rate <HelpTooltip content={METRIC_HELP.cap_rate} /></span>}
-            value={fmtPct(analysis.metrics.cap_rate)}
-            level={metricSignalLevel(analysis.metrics.cap_rate, [0.04, 0.06])}
-            badge={metricBadge(analysis.metrics.cap_rate, [0.04, 0.06])}
-          />
-          <MetricCard
-            icon={<DollarSign className="h-4 w-4" />}
-            label={<span className="flex items-center gap-1">Cash Flow / mo <HelpTooltip content={METRIC_HELP.monthly_cashflow} /></span>}
-            value={fmt(analysis.metrics.monthly_cashflow)}
-            level={metricSignalLevel(analysis.metrics.monthly_cashflow, [0, 200])}
-            badge={metricBadge(analysis.metrics.monthly_cashflow, [0, 200])}
-          />
-          <MetricCard
-            icon={<TrendingUp className="h-4 w-4" />}
-            label={<span className="flex items-center gap-1">Cash on Cash <HelpTooltip content={METRIC_HELP.cash_on_cash} /></span>}
-            value={fmtPct(analysis.metrics.cash_on_cash)}
-            level={metricSignalLevel(analysis.metrics.cash_on_cash, [0.04, 0.08])}
-            badge={metricBadge(analysis.metrics.cash_on_cash, [0.04, 0.08])}
-          />
-          <MetricCard
-            icon={<ShieldCheck className="h-4 w-4" />}
-            label={<span className="flex items-center gap-1">DSCR <HelpTooltip content={METRIC_HELP.dscr} /></span>}
-            value={fmtX(analysis.metrics.dscr)}
-            level={metricSignalLevel(analysis.metrics.dscr, [1.0, 1.25])}
-            badge={metricBadge(analysis.metrics.dscr, [1.0, 1.25])}
-          />
-          <MetricCard
-            icon={<TrendingUp className="h-4 w-4" />}
-            label="Equity Created"
-            value={fmt(analysis.refinance.equity_created)}
-            level={metricSignalLevel(analysis.refinance.equity_created, [0, 20000])}
-            badge={metricBadge(analysis.refinance.equity_created, [0, 20000])}
-          />
-        </div>
+            <CardContainer className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Shield className="h-5 w-5 text-muted-foreground" />
+                <h3 className="text-sm font-semibold text-foreground">Crime & Safety Signal</h3>
+                <HelpTooltip content={CRIME_HELP} />
+              </div>
+              {marketIntelligence.crime.crime_score != null ? (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                  <div className="flex flex-col items-center">
+                    <span className={`text-4xl font-black ${
+                      marketIntelligence.crime.crime_score <= 3 ? "text-signal-positive" :
+                      marketIntelligence.crime.crime_score <= 6 ? "text-signal-warning" :
+                      "text-signal-risk"
+                    }`}>
+                      {marketIntelligence.crime.crime_score.toFixed(1)}
+                    </span>
+                    <span className="text-xs text-muted-foreground mt-1">/ 10</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Badge variant={
+                      marketIntelligence.crime.crime_score <= 3 ? "default" :
+                      marketIntelligence.crime.crime_score <= 6 ? "secondary" :
+                      "destructive"
+                    } className="text-xs">
+                      {marketIntelligence.crime.crime_risk_band}
+                    </Badge>
+                    <p className="text-sm text-muted-foreground">
+                      {marketIntelligence.crime.crime_score <= 3
+                        ? "Low crime area — supports stable tenancy and neighborhood value retention."
+                        : marketIntelligence.crime.crime_score <= 6
+                        ? "Moderate crime levels — typical for urban markets. Monitor trends."
+                        : "Elevated crime risk — may impact tenant retention, insurance costs, and property values."}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Crime data unavailable for this location.</p>
+              )}
+            </CardContainer>
 
-        {analysis.strategyInsights.length > 0 && (
-          <CardContainer>
-            <div className="flex items-center gap-2 mb-3">
-              <Lightbulb className="h-4 w-4 text-signal-warning" />
-              <h3 className="text-sm font-semibold text-foreground">Strategy Insights</h3>
-            </div>
-            <div className="space-y-1">
-              {analysis.strategyInsights.map((s, i) => (
-                <p key={i} className="text-sm text-muted-foreground">• {s}</p>
+            {marketIntelligence.insights.length > 0 && (
+              <div className="space-y-2">
+                {marketIntelligence.insights.filter(i => i.type === "risk").length > 0 && (
+                  <Alert variant="destructive">
+                    <ShieldAlert className="h-4 w-4" />
+                    <AlertTitle>Market Risks</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-disc pl-4 space-y-1 mt-1">
+                        {marketIntelligence.insights.filter(i => i.type === "risk").map((ins, i) => <li key={i}>{ins.message}</li>)}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {marketIntelligence.insights.filter(i => i.type === "caution").length > 0 && (
+                  <Alert className="border-signal-warning/50 text-signal-warning [&>svg]:text-signal-warning">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Market Cautions</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-disc pl-4 space-y-1 mt-1">
+                        {marketIntelligence.insights.filter(i => i.type === "caution").map((ins, i) => <li key={i}>{ins.message}</li>)}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {marketIntelligence.insights.filter(i => i.type === "positive").length > 0 && (
+                  <Alert className="border-signal-positive/50 text-signal-positive [&>svg]:text-signal-positive">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertTitle>Positive Signals</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-disc pl-4 space-y-1 mt-1">
+                        {marketIntelligence.insights.filter(i => i.type === "positive").map((ins, i) => <li key={i}>{ins.message}</li>)}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[...new Set(MARKET_FIELDS.map(f => f.group))].map(group => (
+                <CardContainer key={group}>
+                  <h3 className="text-sm font-semibold text-foreground mb-4">{group}</h3>
+                  <div className="space-y-3">
+                    {MARKET_FIELDS.filter(f => f.group === group).map(f => (
+                      <div key={f.key} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                        <Label className="sm:w-44 text-xs text-muted-foreground shrink-0">
+                          {f.label}{f.suffix ? ` (${f.suffix})` : ""}
+                        </Label>
+                        <Input
+                          type="number"
+                          step="any"
+                          className="h-8 text-sm"
+                          value={marketFields[f.key] ?? ""}
+                          onChange={e => setMarketField(f.key, e.target.value)}
+                          onBlur={handleMarketBlur}
+                          placeholder="0"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </CardContainer>
               ))}
             </div>
-          </CardContainer>
-        )}
-      </div>
-      ) : (
-        <CardContainer className="p-6">
-          <EmptyStateContainer
-            icon={<BarChart3 className="h-10 w-10" />}
-            title="No metrics available"
-            description="Enter financial inputs to calculate deal metrics."
-          />
-        </CardContainer>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 3.5: FINANCING INTELLIGENCE
-          ═══════════════════════════════════════════════════════════════════ */}
-      {inputSufficiency.canAnalyze && canonicalOutput?.financingOptions && (
-        <FinancingIntelligence results={canonicalOutput.financingOptions} />
-      )}
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 3B: MARKET OUTLOOK (3–5 YEAR)
-          ═══════════════════════════════════════════════════════════════════ */}
-      {canonicalOutput?.marketOutlook && (
-        <div className="space-y-3">
-          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-muted-foreground" /> Market Outlook (3–5 Year)
-          </h2>
-          <MarketOutlook outlook={canonicalOutput.marketOutlook} />
-        </div>
-      )}
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 3C: HIDDEN RISK ENGINE
-          ═══════════════════════════════════════════════════════════════════ */}
-      {inputSufficiency.canAnalyze && canonicalOutput?.hiddenRisks && (
-        <div className="space-y-3">
-          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5 text-muted-foreground" /> Hidden Risk Analysis
-          </h2>
-          <HiddenRiskPanel result={canonicalOutput.hiddenRisks} />
-        </div>
-      )}
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 4: MARKET INTELLIGENCE
-          ═══════════════════════════════════════════════════════════════════ */}
-      <div className="space-y-4">
-        <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-          <MapPin className="h-5 w-5 text-muted-foreground" /> Market Intelligence <HelpTooltip content={MARKET_HELP} />
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Contextual market intelligence for {deal?.city}, {deal?.state}.
-        </p>
-
-        {inputSufficiency.hasMarketData ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-          <ScoreCard label="Market Strength" score={marketIntelligence.market_strength_score} badgeText={marketIntelligence.strengthLabel} positive={marketIntelligence.market_strength_score >= 61} warning={marketIntelligence.market_strength_score >= 31 && marketIntelligence.market_strength_score < 61} />
-          <ScoreCard label="Market Risk" score={marketIntelligence.market_risk_score} badgeText={marketIntelligence.riskLabel} positive={marketIntelligence.market_risk_score <= 39} warning={marketIntelligence.market_risk_score <= 69 && marketIntelligence.market_risk_score > 39} />
-          <ScoreCard label="Demand Pressure" score={marketIntelligence.demand_pressure_score} badgeText={marketIntelligence.demand_pressure_score >= 61 ? "Strong" : marketIntelligence.demand_pressure_score >= 31 ? "Moderate" : "Weak"} positive={marketIntelligence.demand_pressure_score >= 61} warning={marketIntelligence.demand_pressure_score >= 31 && marketIntelligence.demand_pressure_score < 61} />
-        </div>
-        ) : (
-          <CardContainer className="p-4">
-            <p className="text-sm text-muted-foreground">No market data entered. Enter market conditions below to generate intelligence scores.</p>
-          </CardContainer>
-        )}
-
-        {inputSufficiency.hasMarketData && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
-          {Object.entries(marketIntelligence.signals).map(([key, signal]: [string, any]) => (
-            <CardContainer key={key} className="flex flex-col items-start gap-1 p-4">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                {key === "rent" ? <Home className="h-4 w-4" /> :
-                 key === "price" ? <BarChart2 className="h-4 w-4" /> :
-                 key === "supply" ? <Activity className="h-4 w-4" /> :
-                 key === "liquidity" ? <TrendingUp className="h-4 w-4" /> :
-                 <Users className="h-4 w-4" />}
-                <span className="text-xs font-medium">{signal.label}</span>
-              </div>
-              <span className={`text-2xl font-black ${signal.level === "strong" ? "text-signal-positive" : signal.level === "neutral" ? "text-signal-warning" : "text-signal-risk"}`}>
-                {signal.score}
-              </span>
-              <Badge variant={signal.level === "strong" ? "default" : signal.level === "neutral" ? "secondary" : "destructive"} className="text-[10px] mt-1">
-                {signal.level === "strong" ? "Strong" : signal.level === "neutral" ? "Neutral" : "Weak"}
-              </Badge>
-            </CardContainer>
-          ))}
-        </div>
-        )}
-
-        {/* Crime & Safety Signal */}
-        <CardContainer className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Shield className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">Crime & Safety Signal</h3>
-            <HelpTooltip content={CRIME_HELP} />
           </div>
-          {marketIntelligence.crime.crime_score != null ? (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-              <div className="flex flex-col items-center">
-                <span className={`text-4xl font-black ${
-                  marketIntelligence.crime.crime_score <= 3 ? "text-signal-positive" :
-                  marketIntelligence.crime.crime_score <= 6 ? "text-signal-warning" :
-                  "text-signal-risk"
-                }`}>
-                  {marketIntelligence.crime.crime_score.toFixed(1)}
-                </span>
-                <span className="text-xs text-muted-foreground mt-1">/ 10</span>
-              </div>
-              <div className="space-y-1.5">
-                <Badge variant={
-                  marketIntelligence.crime.crime_score <= 3 ? "default" :
-                  marketIntelligence.crime.crime_score <= 6 ? "secondary" :
-                  "destructive"
-                } className="text-xs">
-                  {marketIntelligence.crime.crime_risk_band}
-                </Badge>
-                <p className="text-sm text-muted-foreground">
-                  {marketIntelligence.crime.crime_score <= 3
-                    ? "Low crime area — supports stable tenancy and neighborhood value retention."
-                    : marketIntelligence.crime.crime_score <= 6
-                    ? "Moderate crime levels — typical for urban markets. Monitor trends."
-                    : "Elevated crime risk — may impact tenant retention, insurance costs, and property values."}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Crime data unavailable for this location.</p>
+
+          {inputSufficiency.canAnalyze && (
+            <StrategyFitSection strategyFit={strategyFit} />
           )}
-        </CardContainer>
 
-        {/* Market Insights */}
-        {marketIntelligence.insights.length > 0 && (
-          <div className="space-y-2">
-            {marketIntelligence.insights.filter(i => i.type === "risk").length > 0 && (
-              <Alert variant="destructive">
-                <ShieldAlert className="h-4 w-4" />
-                <AlertTitle>Market Risks</AlertTitle>
-                <AlertDescription>
-                  <ul className="list-disc pl-4 space-y-1 mt-1">
-                    {marketIntelligence.insights.filter(i => i.type === "risk").map((ins, i) => <li key={i}>{ins.message}</li>)}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-            {marketIntelligence.insights.filter(i => i.type === "caution").length > 0 && (
-              <Alert className="border-signal-warning/50 text-signal-warning [&>svg]:text-signal-warning">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Market Cautions</AlertTitle>
-                <AlertDescription>
-                  <ul className="list-disc pl-4 space-y-1 mt-1">
-                    {marketIntelligence.insights.filter(i => i.type === "caution").map((ins, i) => <li key={i}>{ins.message}</li>)}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-            {marketIntelligence.insights.filter(i => i.type === "positive").length > 0 && (
-              <Alert className="border-signal-positive/50 text-signal-positive [&>svg]:text-signal-positive">
-                <CheckCircle2 className="h-4 w-4" />
-                <AlertTitle>Positive Signals</AlertTitle>
-                <AlertDescription>
-                  <ul className="list-disc pl-4 space-y-1 mt-1">
-                    {marketIntelligence.insights.filter(i => i.type === "positive").map((ins, i) => <li key={i}>{ins.message}</li>)}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-        )}
+          {inputSufficiency.canAnalyze && canonicalOutput?.dealReliability && (
+            <DealReliabilitySection reliability={canonicalOutput.dealReliability} />
+          )}
 
-        {/* Market Data Input Fields */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[...new Set(MARKET_FIELDS.map(f => f.group))].map(group => (
-            <CardContainer key={group}>
-              <h3 className="text-sm font-semibold text-foreground mb-4">{group}</h3>
-              <div className="space-y-3">
-                {MARKET_FIELDS.filter(f => f.group === group).map(f => (
-                  <div key={f.key} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                    <Label className="sm:w-44 text-xs text-muted-foreground shrink-0">
-                      {f.label}{f.suffix ? ` (${f.suffix})` : ""}
-                    </Label>
-                    <Input
-                      type="number"
-                      step="any"
-                      className="h-8 text-sm"
-                      value={marketFields[f.key] ?? ""}
-                      onChange={e => setMarketField(f.key, e.target.value)}
-                      onBlur={handleMarketBlur}
-                      placeholder="0"
-                    />
-                  </div>
-                ))}
-              </div>
-            </CardContainer>
-          ))}
-        </div>
-      </div>
+          {inputSufficiency.canAnalyze && (
+            <StressTestingSection
+              stressResults={stressResults}
+              intelligence={intelligence}
+              hiddenRisks={canonicalOutput?.hiddenRisks ?? null}
+              confidence={canonicalOutput?.confidence ?? null}
+            />
+          )}
+        </TabsContent>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 5: STRATEGY FIT
-          ═══════════════════════════════════════════════════════════════════ */}
-      {inputSufficiency.canAnalyze ? (
-        <StrategyFitSection strategyFit={strategyFit} />
-      ) : (
-        <CardContainer className="p-6">
-          <EmptyStateContainer
-            icon={<Target className="h-10 w-10" />}
-            title="Strategy analysis unavailable"
-            description="Enter financial inputs to evaluate strategy fit."
-          />
-        </CardContainer>
-      )}
+        {/* ── REPORTS ── */}
+        <TabsContent value="reports" className="space-y-6 mt-4">
+          <CardContainer className="p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-muted-foreground" />
+              <h2 className="text-base font-bold text-foreground">Generate Investor Report</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Export a full underwriting summary including deal intelligence, financial metrics, market analysis, strategy fit, and stress test results.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => { const r = buildReport(); if (r) generateInvestorPDF(r); }} className="gap-2">
+                <FileText className="h-4 w-4" />
+                Investor PDF
+              </Button>
+              <Button variant="outline" onClick={() => { const r = buildReport(); if (r) generateCSVExport(r); }} className="gap-2">
+                <Download className="h-4 w-4" />
+                CSV Data Export
+              </Button>
+            </div>
+          </CardContainer>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 5.5: DEAL RELIABILITY & FRAGILITY
-          ═══════════════════════════════════════════════════════════════════ */}
-      {inputSufficiency.canAnalyze && canonicalOutput?.dealReliability ? (
-        <DealReliabilitySection reliability={canonicalOutput.dealReliability} />
-      ) : (
-        <CardContainer className="p-6">
-          <EmptyStateContainer
-            icon={<ShieldCheck className="h-10 w-10" />}
-            title="Reliability testing unavailable"
-            description="Enter financial inputs to run downside scenarios."
-          />
-        </CardContainer>
-      )}
+          {canonicalOutput?.confidence && (
+            <ConfidenceIndicator confidence={canonicalOutput.confidence} />
+          )}
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 6: STRESS TESTING
-          ═══════════════════════════════════════════════════════════════════ */}
-      {inputSufficiency.canAnalyze ? (
-        <StressTestingSection
-          stressResults={stressResults}
-          intelligence={intelligence}
-          hiddenRisks={canonicalOutput?.hiddenRisks ?? null}
-          confidence={canonicalOutput?.confidence ?? null}
-        />
-      ) : (
-        <CardContainer className="p-6">
-          <EmptyStateContainer
-            icon={<Zap className="h-10 w-10" />}
-            title="Stress testing unavailable"
-            description="Enter financial inputs to run stress scenarios."
-          />
-        </CardContainer>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 7: DETAILED ANALYSIS (Financial Inputs)
-          ═══════════════════════════════════════════════════════════════════ */}
-      <div className="space-y-4">
-        <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-          <DollarSign className="h-5 w-5 text-muted-foreground" /> Financial Assumptions
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {groups.map(group => (
-            <CardContainer key={group}>
-              <h3 className="text-sm font-semibold text-foreground mb-4">{group}</h3>
-              <div className="space-y-3">
-                {FINANCIAL_FIELDS.filter(f => f.group === group).map(f => (
-                  <div key={f.key} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                    <Label className="sm:w-40 text-xs text-muted-foreground shrink-0">{f.label}</Label>
-                    <Input
-                      type="number"
-                      step="any"
-                      className="h-8 text-sm"
-                      value={localFields[f.key] ?? ""}
-                      onChange={e => setField(f.key, e.target.value)}
-                      onBlur={handleBlur}
-                    />
-                  </div>
-                ))}
-              </div>
-            </CardContainer>
-          ))}
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════════════
-          SECTION 8: SUMMARY BREAKDOWN
-          ═══════════════════════════════════════════════════════════════════ */}
-      {inputSufficiency.canAnalyze && (
-      <div className="space-y-4">
-        <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-muted-foreground" /> Financial Summary
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-          <SummaryCard title="Income" rows={[
-            ["Gross Rent", fmt(analysis.income.gross_rent)],
-            ["Effective Rent", fmt(analysis.income.effective_rent)],
-            ["Other Income", fmt(analysis.income.other_income)],
-          ]} />
-          <SummaryCard title="Expenses" rows={[
-            ["Operating Expenses", fmt(analysis.expenses.operating_expenses)],
-            ["Debt Service", fmt(analysis.financing.annual_debt_service)],
-            ["NOI", fmt(analysis.metrics.noi)],
-          ]} />
-          <SummaryCard title="BRRRR / Refinance" rows={[
-            ["Total Project Cost", fmt(analysis.refinance.total_project_cost)],
-            ["Refinance (75% ARV)", fmt(analysis.refinance.refinance_amount)],
-            ["Cash Out", fmt(analysis.refinance.cash_out)],
-          ]} />
-        </div>
-      </div>
-      )}
-
-      {/* ── Confidence Assessment (full) ── */}
-      {canonicalOutput?.confidence && (
-        <ConfidenceIndicator confidence={canonicalOutput.confidence} />
-      )}
-
-      {/* ── Global Disclosure ── */}
-      <AnalysisDisclosure className="mt-2" />
+          <AnalysisDisclosure />
+        </TabsContent>
+      </Tabs>
     </SectionContainer>
+  );
+};
+
+// ── Sticky header KPI tile ───────────────────────────────────────────────
+function HeaderKPI({ label, value, level }: { label: string; value: string; level: "positive" | "warning" | "risk" }) {
+  const color = level === "positive" ? "text-signal-positive" : level === "warning" ? "text-signal-warning" : "text-signal-risk";
+  return (
+    <div className="bg-muted/40 border border-border rounded-md px-3 py-1.5">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium leading-tight">{label}</div>
+      <div className={`text-sm md:text-base font-bold leading-tight ${color}`}>{value}</div>
+    </div>
   );
 };
 
