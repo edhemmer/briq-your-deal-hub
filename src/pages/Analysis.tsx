@@ -787,6 +787,40 @@ const Analysis = () => {
         </TabsContent>
 
         {/* ── FINANCING ── */}
+        {/* ── PRO FORMA ── */}
+        <TabsContent value="proforma" className="space-y-6 mt-4">
+          {proForma && inputSufficiency.canAnalyze ? (
+            <ProFormaPanel result={proForma} />
+          ) : (
+            <CardContainer className="p-6">
+              <EmptyStateContainer
+                icon={<BarChart3 className="h-10 w-10" />}
+                title="Pro forma unavailable"
+                description="Enter purchase price, rent, and operating expenses to generate the T-12 pro forma."
+              />
+            </CardContainer>
+          )}
+        </TabsContent>
+
+        {/* ── RETURNS ── */}
+        <TabsContent value="returns" className="space-y-6 mt-4">
+          {returns && inputSufficiency.canAnalyze ? (
+            <ReturnsPanel
+              result={returns}
+              assumptions={returnsAssumptions}
+              onAssumptionsChange={(next) => setReturnsAssumptions(prev => ({ ...prev, ...next }))}
+            />
+          ) : (
+            <CardContainer className="p-6">
+              <EmptyStateContainer
+                icon={<TrendingUp className="h-10 w-10" />}
+                title="Returns model unavailable"
+                description="Enter financing and income inputs to project IRR, equity multiple, and year-by-year cash flow."
+              />
+            </CardContainer>
+          )}
+        </TabsContent>
+
         <TabsContent value="financing" className="space-y-6 mt-4">
           {inputSufficiency.canAnalyze && canonicalOutput?.financingOptions ? (
             <FinancingIntelligence results={canonicalOutput.financingOptions} />
