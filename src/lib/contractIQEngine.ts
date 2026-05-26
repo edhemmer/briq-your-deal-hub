@@ -1092,6 +1092,7 @@ export function analyzeContract(input: ContractInput): ContractAnalysis {
     missingInputs: missing,
     dealStructureLabel: paralegal.dealStructureLabel,
     closingAccounting: paralegal.closingAccounting,
+    totalExposure: exposureTotal.count > 0 ? exposureTotal : undefined,
     computedAt: new Date().toISOString(),
   };
 }
