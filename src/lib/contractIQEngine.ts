@@ -192,6 +192,8 @@ export interface ContractAnalysis {
   missingInputs: string[];
   dealStructureLabel?: string;
   closingAccounting?: ClosingAccountingRow[];
+  /** Sum of downside dollar exposure across cons that have a pricing rule. */
+  totalExposure?: { low: number; mid: number; high: number; count: number };
   computedAt: string;
 }
 
