@@ -18,6 +18,10 @@ import {
   FileText,
   Briefcase,
   Gavel,
+  GitCompareArrows,
+  Link2,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import { SectionContainer } from "@/components/ui/section-container";
 import { CardContainer } from "@/components/ui/card-container";
