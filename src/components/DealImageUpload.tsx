@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
-interface ExtractedDeal {
+export interface ExtractedDeal {
   property_address?: string | null;
   city?: string | null;
   state?: string | null;
@@ -13,6 +13,15 @@ interface ExtractedDeal {
   property_type?: string | null;
   purchase_price?: number | null;
   estimated_arv?: number | null;
+  monthly_rent?: number | null;
+  annual_property_tax?: number | null;
+  taxes?: number | null;
+  insurance?: number | null;
+  year_built?: number | null;
+  condition_notes?: string[];
+  visible_or_stated_risks?: string[];
+  missing_questions?: string[];
+  source_confidence?: "low" | "medium" | "high";
   strategy_primary?: string | null;
 }
 
@@ -58,7 +67,7 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
         } else if (data?.error) {
           toast.error(data.error);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Extraction error:", err);
         toast.error("Failed to extract deal info from image");
       } finally {
@@ -85,7 +94,7 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
       } else if (data?.error) {
         toast.error(data.error);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Text extraction error:", err);
       toast.error("Failed to extract deal info from text");
     } finally {
@@ -164,8 +173,8 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
               <Image className="h-5 w-5" />
               <Clipboard className="h-5 w-5" />
             </div>
-            <p className="text-sm font-medium text-foreground">Drop a screenshot, take a photo, or paste an image</p>
-            <p className="text-xs text-muted-foreground">BRIX extracts property details automatically</p>
+            <p className="text-sm font-medium text-foreground">Drop listing screenshots or property photos</p>
+            <p className="text-xs text-muted-foreground">BRIX extracts deal facts and starts visual issue triage before a site visit</p>
           </div>
         )}
       </div>
@@ -180,7 +189,7 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
       {/* Text paste zone */}
       <div className="space-y-2">
         <Textarea
-          placeholder="Paste a property listing from Zillow, Redfin, MLS, etc…"
+          placeholder="Paste a property listing, rent roll, broker notes, MLS remarks, or inspection/photo observations..."
           value={pastedText}
           onChange={(e) => { setPastedText(e.target.value); setMode("text"); }}
           className="min-h-[100px] text-sm resize-none"
