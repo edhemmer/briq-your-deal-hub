@@ -18,7 +18,7 @@ export default function LandingHero() {
           className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.06] px-4 py-1.5 mb-8"
         >
           <Zap className="h-3.5 w-3.5 text-primary" />
-          <span className="text-xs font-medium text-primary">DealIQ + ContractIQ — built for real transactions</span>
+          <span className="text-xs font-medium text-primary">Chaos to Clarity - acquisition intelligence for real estate</span>
         </motion.div>
 
         <motion.h1
@@ -27,10 +27,10 @@ export default function LandingHero() {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="text-4xl sm:text-5xl md:text-[3.5rem] lg:text-6xl font-bold tracking-tight text-foreground leading-[1.08]"
         >
-          Better analysis. Faster decisions.
+          Turn market noise into acquisition clarity.
           <br />
           <span className="bg-gradient-to-r from-primary to-[hsl(199,89%,48%)] bg-clip-text text-transparent">
-            Stronger deals.
+            Find, rank, and underwrite smarter.
           </span>
         </motion.h1>
 
@@ -40,7 +40,7 @@ export default function LandingHero() {
           transition={{ duration: 0.6, delay: 0.35 }}
           className="mt-6 text-lg md:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto"
         >
-          BRIX helps real estate investors and operators move faster with two unique modules built for real transactions. <span className="text-foreground font-medium">DealIQ</span> analyzes pricing, underwriting, risk, and upside from a property address and key inputs. <span className="text-foreground font-medium">ContractIQ</span> reviews contracts from the buyer or seller perspective, surfacing pros, cons, deadlines, and smart questions to ask.
+          BRIX transforms fragmented property data, market noise, listings, spreadsheets, and opinions into actionable acquisition intelligence. <span className="text-foreground font-medium">FindIQ</span> identifies what to investigate. <span className="text-foreground font-medium">DealIQ</span> determines whether a property should be acquired.
         </motion.p>
 
         <motion.div
@@ -54,7 +54,7 @@ export default function LandingHero() {
               size="lg"
               className="rounded-xl text-base font-semibold px-8 py-6 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/35 transition-all duration-300 gap-2 group"
             >
-              Analyze Your First Deal
+              Start With FindIQ
               <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
             </Button>
           </Link>

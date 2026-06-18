@@ -15,7 +15,9 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
   { title: "BRIX OS", url: "/dashboard" },
+  { title: "FindIQ", url: "/findiq" },
   { title: "DealIQ", url: "/dealiq" },
+  { title: "PipelineIQ", url: "/pipelineiq" },
   { title: "ContractIQ", url: "/contractiq" },
   { title: "Reports", url: "/reports" },
   { title: "Settings", url: "/settings" },

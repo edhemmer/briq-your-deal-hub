@@ -13,9 +13,11 @@ import { AppLayout } from "@/components/AppLayout";
 import { OnboardingWalkthrough } from "@/components/help/OnboardingWalkthrough";
 import Index from "./pages/Index";
 import Landing from "./pages/Landing";
+import FindIQ from "./pages/FindIQ";
 import NewDeal from "./pages/NewDeal";
 import DealCompare from "./pages/DealCompare";
 import Analysis from "./pages/Analysis";
+import PipelineIQ from "./pages/PipelineIQ";
 import ContractIQ from "./pages/ContractIQ";
 import ContractAnalysis from "./pages/ContractAnalysis";
 import Reports from "./pages/Reports";
@@ -66,6 +68,14 @@ const App = () => (
               element={<AppLayout><Index /></AppLayout>}
             />
             <Route
+              path="/findiq"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><FindIQ /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/dealiq/compare"
               element={
                 <ProtectedRoute>
@@ -78,6 +88,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AppLayout><Analysis /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pipelineiq"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><PipelineIQ /></AppLayout>
                 </ProtectedRoute>
               }
             />

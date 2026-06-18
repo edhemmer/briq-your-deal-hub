@@ -1,4 +1,4 @@
-import { LayoutDashboard, Briefcase, BarChart3, FileText, Settings, ShieldCheck, HelpCircle, FileSignature } from "lucide-react";
+import { LayoutDashboard, BarChart3, FileText, Settings, ShieldCheck, HelpCircle, FileSignature, Search, KanbanSquare } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import BrixIcon from "@/components/BrixIcon";
@@ -18,7 +18,9 @@ import {
 
 const navItems = [
   { title: "BRIX OS", url: "/dashboard", icon: LayoutDashboard },
+  { title: "FindIQ", url: "/findiq", icon: Search },
   { title: "DealIQ", url: "/dealiq", icon: BarChart3 },
+  { title: "PipelineIQ", url: "/pipelineiq", icon: KanbanSquare },
   { title: "ContractIQ", url: "/contractiq", icon: FileSignature },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "Settings", url: "/settings", icon: Settings },
