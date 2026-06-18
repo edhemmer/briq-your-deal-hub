@@ -35,6 +35,31 @@
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#1a1a2e" />
     <meta name="keywords" content="real estate deal analysis, property investment, cap rate calculator, cash on cash return, BRRRR calculator, rental property analysis, deal intelligence, investment property" />
+    <meta http-equiv="Cache-Control" content="no-store, max-age=0" />
+
+    <script>
+      (function clearLegacyBrixCache() {
+        if (!("serviceWorker" in navigator)) return;
+
+        navigator.serviceWorker.getRegistrations()
+          .then(function (registrations) {
+            return Promise.all(registrations.map(function (registration) {
+              return registration.unregister();
+            }));
+          })
+          .catch(function () {});
+
+        if ("caches" in window) {
+          caches.keys()
+            .then(function (names) {
+              return Promise.all(names.map(function (name) {
+                return caches.delete(name);
+              }));
+            })
+            .catch(function () {});
+        }
+      })();
+    </script>
 
     <!-- JSON-LD Structured Data -->
     <script type="application/ld+json">
@@ -61,6 +86,7 @@
   </head>
 
   <body>
+    <noscript>BRIX requires JavaScript to run.</noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
