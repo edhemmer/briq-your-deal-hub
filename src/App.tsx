@@ -17,7 +17,9 @@ import FindIQ from "./pages/FindIQ";
 import NewDeal from "./pages/NewDeal";
 import DealCompare from "./pages/DealCompare";
 import Analysis from "./pages/Analysis";
+import OfferIQ from "./pages/OfferIQ";
 import PipelineIQ from "./pages/PipelineIQ";
+import PortfolioIQ from "./pages/PortfolioIQ";
 import ContractIQ from "./pages/ContractIQ";
 import ContractAnalysis from "./pages/ContractAnalysis";
 import Reports from "./pages/Reports";
@@ -92,10 +94,26 @@ const App = () => (
               }
             />
             <Route
+              path="/offeriq"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><OfferIQ /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/pipelineiq"
               element={
                 <ProtectedRoute>
                   <AppLayout><PipelineIQ /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/portfolioiq"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><PortfolioIQ /></AppLayout>
                 </ProtectedRoute>
               }
             />
