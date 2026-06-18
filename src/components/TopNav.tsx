@@ -11,6 +11,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsAdmin } from "@/hooks/useAdminData";
 import BrixIcon from "@/components/BrixIcon";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
   { title: "BRIX OS", url: "/dashboard" },
@@ -70,7 +71,7 @@ export function TopNav() {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
-
+          <ThemeToggle />
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

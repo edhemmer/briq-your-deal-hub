@@ -32,14 +32,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 type RiskLevel = "Positive" | "Caution" | "Risk" | "Info";
 
 const operatingModules = [
-  { name: "Digital Twin", status: "Source of Truth", icon: Home },
-  { name: "Strategy Lab", status: "Compare", icon: Layers3 },
-  { name: "Scenario Engine", status: "Stress Test", icon: Gauge },
-  { name: "AI Committee", status: "Challenge", icon: Brain },
-  { name: "Project OS", status: "Execute", icon: ClipboardCheck },
-  { name: "Portfolio OS", status: "Optimize", icon: WalletCards },
-  { name: "Mentor Mode", status: "Teach", icon: GraduationCap },
-  { name: "Field Capture", status: "Verify", icon: Camera },
+  { name: "Property Snapshot", status: "Facts, files, timeline", icon: Home },
+  { name: "Strategy Compare", status: "Buy, hold, sell, refi", icon: Layers3 },
+  { name: "Downside Testing", status: "Base, conservative, stress", icon: Gauge },
+  { name: "Expert Review", status: "Multiple perspectives", icon: Brain },
+  { name: "Action Plan", status: "Due diligence tasks", icon: ClipboardCheck },
+  { name: "Portfolio View", status: "Exposure and allocation", icon: WalletCards },
+  { name: "Investor Coach", status: "Plain-English guidance", icon: GraduationCap },
+  { name: "Field Capture", status: "Photos, scans, notes", icon: Camera },
 ];
 
 const trustFactors = [
@@ -151,13 +151,13 @@ const Index = () => {
             <div className="max-w-3xl">
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <Badge variant="secondary" className="rounded-md">BRIX Operating System</Badge>
-                <Badge variant="outline" className="rounded-md">Decision quality first</Badge>
+                <Badge variant="outline" className="rounded-md">Evidence-led decisions</Badge>
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-5xl">
-                Real estate investing from evidence to execution.
+                Invest with clarity before you commit capital.
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground md:text-base">
-                BRIX helps investors learn, analyze, verify, compare, decide, execute, operate, and optimize from one decision environment.
+                Screen deals, compare strategies, verify assumptions, and turn next steps into an execution plan from one decision environment.
               </p>
             </div>
             <div className="grid min-w-[220px] grid-cols-2 gap-2 rounded-lg border border-border bg-muted/40 p-3">
@@ -190,7 +190,7 @@ const Index = () => {
         <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted p-1 md:grid-cols-4 lg:w-auto lg:inline-grid">
           <TabsTrigger value="decision">Decision</TabsTrigger>
           <TabsTrigger value="field">Field</TabsTrigger>
-          <TabsTrigger value="project">Project</TabsTrigger>
+          <TabsTrigger value="project">Execution</TabsTrigger>
           <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
         </TabsList>
 
@@ -223,8 +223,8 @@ const Index = () => {
         <CardContainer className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-bold text-foreground">Mentor Mode</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Education adapts to the investor, not the other way around.</p>
+              <h2 className="text-base font-bold text-foreground">Investor Coach</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Guidance adapts to your experience level and the decision in front of you.</p>
             </div>
             <GraduationCap className="h-5 w-5 text-primary" />
           </div>
@@ -247,8 +247,8 @@ const Index = () => {
         <CardContainer className="space-y-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-base font-bold text-foreground">Build depth before breadth</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Every new workflow must improve decision quality, trust, education, execution, or portfolio outcomes.</p>
+              <h2 className="text-base font-bold text-foreground">From analysis to action</h2>
+              <p className="mt-1 text-sm text-muted-foreground">BRIX turns a recommendation into verification tasks, deal comparisons, and a clean next-step plan.</p>
             </div>
             <div className="flex gap-2">
               <Button asChild>
@@ -262,9 +262,9 @@ const Index = () => {
             </div>
           </div>
           <div className="grid gap-3 md:grid-cols-3">
-            <Principle icon={ShieldCheck} title="Trust visible" body="Confidence, assumptions, risks, evidence, and alternatives stay on screen." />
-            <Principle icon={Target} title="Decision ready" body="BRIX reduces confidence when critical data is missing or weak." />
-            <Principle icon={Sparkles} title="Investor growth" body="The system teaches through real deals, scenarios, and avoided mistakes." />
+            <Principle icon={ShieldCheck} title="Clear recommendation" body="Know the suggested move, the evidence behind it, and what could change it." />
+            <Principle icon={Target} title="Visible confidence" body="See assumptions, risks, missing information, and source quality before acting." />
+            <Principle icon={Sparkles} title="Better decisions" body="Learn through real deals, scenario tests, and mistakes avoided before closing." />
           </div>
         </CardContainer>
       </section>
@@ -277,7 +277,7 @@ function DecisionBoard({ activeDecision, onDecisionChange }: { activeDecision: s
     <CardContainer className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Decision Board</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Recommendation</p>
           <h2 className="mt-1 text-2xl font-black text-foreground">{activeDecision}</h2>
         </div>
         <div className="flex h-11 w-11 items-center justify-center rounded-md bg-signal-warning/10 text-signal-warning">
@@ -285,10 +285,10 @@ function DecisionBoard({ activeDecision, onDecisionChange }: { activeDecision: s
         </div>
       </div>
       <p className="text-sm leading-6 text-muted-foreground">
-        The deal is promising, but not decision-ready until insurance, rent support, and roof scope are verified.
+        Promising opportunity, but BRIX would not move forward until insurance, rent support, and roof scope are verified.
       </p>
       <div className="grid grid-cols-3 gap-2">
-        {["Buy with conditions", "Renegotiate", "Investigate"].map(decision => (
+        {["Buy with conditions", "Renegotiate", "Keep checking"].map(decision => (
           <button
             key={decision}
             onClick={() => onDecisionChange(decision)}
@@ -301,7 +301,7 @@ function DecisionBoard({ activeDecision, onDecisionChange }: { activeDecision: s
         ))}
       </div>
       <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3">
-        {["Get carrier quote before inspection period ends", "Request itemized contractor bid", "Use conservative rent in stress case"].map(item => (
+        {["Get an insurance quote before the inspection window closes", "Ask for an itemized roof and bathroom scope", "Run the conservative rent case before committing"].map(item => (
           <div key={item} className="flex items-start gap-2 text-sm text-foreground">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-signal-positive" />
             <span>{item}</span>
@@ -313,10 +313,10 @@ function DecisionBoard({ activeDecision, onDecisionChange }: { activeDecision: s
 }
 
 function DigitalTwinPanel() {
-  const timeline = ["Acquisition", "Inspection", "Renovation", "Lease up", "Refinance", "Optimize"];
+  const timeline = ["Acquisition", "Inspection", "Renovation", "Lease up", "Refinance", "Improve"];
   return (
     <CardContainer className="space-y-4">
-      <PanelTitle icon={Building2} title="Property Digital Twin" subtitle="One property, one source of truth." />
+      <PanelTitle icon={Building2} title="Property Snapshot" subtitle="The facts, files, and timeline behind the recommendation." />
       <div className="rounded-lg border border-border bg-muted/30 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -325,7 +325,7 @@ function DigitalTwinPanel() {
               <MapPin className="h-3.5 w-3.5" /> Duplex - 1978 - 2,140 sq ft
             </p>
           </div>
-          <Badge variant="outline" className="rounded-md">Digital Twin ID BRX-1042</Badge>
+          <Badge variant="outline" className="rounded-md">Property Record BRX-1042</Badge>
         </div>
       </div>
       <div className="space-y-3">
@@ -352,7 +352,7 @@ function DigitalTwinPanel() {
 function StrategyLabPanel() {
   return (
     <CardContainer className="space-y-4">
-      <PanelTitle icon={BarChart3} title="Strategy Lab" subtitle="The best strategy is not always the highest return." />
+      <PanelTitle icon={BarChart3} title="Strategy Comparison" subtitle="See which path fits the deal, your capital, and your risk profile." />
       <div className="overflow-hidden rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-muted/60 text-xs uppercase tracking-wider text-muted-foreground">
@@ -382,7 +382,7 @@ function StrategyLabPanel() {
 function TrustPanel() {
   return (
     <CardContainer className="space-y-4">
-      <PanelTitle icon={ShieldCheck} title="Trust Architecture" subtitle="Trust must be earned through evidence." />
+      <PanelTitle icon={ShieldCheck} title="Trust & Readiness" subtitle="Know what is verified, what is assumed, and what is missing." />
       {trustFactors.map(factor => (
         <div key={factor.label} className="space-y-2">
           <div className="flex items-center justify-between">
@@ -407,7 +407,7 @@ function ScenarioPanel() {
   ];
   return (
     <CardContainer className="space-y-4">
-      <PanelTitle icon={LineChart} title="Scenario Engine" subtitle="No investment is evaluated with one future." />
+      <PanelTitle icon={LineChart} title="Downside Scenarios" subtitle="See how the deal behaves when assumptions get worse." />
       <div className="space-y-3">
         {scenarios.map(scenario => (
           <div key={scenario.label} className="rounded-lg border border-border bg-background p-3">
@@ -431,7 +431,7 @@ function ScenarioPanel() {
 function CommitteePanel() {
   return (
     <CardContainer className="space-y-4">
-      <PanelTitle icon={Brain} title="AI Committee" subtitle="Consensus should never hide disagreement." />
+      <PanelTitle icon={Brain} title="Expert Review" subtitle="BRIX weighs the deal from analyst, contractor, lender, insurance, and portfolio angles." />
       <div className="grid gap-2">
         {committee.map(member => (
           <div key={member.role} className="rounded-lg border border-border bg-background p-3">
@@ -451,7 +451,7 @@ function FieldInvestorMode() {
   return (
     <div className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
       <CardContainer className="space-y-4">
-        <PanelTitle icon={Camera} title="Field Investor Mode" subtitle="Walk the property once. Build the intelligence record." />
+        <PanelTitle icon={Camera} title="Property Walkthrough" subtitle="Capture photos, scans, and notes while you are on site." />
         <div className="grid gap-2 sm:grid-cols-2">
           {[
             { label: "Take photos", icon: Camera },
@@ -468,13 +468,13 @@ function FieldInvestorMode() {
         <div className="rounded-lg border border-border bg-muted/40 p-4">
           <p className="text-sm font-semibold text-foreground">Visual Scope Builder</p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Photos become findings, scopes, budgets, confidence, risks, and Strategy Lab inputs. Estimates remain preliminary until contractor verification.
+            Photos become findings, scopes, budgets, confidence, risks, and strategy inputs. Estimates remain preliminary until contractor verification.
           </p>
         </div>
       </CardContainer>
 
       <CardContainer className="space-y-4">
-        <PanelTitle icon={Wrench} title="Preliminary Rehab Model" subtitle="Generated from photos, notes, and inspection text." />
+        <PanelTitle icon={Wrench} title="Preliminary Rehab Scope" subtitle="Early budget intelligence from field evidence, pending contractor verification." />
         <div className="grid gap-3 md:grid-cols-2">
           {fieldFindings.map(finding => (
             <div key={finding.room} className="rounded-lg border border-border bg-background p-4">
@@ -498,7 +498,7 @@ function ProjectOSPanel() {
   return (
     <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
       <CardContainer className="space-y-4">
-        <PanelTitle icon={ClipboardCheck} title="Project OS" subtitle="Analysis creates plans. Project OS delivers outcomes." />
+        <PanelTitle icon={ClipboardCheck} title="Execution Plan" subtitle="Turn diligence and strategy into tracked next steps." />
         <div className="overflow-hidden rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead className="bg-muted/60 text-xs uppercase tracking-wider text-muted-foreground">
@@ -523,7 +523,7 @@ function ProjectOSPanel() {
         </div>
       </CardContainer>
       <CardContainer className="space-y-4">
-        <PanelTitle icon={Gauge} title="Execution Health" subtitle="Track drift before it damages the decision." />
+        <PanelTitle icon={Gauge} title="Execution Health" subtitle="Track budget, schedule, and scope drift before they damage the deal." />
         <MetricRow label="Budget health" value={72} />
         <MetricRow label="Schedule health" value={81} />
         <MetricRow label="Scope confidence" value={64} />
@@ -537,7 +537,7 @@ function PortfolioOSPanel() {
   return (
     <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
       <CardContainer className="space-y-4">
-        <PanelTitle icon={WalletCards} title="Portfolio OS" subtitle="The portfolio is the investment." />
+        <PanelTitle icon={WalletCards} title="Portfolio Impact" subtitle="Understand how one deal changes cash flow, risk, and liquidity." />
         <div className="grid grid-cols-2 gap-3">
           <Metric label="Total equity" value="$1.42M" tone="Positive" />
           <Metric label="Cash flow" value="$8.7k" suffix="/mo" tone="Positive" />
@@ -549,7 +549,7 @@ function PortfolioOSPanel() {
         </div>
       </CardContainer>
       <CardContainer className="space-y-4">
-        <PanelTitle icon={BarChart3} title="Risk and Allocation" subtitle="A great property can still be a bad portfolio decision." />
+        <PanelTitle icon={BarChart3} title="Risk & Allocation" subtitle="Avoid good deals that create bad portfolio exposure." />
         {portfolioExposure.map(item => (
           <MetricRow key={item.label} label={item.label} value={item.value} />
         ))}
