@@ -573,10 +573,12 @@ function PanelTitle({ icon: Icon, title, subtitle }: { icon: ElementType; title:
 }
 
 function Metric({ label, value, suffix, tone = "Info" }: { label: string; value: string; suffix?: string; tone?: RiskLevel | string }) {
+  const valueSize = value.length > 6 ? "text-base md:text-lg" : "text-lg";
+
   return (
     <div className="rounded-md border border-border bg-background p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-lg font-black ${tone === "Positive" ? "text-signal-positive" : tone === "Caution" ? "text-signal-warning" : tone === "Risk" ? "text-signal-risk" : "text-foreground"}`}>
+      <p className={`mt-1 break-words font-black leading-tight ${valueSize} ${tone === "Positive" ? "text-signal-positive" : tone === "Caution" ? "text-signal-warning" : tone === "Risk" ? "text-signal-risk" : "text-foreground"}`}>
         {value} {suffix && <span className="text-xs font-medium text-muted-foreground">{suffix}</span>}
       </p>
     </div>

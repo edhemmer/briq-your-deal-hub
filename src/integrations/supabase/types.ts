@@ -1029,6 +1029,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_admin_access: {
+        Args: {
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1038,7 +1044,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      app_role: "admin" | "moderator" | "user" | "superadmin"
     }
     CompositeTypes: {
       [_ in never]: never
