@@ -4,11 +4,24 @@ import type { Database } from './types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const BRIX_SUPABASE_URL = "https://luwaqrkhmxcqsozmilbw.supabase.co";
+const BRIX_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f";
+const LEGACY_PAUSED_SUPABASE_REF = "sadhltrjaprzlkfxowmz";
+
+const resolvedSupabaseUrl =
+  !SUPABASE_URL || SUPABASE_URL.includes(LEGACY_PAUSED_SUPABASE_REF)
+    ? BRIX_SUPABASE_URL
+    : SUPABASE_URL;
+
+const resolvedSupabaseKey =
+  !SUPABASE_PUBLISHABLE_KEY || SUPABASE_URL?.includes(LEGACY_PAUSED_SUPABASE_REF)
+    ? BRIX_SUPABASE_PUBLISHABLE_KEY
+    : SUPABASE_PUBLISHABLE_KEY;
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = createClient<Database>(resolvedSupabaseUrl, resolvedSupabaseKey, {
   auth: {
     storage: localStorage,
     persistSession: true,
