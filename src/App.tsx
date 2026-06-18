@@ -14,6 +14,7 @@ import { OnboardingWalkthrough } from "@/components/help/OnboardingWalkthrough";
 import Index from "./pages/Index";
 import Landing from "./pages/Landing";
 import NewDeal from "./pages/NewDeal";
+import DealCompare from "./pages/DealCompare";
 import Analysis from "./pages/Analysis";
 import ContractIQ from "./pages/ContractIQ";
 import ContractAnalysis from "./pages/ContractAnalysis";
@@ -63,6 +64,14 @@ const App = () => (
             <Route
               path="/dashboard"
               element={<AppLayout><Index /></AppLayout>}
+            />
+            <Route
+              path="/dealiq/compare"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><DealCompare /></AppLayout>
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/dealiq/:dealId?"

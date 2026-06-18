@@ -1,4 +1,4 @@
-import { Plus, Trash2, ArrowRight, Briefcase, BarChart3 } from "lucide-react";
+import { Plus, Trash2, ArrowRight, Briefcase, BarChart3, GitCompareArrows } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
@@ -30,12 +30,20 @@ export function DealIQLanding() {
         title="DealIQ"
         description="Start a new deal analysis or open an existing one."
       >
-        <Link to="/dealiq/new">
-          <PrimaryButton>
-            <Plus className="h-4 w-4 mr-2" />
-            New Deal
-          </PrimaryButton>
-        </Link>
+        <div className="flex gap-2">
+          <Link to="/dealiq/compare">
+            <Button variant="outline">
+              <GitCompareArrows className="h-4 w-4 mr-2" />
+              Compare Deals
+            </Button>
+          </Link>
+          <Link to="/dealiq/new">
+            <PrimaryButton>
+              <Plus className="h-4 w-4 mr-2" />
+              New Deal
+            </PrimaryButton>
+          </Link>
+        </div>
       </PageHeader>
 
       {isLoading ? (
