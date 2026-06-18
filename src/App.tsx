@@ -56,19 +56,11 @@ const App = () => (
             {/* Root redirects to /dashboard */}
             <Route
               path="/"
-              element={
-                <ProtectedRoute>
-                  <Navigate to="/dashboard" replace />
-                </ProtectedRoute>
-              }
+              element={<Navigate to="/dashboard" replace />}
             />
             <Route
               path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><Index /></AppLayout>
-                </ProtectedRoute>
-              }
+              element={<AppLayout><Index /></AppLayout>}
             />
             <Route
               path="/dealiq/:dealId?"

@@ -2,6 +2,17 @@
 // If BLS_API_KEY is set, uses v2 (500 req/day).
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
+interface BlsPoint {
+  year: string;
+  period: string;
+  value: string;
+}
+
+interface BlsSeries {
+  seriesID: string;
+  data?: BlsPoint[];
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -34,16 +45,16 @@ Deno.serve(async (req) => {
     }
 
     // Normalize: compute YoY growth per series when possible
-    const series = (data.Results?.series ?? []).map((s: any) => {
+    const series = ((data.Results?.series ?? []) as BlsSeries[]).map((s) => {
       const points = (s.data ?? [])
-        .map((d: any) => ({
+        .map((d) => ({
           year: Number(d.year),
           period: d.period,
           value: Number(d.value),
         }))
-        .filter((d: any) => Number.isFinite(d.value));
+        .filter((d) => Number.isFinite(d.value));
       const latest = points[0];
-      const yearAgo = points.find((p: any) => latest && p.year === latest.year - 1 && p.period === latest.period);
+      const yearAgo = points.find((p) => latest && p.year === latest.year - 1 && p.period === latest.period);
       const yoy_pct = latest && yearAgo && yearAgo.value > 0
         ? ((latest.value - yearAgo.value) / yearAgo.value) * 100
         : null;

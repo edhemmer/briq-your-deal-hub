@@ -39,17 +39,30 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You extract real estate property listing data from text. Return ONLY valid JSON with these fields (use null for missing values):
+            content: `You extract real estate property listing and due-diligence data from text. Return ONLY valid JSON with these fields (use null for missing values, arrays for notes):
 {
   "property_address": string | null,
   "city": string | null,
   "state": string | null (2-letter code),
   "zip_code": string | null,
-  "property_type": string | null (one of: "Single Family", "Multi-Family", "Commercial", "Land", "Mixed Use"),
+  "property_type": string | null (one of: "Single Family", "Duplex", "Triplex", "Fourplex", "Small Multifamily", "Commercial", "Land", "Mixed Use"),
   "purchase_price": number | null (no commas or $),
   "estimated_arv": number | null,
-  "strategy_primary": string | null (one of: "Buy & Hold", "Fix & Flip", "Wholesale", "BRRRR", "Development")
+  "monthly_rent": number | null,
+  "annual_property_tax": number | null,
+  "taxes": number | null,
+  "insurance": number | null,
+  "beds": number | null,
+  "baths": number | null,
+  "sqft": number | null,
+  "year_built": number | null,
+  "condition_notes": string[],
+  "visible_or_stated_risks": string[],
+  "missing_questions": string[],
+  "strategy_primary": string | null (one of: "Buy & Hold", "Fix & Flip", "Wholesale", "BRRRR", "Development", "Owner Occupant"),
+  "source_confidence": "low" | "medium" | "high"
 }
+Only extract facts actually present in the text. Do not invent rent, taxes, ARV, expenses, condition, or risk values. Put unknown diligence items in missing_questions.
 Do not include any markdown formatting, code fences, or explanation. Only output the JSON object.`
           },
           {

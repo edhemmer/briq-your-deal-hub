@@ -111,7 +111,7 @@ export function GuidedPropertyRetrieval({ dealAddress, onAcceptDraft }: GuidedPr
     setDraft(prev => {
       const field = prev[key];
       if (!field) return prev;
-      return { ...prev, [key]: acceptDraftField(field as DraftFieldValue<any>) };
+      return { ...prev, [key]: acceptDraftField(field as DraftFieldValue<number | string>) };
     });
   }, []);
 
@@ -122,12 +122,12 @@ export function GuidedPropertyRetrieval({ dealAddress, onAcceptDraft }: GuidedPr
       if (!field) return prev;
       const fieldDef = DRAFT_FIELDS.find(f => f.key === key);
       const parsed = fieldDef?.type === "number" ? parseFloat(newValue) || 0 : newValue;
-      return { ...prev, [key]: editDraftField(field as DraftFieldValue<any>, parsed) };
+      return { ...prev, [key]: editDraftField(field as DraftFieldValue<number | string>, parsed) };
     });
   }, []);
 
   const handleDiscardField = useCallback((key: keyof DraftPropertyData) => {
-    setDraft(prev => ({ ...prev, [key]: discardDraftField(prev[key] as DraftFieldValue<any>) }));
+    setDraft(prev => ({ ...prev, [key]: discardDraftField(prev[key] as DraftFieldValue<number | string>) }));
     setEditValues(prev => { const n = { ...prev }; delete n[key]; return n; });
   }, []);
 

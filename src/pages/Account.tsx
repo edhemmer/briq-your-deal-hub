@@ -18,8 +18,8 @@ const Account = () => {
   const billingAccess = evaluateBillingAccess(profile ? {
     subscription_status: profile.subscription_status,
     free_deal_used: profile.free_deal_used,
-    admin_override: (profile as any).admin_override ?? false,
-    manual_premium_override: (profile as any).manual_premium_override ?? false,
+    admin_override: profile.admin_override ?? false,
+    manual_premium_override: profile.manual_premium_override ?? false,
     stripe_customer_id: profile.stripe_customer_id,
     stripe_subscription_id: profile.stripe_subscription_id,
   } : null, deals?.length ?? 0);

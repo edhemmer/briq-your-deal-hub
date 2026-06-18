@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "BRIX OS", url: "/dashboard", icon: LayoutDashboard },
   { title: "DealIQ", url: "/dealiq", icon: BarChart3 },
   { title: "ContractIQ", url: "/contractiq", icon: FileSignature },
   { title: "Reports", url: "/reports", icon: FileText },

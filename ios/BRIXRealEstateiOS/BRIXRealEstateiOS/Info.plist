@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>BRIX Real Estate</string>
+	<key>NSCameraUsageDescription</key>
+	<string>BRIX uses the camera to capture property photos, videos, and documents for the Property Digital Twin and field due diligence.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>BRIX uses the microphone only when you record voice notes for property walkthroughs.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>BRIX accesses selected photos and videos you choose to attach to a property, project, or deal.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>BRIX may save captured property images to your library only when you choose to export or save them.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>BRIX uses location only with permission to tag field captures to a property visit and improve property organization.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>BRIX imports documents you select for inspection, bid, lease, and due diligence analysis.</string>
+</dict>
+</plist>

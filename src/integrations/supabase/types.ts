@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -10,10 +10,77 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.5"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
+      account_deletion_requests: {
+        Row: {
+          apple_user_identifier: string | null
+          completed_at: string | null
+          id: string
+          legal_retention_note: string | null
+          processor_note: string | null
+          reason: string | null
+          request_source: string
+          requested_at: string
+          revoked_apple_token_at: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          apple_user_identifier?: string | null
+          completed_at?: string | null
+          id?: string
+          legal_retention_note?: string | null
+          processor_note?: string | null
+          reason?: string | null
+          request_source?: string
+          requested_at?: string
+          revoked_apple_token_at?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          apple_user_identifier?: string | null
+          completed_at?: string | null
+          id?: string
+          legal_retention_note?: string | null
+          processor_note?: string | null
+          reason?: string | null
+          request_source?: string
+          requested_at?: string
+          revoked_apple_token_at?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       admin_audit_log: {
         Row: {
           action_type: string
@@ -40,6 +107,421 @@ export type Database = {
           target_user_id?: string | null
         }
         Relationships: []
+      }
+      brix_decisions: {
+        Row: {
+          alternative_strategies: Json
+          assumptions: Json
+          bear_case: string | null
+          bull_case: string | null
+          committee_analysis: Json
+          confidence_level: string
+          created_at: string
+          deal_id: string | null
+          decision_readiness_score: number
+          decision_type: string
+          failure_scenarios: Json
+          id: string
+          key_risks: Json
+          missing_information: Json
+          neutral_view: string | null
+          next_actions: Json
+          outcome_tracking: Json
+          property_twin_id: string | null
+          recommendation_class: string
+          recommendation_summary: string
+          scenario_results: Json
+          supporting_evidence: Json
+          trust_score: number
+          updated_at: string
+          user_decision: string | null
+          user_id: string
+          what_must_be_true: Json
+        }
+        Insert: {
+          alternative_strategies?: Json
+          assumptions?: Json
+          bear_case?: string | null
+          bull_case?: string | null
+          committee_analysis?: Json
+          confidence_level: string
+          created_at?: string
+          deal_id?: string | null
+          decision_readiness_score?: number
+          decision_type: string
+          failure_scenarios?: Json
+          id?: string
+          key_risks?: Json
+          missing_information?: Json
+          neutral_view?: string | null
+          next_actions?: Json
+          outcome_tracking?: Json
+          property_twin_id?: string | null
+          recommendation_class: string
+          recommendation_summary: string
+          scenario_results?: Json
+          supporting_evidence?: Json
+          trust_score?: number
+          updated_at?: string
+          user_decision?: string | null
+          user_id: string
+          what_must_be_true?: Json
+        }
+        Update: {
+          alternative_strategies?: Json
+          assumptions?: Json
+          bear_case?: string | null
+          bull_case?: string | null
+          committee_analysis?: Json
+          confidence_level?: string
+          created_at?: string
+          deal_id?: string | null
+          decision_readiness_score?: number
+          decision_type?: string
+          failure_scenarios?: Json
+          id?: string
+          key_risks?: Json
+          missing_information?: Json
+          neutral_view?: string | null
+          next_actions?: Json
+          outcome_tracking?: Json
+          property_twin_id?: string | null
+          recommendation_class?: string
+          recommendation_summary?: string
+          scenario_results?: Json
+          supporting_evidence?: Json
+          trust_score?: number
+          updated_at?: string
+          user_decision?: string | null
+          user_id?: string
+          what_must_be_true?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brix_decisions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brix_decisions_property_twin_id_fkey"
+            columns: ["property_twin_id"]
+            isOneToOne: false
+            referencedRelation: "property_digital_twins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brix_field_captures: {
+        Row: {
+          ai_findings: Json
+          capture_category: string | null
+          capture_type: string
+          captured_at: string
+          confidence_score: number | null
+          created_at: string
+          deal_id: string | null
+          id: string
+          latitude: number | null
+          local_identifier: string | null
+          longitude: number | null
+          project_id: string | null
+          property_twin_id: string | null
+          severity: string | null
+          source_quality: string
+          storage_path: string | null
+          sync_status: string
+          updated_at: string
+          uploaded_at: string | null
+          user_id: string
+          user_note: string | null
+          verification_recommendation: string | null
+          voice_note_transcript: string | null
+        }
+        Insert: {
+          ai_findings?: Json
+          capture_category?: string | null
+          capture_type: string
+          captured_at?: string
+          confidence_score?: number | null
+          created_at?: string
+          deal_id?: string | null
+          id?: string
+          latitude?: number | null
+          local_identifier?: string | null
+          longitude?: number | null
+          project_id?: string | null
+          property_twin_id?: string | null
+          severity?: string | null
+          source_quality?: string
+          storage_path?: string | null
+          sync_status?: string
+          updated_at?: string
+          uploaded_at?: string | null
+          user_id: string
+          user_note?: string | null
+          verification_recommendation?: string | null
+          voice_note_transcript?: string | null
+        }
+        Update: {
+          ai_findings?: Json
+          capture_category?: string | null
+          capture_type?: string
+          captured_at?: string
+          confidence_score?: number | null
+          created_at?: string
+          deal_id?: string | null
+          id?: string
+          latitude?: number | null
+          local_identifier?: string | null
+          longitude?: number | null
+          project_id?: string | null
+          property_twin_id?: string | null
+          severity?: string | null
+          source_quality?: string
+          storage_path?: string | null
+          sync_status?: string
+          updated_at?: string
+          uploaded_at?: string | null
+          user_id?: string
+          user_note?: string | null
+          verification_recommendation?: string | null
+          voice_note_transcript?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brix_field_captures_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brix_field_captures_property_twin_id_fkey"
+            columns: ["property_twin_id"]
+            isOneToOne: false
+            referencedRelation: "property_digital_twins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brix_portfolio_snapshots: {
+        Row: {
+          capital_allocation: Json
+          concentration_analysis: Json
+          created_at: string
+          id: string
+          liquidity: number | null
+          monthly_cash_flow: number | null
+          net_worth: number | null
+          opportunities: Json
+          portfolio_score: number | null
+          risk_analysis: Json
+          snapshot_date: string
+          total_debt: number | null
+          total_equity: number | null
+          user_id: string
+        }
+        Insert: {
+          capital_allocation?: Json
+          concentration_analysis?: Json
+          created_at?: string
+          id?: string
+          liquidity?: number | null
+          monthly_cash_flow?: number | null
+          net_worth?: number | null
+          opportunities?: Json
+          portfolio_score?: number | null
+          risk_analysis?: Json
+          snapshot_date?: string
+          total_debt?: number | null
+          total_equity?: number | null
+          user_id: string
+        }
+        Update: {
+          capital_allocation?: Json
+          concentration_analysis?: Json
+          created_at?: string
+          id?: string
+          liquidity?: number | null
+          monthly_cash_flow?: number | null
+          net_worth?: number | null
+          opportunities?: Json
+          portfolio_score?: number | null
+          risk_analysis?: Json
+          snapshot_date?: string
+          total_debt?: number | null
+          total_equity?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      brix_project_tasks: {
+        Row: {
+          created_at: string
+          deal_id: string | null
+          decision_id: string | null
+          dependency_ids: string[]
+          due_at: string | null
+          id: string
+          notes: string | null
+          owner: string | null
+          priority: string
+          property_twin_id: string | null
+          status: string
+          task_type: string
+          title: string
+          updated_at: string
+          user_id: string
+          verification_required: boolean
+        }
+        Insert: {
+          created_at?: string
+          deal_id?: string | null
+          decision_id?: string | null
+          dependency_ids?: string[]
+          due_at?: string | null
+          id?: string
+          notes?: string | null
+          owner?: string | null
+          priority?: string
+          property_twin_id?: string | null
+          status?: string
+          task_type?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          verification_required?: boolean
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string | null
+          decision_id?: string | null
+          dependency_ids?: string[]
+          due_at?: string | null
+          id?: string
+          notes?: string | null
+          owner?: string | null
+          priority?: string
+          property_twin_id?: string | null
+          status?: string
+          task_type?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          verification_required?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brix_project_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brix_project_tasks_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "brix_decisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brix_project_tasks_property_twin_id_fkey"
+            columns: ["property_twin_id"]
+            isOneToOne: false
+            referencedRelation: "property_digital_twins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brix_visual_scope_items: {
+        Row: {
+          budget_confidence: number | null
+          condition_score: string | null
+          created_at: string
+          detection_confidence: number | null
+          expected_estimate: number | null
+          field_capture_id: string | null
+          finding: string
+          high_estimate: number | null
+          id: string
+          labor_assumptions: Json
+          low_estimate: number | null
+          materials: Json
+          property_twin_id: string | null
+          recommended_action: string | null
+          risks: Json
+          room_or_system: string
+          scope_confidence: number | null
+          scope_type: string
+          updated_at: string
+          user_id: string
+          verification_required: boolean
+        }
+        Insert: {
+          budget_confidence?: number | null
+          condition_score?: string | null
+          created_at?: string
+          detection_confidence?: number | null
+          expected_estimate?: number | null
+          field_capture_id?: string | null
+          finding: string
+          high_estimate?: number | null
+          id?: string
+          labor_assumptions?: Json
+          low_estimate?: number | null
+          materials?: Json
+          property_twin_id?: string | null
+          recommended_action?: string | null
+          risks?: Json
+          room_or_system: string
+          scope_confidence?: number | null
+          scope_type: string
+          updated_at?: string
+          user_id: string
+          verification_required?: boolean
+        }
+        Update: {
+          budget_confidence?: number | null
+          condition_score?: string | null
+          created_at?: string
+          detection_confidence?: number | null
+          expected_estimate?: number | null
+          field_capture_id?: string | null
+          finding?: string
+          high_estimate?: number | null
+          id?: string
+          labor_assumptions?: Json
+          low_estimate?: number | null
+          materials?: Json
+          property_twin_id?: string | null
+          recommended_action?: string | null
+          risks?: Json
+          room_or_system?: string
+          scope_confidence?: number | null
+          scope_type?: string
+          updated_at?: string
+          user_id?: string
+          verification_required?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brix_visual_scope_items_field_capture_id_fkey"
+            columns: ["field_capture_id"]
+            isOneToOne: false
+            referencedRelation: "brix_field_captures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brix_visual_scope_items_property_twin_id_fkey"
+            columns: ["property_twin_id"]
+            isOneToOne: false
+            referencedRelation: "property_digital_twins"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contracts: {
         Row: {
@@ -366,50 +848,163 @@ export type Database = {
       profiles: {
         Row: {
           admin_override: boolean | null
+          apple_full_name_captured_at: string | null
+          apple_private_relay_email: boolean | null
+          apple_user_identifier: string | null
+          auth_provider: string | null
           created_at: string
+          deletion_completed_at: string | null
+          deletion_requested_at: string | null
+          deletion_status: string | null
           free_deal_used: boolean | null
           id: string
           manual_override_note: string | null
           manual_override_updated_at: string | null
           manual_override_updated_by: string | null
           manual_premium_override: boolean | null
+          privacy_policy_accepted_at: string | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           subscription_end_date: string | null
           subscription_start_date: string | null
           subscription_status: string | null
+          terms_accepted_at: string | null
         }
         Insert: {
           admin_override?: boolean | null
+          apple_full_name_captured_at?: string | null
+          apple_private_relay_email?: boolean | null
+          apple_user_identifier?: string | null
+          auth_provider?: string | null
           created_at?: string
+          deletion_completed_at?: string | null
+          deletion_requested_at?: string | null
+          deletion_status?: string | null
           free_deal_used?: boolean | null
           id: string
           manual_override_note?: string | null
           manual_override_updated_at?: string | null
           manual_override_updated_by?: string | null
           manual_premium_override?: boolean | null
+          privacy_policy_accepted_at?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_end_date?: string | null
           subscription_start_date?: string | null
           subscription_status?: string | null
+          terms_accepted_at?: string | null
         }
         Update: {
           admin_override?: boolean | null
+          apple_full_name_captured_at?: string | null
+          apple_private_relay_email?: boolean | null
+          apple_user_identifier?: string | null
+          auth_provider?: string | null
           created_at?: string
+          deletion_completed_at?: string | null
+          deletion_requested_at?: string | null
+          deletion_status?: string | null
           free_deal_used?: boolean | null
           id?: string
           manual_override_note?: string | null
           manual_override_updated_at?: string | null
           manual_override_updated_by?: string | null
           manual_premium_override?: boolean | null
+          privacy_policy_accepted_at?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_end_date?: string | null
           subscription_start_date?: string | null
           subscription_status?: string | null
+          terms_accepted_at?: string | null
         }
         Relationships: []
+      }
+      property_digital_twins: {
+        Row: {
+          address: string
+          condition_layer: Json
+          created_at: string
+          data_freshness: Json
+          deal_id: string | null
+          decision_readiness_score: number
+          financial_layer: Json
+          id: string
+          insurance_layer: Json
+          legal_layer: Json
+          market_layer: Json
+          memory_layer: Json
+          ownership_status: string
+          physical_layer: Json
+          portfolio_layer: Json
+          property_id: string
+          property_type: string | null
+          strategy_layer: Json
+          tax_layer: Json
+          trust_score: number
+          updated_at: string
+          user_id: string
+          verification_status: string
+        }
+        Insert: {
+          address: string
+          condition_layer?: Json
+          created_at?: string
+          data_freshness?: Json
+          deal_id?: string | null
+          decision_readiness_score?: number
+          financial_layer?: Json
+          id?: string
+          insurance_layer?: Json
+          legal_layer?: Json
+          market_layer?: Json
+          memory_layer?: Json
+          ownership_status?: string
+          physical_layer?: Json
+          portfolio_layer?: Json
+          property_id?: string
+          property_type?: string | null
+          strategy_layer?: Json
+          tax_layer?: Json
+          trust_score?: number
+          updated_at?: string
+          user_id: string
+          verification_status?: string
+        }
+        Update: {
+          address?: string
+          condition_layer?: Json
+          created_at?: string
+          data_freshness?: Json
+          deal_id?: string | null
+          decision_readiness_score?: number
+          financial_layer?: Json
+          id?: string
+          insurance_layer?: Json
+          legal_layer?: Json
+          market_layer?: Json
+          memory_layer?: Json
+          ownership_status?: string
+          physical_layer?: Json
+          portfolio_layer?: Json
+          property_id?: string
+          property_type?: string | null
+          strategy_layer?: Json
+          tax_layer?: Json
+          trust_score?: number
+          updated_at?: string
+          user_id?: string
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_digital_twins_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -569,6 +1164,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],

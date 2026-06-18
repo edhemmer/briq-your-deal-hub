@@ -259,7 +259,7 @@ const toIsoDate = (v: unknown): string | null => {
   // US M/D/YYYY or M-D-YYYY (most common in US real-estate contracts)
   const us = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
   if (us) {
-    let [, m, d, y] = us;
+    const [, m, d, y] = us;
     let yr = parseInt(y, 10);
     if (yr < 100) yr += yr >= 50 ? 1900 : 2000;
     const mn = parseInt(m, 10);

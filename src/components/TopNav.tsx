@@ -13,7 +13,7 @@ import { useIsAdmin } from "@/hooks/useAdminData";
 import BrixIcon from "@/components/BrixIcon";
 
 const navItems = [
-  { title: "Dashboard", url: "/dashboard" },
+  { title: "BRIX OS", url: "/dashboard" },
   { title: "DealIQ", url: "/dealiq" },
   { title: "ContractIQ", url: "/contractiq" },
   { title: "Reports", url: "/reports" },
@@ -23,7 +23,7 @@ const navItems = [
 export function TopNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const { data: isAdmin } = useIsAdmin();
 
   const isActive = (path: string) => {
@@ -71,35 +71,41 @@ export function TopNav() {
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground">
-                <User className="h-4 w-4" />
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => navigate("/account")}>
-                <User className="mr-2 h-4 w-4" />
-                Account
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/help")}>
-                <HelpCircle className="mr-2 h-4 w-4" />
-                Help
-              </DropdownMenuItem>
-              {isAdmin && (
-                <DropdownMenuItem onClick={() => navigate("/admin")}>
-                  <ShieldCheck className="mr-2 h-4 w-4" />
-                  Admin
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground">
+                  <User className="h-4 w-4" />
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={() => navigate("/account")}>
+                  <User className="mr-2 h-4 w-4" />
+                  Account
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuItem onClick={() => navigate("/help")}>
+                  <HelpCircle className="mr-2 h-4 w-4" />
+                  Help
+                </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem onClick={() => navigate("/admin")}>
+                    <ShieldCheck className="mr-2 h-4 w-4" />
+                    Admin
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button size="sm" onClick={() => navigate("/login")}>
+              Login
+            </Button>
+          )}
         </div>
       </div>
 

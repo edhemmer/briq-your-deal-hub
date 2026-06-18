@@ -27,7 +27,7 @@ import {
 import { useDeal, useUpdateDeal } from "@/hooks/useDeals";
 import type { DealInput } from "@/lib/dealAnalysisEngine";
 import { resolvePropertyIntelligence, openPropertyRecord } from "@/lib/property/propertyIntelligenceEngine";
-import type { MarketConditions } from "@/lib/marketIntelligenceEngine";
+import type { MarketConditions, MarketSignalScore } from "@/lib/marketIntelligenceEngine";
 import { useMarketConditions, useUpsertMarketConditions } from "@/hooks/useMarketConditions";
 import type { StrategyFitResults } from "@/lib/strategyFitEngine";
 import type { ScenarioResult, ScenarioCategory, ResilienceLevel, StressTestResults } from "@/lib/stressTestingEngine";
@@ -64,6 +64,14 @@ import { ProFormaPanel } from "@/components/analysis/ProFormaPanel";
 import { ReturnsPanel } from "@/components/analysis/ReturnsPanel";
 import { SensitivityPanel } from "@/components/analysis/SensitivityPanel";
 import { CapitalStackPanel } from "@/components/analysis/CapitalStackPanel";
+import { DealCommandCenter } from "@/components/analysis/DealCommandCenter";
+import { buildDueDiligenceQuestions, evaluateResidentialDecision, type HoldPeriod } from "@/lib/residentialDecisionEngine";
+import type { Tables, TablesUpdate } from "@/integrations/supabase/types";
+import { calculateVerifiedAnnualTax, evaluateTrustGate, PUBLIC_SOURCE_CONNECTORS } from "@/lib/sourceVerificationEngine";
+import { SourceVerificationPanel } from "@/components/analysis/SourceVerificationPanel";
+
+type DealRow = Tables<"deals">;
+type DealUpdate = TablesUpdate<"deals"> & { id: string };
 
 const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boolean; group: string }[] = [
   { key: "purchase_price", label: "Purchase Price", group: "Acquisition" },
@@ -91,6 +99,8 @@ const MARKET_FIELD_KEYS = [
   "days_on_market", "sale_to_list_ratio", "absorption_rate",
   "population_growth_rate", "job_growth_rate", "crime_score",
 ] as const;
+
+type MarketFieldKey = typeof MARKET_FIELD_KEYS[number];
 
 const MARKET_FIELDS: { key: string; label: string; group: string; suffix?: string }[] = [
   { key: "median_rent", label: "Median Rent", group: "Rent Market", suffix: "/mo" },
@@ -135,6 +145,25 @@ function metricBadge(value: number, thresholds: [number, number]): "default" | "
 const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const fmtPct = (n: number) => (n * 100).toFixed(2) + "%";
 const fmtX = (n: number) => n.toFixed(2) + "x";
+
+const EMPTY_DEAL_INPUT: DealInput = {
+  purchase_price: 0,
+  closing_costs: 0,
+  rehab_cost: 0,
+  rehab_contingency: 0,
+  down_payment_percent: 0,
+  interest_rate: 0,
+  loan_term_years: 0,
+  monthly_rent: 0,
+  other_income: 0,
+  taxes: 0,
+  insurance: 0,
+  maintenance_percent: 0,
+  vacancy_percent: 0,
+  management_percent: 0,
+  capex_percent: 0,
+  arv: 0,
+};
 
 function scoreColor(score: number): string {
   if (score >= 85) return "text-signal-positive";
@@ -181,11 +210,26 @@ const Analysis = () => {
   const [analysisContext, setAnalysisContext] = useState<AnalysisContext | null>(null);
   const [sourceQualityMap, setSourceQualityMap] = useState<Record<string, SourceQuality>>({});
   const [returnsAssumptions, setReturnsAssumptions] = useState<ReturnsAssumptions>(DEFAULT_RETURNS_ASSUMPTIONS);
+  const [decisionMode, setDecisionMode] = useState<"investment" | "live-in">("investment");
+  const [holdPeriod, setHoldPeriod] = useState<HoldPeriod>(10);
+  const [taxHistory, setTaxHistory] = useState({ year1: "", year2: "", year3: "" });
 
   const sourceQualityInput = useMemo<SourceQualityInput | null>(() => {
     if (Object.keys(sourceQualityMap).length === 0) return null;
     return { fieldSources: sourceQualityMap };
   }, [sourceQualityMap]);
+
+  const setField = useCallback((key: string, val: string) => {
+    setLocalFields(prev => ({ ...prev, [key]: val }));
+  }, []);
+
+  const setEnrichmentField = useCallback((key: string, val: string) => {
+    setEnrichmentFields(prev => ({ ...prev, [key]: val }));
+  }, []);
+
+  const setMarketField = useCallback((key: string, val: string) => {
+    setMarketFields(prev => ({ ...prev, [key]: val }));
+  }, []);
 
   const handleAcceptDraft = useCallback((accepted: Partial<Record<string, { value: number | string; source: SourceQuality; confidence: string }>>) => {
     if (!dealId) return;
@@ -207,23 +251,24 @@ const Analysis = () => {
       else if (key === "zoningType") { enrichUpdates.zoning_type = String(data.value); setEnrichmentField("zoning_type", String(data.value)); }
     }
     setSourceQualityMap(newSources);
-  }, [dealId, sourceQualityMap]);
+  }, [dealId, sourceQualityMap, setEnrichmentField, setField]);
 
   useEffect(() => {
     if (deal && !initialized) {
+      const typedDeal = deal as DealRow;
       const fields: Record<string, string> = {};
       for (const f of FINANCIAL_FIELDS) {
-        const raw = (deal as any)[f.key] as number | null;
+        const raw = typedDeal[f.key] as number | null;
         const val = raw ?? 0;
         fields[f.key] = f.isPercent ? String(val * 100) : String(val);
       }
       setLocalFields(fields);
       setEnrichmentFields({
-        assessed_value: String((deal as any).assessed_value ?? 0),
-        annual_property_tax: String((deal as any).annual_property_tax ?? 0),
-        year_built: String((deal as any).year_built ?? 0),
-        lot_size: (deal as any).lot_size ?? "",
-        zoning_type: (deal as any).zoning_type ?? "",
+        assessed_value: String(typedDeal.assessed_value ?? 0),
+        annual_property_tax: String(typedDeal.annual_property_tax ?? 0),
+        year_built: String(typedDeal.year_built ?? 0),
+        lot_size: typedDeal.lot_size ?? "",
+        zoning_type: typedDeal.zoning_type ?? "",
       });
       setInitialized(true);
     }
@@ -233,29 +278,17 @@ const Analysis = () => {
     if (marketConditionsRow) {
       const mf: Record<string, string> = {};
       for (const k of MARKET_FIELD_KEYS) {
-        const val = (marketConditionsRow as any)[k];
+        const val = marketConditionsRow[k as MarketFieldKey];
         mf[k] = val != null ? String(val) : "";
       }
       setMarketFields(mf);
     }
   }, [marketConditionsRow]);
 
-  const setField = useCallback((key: string, val: string) => {
-    setLocalFields(prev => ({ ...prev, [key]: val }));
-  }, []);
-
-  const setEnrichmentField = useCallback((key: string, val: string) => {
-    setEnrichmentFields(prev => ({ ...prev, [key]: val }));
-  }, []);
-
-  const setMarketField = useCallback((key: string, val: string) => {
-    setMarketFields(prev => ({ ...prev, [key]: val }));
-  }, []);
-
   // ── Build Canonical NormalizedDealState ──
   const normalizedState = useMemo(() => {
     if (!deal) return null;
-    const baseState = buildNormalizedDealState(deal as any);
+    const baseState = buildNormalizedDealState(deal as DealRow);
     
     // Apply local field overrides (user edits not yet persisted)
     const fieldUpdates: Record<string, number> = {};
@@ -318,13 +351,13 @@ const Analysis = () => {
   }, [deal, localFields, enrichmentFields]);
 
 
-  const dealInput = canonicalOutput?.dealInput ?? ({} as DealInput);
-  const analysis = canonicalOutput?.analysis!;
-  const intelligence = canonicalOutput?.intelligence!;
+  const dealInput = canonicalOutput?.dealInput ?? EMPTY_DEAL_INPUT;
+  const analysis = canonicalOutput?.analysis;
+  const intelligence = canonicalOutput?.intelligence;
   const marketConditionsInput = canonicalOutput?.marketConditions ?? ({} as MarketConditions);
-  const marketIntelligence = canonicalOutput?.marketIntelligence!;
-  const strategyFit = canonicalOutput?.strategyFit!;
-  const stressResults = canonicalOutput?.stressResults!;
+  const marketIntelligence = canonicalOutput?.marketIntelligence;
+  const strategyFit = canonicalOutput?.strategyFit;
+  const stressResults = canonicalOutput?.stressResults;
 
   // ── Pro Forma + Returns (Phase 2 engines) ──
   const proForma = useMemo(() => {
@@ -336,6 +369,32 @@ const Analysis = () => {
     if (!canonicalOutput?.analysis || !canonicalOutput?.dealInput) return null;
     return buildReturns(canonicalOutput.dealInput, canonicalOutput.analysis, returnsAssumptions);
   }, [canonicalOutput, returnsAssumptions]);
+
+  const residentialDecision = useMemo(() => {
+    if (!canonicalOutput?.analysis || !canonicalOutput?.dealInput || !marketIntelligence) return null;
+    return evaluateResidentialDecision({
+      dealInput: canonicalOutput.dealInput,
+      analysis: canonicalOutput.analysis,
+      marketIntelligence,
+      hiddenRisks: canonicalOutput.hiddenRisks ?? null,
+      holdPeriodYears: holdPeriod,
+      priceGrowthAnnual: marketConditionsInput.price_growth_12mo ? marketConditionsInput.price_growth_12mo / 100 : null,
+      rentGrowthAnnual: marketConditionsInput.rent_growth_12mo ? marketConditionsInput.rent_growth_12mo / 100 : null,
+      assessedValue: parseFloat(enrichmentFields.assessed_value || "0") || null,
+      annualPropertyTax: parseFloat(enrichmentFields.annual_property_tax || "0") || null,
+      yearBuilt: parseFloat(enrichmentFields.year_built || "0") || null,
+    });
+  }, [canonicalOutput, marketIntelligence, holdPeriod, marketConditionsInput.price_growth_12mo, marketConditionsInput.rent_growth_12mo, enrichmentFields]);
+
+  const dueDiligenceQuestions = useMemo(() => {
+    if (!canonicalOutput?.analysis || !marketIntelligence) return null;
+    return buildDueDiligenceQuestions({
+      analysis: canonicalOutput.analysis,
+      hiddenRisks: canonicalOutput.hiddenRisks ?? null,
+      marketIntelligence,
+      propertyType: deal?.property_type ?? null,
+    });
+  }, [canonicalOutput, marketIntelligence, deal?.property_type]);
 
   // ── Input Sufficiency Check ──
   const inputSufficiency: InputSufficiency = useMemo(() => {
@@ -372,6 +431,34 @@ const Analysis = () => {
     );
   }, [deal, enrichmentFields]);
 
+  const verifiedTax = useMemo(() => calculateVerifiedAnnualTax(
+    {
+      year1: parseFloat(taxHistory.year1 || "0") || null,
+      year2: parseFloat(taxHistory.year2 || "0") || null,
+      year3: parseFloat(taxHistory.year3 || "0") || null,
+    },
+    parseFloat(enrichmentFields.annual_property_tax || "0") || dealInput.taxes || null,
+  ), [taxHistory, enrichmentFields.annual_property_tax, dealInput.taxes]);
+
+  const trustGate = useMemo(() => evaluateTrustGate({
+    resolved: resolvedPropertyData,
+    tax: verifiedTax,
+    hiddenRisks: canonicalOutput?.hiddenRisks ?? null,
+    hasCountyRecordUrl: Boolean(propertyIntelligence?.countyLookup.url),
+    hasMarketData: inputSufficiency.hasMarketData,
+    hasRentData: (dealInput.monthly_rent ?? 0) > 0 && (marketConditionsInput.median_rent ?? 0) > 0,
+    hasInsurance: (dealInput.insurance ?? 0) > 0,
+  }), [
+    resolvedPropertyData,
+    verifiedTax,
+    canonicalOutput?.hiddenRisks,
+    propertyIntelligence?.countyLookup.url,
+    inputSufficiency.hasMarketData,
+    dealInput.monthly_rent,
+    dealInput.insurance,
+    marketConditionsInput.median_rent,
+  ]);
+
   const handleBlur = useCallback(() => {
     if (!dealId) return;
     const updates: Record<string, number> = {};
@@ -379,25 +466,30 @@ const Analysis = () => {
       const raw = parseFloat(localFields[f.key] || "0") || 0;
       updates[f.key] = f.isPercent ? raw / 100 : raw;
     }
-    updateDeal.mutate({ id: dealId, ...updates } as any);
+    updateDeal.mutate({ id: dealId, ...updates } as DealUpdate);
   }, [dealId, localFields, updateDeal]);
 
   const handleEnrichmentBlur = useCallback(() => {
     if (!dealId) return;
+    const verifiedAnnualTax = verifiedTax.annualTax ?? (parseFloat(enrichmentFields.annual_property_tax || "0") || 0);
+    if (verifiedAnnualTax > 0) {
+      setField("taxes", String(verifiedAnnualTax));
+    }
     updateDeal.mutate({
       id: dealId,
       assessed_value: parseFloat(enrichmentFields.assessed_value || "0") || 0,
-      annual_property_tax: parseFloat(enrichmentFields.annual_property_tax || "0") || 0,
+      annual_property_tax: verifiedAnnualTax,
+      taxes: verifiedAnnualTax,
       year_built: parseFloat(enrichmentFields.year_built || "0") || 0,
       lot_size: enrichmentFields.lot_size || null,
       zoning_type: enrichmentFields.zoning_type || null,
       property_record_url: propertyIntelligence?.countyLookup.url ?? null,
-    } as any);
-  }, [dealId, enrichmentFields, propertyIntelligence, updateDeal]);
+    } satisfies DealUpdate);
+  }, [dealId, enrichmentFields, propertyIntelligence, setField, updateDeal, verifiedTax]);
 
   const handleMarketBlur = useCallback(() => {
     if (!dealId || !deal) return;
-    const numericFields: Record<string, any> = {};
+    const numericFields: Record<string, number | null> = {};
     for (const k of MARKET_FIELD_KEYS) {
       if (k === "crime_score") {
         const v = parseFloat(marketFields[k] || "");
@@ -439,8 +531,13 @@ const Analysis = () => {
       strategyFit,
       marketIntelligence,
       stressResults,
+      residentialDecision,
+      holdPeriod,
+      dueDiligenceQuestions,
+      trustGate,
+      verifiedTax,
     );
-  }, [deal, dealInput, analysis, intelligence, strategyFit, marketIntelligence, stressResults]);
+  }, [deal, dealInput, analysis, intelligence, strategyFit, marketIntelligence, stressResults, residentialDecision, holdPeriod, dueDiligenceQuestions, trustGate, verifiedTax]);
 
   // ── Empty / Loading States ──
   if (!dealId) {
@@ -475,6 +572,21 @@ const Analysis = () => {
         <DealWorkflowIndicator activeStep={2} className="mb-2" />
         <AnalysisContextGate onContextComplete={setAnalysisContext} />
         <AnalysisDisclosure className="mt-6" />
+      </SectionContainer>
+    );
+  }
+
+  if (!analysis || !intelligence || !marketIntelligence || !strategyFit || !stressResults) {
+    return (
+      <SectionContainer>
+        <PageHeader
+          title={deal?.property_address ?? "Analysis"}
+          description="Running canonical analysis..."
+        />
+        <div className="space-y-4">
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-32 w-full rounded-xl" />
+        </div>
       </SectionContainer>
     );
   }
@@ -581,6 +693,27 @@ const Analysis = () => {
 
         {/* ── OVERVIEW ── */}
         <TabsContent value="overview" className="space-y-6 mt-4">
+          {inputSufficiency.canAnalyze && residentialDecision && dueDiligenceQuestions && (
+            <DealCommandCenter
+              mode={decisionMode}
+              onModeChange={setDecisionMode}
+              holdPeriod={holdPeriod}
+              onHoldPeriodChange={setHoldPeriod}
+              score={intelligence.score}
+              verdict={intelligence.decision}
+              analysis={analysis}
+              marketIntelligence={marketIntelligence}
+              guidance={canonicalOutput?.dealGuidance ?? null}
+              hiddenRisks={canonicalOutput?.hiddenRisks ?? null}
+              residential={residentialDecision}
+              questions={dueDiligenceQuestions}
+              onExportPdf={() => {
+                const r = buildReport();
+                if (r) generateInvestorPDF(r);
+              }}
+            />
+          )}
+
           {inputSufficiency.canAnalyze ? (
             <DealIntelligenceSummary
               intelligence={intelligence}
@@ -707,6 +840,11 @@ const Analysis = () => {
                 <Database className="h-5 w-5 text-muted-foreground" /> Data Confidence & Sources
               </h2>
               <DataConfidencePanel resolved={resolvedPropertyData} conflicts={propertyConflicts} />
+              <SourceVerificationPanel
+                trustGate={trustGate}
+                tax={verifiedTax}
+                connectors={PUBLIC_SOURCE_CONNECTORS}
+              />
             </div>
           )}
 
@@ -730,7 +868,26 @@ const Analysis = () => {
                 </div>
                 <div className="border-t border-border pt-5">
                   <h3 className="text-sm font-semibold text-foreground mb-4">Property Data Enrichment</h3>
-                  <p className="text-xs text-muted-foreground mb-4">Optionally enter verified property details from official records.</p>
+                  <p className="text-xs text-muted-foreground mb-4">Enter only values verified from public records, leases, lender quotes, or source documents. Taxes use the 3-year average when all three years are provided.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                    {[
+                      { key: "year1", label: "Tax Year 1" },
+                      { key: "year2", label: "Tax Year 2" },
+                      { key: "year3", label: "Tax Year 3" },
+                    ].map(f => (
+                      <div key={f.key} className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">{f.label}</Label>
+                        <Input
+                          type="number"
+                          className="h-8 text-sm"
+                          value={taxHistory[f.key as keyof typeof taxHistory]}
+                          onChange={e => setTaxHistory(prev => ({ ...prev, [f.key]: e.target.value }))}
+                          onBlur={handleEnrichmentBlur}
+                          placeholder="0"
+                        />
+                      </div>
+                    ))}
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {[
                       { key: "assessed_value", label: "Assessed Value", type: "number", placeholder: "0" },
@@ -917,7 +1074,7 @@ const Analysis = () => {
 
             {inputSufficiency.hasMarketData && (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
-                {Object.entries(marketIntelligence.signals).map(([key, signal]: [string, any]) => (
+                {(Object.entries(marketIntelligence.signals) as [string, MarketSignalScore][]).map(([key, signal]) => (
                   <CardContainer key={key} className="flex flex-col items-start gap-1 p-4">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       {key === "rent" ? <Home className="h-4 w-4" /> :

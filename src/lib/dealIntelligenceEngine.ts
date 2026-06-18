@@ -99,7 +99,8 @@ export function analyzeDealIntelligence(a: AnalysisResult): DealIntelligenceResu
 
   // --- Decision ---
   let decision: string;
-  if (dealKillers.length > 0) decision = "Caution";
+  if (score < 35 || dealKillers.length >= 2) decision = "Pass";
+  else if (dealKillers.length > 0) decision = "Do Not Chase";
   else if (score >= 85) decision = "Strong Buy";
   else if (score >= 70) decision = "Worth Pursuing";
   else if (score >= 55) decision = "Needs Negotiation";

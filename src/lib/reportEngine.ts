@@ -8,6 +8,8 @@ import type { DealIntelligenceResult } from "./dealIntelligenceEngine";
 import type { StrategyFitResults, StrategyScore } from "./strategyFitEngine";
 import type { MarketIntelligenceResult } from "./marketIntelligenceEngine";
 import type { StressTestResults, ScenarioResult } from "./stressTestingEngine";
+import type { DueDiligenceQuestionSet, HoldPeriod, ResidentialDecisionResult } from "./residentialDecisionEngine";
+import type { TrustGateResult, VerifiedTaxResult } from "./sourceVerificationEngine";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -28,6 +30,11 @@ export interface DealReport {
   strategyFit: StrategyFitResults;
   marketIntelligence: MarketIntelligenceResult;
   stressResults: StressTestResults;
+  residentialDecision?: ResidentialDecisionResult | null;
+  holdPeriodYears?: HoldPeriod;
+  dueDiligenceQuestions?: DueDiligenceQuestionSet | null;
+  trustGate?: TrustGateResult | null;
+  verifiedTax?: VerifiedTaxResult | null;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -35,6 +42,10 @@ export interface DealReport {
 const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const fmtPct = (n: number) => (n * 100).toFixed(2) + "%";
 const fmtX = (n: number) => n.toFixed(2) + "x";
+
+function lastTableY(doc: jsPDF): number {
+  return (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 0;
+}
 
 const STRATEGY_LABELS: Record<keyof StrategyFitResults, string> = {
   brrrr: "BRRRR",
@@ -61,6 +72,11 @@ export function assembleDealReport(
   strategyFit: StrategyFitResults,
   marketIntelligence: MarketIntelligenceResult,
   stressResults: StressTestResults,
+  residentialDecision?: ResidentialDecisionResult | null,
+  holdPeriodYears?: HoldPeriod,
+  dueDiligenceQuestions?: DueDiligenceQuestionSet | null,
+  trustGate?: TrustGateResult | null,
+  verifiedTax?: VerifiedTaxResult | null,
 ): DealReport {
   return {
     property,
@@ -70,6 +86,11 @@ export function assembleDealReport(
     strategyFit,
     marketIntelligence,
     stressResults,
+    residentialDecision,
+    holdPeriodYears,
+    dueDiligenceQuestions,
+    trustGate,
+    verifiedTax,
   };
 }
 
@@ -159,6 +180,37 @@ export function generateInvestorPDF(report: DealReport): void {
   });
   y += 10;
 
+  if (report.trustGate) {
+    doc.setTextColor(...textDark);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Source Verification Status", margin, y);
+    y += 6;
+    doc.line(margin, y, margin + contentW, y);
+    y += 14;
+
+    const trustRows = [
+      ["Verification Status", report.trustGate.status.replace("_", " ")],
+      ["Trust Score", `${report.trustGate.score} / 100`],
+      ["Report Basis", report.trustGate.reportLanguage],
+    ];
+    if (report.verifiedTax) {
+      trustRows.push(["Property Tax Basis", report.verifiedTax.note]);
+    }
+
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [["Check", "Result"]],
+      body: trustRows,
+      styles: { fontSize: 8, cellPadding: 5, valign: "top" },
+      headStyles: { fillColor: brandColor, textColor: [255, 255, 255], fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      theme: "plain",
+    });
+    y = lastTableY(doc) + 18;
+  }
+
   // -- Financial Performance --
   doc.setTextColor(...textDark);
   doc.setFontSize(14);
@@ -190,7 +242,7 @@ export function generateInvestorPDF(report: DealReport): void {
     alternateRowStyles: { fillColor: [248, 250, 252] },
     theme: "plain",
   });
-  y = (doc as any).lastAutoTable.finalY + 20;
+  y = lastTableY(doc) + 20;
 
   // -- Market Conditions --
   if (y > 620) { doc.addPage(); y = margin; }
@@ -222,7 +274,7 @@ export function generateInvestorPDF(report: DealReport): void {
     alternateRowStyles: { fillColor: [248, 250, 252] },
     theme: "plain",
   });
-  y = (doc as any).lastAutoTable.finalY + 20;
+  y = lastTableY(doc) + 20;
 
   // -- Crime & Safety --
   if (y > 680) { doc.addPage(); y = margin; }
@@ -306,6 +358,80 @@ export function generateInvestorPDF(report: DealReport): void {
     alternateRowStyles: { fillColor: [248, 250, 252] },
     theme: "plain",
   });
+
+  y = lastTableY(doc) + 22;
+
+  if (report.residentialDecision) {
+    if (y > 560) { doc.addPage(); y = margin; }
+    doc.setTextColor(...textDark);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Owner-Occupant Decision Lens", margin, y);
+    y += 6;
+    doc.line(margin, y, margin + contentW, y);
+    y += 10;
+
+    const rd = report.residentialDecision;
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [["Metric", "Value"]],
+      body: [
+        ["Hold Period", `${report.holdPeriodYears ?? 10} years`],
+        ["Live-In Score", `${rd.score}/100 - ${rd.verdict}`],
+        ["Estimated Exit Value", fmt(rd.estimatedValueAtExit)],
+        ["Projected Equity", fmt(rd.projectedEquity)],
+        ["Estimated Owner Cost/mo", fmt(rd.ownershipCostMonthly)],
+        ["Own-vs-Rent Gap/mo", fmt(rd.rentEquivalentGapMonthly)],
+        ["Price / Assessment", rd.priceToAssessmentRatio == null ? "Unavailable" : `${rd.priceToAssessmentRatio.toFixed(2)}x`],
+      ],
+      styles: { fontSize: 9, cellPadding: 6 },
+      headStyles: { fillColor: brandColor, textColor: [255, 255, 255], fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      theme: "plain",
+    });
+    y = lastTableY(doc) + 18;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...textDark);
+    doc.text("Decision Signals", margin, y);
+    y += 14;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...textMuted);
+    rd.signals.forEach((signal) => {
+      const lines = doc.splitTextToSize(`- ${signal}`, contentW);
+      doc.text(lines, margin, y);
+      y += lines.length * 10 + 3;
+    });
+  }
+
+  if (report.dueDiligenceQuestions) {
+    if (y > 500) { doc.addPage(); y = margin; }
+    doc.setTextColor(...textDark);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Questions for Realtor, Attorney, Lender, and Inspector", margin, y);
+    y += 6;
+    doc.line(margin, y, margin + contentW, y);
+    y += 10;
+
+    const qRows = Object.entries(report.dueDiligenceQuestions).flatMap(([role, questions]) =>
+      questions.slice(0, 4).map((question) => [role[0].toUpperCase() + role.slice(1), question])
+    );
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [["Role", "Question"]],
+      body: qRows,
+      styles: { fontSize: 8, cellPadding: 5, valign: "top" },
+      headStyles: { fillColor: brandColor, textColor: [255, 255, 255], fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: { 0: { cellWidth: 72 }, 1: { cellWidth: contentW - 72 } },
+      theme: "plain",
+    });
+  }
 
   // -- Footer on each page --
   const totalPages = doc.getNumberOfPages();

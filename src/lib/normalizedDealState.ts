@@ -157,7 +157,7 @@ export function evaluateInputSufficiency(
 // ── Factory: Build from DB row ─────────────────────────────────────────
 
 function sv<T>(value: T): SourcedValue<T> {
-  return hasValue(value as any) ? userValue(value) : unavailableValue(value);
+  return hasValue(value) ? userValue(value) : unavailableValue(value);
 }
 
 function svStr(value: string | null): SourcedValue<string | null> {

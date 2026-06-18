@@ -2,6 +2,11 @@
 // Requires FRED_API_KEY (free from https://fred.stlouisfed.org/docs/api/api_key.html).
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
+interface FredObservation {
+  date: string;
+  value: string;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -34,11 +39,11 @@ Deno.serve(async (req) => {
     const data = await res.json();
     if (!res.ok) throw new Error(`FRED API failed [${res.status}]: ${JSON.stringify(data)}`);
 
-    const observations = (data.observations ?? [])
-      .map((o: any) => ({ date: o.date, value: o.value === '.' ? null : Number(o.value) }))
-      .filter((o: any) => o.value === null || Number.isFinite(o.value));
+    const observations = ((data.observations ?? []) as FredObservation[])
+      .map((o) => ({ date: o.date, value: o.value === '.' ? null : Number(o.value) }))
+      .filter((o) => o.value === null || Number.isFinite(o.value));
 
-    const latest = observations.find((o: any) => o.value !== null) ?? null;
+    const latest = observations.find((o) => o.value !== null) ?? null;
     const yearAgoIdx = 12; // monthly series approximation
     const yearAgo = observations[yearAgoIdx] ?? null;
     const yoy_pct = latest && yearAgo && yearAgo.value && yearAgo.value !== 0

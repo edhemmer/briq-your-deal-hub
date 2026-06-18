@@ -58,7 +58,7 @@ export function useUpsertMarketConditions() {
       state: string;
       zipcode?: string;
       existing_id?: string;
-      [key: string]: any;
+      [key: string]: string | number | null | undefined;
     }) => {
       if (!user) throw new Error("Not authenticated");
       const { existing_id, ...fields } = input;

@@ -354,7 +354,14 @@ serve(async (req) => {
       try {
         extracted = JSON.parse(raw);
       } catch {
-        const cleaned = raw.replace(/[\x00-\x1F\x7F]/g, "").replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
+        const cleaned = Array.from(raw)
+          .filter((char) => {
+            const code = char.charCodeAt(0);
+            return (code >= 32 && code !== 127) || char === "\n" || char === "\r" || char === "\t";
+          })
+          .join("")
+          .replace(/,\s*}/g, "}")
+          .replace(/,\s*]/g, "]");
         extracted = JSON.parse(cleaned);
       }
     } catch {

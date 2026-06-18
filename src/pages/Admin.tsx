@@ -58,8 +58,9 @@ export default function Admin() {
         actionType: `set_subscription_${newStatus}`,
       });
       toast({ title: "User updated", description: `Subscription set to ${newStatus}` });
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      toast({ title: "Error", description: message, variant: "destructive" });
     }
   };
 
@@ -82,8 +83,9 @@ export default function Admin() {
         description: !currentlyEnabled && note ? `Note: ${note}` : undefined,
       });
       setOverrideNotes((prev) => ({ ...prev, [userId]: "" }));
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      toast({ title: "Error", description: message, variant: "destructive" });
     }
   };
 
@@ -157,12 +159,12 @@ export default function Admin() {
                     const accessSource = resolveAccessSource({
                       subscription_status: u.subscription_status,
                       free_deal_used: u.free_deal_used,
-                      admin_override: (u as any).admin_override ?? false,
-                      manual_premium_override: (u as any).manual_premium_override ?? false,
+                      admin_override: u.admin_override ?? false,
+                      manual_premium_override: u.manual_premium_override ?? false,
                       stripe_customer_id: u.stripe_customer_id,
                       stripe_subscription_id: u.stripe_subscription_id,
                     });
-                    const isPremium = (u as any).manual_premium_override ?? false;
+                    const isPremium = u.manual_premium_override ?? false;
                     return (
                       <TableRow key={u.id}>
                         <TableCell className="font-mono text-xs text-muted-foreground max-w-[120px] truncate">
@@ -215,9 +217,9 @@ export default function Admin() {
                                   />
                                 </div>
                               )}
-                              {(u as any).manual_override_note && isPremium && (
+                              {u.manual_override_note && isPremium && (
                                 <p className="text-xs text-muted-foreground">
-                                  Note: {(u as any).manual_override_note}
+                                  Note: {u.manual_override_note}
                                 </p>
                               )}
                               <Button
@@ -306,7 +308,7 @@ export default function Admin() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {auditLog && auditLog.length > 0 ? auditLog.map((log: any) => (
+                {auditLog && auditLog.length > 0 ? auditLog.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell className="text-sm font-medium capitalize">
                       {log.action_type.replace(/_/g, " ")}
