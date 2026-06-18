@@ -42,6 +42,10 @@
   ],
   "rewrites": [
     {
+      "source": "/assets/index-:hash.js",
+      "destination": "/stale-bundle-recovery.js"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
