@@ -31,6 +31,71 @@ interface DealImageUploadProps {
 
 type Mode = "idle" | "image" | "text";
 
+const STATE_CODES = new Set([
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID",
+  "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS",
+  "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK",
+  "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV",
+  "WI", "WY", "DC",
+]);
+
+const titleCase = (value: string) =>
+  value
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .replace(/\bNe\b/g, "NE")
+    .replace(/\bNw\b/g, "NW")
+    .replace(/\bSe\b/g, "SE")
+    .replace(/\bSw\b/g, "SW");
+
+const extractDealFromListingUrl = (input: string): ExtractedDeal | null => {
+  let url: URL;
+  try {
+    url = new URL(input.trim());
+  } catch {
+    return null;
+  }
+
+  const pathParts = url.pathname.split("/").filter(Boolean);
+  const detailSegment =
+    pathParts.find((part) => /-\d{5}(?:-\d{4})?$/i.test(part)) ??
+    pathParts.find((part) => part.includes("-") && /\d/.test(part));
+
+  if (!detailSegment) return null;
+
+  const cleanSegment = decodeURIComponent(detailSegment)
+    .replace(/_zpid$/i, "")
+    .replace(/\?.*$/, "");
+  const tokens = cleanSegment.split("-").filter(Boolean);
+  const zipIndex = tokens.findIndex((token) => /^\d{5}(?:\d{4})?$/.test(token));
+
+  if (zipIndex < 2) return null;
+
+  const stateIndex = zipIndex - 1;
+  const state = tokens[stateIndex]?.toUpperCase();
+  if (!STATE_CODES.has(state)) return null;
+
+  const cityIndex = stateIndex - 1;
+  const city = titleCase(tokens[cityIndex]);
+  const propertyAddress = titleCase(tokens.slice(0, cityIndex).join(" "));
+
+  if (!propertyAddress || !city) return null;
+
+  return {
+    property_address: propertyAddress,
+    city,
+    state,
+    zip_code: tokens[zipIndex],
+    source_confidence: "low",
+    missing_questions: [
+      "Paste the full listing text or upload screenshots to verify price, property type, beds, baths, square footage, taxes, rent, and condition.",
+      "Confirm facts against official records or listing documents before relying on the analysis.",
+    ],
+    visible_or_stated_risks: [
+      "Only the listing URL was provided, so BRIX has not verified property details beyond the address parsed from the URL.",
+    ],
+  };
+};
+
 export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -78,6 +143,14 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
   }, [onExtracted]);
 
   const processText = useCallback(async () => {
+    const trimmedText = pastedText.trim();
+    const urlExtract = extractDealFromListingUrl(trimmedText);
+    if (urlExtract) {
+      onExtracted(urlExtract);
+      toast.success("Address extracted from listing URL. Add listing facts or screenshots to verify the deal.");
+      return;
+    }
+
     if (pastedText.trim().length < 10) {
       toast.error("Please paste more listing text");
       return;
@@ -85,7 +158,7 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
     setIsExtracting(true);
     try {
       const { data, error } = await supabase.functions.invoke("extract-deal-from-text", {
-        body: { listing_text: pastedText },
+        body: { listing_text: trimmedText },
       });
       if (error) throw error;
       if (data?.extracted) {
@@ -96,7 +169,8 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
       }
     } catch (err: unknown) {
       console.error("Text extraction error:", err);
-      toast.error("Failed to extract deal info from text");
+      const message = err instanceof Error ? err.message : "Failed to extract deal info from text";
+      toast.error(message);
     } finally {
       setIsExtracting(false);
     }
@@ -182,14 +256,14 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
       {/* Divider */}
       <div className="flex items-center gap-3">
         <div className="flex-1 h-px bg-border" />
-        <span className="text-xs text-muted-foreground font-medium">or paste listing text</span>
+        <span className="text-xs text-muted-foreground font-medium">or paste listing text / URL</span>
         <div className="flex-1 h-px bg-border" />
       </div>
 
       {/* Text paste zone */}
       <div className="space-y-2">
         <Textarea
-          placeholder="Paste a property listing, rent roll, broker notes, MLS remarks, or inspection/photo observations..."
+          placeholder="Paste a property listing, listing URL, rent roll, broker notes, MLS remarks, or inspection/photo observations..."
           value={pastedText}
           onChange={(e) => { setPastedText(e.target.value); setMode("text"); }}
           className="min-h-[100px] text-sm resize-none"
