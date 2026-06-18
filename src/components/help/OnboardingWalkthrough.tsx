@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useHelp } from "@/contexts/HelpContext";
 import { BarChart3, PlusCircle, Brain, Target, FileText } from "lucide-react";
@@ -23,7 +23,7 @@ const steps = [
   {
     icon: Target,
     title: "Review Strategy Insights",
-    description: "BRIX evaluates your deal against common investment strategies like Buy & Hold, Fix & Flip, BRRRR, and Wholesale — showing fit signals for each approach.",
+    description: "BRIX evaluates your deal against common investment strategies like Buy & Hold, Fix & Flip, BRRRR, and Wholesale - showing fit signals for each approach.",
   },
   {
     icon: FileText,
@@ -57,6 +57,9 @@ export function OnboardingWalkthrough() {
   return (
     <Dialog open={showOnboarding} onOpenChange={(open) => { if (!open) handleSkip(); }}>
       <DialogContent className="sm:max-w-md p-0 overflow-hidden gap-0">
+        <DialogTitle className="sr-only">{current.title}</DialogTitle>
+        <DialogDescription className="sr-only">{current.description}</DialogDescription>
+
         {/* Progress bar */}
         <div className="flex gap-1 px-6 pt-6">
           {steps.map((_, i) => (
