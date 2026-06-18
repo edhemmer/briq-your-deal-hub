@@ -8,15 +8,34 @@ const BRIX_SUPABASE_URL = "https://luwaqrkhmxcqsozmilbw.supabase.co";
 const BRIX_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f";
 const LEGACY_PAUSED_SUPABASE_REF = "sadhltrjaprzlkfxowmz";
 
+const normalizeEnvValue = (value: string | undefined) => {
+  if (!value) return "";
+  const trimmed = value.trim();
+  const assignmentValue = trimmed.match(/^[A-Z0-9_]+\s*=\s*(.+)$/i)?.[1]?.trim();
+  return assignmentValue ?? trimmed;
+};
+
+const isValidHttpUrl = (value: string) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+const normalizedSupabaseUrl = normalizeEnvValue(SUPABASE_URL);
+const normalizedSupabaseKey = normalizeEnvValue(SUPABASE_PUBLISHABLE_KEY);
+
 const resolvedSupabaseUrl =
-  !SUPABASE_URL || SUPABASE_URL.includes(LEGACY_PAUSED_SUPABASE_REF)
+  !isValidHttpUrl(normalizedSupabaseUrl) || normalizedSupabaseUrl.includes(LEGACY_PAUSED_SUPABASE_REF)
     ? BRIX_SUPABASE_URL
-    : SUPABASE_URL;
+    : normalizedSupabaseUrl;
 
 const resolvedSupabaseKey =
-  !SUPABASE_PUBLISHABLE_KEY || SUPABASE_URL?.includes(LEGACY_PAUSED_SUPABASE_REF)
+  !normalizedSupabaseKey || normalizedSupabaseUrl.includes(LEGACY_PAUSED_SUPABASE_REF)
     ? BRIX_SUPABASE_PUBLISHABLE_KEY
-    : SUPABASE_PUBLISHABLE_KEY;
+    : normalizedSupabaseKey;
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
