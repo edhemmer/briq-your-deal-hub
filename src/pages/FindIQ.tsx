@@ -29,7 +29,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCreateDeal } from "@/hooks/useDeals";
 import {
   defaultAcquisitionProfile,
-  findIQProviders,
   opportunityToDealInsert,
   rankOpportunities,
   sampleOpportunities,
@@ -48,12 +47,6 @@ const fitTone = (fit: RankedOpportunity["fit"]) => {
   if (fit === "Good Match") return "text-primary";
   if (fit === "Watchlist") return "text-amber-500";
   return "text-red-500";
-};
-
-const providerStatusLabel = {
-  architecture_ready: "Adapter ready",
-  connected: "Connected",
-  needs_credentials: "Needs keys",
 };
 
 export default function FindIQ() {
@@ -95,7 +88,7 @@ export default function FindIQ() {
     <SectionContainer>
       <PageHeader
         title="FindIQ"
-        description="Discovery intelligence for acquisition profiles. FindIQ ranks what to investigate, then sends selected opportunities into DealIQ."
+        description="Rank acquisition opportunities, identify missing data, and send selected properties into DealIQ for underwriting."
       >
         <Button variant="outline">
           <Bell className="h-4 w-4 mr-2" />
@@ -116,9 +109,9 @@ export default function FindIQ() {
                 Acquisition Profile
               </div>
               <h2 className="mt-2 text-lg font-semibold text-foreground">{profile.name}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Properties are ranked against this profile before underwriting.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Properties are ranked against your criteria before deeper underwriting.</p>
             </div>
-            <Badge variant="secondary">Primary object</Badge>
+            <Badge variant="secondary">Active</Badge>
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-sm">
@@ -159,9 +152,9 @@ export default function FindIQ() {
                   <Gauge className="h-4 w-4 text-primary" />
                   Opportunity ranking
                 </div>
-                <h2 className="mt-2 text-lg font-semibold text-foreground">What should I investigate?</h2>
+                <h2 className="mt-2 text-lg font-semibold text-foreground">Opportunity queue</h2>
                 <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                  FindIQ scores discovery-stage opportunities for profile fit. Full underwriting, offer logic, and acquisition memos happen after transfer to DealIQ.
+                  Scores prioritize what deserves attention. Full underwriting, offer logic, and acquisition memos happen after transfer to DealIQ.
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
@@ -184,8 +177,8 @@ export default function FindIQ() {
                   >
                     <button type="button" className="w-full text-left" onClick={() => setSelectedId(opportunity.id)}>
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                      <div className="h-28 w-full shrink-0 overflow-hidden rounded-lg border border-border bg-muted md:w-36">
-                        <img src={opportunity.photoUrl} alt="" className="h-full w-full object-cover" />
+                      <div className="flex h-28 w-full shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground md:w-36">
+                        <Home className="h-8 w-8" />
                       </div>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -304,31 +297,20 @@ export default function FindIQ() {
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
               <Database className="h-4 w-4" />
-              Provider-based architecture
+              Source Status
             </div>
-            <h2 className="mt-2 text-lg font-semibold text-foreground">No direct dependence on a single listing vendor</h2>
+            <h2 className="mt-2 text-lg font-semibold text-foreground">Current data coverage</h2>
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              FindIQ consumes opportunities through adapters. Zillow, Redfin, Realtor, MLS, RentCast, ATTOM, county records, Census, and future sources can change without rewriting scoring or DealIQ transfer logic.
+              Free market sources are connected. Listing feeds, rent comps, sales comps, and ownership data still require paid or authorized providers before broad production search.
             </p>
           </div>
-          <Badge variant="outline">Build architecture first</Badge>
+          <Badge variant="outline">Verification required</Badge>
         </div>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {findIQProviders.map((provider) => (
-            <div key={provider.key} className="rounded-lg border border-border bg-muted/20 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-semibold text-foreground">{provider.label}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{provider.role}</p>
-                </div>
-                <ShieldCheck className="h-4 w-4 text-primary" />
-              </div>
-              <Badge variant={provider.status === "needs_credentials" ? "outline" : "secondary"} className="mt-3">
-                {providerStatusLabel[provider.status]}
-              </Badge>
-            </div>
-          ))}
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <SourceTile title="Connected" body="FRED, Census ACS, BLS public data, and Census geocoding." tone="positive" />
+          <SourceTile title="Manual verification" body="County records, listing facts, photos, inspections, and user-supplied comps." tone="caution" />
+          <SourceTile title="Future paid feeds" body="RentCast, ATTOM, MLS, insurance risk, and richer property history." tone="neutral" />
         </div>
       </CardContainer>
     </SectionContainer>
@@ -367,6 +349,27 @@ function RiskLine({ children }: { children: ReactNode }) {
     <div className="flex items-start gap-2 text-sm text-muted-foreground">
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
       <span>{children}</span>
+    </div>
+  );
+}
+
+function SourceTile({ title, body, tone }: { title: string; body: string; tone: "positive" | "caution" | "neutral" }) {
+  const toneClass =
+    tone === "positive"
+      ? "border-signal-positive/20 bg-signal-positive/10 text-signal-positive"
+      : tone === "caution"
+        ? "border-signal-warning/20 bg-signal-warning/10 text-signal-warning"
+        : "border-border bg-muted/25 text-muted-foreground";
+
+  return (
+    <div className="rounded-lg border border-border bg-background p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-semibold text-foreground">{title}</h3>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{body}</p>
+        </div>
+        <ShieldCheck className={`h-4 w-4 shrink-0 ${toneClass.split(" ").find((item) => item.startsWith("text-"))}`} />
+      </div>
     </div>
   );
 }

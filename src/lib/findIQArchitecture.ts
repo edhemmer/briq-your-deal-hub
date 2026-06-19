@@ -106,7 +106,7 @@ export const findIQProviders: OpportunityProvider[] = [
 
 export const defaultAcquisitionProfile: AcquisitionProfile = {
   id: "ed-paula-illinois",
-  name: "Ed & Paula Illinois",
+  name: "Illinois Acquisition Profile",
   budgetMin: 200000,
   budgetMax: 270000,
   markets: [

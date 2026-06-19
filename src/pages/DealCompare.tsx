@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -115,6 +115,10 @@ function scoreClass(score: number) {
   return "text-signal-risk";
 }
 
+function cleanText(value: string) {
+  return value.replace(/[^\S\r\n]+/g, " ").replace(/[\u2013\u2014]/g, "-").trim();
+}
+
 export default function DealCompare() {
   const navigate = useNavigate();
   const { data: deals, isLoading } = useDeals();
@@ -223,7 +227,7 @@ export default function DealCompare() {
                     }`}
                   >
                     <span className="block font-medium">{item.deal.property_address}</span>
-                    <span className="text-xs">{money(item.deal.purchase_price)} · Score {item.decisionScore}</span>
+                    <span className="text-xs">{money(item.deal.purchase_price)} - Score {item.decisionScore}</span>
                   </button>
                 );
               })}
@@ -238,7 +242,7 @@ export default function DealCompare() {
                     {rankBadge(index)}
                     <h3 className="mt-3 text-lg font-bold text-foreground">{item.deal.property_address}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {[item.deal.city, item.deal.state].filter(Boolean).join(", ")} · {item.deal.strategy_primary ?? "Strategy missing"}
+                      {[item.deal.city, item.deal.state].filter(Boolean).join(", ")} - {item.deal.strategy_primary ?? "Strategy missing"}
                     </p>
                   </div>
                   <Button variant="ghost" size="icon" onClick={() => navigate(`/dealiq/${item.deal.id}`)}>
@@ -268,7 +272,7 @@ export default function DealCompare() {
                     Recommendation
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">{item.intelligence.decision}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{item.intelligence.summary.replaceAll("â€”", "-")}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{cleanText(item.intelligence.summary)}</p>
                 </div>
 
                 <div className="mt-4 space-y-2">
@@ -377,9 +381,10 @@ function EvidenceList({
       </div>
       <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
         {visibleItems.map((item) => (
-          <li key={item}>{item.replaceAll("â€”", "-")}</li>
+          <li key={item}>{cleanText(item)}</li>
         ))}
       </ul>
     </div>
   );
 }
+

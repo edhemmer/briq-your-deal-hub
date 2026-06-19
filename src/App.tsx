@@ -67,7 +67,11 @@ const App = () => (
             />
             <Route
               path="/dashboard"
-              element={<AppLayout><Index /></AppLayout>}
+              element={
+                <ProtectedRoute>
+                  <AppLayout><Index /></AppLayout>
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/findiq"

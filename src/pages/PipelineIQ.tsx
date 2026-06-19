@@ -41,7 +41,7 @@ export default function PipelineIQ() {
     <SectionContainer>
       <PageHeader
         title="PipelineIQ"
-        description="Workflow intelligence from discovery through acquisition. Know status, next action, owner, deadline, and closing probability."
+        description="Track active opportunities, next actions, owners, deadlines, and closing readiness from discovery through acquisition."
       >
         <Button variant="outline">
           <Table2 className="h-4 w-4 mr-2" />
@@ -65,15 +65,15 @@ export default function PipelineIQ() {
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
               <ListTodo className="h-4 w-4" />
-              Acquisition execution
+              Acquisition Workflow
             </div>
-            <h2 className="mt-2 text-lg font-semibold text-foreground">Where does this opportunity stand right now?</h2>
+            <h2 className="mt-2 text-lg font-semibold text-foreground">Current acquisition board</h2>
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              PipelineIQ is not underwriting and not portfolio management. It keeps every opportunity from FindIQ, DealIQ, and OfferIQ moving with clear next actions.
+              Use PipelineIQ to keep each opportunity moving with a visible status, accountable owner, deadline, and next action.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">Kanban</Badge>
+            <Badge variant="secondary">Workflow preview</Badge>
             <Badge variant="outline">List</Badge>
             <Badge variant="outline">Table</Badge>
             <Badge variant="outline">Calendar</Badge>
@@ -139,7 +139,7 @@ export default function PipelineIQ() {
         <CardContainer>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
             <Users className="h-4 w-4" />
-            Automation Hooks
+            Workflow Automation
           </div>
           <div className="mt-4 space-y-3 text-sm text-muted-foreground">
             <CheckLine>Auto-create tasks after DealIQ analysis</CheckLine>

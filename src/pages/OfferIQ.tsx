@@ -27,7 +27,7 @@ export default function OfferIQ() {
     <SectionContainer>
       <PageHeader
         title="OfferIQ"
-        description="Transaction intelligence that turns DealIQ acquisition analysis into documents, communications, negotiations, and next actions."
+        description="Prepare offers, communications, diligence requests, and transaction packages from verified DealIQ data."
       >
         <Button variant="outline">
           <Mail className="h-4 w-4 mr-2" />
@@ -45,14 +45,14 @@ export default function OfferIQ() {
             <div>
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
                 <Workflow className="h-4 w-4" />
-                Acquisition action layer
+                Transaction Workspace
               </div>
-              <h2 className="mt-2 text-lg font-semibold text-foreground">How do I pursue this opportunity?</h2>
+              <h2 className="mt-2 text-lg font-semibold text-foreground">Move from analysis to action</h2>
               <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-                OfferIQ consumes FindIQ source context, DealIQ acquisition intelligence, and PipelineIQ workflow status. It should never ask users to re-enter data BRIX already knows.
+                OfferIQ prepares the next transaction step only after the property, assumptions, and acquisition recommendation are clear enough to act on.
               </p>
             </div>
-            <Badge variant="secondary">No duplicate data entry</Badge>
+            <Badge variant="secondary">Deal-linked</Badge>
           </div>
 
           <div className="mt-5 grid gap-3 md:grid-cols-4">
@@ -71,10 +71,9 @@ export default function OfferIQ() {
             Negotiation Guardrails
           </div>
           <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-            <p><span className="font-semibold text-foreground">Suggested initial offer:</span> {money(232000)}</p>
-            <p><span className="font-semibold text-foreground">Counter ceiling:</span> {money(242500)}</p>
-            <p><span className="font-semibold text-foreground">Walk-away threshold:</span> {money(247000)}</p>
-            <p><span className="font-semibold text-foreground">Primary warning:</span> Do not waive inspection before roof, insurance, and rent support are verified.</p>
+            <p><span className="font-semibold text-foreground">Status:</span> Select a DealIQ record before BRIX recommends offer price, counter ceiling, or walk-away threshold.</p>
+            <p><span className="font-semibold text-foreground">Primary warning:</span> Do not waive inspection, financing, appraisal, insurance, or title protections without professional review.</p>
+            <p><span className="font-semibold text-foreground">Confidence rule:</span> Offer guidance remains provisional until rent, taxes, insurance, condition, and comps are verified.</p>
           </div>
         </CardContainer>
       </div>
@@ -83,7 +82,7 @@ export default function OfferIQ() {
         <CardContainer>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
             <Scale className="h-4 w-4" />
-            Strategy Builder
+            Offer Strategy Templates
           </div>
           <div className="mt-4 space-y-3">
             {sampleOfferStrategies.map((item) => (
@@ -102,7 +101,7 @@ export default function OfferIQ() {
         <CardContainer>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
             <Split className="h-4 w-4" />
-            Offer Comparison
+            Offer Structure Templates
           </div>
           <div className="mt-4 grid gap-4 lg:grid-cols-3">
             {sampleOfferStructures.map((offer) => (

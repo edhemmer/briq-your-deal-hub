@@ -48,7 +48,7 @@ export interface PortfolioSummary {
 export const portfolioAssets: PortfolioAsset[] = [
   {
     id: "asset-maple",
-    address: "1248 W Maple Ave",
+    address: "Portfolio Asset A",
     propertyType: "Duplex",
     bedrooms: 4,
     bathrooms: 2,
