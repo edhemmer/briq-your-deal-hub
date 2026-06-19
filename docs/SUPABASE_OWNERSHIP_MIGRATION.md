@@ -1,6 +1,6 @@
 # Supabase Ownership Migration
 
-This app should run against a Supabase project owned by BRIX, not a Lovable-managed backend, before Lovable is cancelled or removed from the critical path.
+This app should run against a Supabase project owned by BRIX and provider-neutral Edge Functions, with no dependency on a builder-managed backend.
 
 ## Current State
 
@@ -42,8 +42,11 @@ VITE_SUPABASE_PUBLISHABLE_KEY=<publishable-or-anon-key>
 
 ```env
 FRED_API_KEY=<fred-key>
-LOVABLE_API_KEY=<only if still using Lovable AI extraction>
-GOOGLE_MAPS_API_KEY=<if geocoding requires direct Google fallback>
+AI_GATEWAY_API_KEY=<openai-compatible-ai-key>
+AI_GATEWAY_BASE_URL=https://api.openai.com/v1
+AI_TEXT_MODEL=gpt-4o-mini
+AI_VISION_MODEL=gpt-4o-mini
+AI_CONTRACT_MODEL=gpt-4o
 BLS_API_KEY=<optional; BLS can work without one but key improves reliability>
 CENSUS_API_KEY=<required for Census calls>
 ```
@@ -66,7 +69,7 @@ Supabase docs state that migrations in the `migrations` subdirectory are automat
 
 Before switching production users:
 
-1. Export existing data from the Lovable-managed backend if access is available.
+1. Export existing data from any prior managed backend if access is available.
 2. Import data into the BRIX-owned Supabase project.
 3. Confirm these tables exist and have RLS policies applied:
 
@@ -92,9 +95,9 @@ Use a non-production branch or preview deployment first.
 6. Generate a PDF report.
 7. Save and reopen the deal.
 8. Call `fetch-fred-series` with `MORTGAGE30US`.
-9. Confirm no calls are still hitting the Lovable-managed Supabase project.
+9. Confirm no calls are still hitting any prior managed Supabase project or builder gateway.
 
-## Do Not Cancel Lovable Until
+## Cutover Completion Criteria
 
 - The new Supabase project owns the schema.
 - Secrets are set in the new project.

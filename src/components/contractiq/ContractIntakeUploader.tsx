@@ -35,6 +35,7 @@ export function ContractIntakeUploader({ onExtracted }: ContractIntakeUploaderPr
   const [emailText, setEmailText] = useState("");
   const [busy, setBusy] = useState<"parsing" | "extracting" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [extractionWarning, setExtractionWarning] = useState<string | null>(null);
 
   const onFiles = useCallback(async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
@@ -86,6 +87,7 @@ export function ContractIntakeUploader({ onExtracted }: ContractIntakeUploaderPr
 
   const runExtraction = async () => {
     setError(null);
+    setExtractionWarning(null);
     if (files.length === 0 && !emailText.trim()) {
       setError("Upload a file or paste email text first.");
       return;
@@ -135,10 +137,22 @@ export function ContractIntakeUploader({ onExtracted }: ContractIntakeUploaderPr
       const rawText = (payload.text as string | undefined) ?? "";
       const canonical = mapAiExtraction(data.extracted, rawText);
       onExtracted(canonical, payload.source_files as never, data.meta ?? {}, rawText);
-      toast({ title: "Document parsed", description: "Review the auto-filled fields below." });
+      const warning = typeof data.meta?.warning === "string" ? data.meta.warning : null;
+      const isFallback = data.meta?.model === "deterministic-fallback";
+      if (warning || isFallback) {
+        setExtractionWarning(warning ?? "BRIX extracted only obvious terms with low confidence. Review every field against the source document.");
+        toast({
+          title: "Basic terms extracted",
+          description: "Review every field before analysis.",
+        });
+      } else {
+        setExtractionWarning(null);
+        toast({ title: "Document parsed", description: "Review the auto-filled fields below." });
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Extraction failed";
       setError(msg);
+      setExtractionWarning("Contract extraction did not complete. You can still enter terms manually, but ContractIQ confidence will depend on the fields you verify.");
       toast({ title: "Extraction failed", description: msg, variant: "destructive" });
     } finally {
       setBusy(null);
@@ -236,6 +250,16 @@ export function ContractIntakeUploader({ onExtracted }: ContractIntakeUploaderPr
         <div className="flex items-start gap-2 text-xs text-destructive">
           <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {extractionWarning && (
+        <div className="flex items-start gap-2 rounded-md border border-signal-warning/30 bg-signal-warning/10 p-3 text-xs text-foreground">
+          <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-signal-warning" />
+          <div>
+            <p className="font-semibold text-foreground">Verification required</p>
+            <p className="mt-0.5 text-muted-foreground">{extractionWarning}</p>
+          </div>
         </div>
       )}
 

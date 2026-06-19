@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
 
 const metrics = [
-  { value: "Minutes", label: "From listing to full analysis" },
-  { value: "7", label: "Intelligence engines per deal" },
-  { value: "Zero", label: "Spreadsheets required" },
+  { value: "Minutes", label: "To understand what needs attention" },
+  { value: "Any", label: "Legal strategy can be modeled" },
+  { value: "Always", label: "Confidence, risks, and next actions shown" },
 ];
 
 export default function LandingMetrics() {

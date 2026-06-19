@@ -1,48 +1,49 @@
-import { ArrowRight, X, Check } from "lucide-react";
+import { ArrowRight, Check, X } from "lucide-react";
 import { motion } from "framer-motion";
 
 const beforeItems = [
-  "Copy listing data by hand",
-  "Build spreadsheet models",
-  "Research market separately",
-  "Guess at risk factors",
-  "Hours per deal",
+  "Search listings in one place, notes in another",
+  "Copy numbers into fragile spreadsheets",
+  "Compare strategies from memory",
+  "Lose track of tasks and deadlines",
+  "Rely on confidence you cannot verify",
 ];
 
 const afterItems = [
-  "Drop a listing, data extracted",
-  "Financials calculated instantly",
-  "Market intelligence included",
-  "Risk scored automatically",
-  "Minutes per deal",
+  "Create one acquisition profile",
+  "Rank opportunities against your goals",
+  "Analyze every strategy with scenarios",
+  "Move next actions into the pipeline",
+  "See confidence, evidence, and risks",
 ];
 
 export default function LandingProblem() {
   return (
-    <section className="py-20 md:py-28 px-5">
-      <div className="mx-auto max-w-3xl text-center mb-16">
+    <section className="px-5 py-20 md:py-28">
+      <div className="mx-auto mb-16 max-w-3xl text-center">
         <motion.h2
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-3xl md:text-4xl font-bold tracking-tight text-foreground"
+          className="text-3xl font-bold tracking-tight text-foreground md:text-4xl"
         >
-          Deal analysis shouldn't take all day
+          The app can be powerful without feeling complicated.
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="mt-4 text-base md:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto"
+          className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg"
         >
-          Most investors spend hours copying data into spreadsheets, cross-referencing market reports, and second-guessing their numbers. BRIX consolidates every step into one structured workflow.
+          BRIX organizes real estate investing around decisions, not software complexity. Each screen answers what
+          matters, why it matters, what is still uncertain, and what you should do next.
         </motion.p>
       </div>
 
       <div className="mx-auto max-w-2xl">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-6 items-stretch">
+        <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-[1fr_auto_1fr]">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -50,19 +51,19 @@ export default function LandingProblem() {
             transition={{ duration: 0.5 }}
             className="rounded-2xl border border-border bg-card p-7"
           >
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-5">Before</p>
+            <p className="mb-5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Without BRIX</p>
             <div className="space-y-3.5">
               {beforeItems.map((item) => (
                 <div key={item} className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <X className="h-3.5 w-3.5 text-destructive/60 shrink-0" />
+                  <X className="h-3.5 w-3.5 shrink-0 text-destructive/60" />
                   <span>{item}</span>
                 </div>
               ))}
             </div>
           </motion.div>
 
-          <div className="hidden md:flex items-center justify-center">
-            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+          <div className="hidden items-center justify-center md:flex">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <ArrowRight className="h-5 w-5 text-primary" />
             </div>
           </div>
@@ -74,11 +75,11 @@ export default function LandingProblem() {
             transition={{ duration: 0.5, delay: 0.15 }}
             className="rounded-2xl border-2 border-primary/20 bg-primary/[0.03] p-7"
           >
-            <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-5">With BRIX</p>
+            <p className="mb-5 text-xs font-semibold uppercase tracking-widest text-primary">With BRIX</p>
             <div className="space-y-3.5">
               {afterItems.map((item) => (
-                <div key={item} className="flex items-center gap-3 text-sm text-foreground font-medium">
-                  <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                <div key={item} className="flex items-center gap-3 text-sm font-medium text-foreground">
+                  <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
                   <span>{item}</span>
                 </div>
               ))}

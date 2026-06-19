@@ -153,7 +153,7 @@ export const PUBLIC_SOURCE_CONNECTORS: PublicSourceConnector[] = [
   {
     name: "FRED",
     category: "financing",
-    status: "requires_key",
+    status: "connected",
     trustUse: "Mortgage and macro-rate series for financing assumptions and trend context.",
   },
   {
@@ -165,7 +165,7 @@ export const PUBLIC_SOURCE_CONNECTORS: PublicSourceConnector[] = [
   {
     name: "Census ACS",
     category: "market",
-    status: "requires_key",
+    status: "connected",
     trustUse: "Population, household income, tenure, and growth context by tract/county.",
   },
   {

@@ -1,76 +1,77 @@
 import { motion } from "framer-motion";
-import { TrendingUp, Building2, Handshake, Scale, Landmark, Target } from "lucide-react";
+import { Building2, Compass, GraduationCap, Landmark, Target, TrendingUp } from "lucide-react";
 
 const audiences = [
   {
+    icon: Compass,
+    title: "Explorers",
+    desc: "Learn terms, compare strategies, and understand whether real estate investing fits your goals before you rush into a deal.",
+  },
+  {
+    icon: GraduationCap,
+    title: "First Deal Investors",
+    desc: "Follow guided steps for discovery, underwriting, due diligence, offer strategy, and common first-deal mistakes.",
+  },
+  {
     icon: TrendingUp,
-    title: "Investors",
-    desc: "Underwrite faster and decide which deals are actually worth pursuing.",
+    title: "Active Investors",
+    desc: "Screen more opportunities, compare returns and risk faster, and standardize how each acquisition decision is made.",
   },
   {
     icon: Building2,
-    title: "Developers",
-    desc: "Pressure-test pricing, upside, and risk before tying up capital.",
-  },
-  {
-    icon: Handshake,
-    title: "Brokers",
-    desc: "Bring sharper analysis and contract clarity to every conversation.",
-  },
-  {
-    icon: Scale,
-    title: "Attorneys",
-    desc: "Surface clause risk, deadlines, and negotiation points in minutes.",
+    title: "Operators",
+    desc: "Track pipeline work, documents, field notes, renovation scope, deadlines, and asset performance from one environment.",
   },
   {
     icon: Landmark,
-    title: "Lenders",
-    desc: "Validate underwriting and risk exposure with a consistent framework.",
+    title: "Portfolio Builders",
+    desc: "Evaluate capital allocation, refinance options, sell/hold decisions, concentration risk, and portfolio-level performance.",
   },
   {
     icon: Target,
     title: "Acquisition Teams",
-    desc: "Standardize how every deal gets evaluated across your pipeline.",
+    desc: "Use the same decision framework across users, markets, properties, strategies, documents, and pipeline stages.",
   },
 ];
 
 export default function LandingAudience() {
   return (
-    <section className="py-20 md:py-28 px-5 bg-muted/20">
+    <section className="bg-muted/20 px-5 py-20 md:py-28">
       <div className="mx-auto max-w-5xl text-center">
         <motion.h2
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
+          className="mb-4 text-3xl font-bold tracking-tight text-foreground md:text-4xl"
         >
-          Built for the people closing deals
+          Built for every level of investor
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="text-base text-muted-foreground max-w-xl mx-auto mb-12"
+          className="mx-auto mb-12 max-w-2xl text-base leading-relaxed text-muted-foreground"
         >
-          Investors, developers, brokers, attorneys, lenders, and acquisition teams.
+          BRIX adapts the explanation and workflow to the user, from first property research to portfolio-level
+          optimization.
         </motion.p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {audiences.map((p, i) => (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {audiences.map((person, i) => (
             <motion.div
-              key={p.title}
+              key={person.title}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: i * 0.08 }}
-              className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm p-6 text-left hover:border-primary/20 transition-colors duration-300"
+              className="rounded-2xl border border-border/60 bg-card/80 p-6 text-left backdrop-blur-sm transition-colors duration-300 hover:border-primary/20"
             >
-              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <p.icon className="h-4 w-4 text-primary" />
+              <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                <person.icon className="h-4 w-4 text-primary" />
               </div>
-              <h3 className="text-sm font-semibold text-foreground mb-2">{p.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{p.desc}</p>
+              <h3 className="mb-2 text-sm font-semibold text-foreground">{person.title}</h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">{person.desc}</p>
             </motion.div>
           ))}
         </div>

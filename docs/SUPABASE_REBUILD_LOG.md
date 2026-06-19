@@ -91,16 +91,29 @@ node .\node_modules\vite\bin\vite.js build
 
 Result: passed.
 
-## Remaining Live Configuration
+## Live Provider Configuration
 
-Only built-in Supabase secrets are currently set on the new project.
+Current configured provider foundation:
 
-Set these Edge Function secrets before using provider-backed features:
+- `OPENAI_API_KEY` for AI extraction.
+- `FRED_API_KEY` for mortgage and macro-rate series.
+- `CENSUS_API_KEY` for Census ACS data.
+- BLS is intentionally allowed to run without `BLS_API_KEY` because the public API path works for beta usage.
 
-- `LOVABLE_API_KEY`
-- `FRED_API_KEY`
-- `BLS_API_KEY`
-- `CENSUS_API_KEY`
+Optional future secrets:
+
+- `AI_GATEWAY_API_KEY` if BRIX moves from direct OpenAI-compatible calls to an AI gateway.
+- `AI_GATEWAY_BASE_URL` if using a non-default OpenAI-compatible gateway.
+- `AI_TEXT_MODEL`
+- `AI_VISION_MODEL`
+- `AI_CONTRACT_MODEL`
+- `BLS_API_KEY` if validated key-based quota is needed.
+
+Reliability note:
+
+- `extract-deal-from-text` falls back to deterministic low-confidence parsing when AI is unavailable.
+- `extract-contract-from-document` falls back to deterministic low-confidence term parsing when AI is unavailable.
+- `extract-deal-from-image` still requires AI vision or future OCR support; users should paste listing text/URL when image extraction is unavailable.
 
 Configure Apple provider in Supabase Auth before App Store submission:
 
@@ -110,3 +123,7 @@ Configure Apple provider in Supabase Auth before App Store submission:
 - Callback URL: `https://luwaqrkhmxcqsozmilbw.supabase.co/auth/v1/callback`
 
 Also configure production auth URLs and redirect URLs for the deployed web app/iOS app once final domains are known.
+
+Production domain:
+
+- `https://brixrealestate.app`

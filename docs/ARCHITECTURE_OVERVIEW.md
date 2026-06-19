@@ -1,247 +1,114 @@
-# BRIQ Technical Architecture
+# BRIX Real Estate Architecture Overview
 
-## System Overview
+Last updated: 2026-06-18
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              CLIENT LAYER                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
-│  │   React 18 +    │  │   shadcn/ui +   │  │  React Query    │             │
-│  │   TypeScript    │  │   Tailwind CSS  │  │   (TanStack)    │             │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              API LAYER                                       │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
-│  │   Supabase      │  │  Edge Functions │  │   Realtime      │             │
-│  │   REST API      │  │  (Deno Runtime) │  │   Subscriptions │             │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              DATA LAYER                                      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
-│  │   PostgreSQL    │  │   Row Level     │  │   File Storage  │             │
-│  │   Database      │  │   Security      │  │   (Images)      │             │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           EXTERNAL SERVICES                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
-│  │   Stripe        │  │   Lovable AI    │  │   County APIs   │             │
-│  │   (Payments)    │  │   (Extraction)  │  │   (Property)    │             │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
-└─────────────────────────────────────────────────────────────────────────────┘
+BRIX is a provider-neutral real estate acquisition and portfolio intelligence platform. The product is organized around decision quality, source transparency, and conservative fallback behavior when data or AI services are unavailable.
+
+## Platform Layers
+
+```text
+Web / Mobile / Native iOS
+  -> Supabase API + Edge Functions
+  -> BRIX Services and deterministic engines
+  -> PostgreSQL, Storage, Auth, and Provider Adapter Layer
+  -> External providers
 ```
 
----
+Business logic belongs in BRIX services and deterministic engines. Client apps render workflows, collect user inputs, display confidence, and submit requests through authenticated APIs.
 
-## Technology Stack
+## Core Modules
 
-### Frontend
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| React | 18.3 | UI framework |
-| TypeScript | 5.x | Type safety |
-| Vite | 5.x | Build tooling |
-| Tailwind CSS | 3.x | Styling |
-| shadcn/ui | Latest | Component library |
-| TanStack Query | 5.x | Server state management |
-| React Router | 6.x | Client routing |
-| Recharts | 2.x | Data visualization |
+| Module | Purpose |
+| --- | --- |
+| FindIQ | Discovery intelligence: identify and rank opportunities worth investigating. |
+| DealIQ | Acquisition intelligence: determine whether an opportunity should be acquired. |
+| PipelineIQ | Workflow intelligence: track each opportunity from discovery through closing. |
+| OfferIQ | Transaction intelligence: convert analysis into offers, documents, communications, and negotiation actions. |
+| PortfolioIQ | Asset intelligence: monitor acquired assets, equity, cash flow, risk, and optimization opportunities. |
+| Admin Console | Superadmin access, user plans, overrides, account deletion requests, SaaS KPIs, and audit history. |
 
-### Backend
-| Technology | Purpose |
-|------------|---------|
-| PostgreSQL | Primary database |
-| Edge Functions | Serverless compute |
-| Row Level Security | Data isolation |
-| Realtime | Live subscriptions |
+## Provider Strategy
 
-### Infrastructure
-| Service | Purpose |
-|---------|---------|
-| Lovable Cloud | Hosting, CDN, auto-scaling |
-| Stripe | Payment processing |
-| Lovable AI | LLM inference |
+BRIX modules must not depend directly on vendor schemas. External sources connect through adapters, normalize into BRIX objects, and carry source metadata.
 
----
+Current free/provider-light foundation:
 
-## Database Schema
+| Provider | Status | Use |
+| --- | --- | --- |
+| FRED | Connected with free key | Mortgage and macro-rate context. |
+| Census ACS | Connected with free key | County and market population context. |
+| BLS Public Data API | Connected without key fallback | Employment and labor-market trend context. |
+| U.S. Census Geocoder | Connected without key | Address geocoding and jurisdiction context. |
+| OpenAI-compatible AI | Connected, paid/quota-dependent | Listing, image, and contract extraction. |
 
-### Core Tables
+Future paid provider slots:
 
-```sql
--- User profiles with subscription state
-profiles
-├── id (uuid, PK, references auth.users)
-├── subscription_status (text)
-├── stripe_customer_id (text)
-├── stripe_subscription_id (text)
-├── free_deal_used (boolean)
-└── created_at (timestamptz)
+| Provider Type | Example Providers | Purpose |
+| --- | --- | --- |
+| Property and listing data | RentCast, ATTOM, MLS feeds | Property facts, active listings, comps, ownership, listing history. |
+| Rental data | RentCast, MLS/rent providers | Rent estimates, rent comps, demand signals. |
+| Risk data | FEMA, insurance, crime providers | Natural hazard, insurability, and local risk context. |
+| Transaction services | Lender, insurance, contractor, accounting providers | Execution and ownership workflows. |
 
--- Property deals
-deals
-├── id (uuid, PK)
-├── user_id (uuid, FK → auth.users)
-├── property_address (text)
-├── city, state, zip_code (text)
-├── purchase_price, arv, rehab_cost (numeric)
-├── monthly_rent, taxes, insurance (numeric)
-├── loan terms (down_payment_percent, interest_rate, etc.)
-├── operating expenses (vacancy, maintenance, etc.)
-├── deal_status (text)
-└── created_at (timestamptz)
+## Reliability Rules
 
--- Market intelligence per deal
-market_conditions
-├── id (uuid, PK)
-├── deal_id (uuid, FK → deals)
-├── user_id (uuid, FK → auth.users)
-├── city, state, zipcode (text)
-├── price_growth_12mo, price_growth_36mo (numeric)
-├── rent_growth_12mo, rent_growth_36mo (numeric)
-├── days_on_market, inventory_level (numeric)
-├── market_strength_score (numeric)
-├── demand_pressure_score (numeric)
-├── crime_score (numeric)
-└── created_at (timestamptz)
+- Every recommendation must show confidence, assumptions, evidence, risks, missing information, alternatives, and next actions.
+- AI extraction is assistive only. Users must review extracted facts before relying on analysis.
+- If AI is unavailable, text and contract extraction degrade to deterministic low-confidence parsing when possible.
+- If a provider fails, BRIX should continue with reduced confidence rather than fabricate data.
+- Every provider-backed value should carry source, retrieval date, confidence, and verification status.
+- Edge Functions remain JWT-protected unless a route is intentionally public.
 
--- Role-based access control
-user_roles
-├── id (uuid, PK)
-├── user_id (uuid, FK → auth.users)
-└── role (app_role enum: admin, moderator, user)
+## AI Extraction Behavior
 
--- Administrative audit trail
-admin_audit_log
-├── id (uuid, PK)
-├── admin_user_id (uuid)
-├── target_user_id (uuid)
-├── action_type (text)
-├── details (jsonb)
-└── created_at (timestamptz)
-```
+| Function | Production Behavior |
+| --- | --- |
+| `extract-deal-from-text` | Uses OpenAI-compatible extraction when available; falls back to deterministic text parsing on rate/quota/config failure. |
+| `extract-deal-from-image` | Uses AI vision; if unavailable, UI instructs users to paste listing text or URL. |
+| `extract-contract-from-document` | Uses AI extraction when available; falls back to obvious low-confidence term parsing on rate/quota/config failure. |
 
-### Row Level Security
+The UI must surface fallback warnings. A fallback result must never look like a verified result.
 
-All tables implement RLS policies:
-- Users can only read/write their own data
-- Admin role bypass via `has_role()` function
-- Privileged fields protected from self-update
+## Supabase Foundation
 
----
+Core tables include:
 
-## Intelligence Engines
+- `profiles`
+- `deals`
+- `contracts`
+- `market_conditions`
+- `user_roles`
+- `admin_audit_log`
+- `account_deletion_requests`
+- `property_digital_twins`
+- `brix_decisions`
+- `brix_field_captures`
+- `brix_visual_scope_items`
+- `brix_project_tasks`
+- `brix_portfolio_snapshots`
 
-### Location: `src/lib/`
+Security:
 
-| File | Engine | Responsibility |
-|------|--------|----------------|
-| `dataSourceLayer.ts` | Data Source Layer | Canonical data orchestration & sourced value types |
-| `normalizedDealState.ts` | Normalized Deal State | Single source of truth for deal data & input sufficiency |
-| `canonicalEngineLayer.ts` | Canonical Engine Layer | Single orchestration point for all analytical engines |
-| `marketProfiles.ts` | Market Profiles | Profile-driven thresholds, buffers, and risk tolerance config |
-| `confidenceEngine.ts` | Confidence Engine | Input quality assessment and confidence-aware results |
-| `glossary.ts` | Glossary & Disclosure | Inline term definitions, strategy education, and legal disclosure |
-| `dealAnalysisEngine.ts` | Deal Analysis | Financial KPI calculations |
-| `dealIntelligenceEngine.ts` | Deal Intelligence | Composite scoring |
-| `marketIntelligenceEngine.ts` | Market Intelligence | Location-based signals |
-| `strategyFitEngine.ts` | Strategy Fit | Investment strategy alignment |
-| `stressTestingEngine.ts` | Stress Testing | Scenario modeling |
-| `reportEngine.ts` | Report Generation | PDF/CSV export |
-| `property/propertyIntelligenceEngine.ts` | Property Intelligence | County record resolution |
+- Supabase Auth manages sessions.
+- Row Level Security protects user data.
+- Admin access uses role checks and audited Edge Function actions.
+- Account deletion requests are recorded for Apple/privacy compliance workflows.
 
-### Canonical Data Flow (v1.6.0)
+## Production Hardening Checklist
 
-```
-User selects AnalysisContext (market type, asset type, strategy, risk tolerance)
-                                     │
-                                     ▼
-dataSourceLayer → normalizedDealState → canonicalEngineLayer(context) → UI
-                                                │
-                                     ┌──────────┼──────────┐
-                                     ▼          ▼          ▼
-                              marketProfiles  confidenceEngine  unseen-risk buffers
-```
+Before production users:
 
-- **AnalysisContext** (`marketProfiles.ts`): Required gate — market type (US Residential / US Commercial / International), asset type, investment strategy, and risk tolerance. Analysis cannot run without a complete context.
-- **Market Profiles**: Deterministic threshold configs per market type × risk tolerance. US Residential, US Commercial, and International each have distinct logic paths.
-- **Unseen-Risk Buffers**: Conservative adjustment applied to expense, financing, and vacancy assumptions so outputs are not based on best-case conditions. Configurable per market profile.
-- **Confidence Engine**: Evaluates data completeness and returns a confidence score (high / moderate / low / insufficient). Results below threshold are flagged as preliminary.
-- **dataSourceLayer** (`dataSourceLayer.ts`): Defines `SourcedValue<T>` types that distinguish `user_input`, `extracted`, `county_record`, `market_data`, `calculated`, and `unavailable` origins
-- **Resolvers** (`resolvers/`): `propertyDataResolver`, `rentDataResolver`, `financingDataResolver` — normalize raw data into `SourcedValue` objects
-- **normalizedDealState** (`normalizedDealState.ts`): Builds the canonical deal object from DB rows; supports market data enrichment via `enrichWithMarketData()` and field updates via `updateFinancialFields()`
-- **canonicalEngineLayer** (`canonicalEngineLayer.ts`): Single orchestration point — derives `DealInput`, applies unseen-risk buffers, runs all engines via `runCanonicalAnalysis(state, context)`. Returns both raw and buffered analysis plus confidence assessment. No analytical engine is called directly from UI components.
-- **Input Sufficiency**: Analysis sections are gated — if required inputs (purchase price, monthly rent) are missing, clean "awaiting data" states are shown instead of misleading zero-input outputs
-- **Glossary/Help**: Lightweight inline definitions via `GlossaryTerm` component. Global analysis disclosure visible on all analysis views.
+- Build and test pass.
+- Supabase Auth redirect URLs include `https://brixrealestate.app`, preview URLs, local development URLs, and future iOS callback URLs.
+- Google OAuth is configured in Supabase Auth.
+- Apple provider is configured before App Store submission.
+- Account deletion flow is visible and tested.
+- Admin Console is restricted to superadmins only.
+- OpenAI secret is rotated after any chat/log exposure.
+- FRED, Census, and BLS functions have recent smoke tests.
+- Text and contract extraction fallback warnings are visible in the UI.
+- Paid-provider features are labeled as planned until credentials and contracts are active.
 
-### Strategy & Risk Architecture (v1.6.0)
+## Production Readiness Status
 
-- **Strategies**: Long-Term Rental, Short-Term Rental, Hybrid. Extensible for Fix & Flip, Value-Add, BRRRR without rebuilding.
-- **Risk Tolerance**: Conservative / Balanced / Aggressive. Affects thresholds, stress assumptions, and buffer intensities.
-- **International**: Supports country + region context. Architecture-ready for country-specific rule profiles in future patches.
-
----
-
-## Edge Functions
-
-### Location: `supabase/functions/`
-
-| Function | Purpose |
-|----------|---------|
-| `extract-deal-from-text` | AI extraction from listing text |
-| `extract-deal-from-image` | AI extraction from screenshots |
-
-### Execution
-- Deno runtime
-- Auto-deployed on commit
-- Secrets managed via Lovable Cloud
-
----
-
-## Security Model
-
-### Authentication
-- Email/password with verification required
-- Session management via Supabase Auth
-- JWT tokens for API access
-
-### Authorization
-- Row Level Security on all tables
-- Role-based admin access via `user_roles`
-- Privileged field protection (subscription, admin flags)
-
-### Audit
-- Admin actions logged to `admin_audit_log`
-- Immutable audit trail
-
----
-
-## Scalability
-
-### Current Architecture Limits
-| Resource | Limit | Mitigation |
-|----------|-------|------------|
-| Database connections | 100 | Connection pooling |
-| Edge function timeout | 60s | Async processing |
-| File storage | 1GB | CDN caching |
-
-### Scaling Path
-1. **Vertical:** Upgrade instance size
-2. **Horizontal:** Read replicas, edge caching
-3. **Architectural:** Dedicated infrastructure at scale
-
----
-
-*Last Updated: April 2026 — v1.6.0 Market Profile + Strategy + Decisioning Core*
+The current system is suitable for a controlled beta when deployed with the configured Supabase project and verified auth. It is not yet a full production underwriting source of truth because paid listing/comps/rent/insurance providers are not connected. BRIX can support early users by clearly labeling assumptions, reducing confidence when data is weak, and requiring verification before recommendations.

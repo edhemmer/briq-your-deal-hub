@@ -13,8 +13,8 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="BRIX — Real Estate Deal & Contract Intelligence"
-        description="BRIX helps investors, developers, brokers, attorneys, and lenders move faster. DealIQ analyzes pricing, risk, and upside. ContractIQ reviews contracts. Better analysis. Faster decisions. Stronger deals."
+        title="BRIX Real Estate - Acquisition Intelligence Operating System"
+        description="BRIX helps investors find, analyze, pursue, track, and optimize real estate opportunities with clear recommendations, visible confidence, risk checks, and training for every strategy."
         path="/landing"
       />
       <LandingNav />

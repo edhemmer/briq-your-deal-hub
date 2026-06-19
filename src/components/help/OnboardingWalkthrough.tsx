@@ -2,33 +2,38 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useHelp } from "@/contexts/HelpContext";
-import { BarChart3, PlusCircle, Brain, Target, FileText } from "lucide-react";
+import { BarChart3, Brain, KanbanSquare, PenLine, Search, ShieldCheck } from "lucide-react";
 
 const steps = [
   {
-    icon: BarChart3,
+    icon: ShieldCheck,
     title: "Welcome to BRIX",
-    description: "BRIX is a deal intelligence platform that analyzes real estate investments using financial data, market signals, and strategy evaluation to help you make informed decisions.",
+    description: "BRIX turns real estate investing into a simple decision workflow. Every module is built to improve decision quality, show uncertainty, and keep the next action clear.",
   },
   {
-    icon: PlusCircle,
-    title: "Create Your First Deal",
-    description: "Start by entering a property address and basic financial assumptions. BRIX uses these inputs to build a comprehensive investment analysis.",
+    icon: Search,
+    title: "Find What Deserves Attention",
+    description: "Start in FindIQ with an acquisition profile. BRIX ranks opportunities by fit so you know what to investigate before spending time on full underwriting.",
+  },
+  {
+    icon: BarChart3,
+    title: "Analyze Any Strategy",
+    description: "Send promising properties into DealIQ to test rental, flip, BRRRR, refinance, seller finance, hold, sell, and other strategies with base, conservative, and stress scenarios.",
   },
   {
     icon: Brain,
-    title: "Run the Analysis",
-    description: "BRIX calculates key investment metrics including cap rate, cash-on-cash return, DSCR, and cash flow. It also identifies deal killers and strengths automatically.",
+    title: "Trust the Process, Not Guesswork",
+    description: "BRIX shows the recommendation, evidence, confidence, risks, assumptions, missing information, alternatives, and next actions. Weak data lowers confidence automatically.",
   },
   {
-    icon: Target,
-    title: "Review Strategy Insights",
-    description: "BRIX evaluates your deal against common investment strategies like Buy & Hold, Fix & Flip, BRRRR, and Wholesale - showing fit signals for each approach.",
+    icon: KanbanSquare,
+    title: "Keep the Deal Moving",
+    description: "PipelineIQ tracks stages, tasks, deadlines, and health. OfferIQ turns analysis into offers and communications. PortfolioIQ tracks performance after closing.",
   },
   {
-    icon: FileText,
-    title: "Export Investor Reports",
-    description: "Generate professional PDF reports and CSV exports to share with partners, lenders, or your own records.",
+    icon: PenLine,
+    title: "Learn While You Work",
+    description: "Use Help & Training anytime for step-by-step workflows, plain-English terms, strategy examples, risk checks, and field capture guidance.",
   },
 ];
 

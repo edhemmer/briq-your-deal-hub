@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { Upload, Image, Clipboard, X, Loader2, FileText } from "lucide-react";
+import { Upload, Image, Clipboard, X, Loader2, FileText, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +30,17 @@ interface DealImageUploadProps {
 }
 
 type Mode = "idle" | "image" | "text";
+
+type ExtractionResponse = {
+  extracted?: ExtractedDeal;
+  error?: string;
+  mode?: string;
+  warning?: string;
+  meta?: {
+    model?: string;
+    warning?: string;
+  };
+};
 
 const STATE_CODES = new Set([
   "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID",
@@ -102,7 +113,33 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("idle");
   const [pastedText, setPastedText] = useState("");
+  const [extractionWarning, setExtractionWarning] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExtractionResponse = useCallback((data: ExtractionResponse | null | undefined) => {
+    if (data?.extracted) {
+      onExtracted(data.extracted);
+      const warning = data.warning ?? data.meta?.warning ?? null;
+      const isFallback = data.mode === "deterministic_fallback" || data.meta?.model === "deterministic-fallback";
+
+      if (warning || isFallback || data.extracted.source_confidence === "low") {
+        const message =
+          warning ??
+          "BRIX extracted basic facts with lower confidence. Review every field and verify sources before relying on the analysis.";
+        setExtractionWarning(message);
+        toast.warning("Basic facts extracted. Review and verify before analyzing.");
+      } else {
+        setExtractionWarning(null);
+        toast.success("Deal info extracted. Review and submit.");
+      }
+      return;
+    }
+
+    if (data?.error) {
+      setExtractionWarning(null);
+      toast.error(data.error);
+    }
+  }, [onExtracted]);
 
   const processFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -126,55 +163,49 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
           body: { image_base64: base64 },
         });
         if (error) throw error;
-        if (data?.extracted) {
-          onExtracted(data.extracted);
-          toast.success("Deal info extracted — review and submit");
-        } else if (data?.error) {
-          toast.error(data.error);
-        }
+        handleExtractionResponse(data as ExtractionResponse);
       } catch (err: unknown) {
         console.error("Extraction error:", err);
-        toast.error("Failed to extract deal info from image");
+        setExtractionWarning("Image extraction needs AI vision credits or OCR support. Paste listing text or a listing URL to continue with basic extraction.");
+        toast.error("Image extraction unavailable. Paste listing text or URL.");
       } finally {
         setIsExtracting(false);
       }
     };
     reader.readAsDataURL(file);
-  }, [onExtracted]);
+  }, [handleExtractionResponse]);
 
   const processText = useCallback(async () => {
     const trimmedText = pastedText.trim();
     const urlExtract = extractDealFromListingUrl(trimmedText);
     if (urlExtract) {
       onExtracted(urlExtract);
+      setExtractionWarning("Only the listing URL was parsed. Paste the listing text or upload screenshots to verify price, rent, taxes, condition, and risks.");
       toast.success("Address extracted from listing URL. Add listing facts or screenshots to verify the deal.");
       return;
     }
 
-    if (pastedText.trim().length < 10) {
+    if (trimmedText.length < 10) {
       toast.error("Please paste more listing text");
       return;
     }
+
     setIsExtracting(true);
     try {
       const { data, error } = await supabase.functions.invoke("extract-deal-from-text", {
         body: { listing_text: trimmedText },
       });
       if (error) throw error;
-      if (data?.extracted) {
-        onExtracted(data.extracted);
-        toast.success("Deal info extracted — review and submit");
-      } else if (data?.error) {
-        toast.error(data.error);
-      }
+      handleExtractionResponse(data as ExtractionResponse);
     } catch (err: unknown) {
       console.error("Text extraction error:", err);
       const message = err instanceof Error ? err.message : "Failed to extract deal info from text";
+      setExtractionWarning("Text extraction did not complete. You can still enter deal facts manually, but BRIX will lower confidence until sources are verified.");
       toast.error(message);
     } finally {
       setIsExtracting(false);
     }
-  }, [pastedText, onExtracted]);
+  }, [pastedText, onExtracted, handleExtractionResponse]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -188,7 +219,11 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
     for (const item of items) {
       if (item.type.startsWith("image/")) {
         const file = item.getAsFile();
-        if (file) { e.preventDefault(); processFile(file); return; }
+        if (file) {
+          e.preventDefault();
+          processFile(file);
+          return;
+        }
       }
     }
   }, [processFile]);
@@ -197,12 +232,12 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
     setPreview(null);
     setMode("idle");
     setPastedText("");
+    setExtractionWarning(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   return (
     <div className="space-y-3">
-      {/* Image upload zone */}
       <div
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
@@ -230,15 +265,19 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
         {isExtracting && mode === "image" ? (
           <div className="flex flex-col items-center justify-center py-8 gap-3">
             <Loader2 className="h-7 w-7 text-primary animate-spin" />
-            <p className="text-sm font-medium text-foreground">Extracting deal info with AI…</p>
+            <p className="text-sm font-medium text-foreground">Extracting deal info...</p>
           </div>
         ) : preview ? (
           <div className="relative p-4">
-            <button onClick={(e) => { e.stopPropagation(); reset(); }} className="absolute top-2 right-2 z-10 rounded-full bg-background/80 backdrop-blur-sm p-1 border border-border hover:bg-muted">
+            <button
+              onClick={(e) => { e.stopPropagation(); reset(); }}
+              className="absolute top-2 right-2 z-10 rounded-full bg-background/80 backdrop-blur-sm p-1 border border-border hover:bg-muted"
+              type="button"
+            >
               <X className="h-4 w-4 text-muted-foreground" />
             </button>
             <img src={preview} alt="Listing" className="max-h-32 rounded-lg mx-auto object-contain" />
-            <p className="text-xs text-muted-foreground text-center mt-2">Extracted — drop another to re-extract</p>
+            <p className="text-xs text-muted-foreground text-center mt-2">Extracted - drop another to re-extract</p>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-8 gap-2">
@@ -253,14 +292,12 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
         )}
       </div>
 
-      {/* Divider */}
       <div className="flex items-center gap-3">
         <div className="flex-1 h-px bg-border" />
         <span className="text-xs text-muted-foreground font-medium">or paste listing text / URL</span>
         <div className="flex-1 h-px bg-border" />
       </div>
 
-      {/* Text paste zone */}
       <div className="space-y-2">
         <Textarea
           placeholder="Paste a property listing, listing URL, rent roll, broker notes, MLS remarks, or inspection/photo observations..."
@@ -277,7 +314,7 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
               className="gap-1.5"
             >
               {isExtracting && mode === "text" ? (
-                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Extracting…</>
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Extracting...</>
               ) : (
                 <><FileText className="h-3.5 w-3.5" /> Extract Deal Info</>
               )}
@@ -288,6 +325,16 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
           </div>
         )}
       </div>
+
+      {extractionWarning && (
+        <div className="flex items-start gap-2 rounded-md border border-signal-warning/30 bg-signal-warning/10 p-3 text-xs text-foreground">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-signal-warning" />
+          <div>
+            <p className="font-semibold text-foreground">Verification required</p>
+            <p className="mt-0.5 text-muted-foreground">{extractionWarning}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

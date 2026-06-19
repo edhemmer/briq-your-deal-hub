@@ -15,6 +15,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const AI_BASE_URL = (Deno.env.get("AI_GATEWAY_BASE_URL") ?? "https://api.openai.com/v1").replace(/\/$/, "");
+const AI_MODEL = Deno.env.get("AI_CONTRACT_MODEL") ?? Deno.env.get("AI_TEXT_MODEL") ?? "gpt-4o";
+
 const PAID_BY_ENUM = ["buyer", "seller", "split", null];
 
 const CANONICAL_TOOL = {
@@ -200,6 +203,122 @@ async function sha256(input: string): Promise<string> {
     .join("");
 }
 
+const moneyValue = (value: string | undefined | null) => {
+  if (!value) return null;
+  const parsed = Number(value.replace(/[$,\s]/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const excerptFor = (text: string, value: string | number | null) => {
+  if (value == null) return undefined;
+  const needle = String(value).replace(/[$,\s]/g, "");
+  const compactText = text.replace(/\s+/g, " ");
+  const idx = compactText.toLowerCase().indexOf(String(value).toLowerCase());
+  if (idx >= 0) return compactText.slice(Math.max(0, idx - 80), idx + String(value).length + 80);
+  if (typeof value === "number") {
+    const match = compactText.match(new RegExp(`\\$?\\s*${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/(\d)(?=(\d{3})+$)/g, "$1,?")}`));
+    if (match?.index != null) return compactText.slice(Math.max(0, match.index - 80), match.index + match[0].length + 80);
+  }
+  return undefined;
+};
+
+function deterministicContractExtract(text: string) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const pick = (patterns: RegExp[]) => {
+    for (const pattern of patterns) {
+      const match = normalized.match(pattern);
+      if (match?.[1]) return match[1].trim();
+    }
+    return null;
+  };
+  const purchasePrice = moneyValue(pick([
+    /(?:purchase price|price)[^\d$]{0,40}\$?\s*([\d,]{5,12})/i,
+    /\$\s*([\d,]{5,12})/i,
+  ]));
+  const earnestMoney = moneyValue(pick([
+    /(?:earnest money|initial deposit|deposit)[^\d$]{0,40}\$?\s*([\d,]{3,12})/i,
+  ]));
+  const propertyAddress = pick([
+    /(?:property(?: address)?|premises|real property)[\s:,-]+(.{8,140}?)(?:\.|;|\n| purchase price| buyer| seller)/i,
+    /\b(\d{1,6}\s+[A-Za-z0-9.' -]+(?:St|Street|Ave|Avenue|Rd|Road|Dr|Drive|Ln|Lane|Ct|Court|Cir|Circle|Way|Blvd|Boulevard|Pl|Place|Ter|Terrace|Trl|Trail)\b[^.;\n]{0,90})/i,
+  ]);
+  const buyerName = pick([/(?:buyer|purchaser)[\s:]+([A-Z][A-Za-z0-9 &.,'-]{2,100}?)(?:\s+(?:seller|property|agrees|and)|;|\.|, as)/i]);
+  const sellerName = pick([/(?:seller|vendor)[\s:]+([A-Z][A-Za-z0-9 &.,'-]{2,100}?)(?:\s+(?:buyer|property|agrees|and)|;|\.|, as)/i]);
+  const closingDate = pick([/(?:closing date|date of closing|close of escrow)[^\d]{0,30}(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})/i]);
+  const inspectionDaysRaw = pick([/(?:inspection period|due diligence period)[^\d]{0,30}(\d{1,3})\s*(?:days?)/i]);
+  const inspectionDays = inspectionDaysRaw ? Number(inspectionDaysRaw) : null;
+  const financingContingency = /financing contingency|mortgage contingency|loan contingency/i.test(normalized)
+    ? !/waiv(?:e|es|ed)\s+(?:the\s+)?(?:financing|mortgage|loan)\s+contingency/i.test(normalized)
+    : null;
+  const appraisalContingency = /appraisal contingency/i.test(normalized)
+    ? !/waiv(?:e|es|ed)\s+(?:the\s+)?appraisal\s+contingency/i.test(normalized)
+    : null;
+  const inspectionContingency = /inspection contingency|inspection period/i.test(normalized)
+    ? !/waiv(?:e|es|ed)\s+(?:the\s+)?inspection\s+contingency/i.test(normalized)
+    : null;
+
+  const confidence: Record<string, number> = {};
+  const source_excerpts: Record<string, string> = {};
+  const addEvidence = (key: string, value: string | number | boolean | null) => {
+    if (value == null) {
+      confidence[key] = 0;
+      return;
+    }
+    confidence[key] = typeof value === "boolean" ? 0.4 : 0.55;
+    const excerpt = excerptFor(normalized, typeof value === "boolean" ? key.replace(/_/g, " ") : value);
+    if (excerpt) source_excerpts[key] = excerpt.slice(0, 200);
+  };
+
+  const extracted = {
+    contract_type: /letter of intent|\bLOI\b/i.test(normalized) ? "LOI" : "Purchase Agreement",
+    deal_structure: /seller financ|seller carry/i.test(normalized) ? "seller_financing" : /cash/i.test(normalized) ? "cash" : "unknown",
+    buyer_name: buyerName,
+    seller_name: sellerName,
+    buyer_entity_type: null,
+    seller_entity_type: null,
+    property_address: propertyAddress,
+    property_legal_description: null,
+    parcel_id: null,
+    property_use: null,
+    purchase_price: purchasePrice,
+    earnest_money: earnestMoney,
+    earnest_money_due_days: null,
+    earnest_money_hard_date: null,
+    earnest_money_holder: null,
+    down_payment: null,
+    loan_amount: null,
+    seller_concessions: null,
+    effective_date: null,
+    closing_date: closingDate,
+    possession_date: null,
+    inspection_period_days: inspectionDays,
+    financing_contingency_days: null,
+    appraisal_contingency_days: null,
+    title_review_days: null,
+    attorney_review_period_days: null,
+    due_diligence_period_days: null,
+    financing_contingency: financingContingency,
+    appraisal_contingency: appraisalContingency,
+    inspection_contingency: inspectionContingency,
+    sale_of_other_home_contingency: null,
+    as_is_clause: /as-is|as is/i.test(normalized) ? true : null,
+    time_is_of_essence: /time is of the essence/i.test(normalized) ? true : null,
+    special_stipulations: [],
+    included_personal_property: [],
+    excluded_personal_property: [],
+    seller_disclosures_referenced: [],
+    addenda_referenced: [],
+    confidence,
+    source_excerpts,
+  };
+
+  for (const [key, value] of Object.entries(extracted)) {
+    if (key !== "confidence" && key !== "source_excerpts" && !Array.isArray(value)) addEvidence(key, value as string | number | boolean | null);
+  }
+
+  return extracted;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -218,11 +337,23 @@ serve(async (req) => {
       );
     }
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    const apiKey = Deno.env.get("AI_GATEWAY_API_KEY") ?? Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) {
+      const fallback = text ? deterministicContractExtract(text) : null;
       return new Response(
-        JSON.stringify({ error: "AI service not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({
+          extracted: fallback,
+          meta: {
+            model: "deterministic-fallback",
+            warning: "AI extraction is not configured. BRIX extracted only obvious fields with low confidence.",
+            input_hash: text ? await sha256(text) : null,
+            input_length: text?.length ?? null,
+            had_image: !!image_base64,
+            source_files,
+            extracted_at: new Date().toISOString(),
+          },
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -283,12 +414,12 @@ serve(async (req) => {
     }
 
     const aiResp = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      `${AI_BASE_URL}/chat/completions`,
       {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-2.5-pro",
+          model: AI_MODEL,
           temperature: 0,
           max_tokens: 16000,
           messages: [
@@ -316,17 +447,39 @@ serve(async (req) => {
       const errText = await aiResp.text();
       console.error("AI gateway error:", aiResp.status, errText);
       if (aiResp.status === 429) {
+        const fallback = text ? deterministicContractExtract(text) : null;
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Try again shortly." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          JSON.stringify({
+            extracted: fallback,
+            meta: {
+              model: "deterministic-fallback",
+              warning: "AI rate limit reached. BRIX extracted only obvious fields with low confidence.",
+              input_hash: text ? await sha256(text) : null,
+              input_length: text?.length ?? null,
+              had_image: !!image_base64,
+              source_files,
+              extracted_at: new Date().toISOString(),
+            },
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
       if (aiResp.status === 402) {
+        const fallback = text ? deterministicContractExtract(text) : null;
         return new Response(
           JSON.stringify({
-            error: "AI credits exhausted. Add credits in workspace settings.",
+            extracted: fallback,
+            meta: {
+              model: "deterministic-fallback",
+              warning: "AI credits are unavailable. BRIX extracted only obvious fields with low confidence.",
+              input_hash: text ? await sha256(text) : null,
+              input_length: text?.length ?? null,
+              had_image: !!image_base64,
+              source_files,
+              extracted_at: new Date().toISOString(),
+            },
           }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
       return new Response(
@@ -377,7 +530,7 @@ serve(async (req) => {
       JSON.stringify({
         extracted,
         meta: {
-          model: "google/gemini-2.5-pro",
+          model: AI_MODEL,
           temperature: 0,
           input_hash: inputHash,
           input_length: text?.length ?? null,

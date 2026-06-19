@@ -1,68 +1,74 @@
-// Geocodes an address via the Google Maps Platform connector gateway.
-import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+// Geocodes an address with the public U.S. Census Geocoding Services API.
+// No third-party builder connector or Google Maps key is required.
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-const GATEWAY_URL = 'https://connector-gateway.lovable.dev/google_maps';
+const CENSUS_GEOCODER_URL =
+  "https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress";
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    const GOOGLE_MAPS_API_KEY = Deno.env.get('GOOGLE_MAPS_API_KEY');
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
-    if (!GOOGLE_MAPS_API_KEY) throw new Error('GOOGLE_MAPS_API_KEY is not configured');
-
     const { address } = await req.json();
-    if (!address || typeof address !== 'string' || address.length > 500) {
-      return new Response(JSON.stringify({ error: 'Invalid address' }), {
+    if (!address || typeof address !== "string" || address.length > 500) {
+      return new Response(JSON.stringify({ error: "Invalid address" }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const url = `${GATEWAY_URL}/maps/api/geocode/json?address=${encodeURIComponent(address)}`;
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        'X-Connection-Api-Key': GOOGLE_MAPS_API_KEY,
-      },
+    const url = new URL(CENSUS_GEOCODER_URL);
+    url.searchParams.set("address", address);
+    url.searchParams.set("benchmark", "Public_AR_Current");
+    url.searchParams.set("vintage", "Current_Current");
+    url.searchParams.set("format", "json");
+
+    const res = await fetch(url.toString(), {
+      headers: { "User-Agent": "BRIX Real Estate geocoder" },
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(`Geocode failed [${res.status}]: ${JSON.stringify(data)}`);
+    if (!res.ok) throw new Error(`Census geocoder failed [${res.status}]: ${JSON.stringify(data)}`);
 
-    const first = data.results?.[0];
+    const first = data.result?.addressMatches?.[0];
     if (!first) {
-      return new Response(JSON.stringify({ found: false }), {
+      return new Response(JSON.stringify({ found: false, source: "US Census Geocoder" }), {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const components: Record<string, string> = {};
-    for (const c of first.address_components ?? []) {
-      for (const t of c.types ?? []) components[t] = c.short_name;
-    }
+    const components = first.addressComponents ?? {};
+    const counties = first.geographies?.Counties ?? [];
+    const tracts = first.geographies?.["Census Tracts"] ?? [];
+    const county = counties[0] ?? null;
+    const tract = tracts[0] ?? null;
 
     return new Response(
       JSON.stringify({
         found: true,
-        formatted_address: first.formatted_address,
-        location: first.geometry?.location ?? null,
-        place_id: first.place_id ?? null,
-        city: components.locality ?? components.postal_town ?? null,
-        county: components.administrative_area_level_2 ?? null,
-        state: components.administrative_area_level_1 ?? null,
-        zip: components.postal_code ?? null,
-        country: components.country ?? null,
+        source: "US Census Geocoder",
+        source_quality: "official",
+        formatted_address: first.matchedAddress ?? null,
+        location: first.coordinates
+          ? { lat: Number(first.coordinates.y), lng: Number(first.coordinates.x) }
+          : null,
+        place_id: null,
+        city: components.city ?? null,
+        county: county?.NAME ?? null,
+        county_geoid: county?.GEOID ?? null,
+        census_tract: tract?.GEOID ?? null,
+        state: components.state ?? null,
+        zip: components.zip ?? null,
+        country: "US",
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('geocode-address error:', message);
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("geocode-address error:", message);
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

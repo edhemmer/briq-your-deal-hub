@@ -785,7 +785,7 @@ function sectionSources(doc: Doc, ctx: ContractReportContext) {
   y = bodyParagraph(
     doc,
     y,
-    "Extraction: contract text was parsed by BRIX ContractIQ using a deterministic structured-output extractor (Lovable AI Gateway). The model identifies named fields verbatim and assigns null when a field is not stated. No inference is performed during extraction.",
+    "Extraction: contract text was parsed by BRIX ContractIQ using a deterministic structured-output extractor through the configured BRIX AI gateway. The model identifies named fields verbatim and assigns null when a field is not stated. No inference is performed during extraction.",
   );
   y += 6;
   y = bodyParagraph(

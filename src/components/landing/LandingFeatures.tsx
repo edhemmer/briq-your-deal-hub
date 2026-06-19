@@ -1,83 +1,101 @@
-import { FileSignature, Calculator, Brain, TrendingUp, ShieldCheck, FileText } from "lucide-react";
+import { BarChart3, Brain, Building2, FileText, KanbanSquare, PenLine, Search, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 
 const features = [
   {
-    icon: FileSignature,
-    title: "ContractIQ Intake",
-    description: "Drop a PDF purchase agreement, .eml or pasted email, XLSX terms sheet, or Word contract. ContractIQ parses, maps, and pre-fills every field with a confidence badge — you review before analyze.",
+    icon: Search,
+    title: "FindIQ",
+    question: "What should I investigate?",
+    description: "Create acquisition profiles, monitor opportunities, rank property candidates, compare them, and send the strongest ones into underwriting without duplicate entry.",
   },
   {
-    icon: Calculator,
-    title: "Real-Time Deterministic Math",
-    description: "Cap rate, cash-on-cash, DSCR, and cash flow recompute live on every input change. Same inputs always produce the same answer — no AI guessing on the numbers.",
+    icon: BarChart3,
+    title: "DealIQ",
+    question: "Should I acquire it?",
+    description: "Analyze cash flow, rent support, resale, renovation, market risk, stress cases, and strategy fit before capital is committed.",
+  },
+  {
+    icon: KanbanSquare,
+    title: "PipelineIQ",
+    question: "Where is it in the process?",
+    description: "Track stages, tasks, deadlines, notes, activity, health, and next actions from first review through closing.",
+  },
+  {
+    icon: PenLine,
+    title: "OfferIQ",
+    question: "How should I pursue it?",
+    description: "Turn DealIQ findings into offer structures, negotiation points, communications, document packages, and due diligence workflows.",
+  },
+  {
+    icon: Building2,
+    title: "PortfolioIQ",
+    question: "How is it performing?",
+    description: "After closing, monitor asset value, equity, debt, cash flow, documents, risk, refinance opportunities, and long-term portfolio health.",
   },
   {
     icon: Brain,
-    title: "Deal Intelligence Scoring",
-    description: "A canonical engine combines financials, market signals, and risk into one composite score with a clear Proceed / Caution / Pass guidance.",
-  },
-  {
-    icon: TrendingUp,
-    title: "Forward-Looking Market Signals",
-    description: "3–5 year outlook on population, jobs, supply, and rent growth — pulled from a dated, transparent rate table so you always see when the data was sourced.",
+    title: "AI Intelligence Layer",
+    question: "What matters and why?",
+    description: "Explain recommendations, surface missing data, challenge assumptions, compare alternatives, and adapt guidance to the investor's experience level.",
   },
   {
     icon: ShieldCheck,
-    title: "Stress Testing & Hidden Risk",
-    description: "Rate hikes, vacancy spikes, rent drops, and structural risk flags — surfaced before you commit capital. Conservative defaults (6% closing, 25% down, 7.0% rate) when data is missing.",
+    title: "Trust Architecture",
+    question: "Can I rely on this?",
+    description: "Every major output shows confidence, evidence, assumptions, source quality, risks, alternatives, and what still needs verification.",
   },
   {
     icon: FileText,
-    title: "Investor-Ready Reports",
-    description: "Export structured PDF and CSV briefs that summarize every analysis layer — share with partners, lenders, or keep for your own records.",
+    title: "Reports and Memos",
+    question: "How do I share the decision?",
+    description: "Create acquisition memos, investor-ready reports, exports, and decision records that make the logic easy to review and challenge.",
   },
 ];
 
 export default function LandingFeatures() {
   return (
-    <section className="py-20 md:py-28 px-5 relative overflow-hidden">
-      {/* Subtle background accent */}
-      <div className="absolute inset-0 bg-muted/20 pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/[0.03] rounded-full blur-[100px] pointer-events-none" />
+    <section className="relative overflow-hidden px-5 py-20 md:py-28">
+      <div className="absolute inset-0 bg-muted/20" />
+      <div className="absolute left-1/2 top-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/[0.03] blur-[100px]" />
 
       <div className="relative mx-auto max-w-6xl">
-        <div className="text-center mb-16">
+        <div className="mb-16 text-center">
           <motion.h2
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="text-3xl md:text-4xl font-bold tracking-tight text-foreground"
+            className="text-3xl font-bold tracking-tight text-foreground md:text-4xl"
           >
-            Two modules built for real transactions
+            One operating system, five simple questions
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="mt-4 text-base text-muted-foreground max-w-xl mx-auto"
+            className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground"
           >
-            DealIQ decides if the deal is worth pursuing. ContractIQ makes sure nothing important gets missed.
+            BRIX keeps each module focused so investors can move quickly without losing accuracy, context, or risk visibility.
           </motion.p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {features.map((f, i) => (
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+          {features.map((feature, i) => (
             <motion.div
-              key={f.title}
+              key={feature.title}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-30px" }}
-              transition={{ duration: 0.4, delay: i * 0.08 }}
-              className="group rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm p-7 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/[0.06] transition-all duration-300"
+              transition={{ duration: 0.4, delay: i * 0.06 }}
+              className="group rounded-2xl border border-border/60 bg-card/80 p-6 backdrop-blur-sm transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/[0.06]"
             >
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/15 transition-colors duration-300">
-                <f.icon className="h-5 w-5 text-primary" />
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 transition-colors duration-300 group-hover:bg-primary/15">
+                <feature.icon className="h-5 w-5 text-primary" />
               </div>
-              <h3 className="text-base font-semibold text-foreground">{f.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{f.description}</p>
+              <h3 className="text-base font-semibold text-foreground">{feature.title}</h3>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-primary">{feature.question}</p>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{feature.description}</p>
             </motion.div>
           ))}
         </div>
