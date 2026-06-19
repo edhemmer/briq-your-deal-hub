@@ -1561,13 +1561,30 @@ function SummaryCard({ title, rows }: { title: string; rows: [string, string][] 
 // ── Strategy Section ────────────────────────────────────────────────────
 
 const STRATEGY_FIT_LABELS: Record<keyof StrategyFitResults, string> = {
+  buyAndHold: "Buy and Hold",
   brrrr: "BRRRR",
+  hybridBrrrr: "Hybrid BRRRR",
   longTermRental: "Long Term Rental",
   midTermRental: "Mid Term Rental",
   shortTermRental: "Short Term Rental",
+  hybridRental: "Hybrid Rental",
+  houseHack: "House Hack",
   fixFlip: "Fix & Flip",
   valueAdd: "Value Add",
   appreciationHold: "Appreciation Hold",
+  refinance: "Refinance",
+  hold: "Hold",
+  sell: "Sell",
+  sellerFinance: "Seller Finance",
+  subjectTo: "Subject-To",
+  leaseOption: "Lease Option",
+  wrapMortgage: "Wrap Mortgage",
+  adu: "ADU Addition",
+  lotSplit: "Lot Split",
+  mixedUseConversion: "Mixed Use Conversion",
+  commercialRepositioning: "Commercial Repositioning",
+  development: "Development",
+  exchange1031: "1031 Exchange",
 };
 
 function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }) {
@@ -1663,6 +1680,11 @@ function StrategyFitSection({ strategyFit }: { strategyFit: StrategyFitResults }
                       <SignalGroup label="Financial" signals={strategy.signals.financial} />
                       <SignalGroup label="Property" signals={strategy.signals.property} />
                       <SignalGroup label="Market" signals={strategy.signals.market} />
+                      <SignalGroup label="Required Inputs" signals={strategy.requiredInputs.slice(0, 5)} />
+                      <SignalGroup label="Success Criteria" signals={strategy.successCriteria.slice(0, 4)} />
+                      <SignalGroup label="What Must Be True" signals={strategy.whatMustBeTrue.slice(0, 3)} />
+                      <SignalGroup label="Failure Scenarios" signals={strategy.failureScenarios.slice(0, 3)} />
+                      <SignalGroup label="Questions" signals={strategy.verificationQuestions.slice(0, 3)} />
                     </div>
                   )}
                 </div>

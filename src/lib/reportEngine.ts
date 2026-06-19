@@ -48,13 +48,30 @@ function lastTableY(doc: jsPDF): number {
 }
 
 const STRATEGY_LABELS: Record<keyof StrategyFitResults, string> = {
+  buyAndHold: "Buy and Hold",
   brrrr: "BRRRR",
+  hybridBrrrr: "Hybrid BRRRR",
   longTermRental: "Long Term Rental",
   midTermRental: "Mid Term Rental",
   shortTermRental: "Short Term Rental",
+  hybridRental: "Hybrid Rental",
+  houseHack: "House Hack",
   fixFlip: "Fix & Flip",
   valueAdd: "Value Add",
   appreciationHold: "Appreciation Hold",
+  refinance: "Refinance",
+  hold: "Hold",
+  sell: "Sell",
+  sellerFinance: "Seller Finance",
+  subjectTo: "Subject-To",
+  leaseOption: "Lease Option",
+  wrapMortgage: "Wrap Mortgage",
+  adu: "ADU Addition",
+  lotSplit: "Lot Split",
+  mixedUseConversion: "Mixed Use Conversion",
+  commercialRepositioning: "Commercial Repositioning",
+  development: "Development",
+  exchange1031: "1031 Exchange",
 };
 
 function getBestStrategy(fit: StrategyFitResults): { key: keyof StrategyFitResults; strategy: StrategyScore } {
