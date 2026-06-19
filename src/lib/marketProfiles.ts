@@ -62,21 +62,81 @@ export interface InternationalContext {
 
 // ── Strategy Selection ─────────────────────────────────────────────────
 
-export type InvestmentStrategy = "long_term_rental" | "short_term_rental" | "hybrid";
-
-// Future extension point: "fix_flip" | "value_add" | "brrrr" | "wholesale"
-// Architecture supports adding new strategies without rebuilding.
+export type InvestmentStrategy =
+  | "buy_and_hold"
+  | "long_term_rental"
+  | "mid_term_rental"
+  | "short_term_rental"
+  | "hybrid"
+  | "house_hack"
+  | "brrrr"
+  | "hybrid_brrrr"
+  | "fix_flip"
+  | "value_add"
+  | "refinance"
+  | "hold"
+  | "sell"
+  | "seller_finance"
+  | "subject_to"
+  | "lease_option"
+  | "wrap_mortgage"
+  | "adu"
+  | "lot_split"
+  | "mixed_use_conversion"
+  | "commercial_repositioning"
+  | "development"
+  | "exchange_1031";
 
 export const STRATEGY_LABELS: Record<InvestmentStrategy, string> = {
+  buy_and_hold: "Buy and Hold",
   long_term_rental: "Long-Term Rental",
+  mid_term_rental: "Mid-Term Rental",
   short_term_rental: "Short-Term Rental",
   hybrid: "Hybrid (LTR + STR)",
+  house_hack: "House Hack",
+  brrrr: "BRRRR",
+  hybrid_brrrr: "Hybrid BRRRR",
+  fix_flip: "Fix and Flip",
+  value_add: "Value-Add",
+  refinance: "Refinance",
+  hold: "Hold",
+  sell: "Sell",
+  seller_finance: "Seller Finance",
+  subject_to: "Subject-To",
+  lease_option: "Lease Option",
+  wrap_mortgage: "Wrap Mortgage",
+  adu: "ADU Addition",
+  lot_split: "Lot Split",
+  mixed_use_conversion: "Mixed Use Conversion",
+  commercial_repositioning: "Commercial Repositioning",
+  development: "Development",
+  exchange_1031: "1031 Exchange",
 };
 
 export const STRATEGY_DESCRIPTIONS: Record<InvestmentStrategy, string> = {
+  buy_and_hold: "Acquire and operate the property over time. Prioritizes durable economics, risk controls, and long-term wealth creation.",
   long_term_rental: "Buy and hold for steady monthly rental income with long-term tenants. Prioritizes cash flow stability and predictable returns.",
+  mid_term_rental: "Operate with furnished monthly stays. Requires stronger demand validation, operating assumptions, and regulation checks.",
   short_term_rental: "Operate as a furnished rental (Airbnb, VRBO). Higher income potential but more operational complexity and regulatory risk.",
   hybrid: "Combine long-term and short-term strategies across units or seasons. Balances income upside with cash flow stability.",
+  house_hack: "Live in part of the property while offsetting ownership costs with rental income. Evaluates both life and investment outcomes.",
+  brrrr: "Buy, renovate, rent, refinance, and repeat. Requires strong rehab scope, rent support, refinance assumptions, and equity creation.",
+  hybrid_brrrr: "Use a staged BRRRR plan with flexible timing or partial refinance. Requires explicit scenario and capital planning.",
+  fix_flip: "Renovate and resell. Depends on verified ARV, rehab scope, carry costs, resale liquidity, and execution control.",
+  value_add: "Improve income, condition, layout, or market position. Requires clear scope, budget confidence, and realistic upside.",
+  refinance: "Replace or restructure debt to improve cash flow, reduce risk, or access equity. Requires lender and valuation verification.",
+  hold: "Keep the asset and monitor performance. Evaluates risk, liquidity, opportunity cost, and future optionality.",
+  sell: "Dispose of the asset or pass on the acquisition. Evaluates net proceeds, market timing, tax impact, and redeployment options.",
+  seller_finance: "Use seller-provided financing. Requires professional review of terms, legal structure, default risk, and exit plan.",
+  subject_to: "Acquire subject to existing debt. High legal and lender-risk strategy requiring professional review before action.",
+  lease_option: "Control the asset through lease and purchase option terms. Requires careful contract, financing, and exit verification.",
+  wrap_mortgage: "Use a wraparound financing structure. Requires professional legal review and conservative default-risk analysis.",
+  adu: "Add or convert an accessory dwelling unit. Requires zoning, permit, cost, rent, and timeline verification.",
+  lot_split: "Create value by subdividing land. Requires zoning, entitlement, survey, utility, and saleability verification.",
+  mixed_use_conversion: "Reposition a property across residential and commercial use. Requires zoning, demand, and execution review.",
+  commercial_repositioning: "Improve commercial use, tenant mix, lease structure, or operating profile. Requires market and lease diligence.",
+  development: "Build or substantially redevelop. Highest complexity; requires entitlement, budget, schedule, financing, and exit verification.",
+  exchange_1031: "Evaluate tax-deferred exchange fit. Educational only; requires CPA/intermediary review before execution.",
 };
 
 // ── Risk Tolerance ─────────────────────────────────────────────────────

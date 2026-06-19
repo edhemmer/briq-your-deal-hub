@@ -4,7 +4,7 @@ import type { StrategySignals } from "@/lib/strategyFitEngine";
 import { evaluateInputSufficiency, type InputSufficiency, buildNormalizedDealState, enrichWithMarketData, updateFinancialFields } from "@/lib/normalizedDealState";
 import { deriveDealInput, deriveMarketConditions } from "@/lib/canonicalEngineLayer";
 import { useCanonicalAnalysis } from "@/hooks/useCanonicalAnalysis";
-import type { AnalysisContext } from "@/lib/marketProfiles";
+import type { AnalysisContext, InvestmentStrategy } from "@/lib/marketProfiles";
 import { isContextComplete } from "@/lib/marketProfiles";
 
 import { PageHeader } from "@/components/ui/page-header";
@@ -165,6 +165,61 @@ const EMPTY_DEAL_INPUT: DealInput = {
   arv: 0,
 };
 
+function inferAssetType(propertyType?: string | null) {
+  const normalized = (propertyType ?? "").toLowerCase();
+  if (normalized.includes("duplex") || normalized.includes("triplex") || normalized.includes("fourplex") || normalized.includes("2-4")) return "multi_family_2_4";
+  if (normalized.includes("multifamily") || normalized.includes("multi-family") || normalized.includes("apartment")) return "multi_family_5_plus";
+  if (normalized.includes("condo") || normalized.includes("co-op")) return "condo";
+  if (normalized.includes("townhouse") || normalized.includes("townhome")) return "townhouse";
+  if (normalized.includes("manufactured") || normalized.includes("mobile")) return "manufactured";
+  if (normalized.includes("office")) return "office";
+  if (normalized.includes("retail")) return "retail";
+  if (normalized.includes("industrial") || normalized.includes("warehouse")) return "industrial";
+  if (normalized.includes("mixed")) return "mixed_use";
+  if (normalized.includes("hospitality") || normalized.includes("hotel")) return "hospitality";
+  if (normalized.includes("storage")) return "self_storage";
+  return "single_family";
+}
+
+function inferMarketType(propertyType?: string | null): AnalysisContext["marketType"] {
+  const assetType = inferAssetType(propertyType);
+  return ["office", "retail", "industrial", "mixed_use", "hospitality", "self_storage"].includes(assetType)
+    ? "us_commercial"
+    : "us_residential";
+}
+
+function inferStrategy(strategy?: string | null, assetType?: string | null): InvestmentStrategy {
+  const normalized = `${strategy ?? ""} ${assetType ?? ""}`.toLowerCase();
+  if (normalized.includes("short")) return "short_term_rental";
+  if (normalized.includes("mid")) return "mid_term_rental";
+  if (normalized.includes("hybrid brrrr")) return "hybrid_brrrr";
+  if (normalized.includes("brrrr")) return "brrrr";
+  if (normalized.includes("flip")) return "fix_flip";
+  if (normalized.includes("value")) return "value_add";
+  if (normalized.includes("house hack") || normalized.includes("owner occupant")) return "house_hack";
+  if (normalized.includes("seller")) return "seller_finance";
+  if (normalized.includes("subject")) return "subject_to";
+  if (normalized.includes("lease option")) return "lease_option";
+  if (normalized.includes("wrap")) return "wrap_mortgage";
+  if (normalized.includes("adu")) return "adu";
+  if (normalized.includes("lot")) return "lot_split";
+  if (normalized.includes("development")) return "development";
+  if (normalized.includes("1031")) return "exchange_1031";
+  if (normalized.includes("refinance")) return "refinance";
+  if (normalized.includes("sell")) return "sell";
+  if (normalized.includes("hold")) return "buy_and_hold";
+  return "long_term_rental";
+}
+
+function inferAnalysisContext(deal: DealRow): AnalysisContext {
+  return {
+    marketType: inferMarketType(deal.property_type),
+    assetType: inferAssetType(deal.property_type),
+    strategy: inferStrategy(deal.strategy_primary, deal.asset_type),
+    riskTolerance: "balanced",
+  };
+}
+
 function scoreColor(score: number): string {
   if (score >= 85) return "text-signal-positive";
   if (score >= 70) return "text-primary";
@@ -208,6 +263,7 @@ const Analysis = () => {
   const [enrichmentFields, setEnrichmentFields] = useState<Record<string, string>>({});
   const [marketFields, setMarketFields] = useState<Record<string, string>>({});
   const [analysisContext, setAnalysisContext] = useState<AnalysisContext | null>(null);
+  const [manualContextMode, setManualContextMode] = useState(false);
   const [sourceQualityMap, setSourceQualityMap] = useState<Record<string, SourceQuality>>({});
   const [returnsAssumptions, setReturnsAssumptions] = useState<ReturnsAssumptions>(DEFAULT_RETURNS_ASSUMPTIONS);
   const [decisionMode, setDecisionMode] = useState<"investment" | "live-in">("investment");
@@ -273,6 +329,12 @@ const Analysis = () => {
       setInitialized(true);
     }
   }, [deal, initialized]);
+
+  useEffect(() => {
+    if (deal && initialized && !analysisContext && !manualContextMode) {
+      setAnalysisContext(inferAnalysisContext(deal as DealRow));
+    }
+  }, [analysisContext, deal, initialized, manualContextMode]);
 
   useEffect(() => {
     if (marketConditionsRow) {
@@ -570,7 +632,13 @@ const Analysis = () => {
           description={deal ? `${deal.city}, ${deal.state} ${deal.zip_code ?? ""}` : "Deal analysis"}
         />
         <DealWorkflowIndicator activeStep={2} className="mb-2" />
-        <AnalysisContextGate onContextComplete={setAnalysisContext} />
+        <AnalysisContextGate
+          onContextComplete={(context) => {
+            setManualContextMode(false);
+            setAnalysisContext(context);
+          }}
+          initialContext={deal ? inferAnalysisContext(deal as DealRow) : undefined}
+        />
         <AnalysisDisclosure className="mt-6" />
       </SectionContainer>
     );
@@ -657,7 +725,13 @@ const Analysis = () => {
           <Badge variant="secondary" className="text-[10px]">{MARKET_TYPE_LABELS[analysisContext.marketType]}</Badge>
           <Badge variant="secondary" className="text-[10px]">{STRATEGY_GATE_LABELS[analysisContext.strategy]}</Badge>
           <Badge variant="secondary" className="text-[10px]">{RISK_TOLERANCE_LABELS[analysisContext.riskTolerance]}</Badge>
-          <button onClick={() => setAnalysisContext(null)} className="text-[10px] text-muted-foreground hover:text-foreground underline transition-colors">
+          <button
+            onClick={() => {
+              setManualContextMode(true);
+              setAnalysisContext(null);
+            }}
+            className="text-[10px] text-muted-foreground hover:text-foreground underline transition-colors"
+          >
             Change
           </button>
         </div>

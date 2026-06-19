@@ -1,21 +1,6 @@
 import type { TablesInsert } from "@/integrations/supabase/types";
 
-export type ProviderKey =
-  | "rentcast"
-  | "attom"
-  | "mls"
-  | "county_records"
-  | "census"
-  | "future_provider";
-
-export type ProviderStatus = "architecture_ready" | "connected" | "needs_credentials";
-
-export interface OpportunityProvider {
-  key: ProviderKey;
-  label: string;
-  role: string;
-  status: ProviderStatus;
-}
+export type ProviderKey = "user_entered" | "uploaded_document" | "uploaded_image" | "provider_result";
 
 export interface AcquisitionProfile {
   id: string;
@@ -65,63 +50,12 @@ export interface RankedOpportunity extends FindIQOpportunity {
   nextAction: string;
 }
 
-export const findIQProviders: OpportunityProvider[] = [
-  {
-    key: "rentcast",
-    label: "RentCast",
-    role: "Rent estimates, rental comps, and rental demand signals",
-    status: "needs_credentials",
-  },
-  {
-    key: "attom",
-    label: "ATTOM",
-    role: "Property facts, valuation signals, taxes, and ownership data",
-    status: "needs_credentials",
-  },
-  {
-    key: "mls",
-    label: "MLS feeds",
-    role: "Listing inventory and status changes through approved feeds",
-    status: "architecture_ready",
-  },
-  {
-    key: "county_records",
-    label: "County Records",
-    role: "Tax, deed, permit, and official property record verification",
-    status: "architecture_ready",
-  },
-  {
-    key: "census",
-    label: "Census",
-    role: "Population, household, and market context",
-    status: "architecture_ready",
-  },
-  {
-    key: "future_provider",
-    label: "Future providers",
-    role: "Provider adapter slot for new sources without changing product logic",
-    status: "architecture_ready",
-  },
-];
-
 export const defaultAcquisitionProfile: AcquisitionProfile = {
-  id: "ed-paula-illinois",
-  name: "Illinois Acquisition Profile",
+  id: "custom-acquisition-profile",
+  name: "Custom Acquisition Profile",
   budgetMin: 200000,
   budgetMax: 270000,
-  markets: [
-    "Plano",
-    "Montgomery",
-    "Sugar Grove",
-    "Sycamore",
-    "Sandwich",
-    "Yorkville",
-    "West Aurora",
-    "Big Rock",
-    "DeKalb",
-    "Cortland",
-    "Elburn",
-  ],
+  markets: [],
   propertyTypes: ["Single Family"],
   minBedrooms: 3,
   minBathrooms: 1.5,
@@ -131,105 +65,6 @@ export const defaultAcquisitionProfile: AcquisitionProfile = {
   requiresFutureResalePotential: true,
   preferredValueAdd: ["Cosmetic value-add", "Light rehab", "Rent-ready after updates"],
 };
-
-export const sampleOpportunities: FindIQOpportunity[] = [
-  {
-    id: "sandhurst-sandwich",
-    photoUrl: "/placeholder.svg",
-    address: "1019 Sandhurst Dr",
-    city: "Sandwich",
-    state: "IL",
-    zip: "60548",
-    propertyType: "Single Family",
-    opportunityType: "Active Listing",
-    listPrice: 249900,
-    bedrooms: 3,
-    bathrooms: 2,
-    squareFeet: 1688,
-    lotSize: "0.24 ac",
-    garage: true,
-    estimatedAnnualTaxes: 5140,
-    daysOnMarket: 18,
-    rentalPotential: "moderate",
-    resalePotential: "strong",
-    valueAddSignals: ["Cosmetic refresh", "Family layout", "Garage"],
-    risks: ["Rent support requires verification", "Condition details incomplete"],
-    missingData: ["Insurance quote", "Rent comps", "Inspection photos"],
-    providerSignals: ["mls", "county_records", "future_provider"],
-  },
-  {
-    id: "dekalb-ranch",
-    photoUrl: "/placeholder.svg",
-    address: "428 Prairie View Ln",
-    city: "DeKalb",
-    state: "IL",
-    zip: "60115",
-    propertyType: "Single Family",
-    opportunityType: "Price Reduction",
-    listPrice: 219000,
-    bedrooms: 3,
-    bathrooms: 1.5,
-    squareFeet: 1435,
-    lotSize: "0.18 ac",
-    garage: true,
-    estimatedAnnualTaxes: 6420,
-    daysOnMarket: 42,
-    rentalPotential: "strong",
-    resalePotential: "moderate",
-    valueAddSignals: ["Below top of budget", "Rental demand signal"],
-    risks: ["Taxes above preference", "Resale upside may be capped"],
-    missingData: ["Updated tax bill", "Lease comp support", "Roof age"],
-    providerSignals: ["rentcast", "county_records"],
-  },
-  {
-    id: "yorkville-cosmetic",
-    photoUrl: "/placeholder.svg",
-    address: "716 Birchwood Ct",
-    city: "Yorkville",
-    state: "IL",
-    zip: "60560",
-    propertyType: "Single Family",
-    opportunityType: "Coming Soon",
-    listPrice: 279500,
-    bedrooms: 4,
-    bathrooms: 2.5,
-    squareFeet: 2040,
-    lotSize: "0.27 ac",
-    garage: true,
-    estimatedAnnualTaxes: 5880,
-    daysOnMarket: 0,
-    rentalPotential: "moderate",
-    resalePotential: "strong",
-    valueAddSignals: ["Cosmetic value-add", "Extra bedroom", "Stronger resale market"],
-    risks: ["Above budget", "Offer would require discount"],
-    missingData: ["Seller flexibility", "Comparable sales", "Insurance quote"],
-    providerSignals: ["mls", "attom", "census"],
-  },
-  {
-    id: "cortland-no-garage",
-    photoUrl: "/placeholder.svg",
-    address: "204 Oak Ridge Ave",
-    city: "Cortland",
-    state: "IL",
-    zip: "60112",
-    propertyType: "Single Family",
-    opportunityType: "Back On Market",
-    listPrice: 205000,
-    bedrooms: 3,
-    bathrooms: 1,
-    squareFeet: 1220,
-    lotSize: "0.2 ac",
-    garage: false,
-    estimatedAnnualTaxes: 4380,
-    daysOnMarket: 61,
-    rentalPotential: "unknown",
-    resalePotential: "moderate",
-    valueAddSignals: ["Low entry price"],
-    risks: ["Garage requirement not met", "Bathroom count below target", "Rental demand unknown"],
-    missingData: ["Garage feasibility", "Bath expansion scope", "Rent comps"],
-    providerSignals: ["county_records"],
-  },
-];
 
 const potentialScore = (value: FindIQOpportunity["rentalPotential"] | FindIQOpportunity["resalePotential"]) => {
   if (value === "strong") return 14;

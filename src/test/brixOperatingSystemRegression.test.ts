@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { analyzeDeal, type DealInput } from "@/lib/dealAnalysisEngine";
 import { runStressTests } from "@/lib/stressTestingEngine";
 import { evaluateDealStrategies } from "@/lib/strategyFitEngine";
-import { defaultAcquisitionProfile, opportunityToDealInsert, rankOpportunities, sampleOpportunities } from "@/lib/findIQArchitecture";
+import { defaultAcquisitionProfile, opportunityToDealInsert, rankOpportunities, type FindIQOpportunity } from "@/lib/findIQArchitecture";
 import { sampleOfferStructures } from "@/lib/offerIQArchitecture";
 import { healthTone, samplePipelineOpportunities } from "@/lib/pipelineIQArchitecture";
 import { buildPortfolioSummary, equity, monthlyCashFlow, portfolioAssets } from "@/lib/portfolioIQArchitecture";
@@ -29,11 +29,65 @@ const baseDeal: DealInput = {
   arv: 315000,
 };
 
+const testOpportunities: FindIQOpportunity[] = [
+  {
+    id: "test-opportunity-one",
+    photoUrl: "",
+    address: "Test Opportunity One",
+    city: "Test Market",
+    state: "TS",
+    zip: "00001",
+    propertyType: "Single Family",
+    opportunityType: "Active Listing",
+    listPrice: 240000,
+    bedrooms: 3,
+    bathrooms: 2,
+    squareFeet: 1600,
+    lotSize: "0.20 ac",
+    garage: true,
+    estimatedAnnualTaxes: 5200,
+    daysOnMarket: 18,
+    rentalPotential: "moderate",
+    resalePotential: "strong",
+    valueAddSignals: ["Cosmetic refresh", "Garage"],
+    risks: ["Rent support requires verification"],
+    missingData: ["Insurance quote"],
+    providerSignals: ["user_entered"],
+  },
+  {
+    id: "test-opportunity-two",
+    photoUrl: "",
+    address: "Test Opportunity Two",
+    city: "Test Market",
+    state: "TS",
+    zip: "00002",
+    propertyType: "Single Family",
+    opportunityType: "Price Reduction",
+    listPrice: 225000,
+    bedrooms: 3,
+    bathrooms: 1.5,
+    squareFeet: 1450,
+    lotSize: "0.18 ac",
+    garage: true,
+    estimatedAnnualTaxes: 6400,
+    daysOnMarket: 42,
+    rentalPotential: "strong",
+    resalePotential: "moderate",
+    valueAddSignals: ["Rental demand signal"],
+    risks: ["Taxes above preference"],
+    missingData: ["Rent comps"],
+    providerSignals: ["uploaded_document"],
+  },
+];
+
 describe("BRIX operating system regression", () => {
   it("ranks FindIQ opportunities against the active acquisition profile without underwriting", () => {
-    const ranked = rankOpportunities(defaultAcquisitionProfile, sampleOpportunities);
+    const ranked = rankOpportunities(
+      { ...defaultAcquisitionProfile, markets: ["Test Market"] },
+      testOpportunities,
+    );
 
-    expect(ranked).toHaveLength(4);
+    expect(ranked).toHaveLength(2);
     expect(ranked[0].score).toBeGreaterThanOrEqual(ranked[1].score);
     expect(ranked[0].nextAction).toMatch(/DealIQ|Monitor|resolved/i);
     expect(ranked.some((item) => item.opportunityType === "Price Reduction")).toBe(true);

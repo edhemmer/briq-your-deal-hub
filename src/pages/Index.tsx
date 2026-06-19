@@ -115,7 +115,7 @@ export default function Index() {
               </Badge>
             </div>
             <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground md:text-4xl">
-              Acquisition command center
+              Acquisition Command Center
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
               Review live opportunities, verification gaps, strategy readiness, and the next action required before capital is committed.

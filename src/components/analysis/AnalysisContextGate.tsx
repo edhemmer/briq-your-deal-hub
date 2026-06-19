@@ -178,7 +178,7 @@ export function AnalysisContextGate({ onContextComplete, initialContext }: Analy
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            International analysis uses broader thresholds. Country-specific rules will be available in future updates.
+            International analysis uses broader thresholds and requires local market, financing, legal, tax, and professional verification before action.
           </p>
         </CardContainer>
       )}
@@ -191,7 +191,7 @@ export function AnalysisContextGate({ onContextComplete, initialContext }: Analy
             <Label className="text-sm font-semibold text-foreground">Investment Strategy</Label>
             <HelpTooltip content="Select the primary strategy you plan to use for this deal. This affects how results are evaluated and which metrics are prioritized." />
           </div>
-          <RadioGroup value={strategy} onValueChange={v => setStrategy(v as InvestmentStrategy)} className="space-y-3">
+          <RadioGroup value={strategy} onValueChange={v => setStrategy(v as InvestmentStrategy)} className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {(Object.entries(STRATEGY_LABELS) as [InvestmentStrategy, string][]).map(([key, label]) => (
               <label
                 key={key}
@@ -208,7 +208,7 @@ export function AnalysisContextGate({ onContextComplete, initialContext }: Analy
             ))}
           </RadioGroup>
           <p className="text-xs text-muted-foreground">
-            Additional strategies (Fix & Flip, Value-Add, BRRRR) will be available in future updates.
+            Advanced strategies may require stronger verification, professional review, and lower confidence until supporting data is complete.
           </p>
         </CardContainer>
       )}
