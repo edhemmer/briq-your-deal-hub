@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
+const BRIX_APP_VERSION = "2026-06-19-production-shell-v3";
+
 const clearLegacyPwaCache = async () => {
   if ("serviceWorker" in navigator) {
     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -11,11 +13,16 @@ const clearLegacyPwaCache = async () => {
 
   if ("caches" in window) {
     const names = await caches.keys();
-    await Promise.all(
-      names
-        .filter((name) => name.includes("workbox") || name.includes("precache") || name.includes("vite"))
-        .map((name) => caches.delete(name)),
-    );
+    await Promise.all(names.map((name) => caches.delete(name)));
+  }
+
+  try {
+    const priorVersion = window.localStorage.getItem("brix-app-version");
+    if (priorVersion !== BRIX_APP_VERSION) {
+      window.localStorage.setItem("brix-app-version", BRIX_APP_VERSION);
+    }
+  } catch {
+    // Storage may be unavailable in privacy modes; cache cleanup still runs.
   }
 };
 

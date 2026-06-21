@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Bell, FileSearch, Home, MapPin, Search, Upload } from "lucide-react";
+import { ArrowRight, Bell, FileSearch, Home, MapPin, Search, SlidersHorizontal, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
@@ -69,7 +69,7 @@ export default function FindIQ() {
     <SectionContainer>
       <PageHeader
         title="FindIQ"
-        description="Start with a market, define your acquisition criteria, then review only opportunities supported by real user or provider data."
+        description="Start with a location and buying criteria. Add real properties when you are ready to compare and analyze them."
       >
         <Button variant="outline">
           <Bell className="mr-2 h-4 w-4" />
@@ -90,7 +90,7 @@ export default function FindIQ() {
             </div>
             <h2 className="mt-2 text-xl font-semibold text-foreground">Choose where to look first</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Enter a state, ZIP code, county, or city. BRIX will not show placeholder opportunities or preloaded markets.
+              Enter a state, ZIP code, county, or city. Only properties you add or import will appear in your opportunity list.
             </p>
           </div>
 
@@ -161,10 +161,10 @@ export default function FindIQ() {
                   Opportunity Queue
                 </div>
                 <h2 className="mt-2 text-lg font-semibold text-foreground">
-                  {submittedSearch ? "Waiting for verified opportunity data" : "No search running"}
+                  {submittedSearch ? "Ready for properties" : "Start your search"}
                 </h2>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  FindIQ only ranks real opportunities from user-entered property details or connected provider results. Nothing here is preloaded.
+                  Add a listing URL, screenshots, listing text, or property facts. BRIX will rank only the properties in your workspace.
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
@@ -182,9 +182,9 @@ export default function FindIQ() {
                   <FileSearch className="h-6 w-6 text-primary" />
                 </div>
                 <div className="mx-auto mt-5 max-w-xl text-center">
-                  <h3 className="text-xl font-semibold text-foreground">No verified opportunities returned yet</h3>
+                  <h3 className="text-xl font-semibold text-foreground">No properties added yet</h3>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    BRIX is ready to rank opportunities for this search. Add a listing URL, listing text, screenshots, or property documents to create the first opportunity.
+                    Your search criteria are saved for this session. Add the first property to begin ranking, comparison, and DealIQ analysis.
                   </p>
                 </div>
                 <div className="mx-auto mt-5 flex max-w-2xl flex-wrap justify-center gap-2">
@@ -223,7 +223,7 @@ export default function FindIQ() {
               <div>
                 <h3 className="font-semibold text-foreground">Add real opportunity data</h3>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  Start in DealIQ with a listing URL, uploaded screenshots, property photos, or manually entered facts. FindIQ will rank opportunities once real property data exists.
+                  Start in DealIQ with a listing URL, uploaded screenshots, property photos, or manually entered facts. FindIQ will rank opportunities once properties are in your workspace.
                 </p>
               </div>
             </div>

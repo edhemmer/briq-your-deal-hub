@@ -108,10 +108,10 @@ export default function Index() {
           <div className="max-w-3xl">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="rounded-md border-primary/25 bg-primary/10 text-primary">
-                Operating Dashboard
+                Workspace
               </Badge>
               <Badge variant="outline" className="rounded-md">
-                Source-first analysis
+                Evidence-first decisions
               </Badge>
             </div>
             <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground md:text-4xl">
@@ -138,8 +138,8 @@ export default function Index() {
             <CardContainer className="space-y-5">
               <PanelTitle
                 icon={Target}
-                title="Current Decision File"
-                subtitle="The latest deal in your workspace. BRIX will not treat incomplete data as verified."
+                title="Active Property Review"
+                subtitle="Open the current property, fill missing facts, and decide what to verify next."
               />
               {primaryDeal && (
                 <div className="rounded-lg border border-border bg-muted/25 p-4">
@@ -170,8 +170,8 @@ export default function Index() {
 
               <div className="grid gap-3 md:grid-cols-3">
                 <FactTile label="Purchase price" value={money(primaryDeal?.purchase_price)} verified={!!numberOrNull(primaryDeal?.purchase_price)} />
-                <FactTile label="Monthly rent" value={money(primaryDeal?.monthly_rent)} verified={!!numberOrNull(primaryDeal?.monthly_rent)} />
-                <FactTile label="Insurance" value={money(primaryDeal?.insurance)} verified={!!numberOrNull(primaryDeal?.insurance)} />
+                <FactTile label="Monthly rent" value={numberOrNull(primaryDeal?.monthly_rent) ? money(primaryDeal?.monthly_rent) : "Missing"} verified={!!numberOrNull(primaryDeal?.monthly_rent)} />
+                <FactTile label="Annual insurance" value={numberOrNull(primaryDeal?.insurance) ? money(primaryDeal?.insurance) : "Missing"} verified={!!numberOrNull(primaryDeal?.insurance)} />
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -194,8 +194,8 @@ export default function Index() {
             <CardContainer className="space-y-4">
               <PanelTitle
                 icon={ShieldCheck}
-                title="Trust Gate"
-                subtitle="What must be verified before relying on the output."
+                title="Verification Checklist"
+                subtitle="What to confirm before you rely on the recommendation."
               />
               {primaryMissing.length === 0 ? (
                 <div className="rounded-lg border border-signal-positive/25 bg-signal-positive/10 p-4">
@@ -227,8 +227,8 @@ export default function Index() {
             <CardContainer className="space-y-4">
               <PanelTitle
                 icon={BarChart3}
-                title="Deal Queue"
-                subtitle="Sorted by newest activity. Use this as the working list for active decisions."
+                title="Property Queue"
+                subtitle="Your active properties, sorted by newest activity."
               />
               <div className="overflow-hidden rounded-lg border border-border">
                 <table className="w-full text-sm">
@@ -288,19 +288,19 @@ function EmptyWorkspace() {
       <CardContainer className="space-y-5">
         <PanelTitle
           icon={Home}
-          title="No active deal files yet"
-          subtitle="Start with a real property. BRIX will build confidence from sourced inputs and verified assumptions."
+          title="Start Your First Analysis"
+          subtitle="Begin with a property you are considering. BRIX will organize the facts, risks, strategy fit, and next actions."
         />
         <div className="grid gap-3 md:grid-cols-2">
           <StartAction
-            title="Investigate opportunities"
-            body="Use FindIQ to rank properties against your acquisition profile."
+            title="1. Search a market"
+            body="Use FindIQ when you want to define a location and acquisition criteria before adding a property."
             to="/findiq"
             action="Open FindIQ"
           />
           <StartAction
-            title="Analyze a property"
-            body="Paste a listing URL, listing text, or enter property facts manually."
+            title="2. Analyze a property"
+            body="Use DealIQ when you already have a listing URL, screenshots, listing text, or property facts."
             to="/dealiq/new"
             action="Start DealIQ"
           />
@@ -309,10 +309,10 @@ function EmptyWorkspace() {
       <CardContainer className="space-y-4">
         <PanelTitle
           icon={Gauge}
-          title="Production Trust Standard"
-          subtitle="Every deal begins as a draft until verified."
+          title="Before You Rely on Results"
+          subtitle="BRIX separates entered facts, estimates, and verified information so confidence is visible."
         />
-        <ActionLine tone="neutral" text="User-entered facts are labeled separately from verified records." />
+        <ActionLine tone="neutral" text="Facts you provide are separated from information that still needs confirmation." />
         <ActionLine tone="neutral" text="Estimates are never presented as facts." />
         <ActionLine tone="neutral" text="Missing rent, insurance, taxes, or rehab scope lowers confidence." />
       </CardContainer>

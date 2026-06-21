@@ -34,7 +34,7 @@ export default function PortfolioIQ() {
           <Building2 className="h-10 w-10 text-muted-foreground" />
           <h2 className="mt-4 text-xl font-semibold text-foreground">No acquired assets yet</h2>
           <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-            PortfolioIQ begins after a real acquisition closes. BRIX will create asset records from closed pipeline deals instead of showing placeholder portfolio data.
+            PortfolioIQ begins after an acquisition closes. Closed properties become asset records with equity, cash flow, documents, and performance history.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link to="/pipelineiq">

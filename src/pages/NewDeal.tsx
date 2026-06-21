@@ -190,7 +190,7 @@ export default function NewDeal() {
                 <Input id="tax" type="number" value={form.annual_property_tax} onChange={e => set("annual_property_tax", e.target.value)} placeholder="5200" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="insurance">Insurance</Label>
+                <Label htmlFor="insurance">Annual Insurance</Label>
                 <Input id="insurance" type="number" value={form.insurance} onChange={e => set("insurance", e.target.value)} placeholder="1800" />
               </div>
               <div className="space-y-2">

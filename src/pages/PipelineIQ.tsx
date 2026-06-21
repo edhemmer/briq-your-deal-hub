@@ -34,7 +34,7 @@ export default function PipelineIQ() {
           <ListTodo className="h-10 w-10 text-muted-foreground" />
           <h2 className="mt-4 text-xl font-semibold text-foreground">No active acquisition pipeline yet</h2>
           <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-            PipelineIQ starts when a real opportunity is moved forward from FindIQ, DealIQ, or OfferIQ. BRIX will not display placeholder pipeline records.
+            PipelineIQ starts when you move a property forward from FindIQ, DealIQ, or OfferIQ.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link to="/dealiq">
@@ -56,7 +56,7 @@ export default function PipelineIQ() {
           <div>
             <h3 className="font-semibold text-foreground">Workflow rule</h3>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Tasks, deadlines, offer status, and closing readiness must come from real acquisition activity. Nothing in PipelineIQ is preloaded.
+              Tasks, deadlines, offer status, and closing readiness appear after you begin pursuing a property.
             </p>
           </div>
         </div>

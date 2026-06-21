@@ -46,7 +46,7 @@ const requiredFields: Array<{ key: keyof DealRow; label: string }> = [
   { key: "purchase_price", label: "Purchase price" },
   { key: "monthly_rent", label: "Rent" },
   { key: "taxes", label: "Taxes" },
-  { key: "insurance", label: "Insurance" },
+  { key: "insurance", label: "Annual Insurance" },
   { key: "estimated_arv", label: "ARV" },
   { key: "strategy_primary", label: "Strategy" },
   { key: "property_type", label: "Property type" },

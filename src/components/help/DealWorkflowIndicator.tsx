@@ -13,22 +13,42 @@ const WORKFLOW_STEPS = [
 
 interface DealWorkflowIndicatorProps {
   activeStep?: number;
+  maxAccessibleStep?: number;
+  onStepSelect?: (step: number) => void;
   className?: string;
 }
 
-export function DealWorkflowIndicator({ activeStep = 0, className }: DealWorkflowIndicatorProps) {
+export function DealWorkflowIndicator({
+  activeStep = 0,
+  maxAccessibleStep = activeStep,
+  onStepSelect,
+  className,
+}: DealWorkflowIndicatorProps) {
   return (
     <div className={cn("flex items-center gap-1 overflow-x-auto py-2 scrollbar-hide", className)}>
       {WORKFLOW_STEPS.map((step, i) => {
         const isComplete = i < activeStep;
         const isCurrent = i === activeStep;
+        const canSelect = Boolean(onStepSelect) && i <= maxAccessibleStep;
         return (
           <div key={step.full} className="flex items-center gap-1 shrink-0">
             {i > 0 && <div className={cn("w-3 md:w-4 h-px", isComplete ? "bg-foreground" : "bg-border")} />}
-            <div className="flex items-center gap-1 md:gap-1.5">
+            <button
+              type="button"
+              disabled={!canSelect}
+              onClick={() => canSelect && onStepSelect?.(i)}
+              className={cn(
+                "flex items-center gap-1 rounded-full text-left md:gap-1.5",
+                canSelect && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                !canSelect && "cursor-default"
+              )}
+              aria-current={isCurrent ? "step" : undefined}
+              aria-label={`${isComplete ? "Revisit" : isCurrent ? "Current step" : "Locked step"}: ${step.full}`}
+            >
               <div
                 className={cn(
                   "h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-medium transition-colors shrink-0",
+                  canSelect && "hover:ring-2 hover:ring-primary/30",
                   isComplete && "bg-foreground text-background",
                   isCurrent && "bg-foreground text-background ring-2 ring-foreground/20",
                   !isComplete && !isCurrent && "bg-muted text-muted-foreground"
@@ -44,7 +64,7 @@ export function DealWorkflowIndicator({ activeStep = 0, className }: DealWorkflo
                 <span className="md:hidden">{step.short}</span>
                 <span className="hidden md:inline">{step.full}</span>
               </span>
-            </div>
+            </button>
           </div>
         );
       })}

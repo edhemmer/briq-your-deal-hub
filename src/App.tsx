@@ -90,6 +90,14 @@ const App = () => (
               }
             />
             <Route
+              path="/dealiq/new"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><NewDeal /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/dealiq/:dealId?"
               element={
                 <ProtectedRoute>
@@ -134,14 +142,6 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AppLayout><ContractAnalysis /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dealiq/new"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><NewDeal /></AppLayout>
                 </ProtectedRoute>
               }
             />

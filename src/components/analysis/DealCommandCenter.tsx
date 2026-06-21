@@ -237,7 +237,7 @@ export function DealCommandCenter({
           ))}
         </div>
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Current app uses structured fields and official-record links where available. Live retrieval needs county/API connectors per market to avoid scraping unreliable records.
+          Use this list to confirm taxes, permits, liens, title items, rental restrictions, and local risk before your offer terms become firm.
         </p>
       </CardContainer>
 

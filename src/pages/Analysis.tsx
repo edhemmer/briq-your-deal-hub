@@ -92,6 +92,20 @@ const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boole
   { key: "capex_percent", label: "CapEx %", isPercent: true, group: "Expenses" },
 ];
 
+const WORKFLOW_STEP_TO_TAB = ["property", "inputs", "overview", "market", "market", "sensitivity", "reports"] as const;
+const TAB_TO_WORKFLOW_STEP: Record<string, number> = {
+  property: 0,
+  inputs: 1,
+  overview: 2,
+  proforma: 2,
+  returns: 2,
+  market: 3,
+  financing: 4,
+  capital: 4,
+  sensitivity: 5,
+  reports: 6,
+};
+
 const MARKET_FIELD_KEYS = [
   "median_rent", "rent_growth_12mo", "rent_growth_36mo",
   "median_home_price", "price_growth_12mo", "price_growth_36mo",
@@ -269,6 +283,7 @@ const Analysis = () => {
   const [decisionMode, setDecisionMode] = useState<"investment" | "live-in">("investment");
   const [holdPeriod, setHoldPeriod] = useState<HoldPeriod>(10);
   const [taxHistory, setTaxHistory] = useState({ year1: "", year2: "", year3: "" });
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState("overview");
 
   const sourceQualityInput = useMemo<SourceQualityInput | null>(() => {
     if (Object.keys(sourceQualityMap).length === 0) return null;
@@ -479,6 +494,13 @@ const Analysis = () => {
     );
   }, [dealInput, marketFields]);
 
+  const activeWorkflowStep = TAB_TO_WORKFLOW_STEP[activeWorkspaceTab] ?? 2;
+  const maxAccessibleWorkflowStep = inputSufficiency.canAnalyze ? 6 : 2;
+  const selectWorkflowStep = useCallback((step: number) => {
+    const nextTab = WORKFLOW_STEP_TO_TAB[step] ?? "overview";
+    setActiveWorkspaceTab(nextTab);
+  }, []);
+
   const propertyIntelligence = useMemo(() => {
     if (!deal) return null;
     return resolvePropertyIntelligence(
@@ -631,7 +653,12 @@ const Analysis = () => {
           title={deal?.property_address ?? "Analysis"}
           description={deal ? `${deal.city}, ${deal.state} ${deal.zip_code ?? ""}` : "Deal analysis"}
         />
-        <DealWorkflowIndicator activeStep={2} className="mb-2" />
+        <DealWorkflowIndicator
+          activeStep={2}
+          maxAccessibleStep={2}
+          onStepSelect={selectWorkflowStep}
+          className="mb-2"
+        />
         <AnalysisContextGate
           onContextComplete={(context) => {
             setManualContextMode(false);
@@ -720,7 +747,11 @@ const Analysis = () => {
 
       {/* ─── Context strip ─── */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <DealWorkflowIndicator activeStep={2} />
+        <DealWorkflowIndicator
+          activeStep={activeWorkflowStep}
+          maxAccessibleStep={maxAccessibleWorkflowStep}
+          onStepSelect={selectWorkflowStep}
+        />
         <div className="flex flex-wrap items-center gap-1.5 ml-auto">
           <Badge variant="secondary" className="text-[10px]">{MARKET_TYPE_LABELS[analysisContext.marketType]}</Badge>
           <Badge variant="secondary" className="text-[10px]">{STRATEGY_GATE_LABELS[analysisContext.strategy]}</Badge>
@@ -751,7 +782,7 @@ const Analysis = () => {
       )}
 
       {/* ─── Tabbed Workspace ─── */}
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs value={activeWorkspaceTab} onValueChange={setActiveWorkspaceTab} className="w-full">
         <TabsList className="w-full justify-start overflow-x-auto flex-nowrap h-auto p-1">
           <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
           <TabsTrigger value="property" className="text-xs sm:text-sm">Property</TabsTrigger>
