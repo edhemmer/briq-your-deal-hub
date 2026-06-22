@@ -8,6 +8,7 @@ import { healthTone, samplePipelineOpportunities } from "@/lib/pipelineIQArchite
 import { buildPortfolioSummary, equity, monthlyCashFlow, portfolioAssets } from "@/lib/portfolioIQArchitecture";
 import { buildExplainableRecommendation } from "@/lib/aiIntelligenceLayer";
 import { dataCategories, providerIndependenceRules } from "@/lib/providerDataArchitecture";
+import { findIQProviderAdapters, hasConfiguredFindIQProvider } from "@/lib/findIQProviderAdapters";
 import { coreDataModelRules, coreEntities } from "@/lib/coreDataModel";
 
 const baseDeal: DealInput = {
@@ -196,5 +197,19 @@ describe("BRIX operating system regression", () => {
     expect(dataCategories["Rental Data"]).toContain("Rent Estimates");
     expect(coreEntities.map((entity) => entity.entity)).toContain("AcquisitionProfile");
     expect(coreDataModelRules).toContain("Web and iOS consume the same APIs and data model.");
+  });
+
+  it("keeps FindIQ ready for paid listing providers without requiring one for manual entry", async () => {
+    expect(hasConfiguredFindIQProvider()).toBe(false);
+    expect(findIQProviderAdapters.map((adapter) => adapter.providerName)).toEqual([
+      "RentCast",
+      "ATTOM",
+      "Authorized MLS Feed",
+    ]);
+
+    const result = await findIQProviderAdapters[0].search({ location: "Sandwich IL", budgetMax: 250000 });
+    expect(result.opportunities).toEqual([]);
+    expect(result.sourceQuality).toBe("unavailable");
+    expect(result.message).toMatch(/credentials|ready/i);
   });
 });

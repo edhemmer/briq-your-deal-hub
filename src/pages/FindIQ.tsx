@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Bell, CheckCircle2, FileSearch, Home, MapPin, Search, ShieldAlert, SlidersHorizontal, Upload } from "lucide-react";
+import { ArrowRight, Bell, CheckCircle2, FileSearch, Home, MapPin, Plus, Search, ShieldAlert, SlidersHorizontal, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
@@ -8,8 +8,11 @@ import { CardContainer } from "@/components/ui/card-container";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDeals } from "@/hooks/useDeals";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useCreateDeal, useDeals } from "@/hooks/useDeals";
 import { rankOpportunity, type AcquisitionProfile, type FindIQOpportunity, type RankedOpportunity } from "@/lib/findIQArchitecture";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -24,6 +27,21 @@ type SearchState = {
   bathrooms: string;
 };
 
+type ManualListingState = {
+  listingText: string;
+  property_address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  property_type: string;
+  purchase_price: string;
+  monthly_rent: string;
+  annual_property_tax: string;
+  insurance: string;
+  estimated_arv: string;
+  strategy_primary: string;
+};
+
 const initialSearch: SearchState = {
   location: "",
   budgetMin: "",
@@ -33,10 +51,28 @@ const initialSearch: SearchState = {
   bathrooms: "",
 };
 
+const initialManualListing: ManualListingState = {
+  listingText: "",
+  property_address: "",
+  city: "",
+  state: "",
+  zip_code: "",
+  property_type: "",
+  purchase_price: "",
+  monthly_rent: "",
+  annual_property_tax: "",
+  insurance: "",
+  estimated_arv: "",
+  strategy_primary: "Buy & Hold",
+};
+
 export default function FindIQ() {
   const { data: deals, isLoading } = useDeals();
+  const createDeal = useCreateDeal();
   const [search, setSearch] = useState<SearchState>(initialSearch);
   const [submittedSearch, setSubmittedSearch] = useState<SearchState | null>(null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [manualListing, setManualListing] = useState<ManualListingState>(initialManualListing);
 
   const hasLocation = search.location.trim().length > 0;
   const activeCriteria = useMemo(() => {
@@ -69,6 +105,71 @@ export default function FindIQ() {
     setSearch((current) => ({ ...current, [key]: value }));
   };
 
+  const updateManualListing = (key: keyof ManualListingState, value: string) => {
+    setManualListing((current) => ({ ...current, [key]: value }));
+  };
+
+  const openAddProperty = () => {
+    const geography = parseSearchGeography(search.location);
+    setManualListing((current) => ({
+      ...current,
+      city: current.city || geography.city,
+      state: current.state || geography.state,
+      zip_code: current.zip_code || geography.zip_code,
+      property_type: current.property_type || search.propertyType,
+    }));
+    setIsAddOpen(true);
+  };
+
+  const applyListingText = () => {
+    const parsed = parseListingText(manualListing.listingText);
+    setManualListing((current) => ({ ...current, ...parsed }));
+    toast.success("Listing text scanned. Review the fields before saving.");
+  };
+
+  const saveManualListing = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!manualListing.property_address.trim() || !manualListing.city.trim() || !manualListing.state.trim()) {
+      toast.error("Address, city, and state are required.");
+      return;
+    }
+
+    try {
+      const deal = await createDeal.mutateAsync({
+        property_address: manualListing.property_address.trim(),
+        city: manualListing.city.trim(),
+        state: manualListing.state.trim(),
+        zip_code: manualListing.zip_code.trim() || undefined,
+        property_type: manualListing.property_type.trim() || undefined,
+        purchase_price: parseNumber(manualListing.purchase_price) ?? undefined,
+        monthly_rent: parseNumber(manualListing.monthly_rent) ?? undefined,
+        annual_property_tax: parseNumber(manualListing.annual_property_tax) ?? undefined,
+        taxes: parseNumber(manualListing.annual_property_tax) ?? undefined,
+        insurance: parseNumber(manualListing.insurance) ?? undefined,
+        estimated_arv: parseNumber(manualListing.estimated_arv) ?? undefined,
+        strategy_primary: manualListing.strategy_primary.trim() || "Buy & Hold",
+        asset_type: "investment",
+        deal_status: "draft",
+      });
+
+      const nextSearch = {
+        ...search,
+        location: [manualListing.city.trim(), manualListing.state.trim()].filter(Boolean).join(" ") || manualListing.zip_code.trim() || search.location,
+        propertyType: manualListing.property_type.trim() || search.propertyType,
+        budgetMax: search.budgetMax || manualListing.purchase_price.trim(),
+      };
+
+      setSearch(nextSearch);
+      setSubmittedSearch(nextSearch);
+      setManualListing(initialManualListing);
+      setIsAddOpen(false);
+      toast.success(`${deal.property_address} added to FindIQ.`);
+    } catch {
+      toast.error("Property was not saved. Check the required fields and try again.");
+    }
+  };
+
   const runSearch = () => {
     if (!hasLocation) {
       toast.error("Enter a state, ZIP code, county, or city to start FindIQ.");
@@ -95,6 +196,10 @@ export default function FindIQ() {
           <Bell className="mr-2 h-4 w-4" />
           Alerts
         </Button>
+        <Button variant="outline" onClick={openAddProperty}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Property
+        </Button>
         <Button onClick={runSearch}>
           <Search className="mr-2 h-4 w-4" />
           Run Search
@@ -110,7 +215,7 @@ export default function FindIQ() {
             </div>
             <h2 className="mt-2 text-xl font-semibold text-foreground">Choose where to look first</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Enter a state, ZIP code, county, or city. FindIQ ranks real BRIX property records; external live listing feeds require an authorized listing provider.
+              Enter a state, ZIP code, county, or city. Add listings manually today; FindIQ is wired to accept provider-fed listings when an authorized feed is connected.
             </p>
           </div>
 
@@ -170,6 +275,10 @@ export default function FindIQ() {
             Run FindIQ Search
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
+          <Button className="w-full" variant="outline" onClick={openAddProperty}>
+            Add Listing Manually
+            <Plus className="ml-2 h-4 w-4" />
+          </Button>
         </CardContainer>
 
         <div className="space-y-4">
@@ -216,7 +325,7 @@ export default function FindIQ() {
                 <div className="mx-auto mt-5 max-w-xl text-center">
                   <h3 className="text-xl font-semibold text-foreground">No matching BRIX properties yet</h3>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Add or import a real property, then run FindIQ again. Free public sources can add market context, but active listing inventory requires an authorized provider connection.
+                    Add a property from a listing URL, listing text, screenshots, or manual facts. FindIQ will rank it immediately after saving.
                   </p>
                 </div>
                 <div className="mx-auto mt-5 flex max-w-2xl flex-wrap justify-center gap-2">
@@ -227,9 +336,13 @@ export default function FindIQ() {
                   ))}
                 </div>
                 <div className="mx-auto mt-6 flex flex-wrap justify-center gap-3">
+                  <Button onClick={openAddProperty}>
+                    Add Property
+                    <Plus className="ml-2 h-4 w-4" />
+                  </Button>
                   <Link to="/dealiq/new">
-                    <Button>
-                      Analyze a Property
+                    <Button variant="outline">
+                      Open DealIQ Intake
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
@@ -243,8 +356,12 @@ export default function FindIQ() {
                 <Home className="h-10 w-10 text-muted-foreground" />
                 <h3 className="mt-4 text-xl font-semibold text-foreground">Start with a location</h3>
                 <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                  Enter a geography and criteria to rank your BRIX property records. Use DealIQ to import a listing URL, screenshots, listing text, or documents.
+                  Enter a geography and criteria, then add listings manually. When a live listing provider is connected, provider results can enter this same queue.
                 </p>
+                <Button className="mt-5" onClick={openAddProperty}>
+                  Add First Property
+                  <Plus className="ml-2 h-4 w-4" />
+                </Button>
               </div>
             )}
           </CardContainer>
@@ -255,13 +372,63 @@ export default function FindIQ() {
               <div>
                 <h3 className="font-semibold text-foreground">Import a property into BRIX</h3>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  Start in DealIQ with a listing URL, uploaded screenshots, property photos, or manually entered facts. FindIQ ranks those real records after they are saved.
+                  Save the listing once and BRIX can reuse it in FindIQ, DealIQ, comparisons, PipelineIQ, and future provider enrichment.
                 </p>
               </div>
             </div>
           </CardContainer>
         </div>
       </div>
+
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add a property to FindIQ</DialogTitle>
+            <DialogDescription>
+              Paste listing text or enter the facts you know. BRIX saves this as a real DealIQ record and labels missing items for verification.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-5" onSubmit={saveManualListing}>
+            <div className="space-y-2">
+              <Label htmlFor="findiq-listing-text">Listing URL, remarks, or copied listing text</Label>
+              <Textarea
+                id="findiq-listing-text"
+                value={manualListing.listingText}
+                onChange={(event) => updateManualListing("listingText", event.target.value)}
+                placeholder="Paste the listing URL, MLS remarks, broker notes, tax details, rent notes, or property description..."
+                rows={5}
+              />
+              <Button type="button" variant="outline" onClick={applyListingText} disabled={!manualListing.listingText.trim()}>
+                Scan Text Into Fields
+              </Button>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ManualField label="Property address" required value={manualListing.property_address} onChange={(value) => updateManualListing("property_address", value)} placeholder="123 Main St" />
+              <ManualField label="City" required value={manualListing.city} onChange={(value) => updateManualListing("city", value)} placeholder="Sandwich" />
+              <ManualField label="State" required value={manualListing.state} onChange={(value) => updateManualListing("state", value)} placeholder="IL" />
+              <ManualField label="ZIP code" value={manualListing.zip_code} onChange={(value) => updateManualListing("zip_code", value)} placeholder="60548" />
+              <ManualField label="Property type" value={manualListing.property_type} onChange={(value) => updateManualListing("property_type", value)} placeholder="Single Family" />
+              <ManualField label="Strategy to test first" value={manualListing.strategy_primary} onChange={(value) => updateManualListing("strategy_primary", value)} placeholder="Buy & Hold" />
+              <ManualField label="Purchase price" value={manualListing.purchase_price} onChange={(value) => updateManualListing("purchase_price", value)} placeholder="249900" inputMode="numeric" />
+              <ManualField label="Market or lease rent, monthly" value={manualListing.monthly_rent} onChange={(value) => updateManualListing("monthly_rent", value)} placeholder="2200" inputMode="numeric" />
+              <ManualField label="Property taxes, annual" value={manualListing.annual_property_tax} onChange={(value) => updateManualListing("annual_property_tax", value)} placeholder="5140" inputMode="numeric" />
+              <ManualField label="Insurance quote, annual" value={manualListing.insurance} onChange={(value) => updateManualListing("insurance", value)} placeholder="1800" inputMode="numeric" />
+              <ManualField label="Estimated ARV" value={manualListing.estimated_arv} onChange={(value) => updateManualListing("estimated_arv", value)} placeholder="295000" inputMode="numeric" />
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createDeal.isPending}>
+                {createDeal.isPending ? "Saving..." : "Save and Rank"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </SectionContainer>
   );
 }
@@ -351,6 +518,51 @@ function opportunityMatchesSearch(opportunity: FindIQOpportunity, search: Search
   return locationMatch && typeMatch && minMatch && maxMatch;
 }
 
+function parseListingText(text: string): Partial<ManualListingState> {
+  const cleaned = text.replace(/\r/g, "\n");
+  const lines = cleaned
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const joined = lines.join(" ");
+  const addressLine = lines.find((line) => /\d{1,6}\s+[A-Za-z0-9.' -]+/.test(line) && !/^https?:\/\//i.test(line));
+  const cityStateZip = joined.match(/\b([A-Za-z][A-Za-z .'-]+),\s*([A-Z]{2})\s*(\d{5})?\b/);
+  const zip = joined.match(/\b\d{5}(?:-\d{4})?\b/);
+  const price = joined.match(/(?:\$|price[:\s$]+)(\d[\d,]{4,})/i);
+  const taxes = joined.match(/(?:tax(?:es)?|property tax(?:es)?)[^\d$]{0,20}\$?(\d[\d,]{2,})/i);
+  const rent = joined.match(/(?:rent|lease)[^\d$]{0,20}\$?(\d[\d,]{2,})/i);
+  const propertyType = joined.match(/\b(single family|duplex|triplex|fourplex|townhouse|condo|multi[- ]family|commercial|mixed use|land)\b/i);
+
+  return {
+    property_address: addressLine ?? undefined,
+    city: cityStateZip?.[1]?.trim() ?? undefined,
+    state: cityStateZip?.[2]?.trim() ?? undefined,
+    zip_code: cityStateZip?.[3] ?? zip?.[0] ?? undefined,
+    purchase_price: price?.[1]?.replace(/,/g, "") ?? undefined,
+    annual_property_tax: taxes?.[1]?.replace(/,/g, "") ?? undefined,
+    monthly_rent: rent?.[1]?.replace(/,/g, "") ?? undefined,
+    property_type: propertyType?.[1] ? normalizePropertyType(propertyType[1]) : undefined,
+  };
+}
+
+function parseSearchGeography(value: string) {
+  const trimmed = value.trim();
+  const zipMatch = trimmed.match(/\b\d{5}(?:-\d{4})?\b/);
+  const stateMatch = trimmed.match(/\b([A-Z]{2})\b/i);
+  const city = trimmed
+    .replace(/\b\d{5}(?:-\d{4})?\b/g, "")
+    .replace(/\b[A-Z]{2}\b/gi, "")
+    .replace(/,/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return {
+    city,
+    state: stateMatch?.[1]?.toUpperCase() ?? "",
+    zip_code: zipMatch?.[0] ?? "",
+  };
+}
+
 function parseNumber(value: string) {
   const parsed = Number(value.replace(/[$,\s]/g, ""));
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
@@ -436,6 +648,40 @@ function LabeledInput({
     <div>
       <label className="text-xs font-semibold text-muted-foreground">{label}</label>
       <Input className="mt-1" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+    </div>
+  );
+}
+
+function ManualField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  required,
+  inputMode,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  required?: boolean;
+  inputMode?: "numeric" | "decimal";
+}) {
+  const id = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>
+        {label}
+        {required ? " *" : ""}
+      </Label>
+      <Input
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        required={required}
+        inputMode={inputMode}
+      />
     </div>
   );
 }
