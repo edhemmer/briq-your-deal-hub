@@ -1,4 +1,5 @@
 import { HelmetProvider } from "react-helmet-async";
+import type { ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +11,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminRoute } from "@/components/AdminRoute";
 import { AppLayout } from "@/components/AppLayout";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { OnboardingWalkthrough } from "@/components/help/OnboardingWalkthrough";
 import Index from "./pages/Index";
 import Landing from "./pages/Landing";
@@ -39,6 +41,26 @@ const LegacyAnalysisRedirect = () => {
   return <Navigate to={`/dealiq/${dealId ?? ""}`} replace />;
 };
 
+function ProtectedAppPage({ children, routeName }: { children: ReactNode; routeName: string }) {
+  return (
+    <ProtectedRoute>
+      <RouteErrorBoundary routeName={routeName}>
+        <AppLayout>{children}</AppLayout>
+      </RouteErrorBoundary>
+    </ProtectedRoute>
+  );
+}
+
+function AdminAppPage({ children, routeName }: { children: ReactNode; routeName: string }) {
+  return (
+    <AdminRoute>
+      <RouteErrorBoundary routeName={routeName}>
+        <AppLayout>{children}</AppLayout>
+      </RouteErrorBoundary>
+    </AdminRoute>
+  );
+}
+
 const App = () => (
   <HelmetProvider>
   <QueryClientProvider client={queryClient}>
@@ -67,83 +89,43 @@ const App = () => (
             />
             <Route
               path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><Index /></AppLayout>
-                </ProtectedRoute>
-              }
+              element={<ProtectedAppPage routeName="dashboard"><Index /></ProtectedAppPage>}
             />
             <Route
               path="/findiq"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><FindIQ /></AppLayout>
-                </ProtectedRoute>
-              }
+              element={<ProtectedAppPage routeName="findiq"><FindIQ /></ProtectedAppPage>}
             />
             <Route
               path="/dealiq/compare"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><DealCompare /></AppLayout>
-                </ProtectedRoute>
-              }
+              element={<ProtectedAppPage routeName="dealiq-compare"><DealCompare /></ProtectedAppPage>}
             />
             <Route
               path="/dealiq/new"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><NewDeal /></AppLayout>
-                </ProtectedRoute>
-              }
+              element={<ProtectedAppPage routeName="dealiq-new"><NewDeal /></ProtectedAppPage>}
             />
             <Route
               path="/dealiq/:dealId?"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><Analysis /></AppLayout>
-                </ProtectedRoute>
-              }
+              element={<ProtectedAppPage routeName="dealiq"><Analysis /></ProtectedAppPage>}
             />
             <Route
               path="/offeriq"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><OfferIQ /></AppLayout>
-                </ProtectedRoute>
-              }
+              element={<ProtectedAppPage routeName="offeriq"><OfferIQ /></ProtectedAppPage>}
             />
             <Route
               path="/pipelineiq"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><PipelineIQ /></AppLayout>
-                </ProtectedRoute>
-              }
+              element={<ProtectedAppPage routeName="pipelineiq"><PipelineIQ /></ProtectedAppPage>}
             />
             <Route
               path="/portfolioiq"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><PortfolioIQ /></AppLayout>
-                </ProtectedRoute>
-              }
+              element={<ProtectedAppPage routeName="portfolioiq"><PortfolioIQ /></ProtectedAppPage>}
             />
             <Route
               path="/contractiq"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><ContractIQ /></AppLayout>
-                </ProtectedRoute>
-              }
+              element={<ProtectedAppPage routeName="contractiq"><ContractIQ /></ProtectedAppPage>}
             />
             <Route
               path="/contractiq/:contractId"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><ContractAnalysis /></AppLayout>
-                </ProtectedRoute>
-              }
+              element={<ProtectedAppPage routeName="contract-analysis"><ContractAnalysis /></ProtectedAppPage>}
             />
             {/* Legacy redirects: /deals -> /dealiq */}
             <Route path="/deals" element={<Navigate to="/dealiq" replace />} />
@@ -159,43 +141,23 @@ const App = () => (
             />
             <Route
               path="/reports"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><Reports /></AppLayout>
-                </ProtectedRoute>
-              }
+              element={<ProtectedAppPage routeName="reports"><Reports /></ProtectedAppPage>}
             />
             <Route
               path="/account"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><Account /></AppLayout>
-                </ProtectedRoute>
-              }
+              element={<ProtectedAppPage routeName="account"><Account /></ProtectedAppPage>}
             />
             <Route
               path="/settings"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><Account /></AppLayout>
-                </ProtectedRoute>
-              }
+              element={<ProtectedAppPage routeName="settings"><Account /></ProtectedAppPage>}
             />
             <Route
               path="/admin"
-              element={
-                <AdminRoute>
-                  <AppLayout><Admin /></AppLayout>
-                </AdminRoute>
-              }
+              element={<AdminAppPage routeName="admin"><Admin /></AdminAppPage>}
             />
             <Route
               path="/help"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><Help /></AppLayout>
-                </ProtectedRoute>
-              }
+              element={<ProtectedAppPage routeName="help"><Help /></ProtectedAppPage>}
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
