@@ -21,7 +21,7 @@ export type AppNavItem = {
 };
 
 export const appNavItems: AppNavItem[] = [
-  { title: "Command Center", shortTitle: "OS", url: "/dashboard", icon: LayoutDashboard, question: "What needs attention?" },
+  { title: "Workspace", shortTitle: "OS", url: "/dashboard", icon: LayoutDashboard, question: "What needs attention?" },
   { title: "FindIQ", shortTitle: "Find", url: "/findiq", icon: Search, question: "What should I investigate?" },
   { title: "DealIQ", shortTitle: "Deal", url: "/dealiq", icon: BarChart3, question: "Should I acquire it?" },
   { title: "OfferIQ", shortTitle: "Offer", url: "/offeriq", icon: PenLine, question: "How should I pursue it?" },

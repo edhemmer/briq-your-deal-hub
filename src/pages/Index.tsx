@@ -111,14 +111,14 @@ export default function Index() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-              Command Center
+              Acquisition Review
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
               Active properties, missing facts, verification work, and the next action before capital is committed.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button size="sm" asChild>
-                <Link to="/findiq">Find opportunities</Link>
+                <Link to="/findiq">Search properties</Link>
               </Button>
               <Button size="sm" variant="outline" asChild>
                 <Link to="/dealiq/new">Add property</Link>
@@ -148,8 +148,8 @@ export default function Index() {
               <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
               <PanelTitle
                 icon={Target}
-                title="Deal Cockpit"
-                subtitle="One active file, live readiness, and the fastest path to a trustworthy decision."
+                title="Active Review"
+                subtitle="Current property, readiness, missing facts, and the next verification step."
               />
               {primaryDeal && (
                 <div className="relative rounded-lg border border-border bg-gradient-to-br from-background via-background to-primary/5 p-4">
@@ -240,8 +240,8 @@ export default function Index() {
             <CardContainer className="space-y-4">
               <PanelTitle
                 icon={BarChart3}
-                title="Active Deal Stack"
-                subtitle="Prioritized cards instead of a spreadsheet wall."
+                title="Deal Queue"
+                subtitle="Active properties prioritized by readiness and missing information."
               />
               <div className="grid gap-3">
                 {activeDeals.slice(0, 6).map((deal, index) => (
@@ -312,21 +312,30 @@ function DealJourney({ activeDeals, readyCount, needsVerification }: { activeDea
     { label: "Analyze", detail: needsVerification > 0 ? `${needsVerification} to verify` : "Inputs clean", icon: Activity, tone: needsVerification > 0 ? "caution" : "positive" as Tone },
     { label: "Compare", detail: activeDeals > 1 ? "Options ready" : "Add another", icon: BarChart3, tone: activeDeals > 1 ? "positive" : "neutral" as Tone },
     { label: "Decide", detail: `${readyCount} ready`, icon: ShieldCheck, tone: readyCount > 0 ? "positive" : "neutral" as Tone },
-    { label: "Execute", detail: "Next action", icon: Sparkles, tone: "neutral" as Tone },
+    { label: "Act", detail: "Next step", icon: Sparkles, tone: "neutral" as Tone },
   ];
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card p-3 shadow-sm">
+    <section className="relative overflow-hidden rounded-lg border border-border bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--card)),hsl(var(--primary)/0.08))] p-4 shadow-sm">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
+      <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Acquisition path</p>
+          <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">Move from signal to decision</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">Search, verify, compare, decide, act.</p>
+      </div>
       <div className="grid gap-2 md:grid-cols-5">
         {steps.map((step, index) => (
           <div
             key={step.label}
             className={cn(
-              "relative rounded-md border bg-background p-3",
+              "group relative overflow-hidden rounded-md border bg-background p-3 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5",
               step.tone === "positive" && "border-signal-positive/25 bg-signal-positive/5",
               step.tone === "caution" && "border-signal-warning/25 bg-signal-warning/5",
             )}
           >
+            <div className="absolute inset-x-0 bottom-0 h-0.5 origin-left scale-x-0 bg-gradient-to-r from-primary to-cyan-400 transition-transform duration-300 group-hover:scale-x-100" />
             {index < steps.length - 1 && (
               <div className="absolute left-[calc(100%-0.25rem)] top-1/2 hidden h-px w-4 bg-border md:block" />
             )}
@@ -354,8 +363,10 @@ function DealStackCard({ deal, rank }: { deal: Deal; rank: number }) {
   return (
     <Link
       to={`/dealiq/${deal.id}`}
-      className="group block rounded-lg border border-border bg-background p-4 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
+      className="group relative block overflow-hidden rounded-lg border border-border bg-background p-4 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
     >
+      <div className={cn("absolute inset-y-0 left-0 w-1 bg-muted", tone === "positive" && "bg-signal-positive", tone === "caution" && "bg-signal-warning", tone === "risk" && "bg-signal-risk")} />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-card text-sm font-bold text-muted-foreground">

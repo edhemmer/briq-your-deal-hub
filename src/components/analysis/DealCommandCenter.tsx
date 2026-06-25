@@ -117,8 +117,8 @@ export function DealCommandCenter({
         <div className="border-b border-border bg-[linear-gradient(135deg,hsl(222_47%_11%),hsl(215_28%_17%))] p-5 text-white">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">Deal Command Center</p>
-              <h2 className="mt-1 text-2xl font-bold tracking-tight">Underwriting, diligence, and negotiation in one pass</h2>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">DealIQ Review</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-tight">Underwriting, diligence, and offer strategy</h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/70">
                 BRIX scores the economics, source quality, market risk, property condition signals, financing path, and contract questions before you spend inspection money.
               </p>

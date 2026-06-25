@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Archive, ArrowRight, BarChart3, Building2, FileText, RefreshCw } from "lucide-react";
+import { ArrowRight, BarChart3, Building2, FileText, Plus, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
 import { CardContainer } from "@/components/ui/card-container";
@@ -12,13 +12,14 @@ export default function PortfolioIQ() {
         title="PortfolioIQ"
         description="Track acquired assets, equity, cash flow, risk exposure, refinance opportunities, and portfolio performance."
       >
-        <Button variant="outline" disabled>
-          <Archive className="mr-2 h-4 w-4" />
-          Document Vault
+        <Button variant="outline" asChild>
+          <Link to="/pipelineiq">Review pipeline</Link>
         </Button>
-        <Button disabled>
-          <FileText className="mr-2 h-4 w-4" />
-          Quarterly Report
+        <Button asChild>
+          <Link to="/dealiq/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Add property
+          </Link>
         </Button>
       </PageHeader>
 
@@ -32,9 +33,9 @@ export default function PortfolioIQ() {
       <CardContainer className="min-h-[420px]">
         <div className="flex min-h-[340px] flex-col items-center justify-center text-center">
           <Building2 className="h-10 w-10 text-muted-foreground" />
-          <h2 className="mt-4 text-xl font-semibold text-foreground">No acquired assets yet</h2>
+          <h2 className="mt-4 text-xl font-semibold text-foreground">No owned assets recorded</h2>
           <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-            PortfolioIQ begins after an acquisition closes. Closed properties become asset records with equity, cash flow, documents, and performance history.
+            Close or add an owned property to start tracking equity, debt, income, expenses, documents, and performance history.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link to="/pipelineiq">
@@ -57,7 +58,7 @@ export default function PortfolioIQ() {
             <div>
               <h3 className="font-semibold text-foreground">Portfolio analyst</h3>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Portfolio recommendations will appear only after BRIX has real asset, debt, income, expense, and valuation data.
+                Portfolio recommendations require real asset, debt, income, expense, and valuation data.
               </p>
             </div>
           </div>

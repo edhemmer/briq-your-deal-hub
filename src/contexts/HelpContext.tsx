@@ -27,7 +27,6 @@ export function HelpProvider({ children }: { children: ReactNode }) {
     const key = `brix_onboarding_complete_${user.id}`;
     const done = localStorage.getItem(key) === "true";
     setOnboardingComplete(done);
-    if (!done) setShowOnboarding(true);
   }, [user]);
 
   const completeOnboarding = useCallback(() => {

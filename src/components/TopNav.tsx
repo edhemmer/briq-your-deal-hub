@@ -42,11 +42,6 @@ export function TopNav() {
           <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-none">Real Estate</span>
         </Link>
 
-        <div className="hidden items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground lg:flex">
-          <span className="h-1.5 w-1.5 rounded-full bg-signal-positive" />
-          Workspace
-        </div>
-
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
           <Button size="sm" asChild className="hidden sm:inline-flex">
