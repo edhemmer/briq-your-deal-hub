@@ -103,23 +103,26 @@ export default function Index() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-lg border border-border bg-card p-5 shadow-sm md:p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+      <section className="rounded-lg border border-border bg-card p-4 shadow-sm md:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="rounded-md border-primary/25 bg-primary/10 text-primary">
-                Workspace
-              </Badge>
-              <Badge variant="outline" className="rounded-md">
-                Evidence-first decisions
-              </Badge>
-            </div>
-            <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground md:text-4xl">
-              Acquisition Command Center
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+              Command Center
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Review live opportunities, verification gaps, strategy readiness, and the next action required before capital is committed.
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Active properties, missing facts, verification work, and the next action before capital is committed.
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button size="sm" asChild>
+                <Link to="/findiq">Find opportunities</Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link to="/dealiq/new">Add property</Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link to="/dealiq/compare">Compare deals</Link>
+              </Button>
+            </div>
           </div>
 
           <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-[430px]">
@@ -138,8 +141,8 @@ export default function Index() {
             <CardContainer className="space-y-5">
               <PanelTitle
                 icon={Target}
-                title="Active Property Review"
-                subtitle="Open the current property, fill missing facts, and decide what to verify next."
+                title="Current Property"
+                subtitle="Open the active file, fill missing facts, and decide what to verify next."
               />
               {primaryDeal && (
                 <div className="rounded-lg border border-border bg-muted/25 p-4">
@@ -194,8 +197,8 @@ export default function Index() {
             <CardContainer className="space-y-4">
               <PanelTitle
                 icon={ShieldCheck}
-                title="Verification Checklist"
-                subtitle="What to confirm before you rely on the recommendation."
+                title="Verification"
+                subtitle="What must be confirmed before relying on the recommendation."
               />
               {primaryMissing.length === 0 ? (
                 <div className="rounded-lg border border-signal-positive/25 bg-signal-positive/10 p-4">

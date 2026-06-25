@@ -44,7 +44,7 @@ export const providerRoadmap = [
   {
     phase: "Phase 1",
     provider: "RentCast",
-    reason: "Property, rental, valuation, and market data for MVP functionality.",
+    reason: "Property, rental, valuation, and market data for initial production coverage.",
   },
   {
     phase: "Phase 2",
