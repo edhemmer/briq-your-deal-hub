@@ -1,6 +1,6 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type DragEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Bell, CheckCircle2, FileSearch, Home, MapPin, Plus, Search, ShieldAlert, SlidersHorizontal, Upload } from "lucide-react";
+import { ArrowRight, Bell, CheckCircle2, FileSearch, FileSpreadsheet, Home, Link2, MapPin, Plus, Search, ShieldAlert, SlidersHorizontal, Upload, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
@@ -13,8 +13,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCreateDeal, useDeals } from "@/hooks/useDeals";
+import { supabase } from "@/integrations/supabase/client";
 import { rankOpportunity, type AcquisitionProfile, type FindIQOpportunity, type RankedOpportunity } from "@/lib/findIQArchitecture";
-import type { Tables } from "@/integrations/supabase/types";
+import type { Json, Tables } from "@/integrations/supabase/types";
 
 type DealRow = Tables<"deals">;
 
@@ -34,12 +35,25 @@ type ManualListingState = {
   state: string;
   zip_code: string;
   property_type: string;
+  beds: string;
+  baths: string;
+  square_feet: string;
+  year_built: string;
+  lot_size: string;
   purchase_price: string;
   monthly_rent: string;
   annual_property_tax: string;
   insurance: string;
   estimated_arv: string;
   strategy_primary: string;
+  listing_url: string;
+  listing_source: string;
+  listing_photo_urls: string;
+  condition_notes: string;
+  visible_or_stated_risks: string;
+  missing_questions: string;
+  source_confidence: "low" | "medium" | "high";
+  photo_analysis_status: string;
 };
 
 const initialSearch: SearchState = {
@@ -58,12 +72,25 @@ const initialManualListing: ManualListingState = {
   state: "",
   zip_code: "",
   property_type: "",
+  beds: "",
+  baths: "",
+  square_feet: "",
+  year_built: "",
+  lot_size: "",
   purchase_price: "",
   monthly_rent: "",
   annual_property_tax: "",
   insurance: "",
   estimated_arv: "",
   strategy_primary: "Buy & Hold",
+  listing_url: "",
+  listing_source: "",
+  listing_photo_urls: "",
+  condition_notes: "",
+  visible_or_stated_risks: "",
+  missing_questions: "",
+  source_confidence: "low",
+  photo_analysis_status: "not_requested",
 };
 
 export default function FindIQ() {
@@ -109,6 +136,19 @@ export default function FindIQ() {
     setManualListing((current) => ({ ...current, [key]: value }));
   };
 
+  const openImportIntake = (fields: Partial<ManualListingState>) => {
+    const geography = parseSearchGeography(search.location);
+    setManualListing((current) => ({
+      ...current,
+      city: fields.city || current.city || geography.city,
+      state: fields.state || current.state || geography.state,
+      zip_code: fields.zip_code || current.zip_code || geography.zip_code,
+      property_type: fields.property_type || current.property_type || search.propertyType,
+      ...fields,
+    }));
+    setIsAddOpen(true);
+  };
+
   const openAddProperty = () => {
     const geography = parseSearchGeography(search.location);
     setManualListing((current) => ({
@@ -127,6 +167,42 @@ export default function FindIQ() {
     toast.success("Listing text scanned. Review the fields before saving.");
   };
 
+  const handleDroppedText = (text: string) => {
+    if (!text.trim()) return;
+    const fields = {
+      listingText: text.trim(),
+      ...parseListingText(text),
+    };
+    openImportIntake(fields);
+    toast.success("Listing text loaded. Review the fields before saving.");
+    void enrichWithPhotoAnalysis(fields).then((enriched) => {
+      if (enriched !== fields) openImportIntake(enriched);
+    });
+  };
+
+  const handleImportFile = async (file: File) => {
+    try {
+      const fields = await enrichWithPhotoAnalysis(await parseImportFile(file));
+      openImportIntake(fields);
+      toast.success(`${file.name} loaded. Review the fields before saving.`);
+    } catch {
+      toast.error("Could not read that file. Try CSV, XLS, XLSX, TXT, or paste the listing text.");
+    }
+  };
+
+  const handleImportDrop = async (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    if (file) {
+      await handleImportFile(file);
+      return;
+    }
+
+    const uri = event.dataTransfer.getData("text/uri-list");
+    const text = event.dataTransfer.getData("text/plain");
+    handleDroppedText(uri || text);
+  };
+
   const saveManualListing = async (event: FormEvent) => {
     event.preventDefault();
 
@@ -142,6 +218,11 @@ export default function FindIQ() {
         state: manualListing.state.trim(),
         zip_code: manualListing.zip_code.trim() || undefined,
         property_type: manualListing.property_type.trim() || undefined,
+        beds: parseNumber(manualListing.beds) ?? undefined,
+        baths: parseNumber(manualListing.baths) ?? undefined,
+        square_feet: parseNumber(manualListing.square_feet) ?? undefined,
+        year_built: parseNumber(manualListing.year_built) ?? undefined,
+        lot_size: manualListing.lot_size.trim() || undefined,
         purchase_price: parseNumber(manualListing.purchase_price) ?? undefined,
         monthly_rent: parseNumber(manualListing.monthly_rent) ?? undefined,
         annual_property_tax: parseNumber(manualListing.annual_property_tax) ?? undefined,
@@ -149,6 +230,15 @@ export default function FindIQ() {
         insurance: parseNumber(manualListing.insurance) ?? undefined,
         estimated_arv: parseNumber(manualListing.estimated_arv) ?? undefined,
         strategy_primary: manualListing.strategy_primary.trim() || "Buy & Hold",
+        listing_url: manualListing.listing_url.trim() || undefined,
+        listing_source: manualListing.listing_source.trim() || inferListingSource(manualListing.listing_url),
+        listing_remarks: manualListing.listingText.trim() || undefined,
+        listing_photo_urls: splitLines(manualListing.listing_photo_urls) as Json,
+        condition_notes: splitLines(manualListing.condition_notes) as Json,
+        visible_or_stated_risks: splitLines(manualListing.visible_or_stated_risks) as Json,
+        missing_questions: splitLines(manualListing.missing_questions) as Json,
+        source_confidence: manualListing.source_confidence,
+        photo_analysis_status: manualListing.photo_analysis_status,
         asset_type: "investment",
         deal_status: "draft",
       });
@@ -190,15 +280,11 @@ export default function FindIQ() {
     <SectionContainer>
       <PageHeader
         title="FindIQ"
-        description="Search the properties already in your BRIX workspace, rank them against your buying criteria, and move the strongest candidates into DealIQ."
+        description="Start with a location search, manual listing entry, or dropped listing file. FindIQ ranks real BRIX deal files and sends the strongest candidates into DealIQ."
       >
         <Button variant="outline">
           <Bell className="mr-2 h-4 w-4" />
           Alerts
-        </Button>
-        <Button variant="outline" onClick={openAddProperty}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Property
         </Button>
         <Button onClick={runSearch}>
           <Search className="mr-2 h-4 w-4" />
@@ -215,8 +301,14 @@ export default function FindIQ() {
             </div>
             <h2 className="mt-2 text-xl font-semibold text-foreground">Choose where to look first</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Enter a state, ZIP code, county, or city. Add listings manually today; FindIQ is wired to accept provider-fed listings when an authorized feed is connected.
+              Enter a state, ZIP code, county, or city to run a location search. You can also add listings manually or drop a URL, CSV, XLS, or XLSX file into BRIX.
             </p>
+          </div>
+
+          <div className="grid gap-2">
+            <StartMethod icon={Search} title="Run a search" text="Search saved and imported BRIX properties by geography and buying criteria." />
+            <StartMethod icon={Plus} title="Enter manually" text="Type property facts when you already know the deal you want to evaluate." />
+            <StartMethod icon={Upload} title="Drop or import" text="Use a listing URL, copied text, CSV, XLS, or XLSX to start the deal file faster." />
           </div>
 
           <div className="space-y-4">
@@ -279,6 +371,56 @@ export default function FindIQ() {
             Add Listing Manually
             <Plus className="ml-2 h-4 w-4" />
           </Button>
+
+          <div
+            className="rounded-lg border border-dashed border-primary/35 bg-primary/5 p-4 transition-colors hover:border-primary/60 hover:bg-primary/10"
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "copy";
+            }}
+            onDrop={handleImportDrop}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Upload className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Drop a listing URL or spreadsheet</h3>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Supports URLs, copied listing text, CSV, XLS, XLSX, and property photos. BRIX will prefill what it can and ask you to verify the rest.
+                </p>
+                <label className="mt-3 inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-primary hover:text-primary/80">
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  Choose file or photo
+                  <input
+                    type="file"
+                    className="sr-only"
+                    accept=".csv,.txt,.xls,.xlsx,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/*"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) void handleImportFile(file);
+                      event.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+                <label className="ml-4 mt-3 inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-primary hover:text-primary/80">
+                  <Upload className="h-3.5 w-3.5" />
+                  Use phone camera
+                  <input
+                    type="file"
+                    className="sr-only"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) void handleImportFile(file);
+                      event.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
         </CardContainer>
 
         <div className="space-y-4">
@@ -293,7 +435,7 @@ export default function FindIQ() {
                   {submittedSearch ? "Ranked property results" : "Start your search"}
                 </h2>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Results come from your saved BRIX properties and imported listing records. Nothing here is demo data.
+                  Search results come from saved BRIX properties, manual entries, and imported listing records. Live listing-provider results will enter this same queue when connected.
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
@@ -337,7 +479,7 @@ export default function FindIQ() {
                 </div>
                 <div className="mx-auto mt-6 flex flex-wrap justify-center gap-3">
                   <Button onClick={openAddProperty}>
-                    Add Property
+                    Add Manually
                     <Plus className="ml-2 h-4 w-4" />
                   </Button>
                   <Link to="/dealiq/new">
@@ -354,25 +496,31 @@ export default function FindIQ() {
             ) : (
               <div className="flex min-h-[360px] flex-col items-center justify-center text-center">
                 <Home className="h-10 w-10 text-muted-foreground" />
-                <h3 className="mt-4 text-xl font-semibold text-foreground">Start with a location</h3>
+                <h3 className="mt-4 text-xl font-semibold text-foreground">Start with a location, listing, or file</h3>
                 <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                  Enter a geography and criteria, then add listings manually. When a live listing provider is connected, provider results can enter this same queue.
+                  Run a geography search, enter a property manually, or drop a listing URL/spreadsheet. FindIQ ranks only real deal files in BRIX.
                 </p>
-                <Button className="mt-5" onClick={openAddProperty}>
-                  Add First Property
-                  <Plus className="ml-2 h-4 w-4" />
-                </Button>
+                <div className="mt-5 flex flex-wrap justify-center gap-3">
+                  <Button onClick={runSearch}>
+                    Run Search
+                    <Search className="ml-2 h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" onClick={openAddProperty}>
+                    Add Manually
+                    <Plus className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </CardContainer>
 
           <CardContainer>
             <div className="flex items-start gap-3">
-              <Upload className="mt-1 h-5 w-5 shrink-0 text-primary" />
+              <Link2 className="mt-1 h-5 w-5 shrink-0 text-primary" />
               <div>
-                <h3 className="font-semibold text-foreground">Import a property into BRIX</h3>
+                <h3 className="font-semibold text-foreground">Provider-ready search</h3>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  Save the listing once and BRIX can reuse it in FindIQ, DealIQ, comparisons, PipelineIQ, and future provider enrichment.
+                  Today, FindIQ ranks saved and imported deal files. The same queue is prewired for future listing APIs, MLS feeds, and provider enrichment without changing your workflow.
                 </p>
               </div>
             </div>
@@ -385,7 +533,7 @@ export default function FindIQ() {
           <DialogHeader>
             <DialogTitle>Add a property to FindIQ</DialogTitle>
             <DialogDescription>
-              Paste listing text or enter the facts you know. BRIX saves this as a real DealIQ record and labels missing items for verification.
+              Paste a listing URL, copied listing text, spreadsheet row, or enter the facts you know. BRIX saves this as a real DealIQ record and labels missing items for verification.
             </DialogDescription>
           </DialogHeader>
 
@@ -411,11 +559,45 @@ export default function FindIQ() {
               <ManualField label="ZIP code" value={manualListing.zip_code} onChange={(value) => updateManualListing("zip_code", value)} placeholder="60548" />
               <ManualField label="Property type" value={manualListing.property_type} onChange={(value) => updateManualListing("property_type", value)} placeholder="Single Family" />
               <ManualField label="Strategy to test first" value={manualListing.strategy_primary} onChange={(value) => updateManualListing("strategy_primary", value)} placeholder="Buy & Hold" />
+              <ManualField label="Beds" value={manualListing.beds} onChange={(value) => updateManualListing("beds", value)} placeholder="3" inputMode="decimal" />
+              <ManualField label="Baths" value={manualListing.baths} onChange={(value) => updateManualListing("baths", value)} placeholder="2" inputMode="decimal" />
+              <ManualField label="Square feet" value={manualListing.square_feet} onChange={(value) => updateManualListing("square_feet", value)} placeholder="1688" inputMode="numeric" />
+              <ManualField label="Year built" value={manualListing.year_built} onChange={(value) => updateManualListing("year_built", value)} placeholder="1978" inputMode="numeric" />
+              <ManualField label="Lot size" value={manualListing.lot_size} onChange={(value) => updateManualListing("lot_size", value)} placeholder="0.24 acres" />
               <ManualField label="Purchase price" value={manualListing.purchase_price} onChange={(value) => updateManualListing("purchase_price", value)} placeholder="249900" inputMode="numeric" />
               <ManualField label="Market or lease rent, monthly" value={manualListing.monthly_rent} onChange={(value) => updateManualListing("monthly_rent", value)} placeholder="2200" inputMode="numeric" />
               <ManualField label="Property taxes, annual" value={manualListing.annual_property_tax} onChange={(value) => updateManualListing("annual_property_tax", value)} placeholder="5140" inputMode="numeric" />
               <ManualField label="Insurance quote, annual" value={manualListing.insurance} onChange={(value) => updateManualListing("insurance", value)} placeholder="1800" inputMode="numeric" />
               <ManualField label="Estimated ARV" value={manualListing.estimated_arv} onChange={(value) => updateManualListing("estimated_arv", value)} placeholder="295000" inputMode="numeric" />
+              <ManualField label="Listing URL" value={manualListing.listing_url} onChange={(value) => updateManualListing("listing_url", value)} placeholder="https://..." />
+              <ManualField label="Listing source" value={manualListing.listing_source} onChange={(value) => updateManualListing("listing_source", value)} placeholder="Zillow, MLS, broker, county" />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <TextReviewField
+                label="Photo URLs"
+                value={manualListing.listing_photo_urls}
+                onChange={(value) => updateManualListing("listing_photo_urls", value)}
+                placeholder="One direct image URL per line. BRIX will analyze accessible photos only."
+              />
+              <TextReviewField
+                label="Condition notes from listing/photos"
+                value={manualListing.condition_notes}
+                onChange={(value) => updateManualListing("condition_notes", value)}
+                placeholder="Visible or stated condition notes..."
+              />
+              <TextReviewField
+                label="Visible or stated risks"
+                value={manualListing.visible_or_stated_risks}
+                onChange={(value) => updateManualListing("visible_or_stated_risks", value)}
+                placeholder="Roof age unknown, water staining, as-is language..."
+              />
+              <TextReviewField
+                label="Missing questions"
+                value={manualListing.missing_questions}
+                onChange={(value) => updateManualListing("missing_questions", value)}
+                placeholder="What still needs verification?"
+              />
             </div>
 
             <DialogFooter>
@@ -460,22 +642,30 @@ function dealToOpportunity(deal: DealRow): FindIQOpportunity {
   const rent = deal.monthly_rent ?? 0;
   const taxes = deal.annual_property_tax ?? deal.taxes ?? 0;
   const propertyType = normalizePropertyType(deal.property_type ?? "") || "Unknown";
+  const photoUrls = jsonStringArray(deal.listing_photo_urls);
+  const savedRisks = jsonStringArray(deal.visible_or_stated_risks);
+  const savedQuestions = jsonStringArray(deal.missing_questions);
   const missingData = [
     !price && "Purchase price",
     !rent && "Rent support",
     !taxes && "Annual taxes",
     !deal.insurance && "Annual insurance",
     !deal.estimated_arv && !deal.arv && "After repair value",
+    !deal.square_feet && "Square footage",
+    photoUrls.length === 0 && "Property photos",
+    ...(savedQuestions.length > 0 ? savedQuestions : []),
   ].filter(Boolean) as string[];
 
   const risks = [
     !rent && "Rent support requires verification",
     !deal.insurance && "Insurance quote requires verification",
+    deal.photo_analysis_status === "blocked" && "Listing photos could not be downloaded; upload screenshots for visual review",
+    ...savedRisks,
   ].filter(Boolean) as string[];
 
   return {
     id: deal.id,
-    photoUrl: "",
+    photoUrl: photoUrls[0] ?? "",
     address: deal.property_address,
     city: deal.city ?? "",
     state: deal.state ?? "",
@@ -483,9 +673,9 @@ function dealToOpportunity(deal: DealRow): FindIQOpportunity {
     propertyType,
     opportunityType: deal.deal_status === "draft" ? "Deal File" : deal.deal_status ?? "Deal File",
     listPrice: price,
-    bedrooms: 0,
-    bathrooms: 0,
-    squareFeet: 0,
+    bedrooms: Number(deal.beds ?? 0),
+    bathrooms: Number(deal.baths ?? 0),
+    squareFeet: Number(deal.square_feet ?? 0),
     lotSize: deal.lot_size ?? "",
     garage: false,
     estimatedAnnualTaxes: taxes,
@@ -494,9 +684,13 @@ function dealToOpportunity(deal: DealRow): FindIQOpportunity {
     valueAddSignals: deal.rehab_cost && deal.rehab_cost > 0 ? ["Rehab scope entered"] : [],
     risks,
     missingData,
-    providerSignals: ["user_entered"],
+    providerSignals: [deal.listing_source ?? "user_entered", deal.source_confidence].filter(Boolean),
     daysOnMarket: 0,
   };
+}
+
+function jsonStringArray(value: Json | null | undefined) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
 }
 
 function opportunityMatchesSearch(opportunity: FindIQOpportunity, search: SearchState) {
@@ -532,6 +726,24 @@ function parseListingText(text: string): Partial<ManualListingState> {
   const taxes = joined.match(/(?:tax(?:es)?|property tax(?:es)?)[^\d$]{0,20}\$?(\d[\d,]{2,})/i);
   const rent = joined.match(/(?:rent|lease)[^\d$]{0,20}\$?(\d[\d,]{2,})/i);
   const propertyType = joined.match(/\b(single family|duplex|triplex|fourplex|townhouse|condo|multi[- ]family|commercial|mixed use|land)\b/i);
+  const listingUrl = joined.match(/https?:\/\/[^\s"'<>]+/i)?.[0] ?? "";
+  const photoUrls = extractPhotoUrls(cleaned);
+  const beds = joined.match(/\b(\d+(?:\.\d+)?)\s*(?:bed|beds|bd|bedrooms)\b/i);
+  const baths = joined.match(/\b(\d+(?:\.\d+)?)\s*(?:bath|baths|ba|bathrooms)\b/i);
+  const sqft = joined.match(/\b([\d,]+)\s*(?:sq\.?\s*ft|sqft|square feet)\b/i);
+  const yearBuilt = joined.match(/(?:year built|built in|built)\D{0,12}(\d{4})/i);
+  const lot = joined.match(/\b(\d+(?:\.\d+)?)\s*(?:acre|acres|ac)\b/i);
+  const conditionNotes = inferConditionNotes(joined);
+  const statedRisks = inferStatedRisks(joined);
+  const missingQuestions = inferMissingQuestions({
+    price: price?.[1],
+    rent: rent?.[1],
+    taxes: taxes?.[1],
+    beds: beds?.[1],
+    baths: baths?.[1],
+    sqft: sqft?.[1],
+    photoUrls,
+  });
 
   return {
     property_address: addressLine ?? undefined,
@@ -542,7 +754,308 @@ function parseListingText(text: string): Partial<ManualListingState> {
     annual_property_tax: taxes?.[1]?.replace(/,/g, "") ?? undefined,
     monthly_rent: rent?.[1]?.replace(/,/g, "") ?? undefined,
     property_type: propertyType?.[1] ? normalizePropertyType(propertyType[1]) : undefined,
+    beds: beds?.[1] ?? undefined,
+    baths: baths?.[1] ?? undefined,
+    square_feet: sqft?.[1]?.replace(/,/g, "") ?? undefined,
+    year_built: yearBuilt?.[1] ?? undefined,
+    lot_size: lot?.[0] ?? undefined,
+    listing_url: listingUrl || undefined,
+    listing_source: inferListingSource(listingUrl) || undefined,
+    listing_photo_urls: photoUrls.join("\n") || undefined,
+    condition_notes: conditionNotes.join("\n") || undefined,
+    visible_or_stated_risks: statedRisks.join("\n") || undefined,
+    missing_questions: missingQuestions.join("\n") || undefined,
+    source_confidence: listingUrl || price || propertyType ? "medium" : "low",
   };
+}
+
+async function enrichWithPhotoAnalysis(fields: Partial<ManualListingState>): Promise<Partial<ManualListingState>> {
+  const urls = splitLines(fields.listing_photo_urls ?? "").slice(0, 4);
+  if (urls.length === 0) return fields;
+
+  const conditionNotes = splitLines(fields.condition_notes ?? "");
+  const risks = splitLines(fields.visible_or_stated_risks ?? "");
+  const questions = splitLines(fields.missing_questions ?? "");
+  let analyzed = 0;
+  let blocked = 0;
+
+  for (const url of urls) {
+    try {
+      const { data, error } = await supabase.functions.invoke("extract-deal-from-image", {
+        body: { image_url: url },
+      });
+      if (error) throw error;
+      const extracted = (data as { extracted?: VisualExtraction })?.extracted;
+      if (!extracted) throw new Error("No visual extraction returned");
+
+      analyzed += 1;
+      conditionNotes.push(...(extracted.condition_notes ?? []).map((note) => `Photo: ${note}`));
+      risks.push(...(extracted.visible_or_stated_risks ?? []).map((risk) => `Photo: ${risk}`));
+      questions.push(...(extracted.missing_questions ?? []).map((question) => `Photo verification: ${question}`));
+    } catch {
+      blocked += 1;
+    }
+  }
+
+  return {
+    ...fields,
+    condition_notes: uniqueLines(conditionNotes).join("\n"),
+    visible_or_stated_risks: uniqueLines(risks).join("\n"),
+    missing_questions: uniqueLines([
+      ...questions,
+      ...(blocked > 0 ? [`${blocked} listing photo URL${blocked === 1 ? "" : "s"} could not be downloaded. Upload screenshots/photos for visual analysis.`] : []),
+    ]).join("\n"),
+    photo_analysis_status: analyzed > 0 ? (blocked > 0 ? "partial" : "analyzed") : "blocked",
+    source_confidence: analyzed > 0 ? "medium" : fields.source_confidence ?? "low",
+  };
+}
+
+type VisualExtraction = {
+  property_address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+  property_type?: string | null;
+  purchase_price?: number | null;
+  estimated_arv?: number | null;
+  monthly_rent?: number | null;
+  annual_property_tax?: number | null;
+  taxes?: number | null;
+  insurance?: number | null;
+  beds?: number | null;
+  baths?: number | null;
+  sqft?: number | null;
+  year_built?: number | null;
+  strategy_primary?: string | null;
+  source_confidence?: "low" | "medium" | "high";
+  condition_notes?: string[];
+  visible_or_stated_risks?: string[];
+  missing_questions?: string[];
+};
+
+async function parseImportFile(file: File): Promise<Partial<ManualListingState>> {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+
+  if (file.type.startsWith("image/")) {
+    const imageBase64 = await readFileAsDataUrl(file);
+    const { data, error } = await supabase.functions.invoke("extract-deal-from-image", {
+      body: { image_base64: imageBase64 },
+    });
+    if (error) throw error;
+    const extracted = (data as { extracted?: VisualExtraction })?.extracted;
+    if (!extracted) throw new Error("No image extraction returned");
+    return visualToManualFields(extracted, file.name);
+  }
+
+  if (extension === "xlsx" || extension === "xls") {
+    const XLSX = await import("xlsx");
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+    const firstRow = rows[0];
+    if (!firstRow) throw new Error("Spreadsheet is empty");
+    return parseTabularRow(firstRow);
+  }
+
+  const text = await file.text();
+  if (extension === "csv") {
+    const [headerLine, valueLine] = text.split(/\r?\n/).filter(Boolean);
+    if (headerLine && valueLine) {
+      return parseTabularRow(parseCsvFirstRow(headerLine, valueLine));
+    }
+  }
+
+  return {
+    listingText: text,
+    ...parseListingText(text),
+  };
+}
+
+function parseTabularRow(row: Record<string, unknown>): Partial<ManualListingState> {
+  const normalized = Object.entries(row).reduce<Record<string, string>>((acc, [key, value]) => {
+    acc[normalizeHeader(key)] = String(value ?? "").trim();
+    return acc;
+  }, {});
+
+  const pick = (...keys: string[]) => keys.map((key) => normalized[normalizeHeader(key)]).find(Boolean) ?? "";
+  const joined = Object.values(normalized).filter(Boolean).join(" ");
+
+  return {
+    listingText: joined,
+    property_address: pick("address", "property address", "street address", "full address"),
+    city: pick("city", "municipality"),
+    state: pick("state", "st"),
+    zip_code: pick("zip", "zipcode", "zip code", "postal code"),
+    property_type: normalizePropertyType(pick("property type", "type", "asset type")),
+    beds: pick("beds", "bedrooms", "bed"),
+    baths: pick("baths", "bathrooms", "bath"),
+    square_feet: pick("sqft", "square feet", "sq ft", "living area").replace(/[$,\s]/g, ""),
+    year_built: pick("year built", "built", "yr built"),
+    lot_size: pick("lot", "lot size", "acres", "acreage"),
+    purchase_price: pick("price", "list price", "asking price", "purchase price").replace(/[$,\s]/g, ""),
+    monthly_rent: pick("rent", "monthly rent", "market rent", "lease rent").replace(/[$,\s]/g, ""),
+    annual_property_tax: pick("taxes", "annual taxes", "property taxes", "tax").replace(/[$,\s]/g, ""),
+    insurance: pick("insurance", "annual insurance", "insurance quote").replace(/[$,\s]/g, ""),
+    estimated_arv: pick("arv", "estimated arv", "after repair value").replace(/[$,\s]/g, ""),
+    strategy_primary: pick("strategy", "investment strategy") || undefined,
+    listing_url: pick("listing url", "url", "source url") || undefined,
+    listing_source: pick("source", "listing source", "provider") || inferListingSource(pick("listing url", "url", "source url")) || undefined,
+    listing_photo_urls: splitPhotoCell(pick("photo urls", "photos", "image urls", "images")).join("\n") || undefined,
+    condition_notes: pick("condition", "condition notes", "remarks", "description") || undefined,
+    visible_or_stated_risks: pick("risks", "risk notes", "concerns") || undefined,
+    missing_questions: pick("questions", "missing questions", "verification") || undefined,
+    source_confidence: "medium",
+  };
+}
+
+function parseCsvFirstRow(headerLine: string, valueLine: string) {
+  const headers = parseCsvLine(headerLine);
+  const values = parseCsvLine(valueLine);
+  return headers.reduce<Record<string, string>>((acc, header, index) => {
+    acc[header] = values[index] ?? "";
+    return acc;
+  }, {});
+}
+
+function parseCsvLine(line: string) {
+  const values: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const next = line[i + 1];
+    if (char === '"' && next === '"') {
+      current += '"';
+      i += 1;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      values.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  values.push(current.trim());
+  return values;
+}
+
+function normalizeHeader(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function visualToManualFields(extracted: VisualExtraction, sourceName?: string): Partial<ManualListingState> {
+  return {
+    listingText: sourceName ? `Image upload: ${sourceName}` : "",
+    property_address: extracted.property_address ?? undefined,
+    city: extracted.city ?? undefined,
+    state: extracted.state ?? undefined,
+    zip_code: extracted.zip_code ?? undefined,
+    property_type: extracted.property_type ?? undefined,
+    beds: extracted.beds != null ? String(extracted.beds) : undefined,
+    baths: extracted.baths != null ? String(extracted.baths) : undefined,
+    square_feet: extracted.sqft != null ? String(extracted.sqft) : undefined,
+    year_built: extracted.year_built != null ? String(extracted.year_built) : undefined,
+    purchase_price: extracted.purchase_price != null ? String(extracted.purchase_price) : undefined,
+    annual_property_tax: extracted.annual_property_tax != null || extracted.taxes != null ? String(extracted.annual_property_tax ?? extracted.taxes) : undefined,
+    monthly_rent: extracted.monthly_rent != null ? String(extracted.monthly_rent) : undefined,
+    insurance: extracted.insurance != null ? String(extracted.insurance) : undefined,
+    estimated_arv: extracted.estimated_arv != null ? String(extracted.estimated_arv) : undefined,
+    strategy_primary: extracted.strategy_primary ?? undefined,
+    condition_notes: extracted.condition_notes?.join("\n") || undefined,
+    visible_or_stated_risks: extracted.visible_or_stated_risks?.join("\n") || undefined,
+    missing_questions: extracted.missing_questions?.join("\n") || undefined,
+    source_confidence: extracted.source_confidence ?? "medium",
+    photo_analysis_status: "analyzed",
+  };
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error ?? new Error("File read failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function extractPhotoUrls(text: string) {
+  const imageUrlPattern = /https?:\/\/[^\s"'<>]+?\.(?:jpg|jpeg|png|webp|avif)(?:\?[^\s"'<>]*)?/gi;
+  return uniqueLines(text.match(imageUrlPattern) ?? []);
+}
+
+function splitPhotoCell(value: string) {
+  return uniqueLines(
+    value
+      .split(/[\n,;|]+/)
+      .map((item) => item.trim())
+      .filter((item) => /^https?:\/\//i.test(item)),
+  );
+}
+
+function inferListingSource(url: string | undefined) {
+  if (!url) return "";
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    if (host.includes("zillow")) return "Zillow";
+    if (host.includes("redfin")) return "Redfin";
+    if (host.includes("realtor")) return "Realtor.com";
+    if (host.includes("mls")) return "MLS";
+    return host;
+  } catch {
+    return "";
+  }
+}
+
+function inferConditionNotes(text: string) {
+  const notes: string[] = [];
+  if (/cosmetic|paint|flooring|update|refresh|needs updating/i.test(text)) notes.push("Cosmetic or update opportunity mentioned.");
+  if (/new roof|roof/i.test(text)) notes.push("Roof mentioned; verify age, condition, and insurability.");
+  if (/new furnace|furnace|hvac|air conditioner|ac unit/i.test(text)) notes.push("HVAC/mechanical system mentioned; verify age and service history.");
+  if (/basement|crawlspace|foundation/i.test(text)) notes.push("Foundation/basement/crawlspace mentioned; verify during inspection.");
+  if (/as-is|as is/i.test(text)) notes.push("As-is language mentioned.");
+  if (/fixer|rehab|needs work|tlc|handyman/i.test(text)) notes.push("Repair or rehab need mentioned.");
+  return uniqueLines(notes);
+}
+
+function inferStatedRisks(text: string) {
+  const risks: string[] = [];
+  if (/as-is|as is/i.test(text)) risks.push("As-is sale language may shift condition risk to buyer.");
+  if (/cash only|will not qualify|no fha|conventional only/i.test(text)) risks.push("Financing constraint mentioned.");
+  if (/mold|water damage|leak|seepage|flood/i.test(text)) risks.push("Water/moisture concern mentioned; professional review required.");
+  if (/foundation|structural|settling/i.test(text)) risks.push("Structural/foundation concern mentioned; professional review required.");
+  if (/tenant occupied|lease in place|do not disturb/i.test(text)) risks.push("Occupancy or access constraint mentioned.");
+  return uniqueLines(risks);
+}
+
+function inferMissingQuestions(input: {
+  price?: string;
+  rent?: string;
+  taxes?: string;
+  beds?: string;
+  baths?: string;
+  sqft?: string;
+  photoUrls: string[];
+}) {
+  const questions: string[] = [];
+  if (!input.price) questions.push("Verify purchase/list price.");
+  if (!input.rent) questions.push("Verify market rent or current lease rent.");
+  if (!input.taxes) questions.push("Verify annual property taxes from official records.");
+  if (!input.beds || !input.baths || !input.sqft) questions.push("Verify beds, baths, and square footage.");
+  if (input.photoUrls.length === 0) questions.push("Upload listing screenshots or property photos for visual condition triage.");
+  questions.push("Verify insurance quote before relying on cash flow.");
+  return uniqueLines(questions);
+}
+
+function splitLines(value: string) {
+  return uniqueLines(value.split(/\r?\n|;|\|/).map((item) => item.trim()).filter(Boolean));
+}
+
+function uniqueLines(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
 
 function parseSearchGeography(value: string) {
@@ -585,7 +1098,13 @@ function normalizePropertyType(value: string | null | undefined) {
 function OpportunityRow({ opportunity }: { opportunity: RankedOpportunity }) {
   return (
     <div className="grid gap-4 py-5 lg:grid-cols-[minmax(0,1fr)_260px]">
-      <div>
+      <div className="flex gap-4">
+        {opportunity.photoUrl ? (
+          <div className="hidden h-24 w-32 shrink-0 overflow-hidden rounded-lg border border-border bg-muted/20 sm:block">
+            <img src={opportunity.photoUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+          </div>
+        ) : null}
+        <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-lg font-semibold text-foreground">{opportunity.address}</h3>
           <Badge variant="secondary">{opportunity.fit}</Badge>
@@ -593,6 +1112,14 @@ function OpportunityRow({ opportunity }: { opportunity: RankedOpportunity }) {
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           {[opportunity.city, opportunity.state, opportunity.zip].filter(Boolean).join(", ")} - {money(opportunity.listPrice)} - {opportunity.propertyType}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {[
+            opportunity.bedrooms ? `${opportunity.bedrooms} bed` : "",
+            opportunity.bathrooms ? `${opportunity.bathrooms} bath` : "",
+            opportunity.squareFeet ? `${opportunity.squareFeet.toLocaleString()} sq ft` : "",
+            opportunity.lotSize,
+          ].filter(Boolean).join(" - ") || "Physical details need verification"}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {opportunity.reasons.map((reason) => (
@@ -612,6 +1139,7 @@ function OpportunityRow({ opportunity }: { opportunity: RankedOpportunity }) {
             ))}
           </div>
         )}
+        </div>
       </div>
       <div className="rounded-lg border border-border bg-muted/20 p-4">
         <p className="text-xs font-medium text-muted-foreground">Opportunity Score</p>
@@ -682,6 +1210,46 @@ function ManualField({
         required={required}
         inputMode={inputMode}
       />
+    </div>
+  );
+}
+
+function TextReviewField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  const id = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Textarea
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        rows={4}
+      />
+    </div>
+  );
+}
+
+function StartMethod({ icon: Icon, title, text }: { icon: LucideIcon; title: string; text: string }) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+        <Icon className="h-4 w-4" />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-foreground">{title}</p>
+        <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{text}</p>
+      </div>
     </div>
   );
 }

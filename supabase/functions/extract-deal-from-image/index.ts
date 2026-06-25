@@ -14,13 +14,54 @@ serve(async (req) => {
   }
 
   try {
-    const { image_base64 } = await req.json();
+    const { image_base64, image_url } = await req.json();
 
-    if (!image_base64) {
+    if (!image_base64 && !image_url) {
       return new Response(JSON.stringify({ error: "No image provided" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    let imagePayload = image_base64 as string | undefined;
+
+    if (!imagePayload && image_url) {
+      try {
+        const imageResponse = await fetch(image_url, {
+          headers: {
+            "User-Agent": "BRIXRealEstateBot/1.0 (+https://brixrealestate.app)",
+            "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+          },
+        });
+
+        if (!imageResponse.ok) {
+          return new Response(JSON.stringify({ error: "Image URL could not be downloaded. Upload screenshots or photos instead." }), {
+            status: 422,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const contentType = imageResponse.headers.get("content-type") ?? "image/jpeg";
+        if (!contentType.startsWith("image/")) {
+          return new Response(JSON.stringify({ error: "URL did not return an image. Upload screenshots or photos instead." }), {
+            status: 422,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const bytes = new Uint8Array(await imageResponse.arrayBuffer());
+        let binary = "";
+        for (let i = 0; i < bytes.length; i += 1) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        imagePayload = `data:${contentType};base64,${btoa(binary)}`;
+      } catch (error) {
+        console.error("Image URL fetch error:", error);
+        return new Response(JSON.stringify({ error: "Image URL could not be downloaded. Upload screenshots or photos instead." }), {
+          status: 422,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const apiKey = Deno.env.get("AI_GATEWAY_API_KEY") ?? Deno.env.get("OPENAI_API_KEY");
@@ -72,7 +113,7 @@ Do not include any markdown formatting, code fences, or explanation. Only output
             role: "user",
             content: [
               { type: "text", text: "Extract the property deal information from this listing image." },
-              { type: "image_url", image_url: { url: image_base64.startsWith("data:") ? image_base64 : `data:image/jpeg;base64,${image_base64}` } }
+              { type: "image_url", image_url: { url: imagePayload?.startsWith("data:") ? imagePayload : `data:image/jpeg;base64,${imagePayload}` } }
             ]
           }
         ],

@@ -621,10 +621,13 @@ export type Database = {
           arv: number
           assessed_value: number | null
           asset_type: string | null
+          baths: number | null
+          beds: number | null
           buyer_name: string | null
           capex_percent: number
           city: string
           closing_costs: number
+          condition_notes: Json
           created_at: string
           deal_name: string | null
           deal_status: string | null
@@ -635,12 +638,18 @@ export type Database = {
           id: string
           insurance: number
           interest_rate: number
+          listing_photo_urls: Json
+          listing_remarks: string | null
+          listing_source: string | null
+          listing_url: string | null
           loan_term_years: number
           lot_size: string | null
           maintenance_percent: number
           management_percent: number
+          missing_questions: Json
           monthly_rent: number
           other_income: number
+          photo_analysis_status: string
           property_address: string
           property_record_url: string | null
           property_type: string | null
@@ -650,10 +659,13 @@ export type Database = {
           seller_name: string | null
           state: string
           strategy_primary: string | null
+          source_confidence: string
+          square_feet: number | null
           taxes: number
           updated_at: string
           user_id: string
           vacancy_percent: number
+          visible_or_stated_risks: Json
           year_built: number | null
           zip_code: string | null
           zoning_type: string | null
@@ -663,10 +675,13 @@ export type Database = {
           arv?: number
           assessed_value?: number | null
           asset_type?: string | null
+          baths?: number | null
+          beds?: number | null
           buyer_name?: string | null
           capex_percent?: number
           city: string
           closing_costs?: number
+          condition_notes?: Json
           created_at?: string
           deal_name?: string | null
           deal_status?: string | null
@@ -677,12 +692,18 @@ export type Database = {
           id?: string
           insurance?: number
           interest_rate?: number
+          listing_photo_urls?: Json
+          listing_remarks?: string | null
+          listing_source?: string | null
+          listing_url?: string | null
           loan_term_years?: number
           lot_size?: string | null
           maintenance_percent?: number
           management_percent?: number
+          missing_questions?: Json
           monthly_rent?: number
           other_income?: number
+          photo_analysis_status?: string
           property_address: string
           property_record_url?: string | null
           property_type?: string | null
@@ -692,10 +713,13 @@ export type Database = {
           seller_name?: string | null
           state: string
           strategy_primary?: string | null
+          source_confidence?: string
+          square_feet?: number | null
           taxes?: number
           updated_at?: string
           user_id: string
           vacancy_percent?: number
+          visible_or_stated_risks?: Json
           year_built?: number | null
           zip_code?: string | null
           zoning_type?: string | null
@@ -705,10 +729,13 @@ export type Database = {
           arv?: number
           assessed_value?: number | null
           asset_type?: string | null
+          baths?: number | null
+          beds?: number | null
           buyer_name?: string | null
           capex_percent?: number
           city?: string
           closing_costs?: number
+          condition_notes?: Json
           created_at?: string
           deal_name?: string | null
           deal_status?: string | null
@@ -719,12 +746,18 @@ export type Database = {
           id?: string
           insurance?: number
           interest_rate?: number
+          listing_photo_urls?: Json
+          listing_remarks?: string | null
+          listing_source?: string | null
+          listing_url?: string | null
           loan_term_years?: number
           lot_size?: string | null
           maintenance_percent?: number
           management_percent?: number
+          missing_questions?: Json
           monthly_rent?: number
           other_income?: number
+          photo_analysis_status?: string
           property_address?: string
           property_record_url?: string | null
           property_type?: string | null
@@ -734,10 +767,13 @@ export type Database = {
           seller_name?: string | null
           state?: string
           strategy_primary?: string | null
+          source_confidence?: string
+          square_feet?: number | null
           taxes?: number
           updated_at?: string
           user_id?: string
           vacancy_percent?: number
+          visible_or_stated_risks?: Json
           year_built?: number | null
           zip_code?: string | null
           zoning_type?: string | null

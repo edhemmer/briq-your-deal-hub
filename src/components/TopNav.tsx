@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Plus, User, HelpCircle, ShieldCheck, LogOut, ChevronDown } from "lucide-react";
+import { User, HelpCircle, ShieldCheck, LogOut, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -44,12 +44,6 @@ export function TopNav() {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
-          <Button size="sm" asChild className="hidden sm:inline-flex">
-            <Link to="/dealiq/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Add property
-            </Link>
-          </Button>
           <ThemeToggle />
           {user ? (
             <DropdownMenu>
