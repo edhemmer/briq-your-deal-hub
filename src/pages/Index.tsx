@@ -3,13 +3,16 @@ import type { ElementType } from "react";
 import {
   AlertTriangle,
   ArrowRight,
+  Activity,
   BarChart3,
   CheckCircle2,
   ClipboardCheck,
+  Compass,
   FileSearch,
   Gauge,
   Home,
   ShieldCheck,
+  Sparkles,
   Target,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +21,7 @@ import { CardContainer } from "@/components/ui/card-container";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDeals } from "@/hooks/useDeals";
+import { cn } from "@/lib/utils";
 
 type Deal = NonNullable<ReturnType<typeof useDeals>["data"]>[number];
 type Tone = "positive" | "caution" | "risk" | "neutral";
@@ -137,15 +141,18 @@ export default function Index() {
         <EmptyWorkspace />
       ) : (
         <>
+          <DealJourney activeDeals={activeDeals.length} readyCount={readyCount} needsVerification={needsVerification} />
+
           <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-            <CardContainer className="space-y-5">
+            <CardContainer className="relative overflow-hidden space-y-5">
+              <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
               <PanelTitle
                 icon={Target}
-                title="Current Property"
-                subtitle="Open the active file, fill missing facts, and decide what to verify next."
+                title="Deal Cockpit"
+                subtitle="One active file, live readiness, and the fastest path to a trustworthy decision."
               />
               {primaryDeal && (
-                <div className="rounded-lg border border-border bg-muted/25 p-4">
+                <div className="relative rounded-lg border border-border bg-gradient-to-br from-background via-background to-primary/5 p-4">
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
                       <h2 className="text-lg font-semibold text-foreground">{primaryDeal.property_address}</h2>
@@ -160,12 +167,15 @@ export default function Index() {
                         </Badge>
                       </div>
                     </div>
-                    <div className="min-w-[190px] rounded-md border border-border bg-background p-3">
+                    <div className="min-w-[210px] rounded-md border border-border bg-card p-3 shadow-sm">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-muted-foreground">Readiness</span>
                         <span className={`text-xl font-black ${scoreText(primaryScore)}`}>{primaryScore}</span>
                       </div>
                       <Progress value={primaryScore} className="mt-2 h-2" />
+                      <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                        {primaryMissing.length === 0 ? "Ready for scenario and source review." : `${primaryMissing.length} item${primaryMissing.length === 1 ? "" : "s"} blocking confidence.`}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -230,40 +240,13 @@ export default function Index() {
             <CardContainer className="space-y-4">
               <PanelTitle
                 icon={BarChart3}
-                title="Property Queue"
-                subtitle="Your active properties, sorted by newest activity."
+                title="Active Deal Stack"
+                subtitle="Prioritized cards instead of a spreadsheet wall."
               />
-              <div className="overflow-hidden rounded-lg border border-border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-3 text-left">Property</th>
-                      <th className="hidden px-3 py-3 text-left md:table-cell">Strategy</th>
-                      <th className="px-3 py-3 text-right">Readiness</th>
-                      <th className="px-3 py-3 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeDeals.slice(0, 6).map((deal) => {
-                      const score = readinessScore(deal);
-                      return (
-                        <tr key={deal.id} className="border-t border-border">
-                          <td className="px-3 py-3">
-                            <p className="font-semibold text-foreground">{deal.property_address || "Unnamed property"}</p>
-                            <p className="text-xs text-muted-foreground">{[deal.city, deal.state].filter(Boolean).join(", ") || "Location missing"}</p>
-                          </td>
-                          <td className="hidden px-3 py-3 text-muted-foreground md:table-cell">{deal.strategy_primary ?? "Not selected"}</td>
-                          <td className={`px-3 py-3 text-right font-black ${scoreText(score)}`}>{score}</td>
-                          <td className="px-3 py-3 text-right">
-                            <Button size="sm" variant="outline" asChild>
-                              <Link to={`/dealiq/${deal.id}`}>Open</Link>
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="grid gap-3">
+                {activeDeals.slice(0, 6).map((deal, index) => (
+                  <DealStackCard key={deal.id} deal={deal} rank={index + 1} />
+                ))}
               </div>
             </CardContainer>
 
@@ -320,6 +303,95 @@ function EmptyWorkspace() {
         <ActionLine tone="neutral" text="Missing rent, insurance, taxes, or rehab scope lowers confidence." />
       </CardContainer>
     </section>
+  );
+}
+
+function DealJourney({ activeDeals, readyCount, needsVerification }: { activeDeals: number; readyCount: number; needsVerification: number }) {
+  const steps = [
+    { label: "Find", detail: `${activeDeals} active`, icon: Compass, tone: activeDeals > 0 ? "positive" : "neutral" as Tone },
+    { label: "Analyze", detail: needsVerification > 0 ? `${needsVerification} to verify` : "Inputs clean", icon: Activity, tone: needsVerification > 0 ? "caution" : "positive" as Tone },
+    { label: "Compare", detail: activeDeals > 1 ? "Options ready" : "Add another", icon: BarChart3, tone: activeDeals > 1 ? "positive" : "neutral" as Tone },
+    { label: "Decide", detail: `${readyCount} ready`, icon: ShieldCheck, tone: readyCount > 0 ? "positive" : "neutral" as Tone },
+    { label: "Execute", detail: "Next action", icon: Sparkles, tone: "neutral" as Tone },
+  ];
+
+  return (
+    <section className="overflow-hidden rounded-lg border border-border bg-card p-3 shadow-sm">
+      <div className="grid gap-2 md:grid-cols-5">
+        {steps.map((step, index) => (
+          <div
+            key={step.label}
+            className={cn(
+              "relative rounded-md border bg-background p-3",
+              step.tone === "positive" && "border-signal-positive/25 bg-signal-positive/5",
+              step.tone === "caution" && "border-signal-warning/25 bg-signal-warning/5",
+            )}
+          >
+            {index < steps.length - 1 && (
+              <div className="absolute left-[calc(100%-0.25rem)] top-1/2 hidden h-px w-4 bg-border md:block" />
+            )}
+            <div className="flex items-center gap-2">
+              <span className={cn("flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground", step.tone === "positive" && "bg-signal-positive/10 text-signal-positive", step.tone === "caution" && "bg-signal-warning/10 text-signal-warning")}>
+                <step.icon className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">{step.label}</p>
+                <p className="text-xs text-muted-foreground">{step.detail}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function DealStackCard({ deal, rank }: { deal: Deal; rank: number }) {
+  const score = readinessScore(deal);
+  const missing = missingItems(deal);
+  const tone = riskTone(score);
+
+  return (
+    <Link
+      to={`/dealiq/${deal.id}`}
+      className="group block rounded-lg border border-border bg-background p-4 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-card text-sm font-bold text-muted-foreground">
+            {rank}
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="truncate font-semibold text-foreground group-hover:text-primary">{deal.property_address || "Unnamed property"}</h3>
+              <Badge className={`border ${toneClass(tone)}`}>
+                {score >= 80 ? "Ready" : score >= 60 ? "Verify" : "Draft"}
+              </Badge>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {[deal.city, deal.state].filter(Boolean).join(", ") || "Location missing"} · {deal.strategy_primary ?? "Strategy not selected"}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 md:w-[330px]">
+          <MiniSignal label="Readiness" value={String(score)} tone={tone} />
+          <MiniSignal label="Price" value={money(deal.purchase_price)} tone={numberOrNull(deal.purchase_price) ? "positive" : "caution"} />
+          <MiniSignal label="Missing" value={String(missing.length)} tone={missing.length > 0 ? "caution" : "positive"} />
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function MiniSignal({ label, value, tone }: { label: string; value: string; tone: Tone }) {
+  return (
+    <div className="rounded-md border border-border bg-card px-3 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+      <p className={cn("mt-1 truncate text-sm font-black text-foreground", scoreText(tone === "positive" ? 90 : tone === "caution" ? 70 : tone === "risk" ? 40 : 80))}>
+        {value}
+      </p>
+    </div>
   );
 }
 
