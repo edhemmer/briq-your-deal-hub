@@ -481,7 +481,7 @@ function dealToOpportunity(deal: DealRow): FindIQOpportunity {
     state: deal.state ?? "",
     zip: deal.zip_code ?? "",
     propertyType,
-    opportunityType: deal.deal_status === "draft" ? "Workspace Property" : deal.deal_status ?? "Workspace Property",
+    opportunityType: deal.deal_status === "draft" ? "Deal File" : deal.deal_status ?? "Deal File",
     listPrice: price,
     bedrooms: 0,
     bathrooms: 0,

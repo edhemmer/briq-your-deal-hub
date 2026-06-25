@@ -8,7 +8,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Compass,
-  FileSearch,
+  FileSignature,
   Gauge,
   Home,
   ShieldCheck,
@@ -111,27 +111,27 @@ export default function Index() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-              Acquisition Review
+              Deal Dashboard
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Active properties, missing facts, verification work, and the next action before capital is committed.
+              Find the address, build the file, analyze the economics and contract, then record what won or lost.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button size="sm" asChild>
-                <Link to="/findiq">Search properties</Link>
+                <Link to="/findiq">Find an address</Link>
               </Button>
               <Button size="sm" variant="outline" asChild>
-                <Link to="/dealiq/new">Add property</Link>
+                <Link to="/dealiq/new">Build deal file</Link>
               </Button>
               <Button size="sm" variant="outline" asChild>
-                <Link to="/dealiq/compare">Compare deals</Link>
+                <Link to="/dealiq/compare">Compare active deals</Link>
               </Button>
             </div>
           </div>
 
           <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-[430px]">
-            <ExecutiveMetric label="Active deals" value={String(activeDeals.length)} tone="neutral" />
-            <ExecutiveMetric label="Decision ready" value={String(readyCount)} tone="positive" />
+            <ExecutiveMetric label="Open deal files" value={String(activeDeals.length)} tone="neutral" />
+            <ExecutiveMetric label="Ready to act" value={String(readyCount)} tone="positive" />
             <ExecutiveMetric label="Need verification" value={String(needsVerification)} tone={needsVerification > 0 ? "caution" : "positive"} />
           </div>
         </div>
@@ -148,8 +148,8 @@ export default function Index() {
               <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
               <PanelTitle
                 icon={Target}
-                title="Active Review"
-                subtitle="Current property, readiness, missing facts, and the next verification step."
+                title="Active Deal File"
+                subtitle="The property you are working now, what is known, and what still needs proof."
               />
               {primaryDeal && (
                 <div className="relative rounded-lg border border-border bg-gradient-to-br from-background via-background to-primary/5 p-4">
@@ -196,10 +196,10 @@ export default function Index() {
                   </Button>
                 )}
                 <Button variant="outline" asChild>
-                  <Link to="/dealiq/compare">Compare deals</Link>
+                  <Link to="/dealiq/compare">Compare active deals</Link>
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link to="/dealiq/new">Add property</Link>
+                  <Link to="/dealiq/new">Build deal file</Link>
                 </Button>
               </div>
             </CardContainer>
@@ -241,7 +241,7 @@ export default function Index() {
               <PanelTitle
                 icon={BarChart3}
                 title="Deal Queue"
-                subtitle="Active properties prioritized by readiness and missing information."
+                subtitle="Open deal files prioritized by readiness, missing information, and next action."
               />
               <div className="grid gap-3">
                 {activeDeals.slice(0, 6).map((deal, index) => (
@@ -259,7 +259,7 @@ export default function Index() {
               <ActionLine tone="caution" text="Verify rent support with comps or a lease/rent roll." />
               <ActionLine tone="caution" text="Get an insurance quote before relying on cash flow." />
               <ActionLine tone="neutral" text="Compare active deals before choosing where to spend diligence time." />
-              <ActionLine tone="neutral" text="Keep screenshots, documents, and notes attached to the property file." />
+              <ActionLine tone="neutral" text="When a deal wins or loses, keep the reason so BRIX can learn which patterns matter." />
             </CardContainer>
           </section>
         </>
@@ -274,18 +274,18 @@ function EmptyWorkspace() {
       <CardContainer className="space-y-5">
         <PanelTitle
           icon={Home}
-          title="Start Your First Analysis"
-          subtitle="Begin with a property you are considering. BRIX will organize the facts, risks, strategy fit, and next actions."
+          title="Start a Deal File"
+          subtitle="Begin with an address, listing URL, screenshots, or property facts. BRIX will organize the relationship, analysis, contract, and outcome."
         />
         <div className="grid gap-3 md:grid-cols-2">
           <StartAction
-            title="1. Search a market"
-            body="Use FindIQ when you want to define a location and acquisition criteria before adding a property."
+            title="1. Find the address"
+            body="Use FindIQ to start with a location and buying criteria, then add real properties you want to investigate."
             to="/findiq"
             action="Open FindIQ"
           />
           <StartAction
-            title="2. Analyze a property"
+            title="2. Build the file"
             body="Use DealIQ when you already have a listing URL, screenshots, listing text, or property facts."
             to="/dealiq/new"
             action="Start DealIQ"
@@ -308,11 +308,11 @@ function EmptyWorkspace() {
 
 function DealJourney({ activeDeals, readyCount, needsVerification }: { activeDeals: number; readyCount: number; needsVerification: number }) {
   const steps = [
-    { label: "Find", detail: `${activeDeals} active`, icon: Compass, tone: activeDeals > 0 ? "positive" : "neutral" as Tone },
-    { label: "Analyze", detail: needsVerification > 0 ? `${needsVerification} to verify` : "Inputs clean", icon: Activity, tone: needsVerification > 0 ? "caution" : "positive" as Tone },
-    { label: "Compare", detail: activeDeals > 1 ? "Options ready" : "Add another", icon: BarChart3, tone: activeDeals > 1 ? "positive" : "neutral" as Tone },
-    { label: "Decide", detail: `${readyCount} ready`, icon: ShieldCheck, tone: readyCount > 0 ? "positive" : "neutral" as Tone },
-    { label: "Act", detail: "Next step", icon: Sparkles, tone: "neutral" as Tone },
+    { label: "Find", detail: `${activeDeals} deal file${activeDeals === 1 ? "" : "s"}`, icon: Compass, tone: activeDeals > 0 ? "positive" : "neutral" as Tone },
+    { label: "Prepare", detail: "Notes, tasks, contact", icon: Activity, tone: activeDeals > 0 ? "positive" : "neutral" as Tone },
+    { label: "Analyze", detail: needsVerification > 0 ? `${needsVerification} to verify` : "Inputs clean", icon: BarChart3, tone: needsVerification > 0 ? "caution" : "positive" as Tone },
+    { label: "Contract", detail: "Terms and risk", icon: FileSignature, tone: "neutral" as Tone },
+    { label: "Learn", detail: `${readyCount} actionable`, icon: Sparkles, tone: readyCount > 0 ? "positive" : "neutral" as Tone },
   ];
 
   return (
@@ -320,10 +320,10 @@ function DealJourney({ activeDeals, readyCount, needsVerification }: { activeDea
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
       <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Acquisition path</p>
-          <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">Move from signal to decision</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Deal flow</p>
+          <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">From address to outcome intelligence</h2>
         </div>
-        <p className="text-sm text-muted-foreground">Search, verify, compare, decide, act.</p>
+        <p className="text-sm text-muted-foreground">Find, prepare, analyze, pursue, win or lose, learn.</p>
       </div>
       <div className="grid gap-2 md:grid-cols-5">
         {steps.map((step, index) => (
@@ -380,7 +380,7 @@ function DealStackCard({ deal, rank }: { deal: Deal; rank: number }) {
               </Badge>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {[deal.city, deal.state].filter(Boolean).join(", ") || "Location missing"} · {deal.strategy_primary ?? "Strategy not selected"}
+              {[deal.city, deal.state].filter(Boolean).join(", ") || "Location missing"} - {deal.strategy_primary ?? "Strategy not selected"}
             </p>
           </div>
         </div>

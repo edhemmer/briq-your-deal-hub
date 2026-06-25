@@ -10,7 +10,7 @@ export default function PortfolioIQ() {
     <SectionContainer>
       <PageHeader
         title="PortfolioIQ"
-        description="Track acquired assets, equity, cash flow, risk exposure, refinance opportunities, and portfolio performance."
+        description="Track owned assets and outcome intelligence so BRIX learns which deal characteristics perform, win, lose, or deserve a pass."
       >
         <Button variant="outline" asChild>
           <Link to="/pipelineiq">Review pipeline</Link>
@@ -26,8 +26,8 @@ export default function PortfolioIQ() {
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <PortfolioMetric label="Total Asset Value" value="$0" />
         <PortfolioMetric label="Total Equity" value="$0" />
-        <PortfolioMetric label="Total Debt" value="$0" />
         <PortfolioMetric label="Monthly Cash Flow" value="$0" />
+        <PortfolioMetric label="Outcome Records" value="0" />
       </div>
 
       <CardContainer className="min-h-[420px]">
@@ -35,7 +35,7 @@ export default function PortfolioIQ() {
           <Building2 className="h-10 w-10 text-muted-foreground" />
           <h2 className="mt-4 text-xl font-semibold text-foreground">No owned assets recorded</h2>
           <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-            Close or add an owned property to start tracking equity, debt, income, expenses, documents, and performance history.
+            Close or add an owned property to track equity, debt, income, expenses, documents, performance history, and the deal traits that led to the outcome.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link to="/pipelineiq">
@@ -56,9 +56,9 @@ export default function PortfolioIQ() {
           <div className="flex items-start gap-3">
             <BarChart3 className="mt-1 h-5 w-5 shrink-0 text-primary" />
             <div>
-              <h3 className="font-semibold text-foreground">Portfolio analyst</h3>
+              <h3 className="font-semibold text-foreground">Outcome intelligence</h3>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Portfolio recommendations require real asset, debt, income, expense, and valuation data.
+                Won, lost, passed, and closed records preserve source, strategy, pricing, terms, objections, and verification gaps.
               </p>
             </div>
           </div>
@@ -68,9 +68,9 @@ export default function PortfolioIQ() {
           <div className="flex items-start gap-3">
             <RefreshCw className="mt-1 h-5 w-5 shrink-0 text-primary" />
             <div>
-              <h3 className="font-semibold text-foreground">Refinance intelligence</h3>
+              <h3 className="font-semibold text-foreground">Portfolio analyst</h3>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Refinance, hold, and sell recommendations require verified value, loan balance, rate, cash flow, and market conditions.
+                Refinance, hold, sell, and next-acquisition recommendations require verified value, loan balance, rate, cash flow, and market conditions.
               </p>
             </div>
           </div>

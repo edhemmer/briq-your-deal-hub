@@ -8,7 +8,7 @@ const steps = [
   {
     icon: ShieldCheck,
     title: "Welcome to BRIX",
-    description: "BRIX turns real estate investing into a simple decision workflow. Every module is built to improve decision quality, show uncertainty, and keep the next action clear.",
+    description: "BRIX turns every property into a deal file: find the address, analyze the economics and contract, record the outcome, and learn from what wins.",
   },
   {
     icon: Search,
@@ -28,7 +28,7 @@ const steps = [
   {
     icon: KanbanSquare,
     title: "Keep the Deal Moving",
-    description: "PipelineIQ tracks stages, tasks, deadlines, and health. OfferIQ turns analysis into offers and communications. PortfolioIQ tracks performance after closing.",
+    description: "PipelineIQ tracks stages, tasks, deadlines, and outcome. OfferIQ turns analysis into offers and communications. PortfolioIQ tracks performance and learns from wins, losses, and passes.",
   },
   {
     icon: PenLine,

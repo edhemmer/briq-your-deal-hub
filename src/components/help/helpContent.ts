@@ -38,7 +38,8 @@ export const HELP_CENTER_SECTIONS = [
     title: "Start Here: BRIX in 10 Minutes",
     content: [
       "BRIX is built to feel simple even when the decision is complex. You do not need to master every module on day one. Start with one question: what should I do next?",
-      "The fastest workflow is FindIQ to DealIQ to PipelineIQ. FindIQ helps you identify what deserves attention, DealIQ tests whether the property should be acquired, and PipelineIQ keeps the next action visible.",
+      "The basic flow is simple: find the address, build the deal file, analyze the deal and contract, record the win or loss, and learn from the outcome.",
+      "The fastest workflow is FindIQ to DealIQ to PipelineIQ. FindIQ helps you identify what deserves attention, DealIQ tests whether the property should be acquired, and PipelineIQ keeps the next action and outcome visible.",
       "Every major recommendation shows the reason, evidence, confidence, risks, missing information, alternatives, and next actions. BRIX is intentionally conservative when data is weak.",
       "You can use BRIX for any legal real estate strategy: long-term rental, mid-term rental, short-term rental, house hack, BRRRR, flip, seller finance, subject-to, ADU, lot split, refinance, sell, hold, development, and portfolio optimization.",
     ],
@@ -47,7 +48,7 @@ export const HELP_CENTER_SECTIONS = [
     id: "simple-accurate",
     title: "How BRIX Stays Simple and Accurate",
     content: [
-      "Simple does not mean shallow. BRIX separates the work into five plain questions: what should I investigate, should I acquire it, where is it in the process, how should I pursue it, and how is it performing?",
+      "Simple does not mean shallow. BRIX separates the work into plain questions: what address should I investigate, what is the real deal file, should I acquire it, how should I pursue it, did I win or lose, and what can I learn?",
       "Accurate means traceable. Inputs are labeled as verified, source-backed, corroborated, estimated, user-entered, or missing whenever possible.",
       "BRIX never treats estimates as facts. If rent, insurance, taxes, rehab, comps, or financing are missing or weak, confidence goes down and verification tasks become the next step.",
       "Use the confidence score as a decision-quality signal, not as a promise. A high score means the current recommendation is better supported by available evidence; it does not guarantee returns, appreciation, rent, occupancy, or resale.",
@@ -59,9 +60,9 @@ export const HELP_CENTER_SECTIONS = [
     content: [
       "FindIQ answers: what should I investigate? Create an acquisition profile, review ranked opportunity cards, save or hide properties, compare candidates, and send the best candidates into DealIQ.",
       "DealIQ answers: should I acquire it? It runs financial, rent, resale, renovation, risk, market, scenario, and strategy analysis, then produces an acquisition recommendation with confidence and next actions.",
-      "PipelineIQ answers: where is it in the process? It turns opportunities into a clear acquisition workflow with stages, tasks, deadlines, health scores, notes, and activity history.",
+      "PipelineIQ answers: where is it in the process? It turns opportunities into a clear deal workflow with stages, tasks, deadlines, health scores, notes, activity history, and outcome records.",
       "OfferIQ answers: how should I pursue it? It turns DealIQ findings into offer strategy, document packages, communication drafts, counteroffer logic, diligence checklists, and transaction timelines.",
-      "PortfolioIQ answers: how is it performing? After closing, it tracks asset value, equity, debt, income, expenses, cash flow, performance, risk, refinance opportunities, sell/hold logic, and portfolio-level health.",
+      "PortfolioIQ answers: how is it performing and what did we learn? After closing, it tracks asset value, equity, debt, income, expenses, cash flow, performance, risk, refinance opportunities, sell/hold logic, and portfolio-level health. Won, lost, and passed deal patterns should inform future searches.",
     ],
   },
   {
@@ -104,9 +105,9 @@ export const HELP_CENTER_SECTIONS = [
       "2. Review FindIQ opportunities and ask why each one is being surfaced. Save strong candidates, hide poor fits, and compare similar deals side by side.",
       "3. Send promising opportunities to DealIQ. Do not re-enter data BRIX already knows; review the imported facts and mark weak assumptions for verification.",
       "4. Read the recommendation like an investment memo: decision, why, confidence, risks, missing information, bull case, bear case, what must be true, failure scenarios, and next actions.",
-      "5. Move active opportunities into PipelineIQ. Assign tasks, watch deadlines, keep notes, and use the health score to prevent neglected deals.",
+      "5. Move active opportunities into PipelineIQ. Assign tasks, watch deadlines, keep notes, and record whether the deal was won, lost, passed, or closed.",
       "6. If the deal is worth pursuing, activate OfferIQ. Generate offer structures, negotiation points, communication drafts, and due diligence tasks based on DealIQ evidence.",
-      "7. After closing, transfer the asset into PortfolioIQ. Track equity, cash flow, documents, maintenance, refinance opportunities, risk, and long-term performance.",
+      "7. After closing, transfer the asset into PortfolioIQ. Track equity, cash flow, documents, maintenance, refinance opportunities, risk, long-term performance, and the deal characteristics that led to the outcome.",
     ],
   },
   {

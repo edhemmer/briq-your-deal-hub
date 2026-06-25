@@ -11,8 +11,8 @@ import { BookOpen, CheckCircle2, Compass, RotateCcw, ShieldCheck, Zap } from "lu
 const quickStartCards = [
   {
     icon: Compass,
-    title: "Start with one question",
-    text: "BRIX always points back to what you should investigate, decide, pursue, or operate next.",
+    title: "Start with an address",
+    text: "Every workflow starts with a property, a deal file, and the next action needed to move it forward.",
   },
   {
     icon: ShieldCheck,
@@ -21,8 +21,8 @@ const quickStartCards = [
   },
   {
     icon: Zap,
-    title: "Any strategy, same workflow",
-    text: "Buy and hold, BRRRR, flip, seller finance, refinance, sell, or portfolio optimization all use the same decision discipline.",
+    title: "Win, lose, learn",
+    text: "Closed, passed, and lost deals preserve why the outcome happened so future decisions get sharper.",
   },
 ];
 
@@ -51,8 +51,8 @@ export default function Help() {
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                 You can start with one property, one strategy, or one question. BRIX keeps the workflow structured:
-                discover the opportunity, verify the facts, compare strategies, understand the risks, act on the next
-                step, and keep the asset intelligence after closing.
+                find the address, build the deal file, verify the facts, compare strategies, understand the risks,
+                work the offer, record the outcome, and keep the intelligence after closing.
               </p>
             </div>
             <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm">
@@ -110,10 +110,10 @@ export default function Help() {
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             {[
               ["FindIQ", "Investigate"],
-              ["DealIQ", "Decide"],
-              ["PipelineIQ", "Track"],
+              ["DealIQ", "Analyze"],
               ["OfferIQ", "Pursue"],
-              ["PortfolioIQ", "Optimize"],
+              ["PipelineIQ", "Win/Lose"],
+              ["PortfolioIQ", "Learn"],
             ].map(([module, action]) => (
               <div key={module} className="rounded-lg border border-border bg-muted/20 p-3">
                 <div className="text-sm font-semibold text-foreground">{module}</div>
