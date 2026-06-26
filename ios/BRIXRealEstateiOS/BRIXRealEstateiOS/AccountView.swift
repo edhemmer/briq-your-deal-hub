@@ -74,8 +74,8 @@ struct AccountView: View {
 
                 BrixCard {
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(title: "Delete Account", subtitle: "Users must be able to initiate deletion in app.", symbol: "trash")
-                        Text("Deletion removes your BRIX account and associated personal data, except information BRIX is legally required to retain. If subscriptions are added later, this screen must also link to Apple subscription management.")
+                        SectionHeader(title: "Delete Account", subtitle: "Permanently remove your BRIX account and personal data.", symbol: "trash")
+                        Text("Deletion removes your BRIX account and associated personal data, except information BRIX is legally required to retain. This is not temporary deactivation. If subscriptions are added later, this screen must also link to Apple subscription management.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
@@ -85,7 +85,7 @@ struct AccountView: View {
                         Button(role: .destructive) {
                             isShowingDeleteConfirmation = true
                         } label: {
-                            Label("Request Account Deletion", systemImage: "trash.fill")
+                            Label("Permanently Delete Account", systemImage: "trash.fill")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
@@ -139,7 +139,7 @@ struct AccountView: View {
         do {
             try await apiClient.requestAccountDeletion(reason: deletionReason.isEmpty ? nil : deletionReason, session: appState.session)
             await appState.signOut()
-            deletionStatus = "Deletion request submitted. BRIX will confirm when deletion is complete."
+            deletionStatus = "Account deletion completed or is being finalized by BRIX. You have been signed out."
         } catch {
             deletionStatus = "Could not submit deletion request. Try again or contact support."
         }

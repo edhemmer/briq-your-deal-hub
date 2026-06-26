@@ -78,23 +78,38 @@ struct BRIXAPIClient {
     }
 
     func requestAccountDeletion(reason: String?, session: AuthSession?) async throws {
-        let body = ["reason": reason ?? ""]
+        let body: [String: AnyEncodableValue] = [
+            "reason": .string(reason ?? ""),
+            "source": .string("ios"),
+            "confirmDeletion": .bool(true)
+        ]
         _ = try await send(path: "/functions/v1/request-account-deletion", method: "POST", body: body, session: session)
     }
 
     func uploadFieldCapture(propertyID: String, payload: FieldCapturePayload, imageData: Data?, session: AuthSession?) async throws {
+        guard let session else {
+            throw BRIXAPIError.missingConfiguration
+        }
+
+        let captureType = normalizeCaptureType(payload.captureType)
+        let storagePath: String?
+
         if let imageData {
             let fileName = "\(payload.localIdentifier).jpg"
-            let storagePath = "/storage/v1/object/property-captures/\(propertyID)/\(fileName)"
-            _ = try await sendRaw(path: storagePath, method: "POST", data: imageData, contentType: "image/jpeg", session: session)
+            let objectPath = "\(session.userID)/\(propertyID)/\(fileName)"
+            storagePath = objectPath
+            _ = try await sendRaw(path: "/storage/v1/object/field-captures/\(objectPath)", method: "POST", data: imageData, contentType: "image/jpeg", session: session)
+        } else {
+            storagePath = nil
         }
 
         let metadataPath = "/functions/v1/field-capture"
         let body: [String: String] = [
-            "property_id": propertyID,
+            "deal_id": propertyID,
             "local_identifier": payload.localIdentifier,
-            "capture_type": payload.captureType,
+            "capture_type": captureType,
             "note": payload.note ?? "",
+            "storage_path": storagePath ?? "",
             "created_at": ISO8601DateFormatter().string(from: payload.createdAt)
         ]
         _ = try await send(path: metadataPath, method: "POST", body: body, session: session)
@@ -133,6 +148,36 @@ struct BRIXAPIClient {
 
     private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
         try JSONDecoder.brix.decode(type, from: data)
+    }
+
+    private func normalizeCaptureType(_ value: String) -> String {
+        switch value.lowercased() {
+        case "photo", "photos":
+            return "photo"
+        case "video":
+            return "video"
+        case "document", "scan", "document scan":
+            return "document_scan"
+        case "voice", "voice note":
+            return "voice_note"
+        default:
+            return "photo"
+        }
+    }
+}
+
+enum AnyEncodableValue: Encodable {
+    case string(String)
+    case bool(Bool)
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .string(let value):
+            try container.encode(value)
+        case .bool(let value):
+            try container.encode(value)
+        }
     }
 }
 

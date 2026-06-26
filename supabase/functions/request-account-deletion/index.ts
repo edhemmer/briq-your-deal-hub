@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { importPKCS8, SignJWT } from "https://deno.land/x/jose@v4.14.4/index.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,8 @@ type DeletionRequestBody = {
   reason?: string;
   source?: "ios" | "web" | "admin";
   confirmDeletion?: boolean;
+  appleAccessToken?: string;
+  appleRefreshToken?: string;
 };
 
 serve(async (req) => {
@@ -89,6 +92,10 @@ serve(async (req) => {
     await removeUserStorage(adminClient, "field-captures", user.id);
     await removeUserStorage(adminClient, "contract-uploads", user.id);
 
+    const appleRevocation = provider === "apple"
+      ? await revokeAppleTokenIfPresent(body.appleRefreshToken ?? body.appleAccessToken)
+      : { attempted: false, revoked: false, note: "Not a Sign in with Apple account." };
+
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
     if (deleteError) {
       console.error("Failed to delete auth user:", deleteError);
@@ -108,8 +115,9 @@ serve(async (req) => {
       .update({
         status: "completed",
         completed_at: new Date().toISOString(),
+        revoked_apple_token_at: appleRevocation.revoked ? new Date().toISOString() : null,
         processor_note: provider === "apple"
-          ? "Account deleted. Apple token revocation must be handled by the configured auth provider or a separate Apple revocation job when token material is available."
+          ? `Account deleted. Apple token revocation: ${appleRevocation.note}`
           : "Account deleted.",
       })
       .eq("id", deletionRequest.id);
@@ -129,6 +137,75 @@ async function removeUserStorage(adminClient: ReturnType<typeof createClient>, b
   const paths = await listStoragePaths(adminClient, bucket, userId);
   if (paths.length === 0) return;
   await adminClient.storage.from(bucket).remove(paths);
+}
+
+async function revokeAppleTokenIfPresent(token?: string) {
+  if (!token) {
+    return {
+      attempted: false,
+      revoked: false,
+      note: "No Apple access/refresh token material was available to revoke.",
+    };
+  }
+
+  const clientId = Deno.env.get("APPLE_CLIENT_ID");
+  const teamId = Deno.env.get("APPLE_TEAM_ID");
+  const keyId = Deno.env.get("APPLE_KEY_ID");
+  const privateKey = Deno.env.get("APPLE_PRIVATE_KEY")?.replace(/\\n/g, "\n");
+
+  if (!clientId || !teamId || !keyId || !privateKey) {
+    return {
+      attempted: false,
+      revoked: false,
+      note: "Apple revocation token was present, but Apple client secret environment variables are not configured.",
+    };
+  }
+
+  try {
+    const key = await importPKCS8(privateKey, "ES256");
+    const clientSecret = await new SignJWT({})
+      .setProtectedHeader({ alg: "ES256", kid: keyId })
+      .setIssuer(teamId)
+      .setAudience("https://appleid.apple.com")
+      .setSubject(clientId)
+      .setIssuedAt()
+      .setExpirationTime("5m")
+      .sign(key);
+
+    const form = new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      token,
+      token_type_hint: "refresh_token",
+    });
+
+    const response = await fetch("https://appleid.apple.com/auth/revoke", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: form,
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      return {
+        attempted: true,
+        revoked: false,
+        note: `Apple token revocation failed with ${response.status}: ${text.slice(0, 300)}`,
+      };
+    }
+
+    return {
+      attempted: true,
+      revoked: true,
+      note: "Apple token revoked through Apple's REST API.",
+    };
+  } catch (err) {
+    return {
+      attempted: true,
+      revoked: false,
+      note: `Apple token revocation error: ${err instanceof Error ? err.message : "unknown error"}`,
+    };
+  }
 }
 
 async function listStoragePaths(

@@ -14,6 +14,8 @@ This checklist tracks App Store requirements that affect BRIX iOS.
 - `BRIXAPIClient` keeps account deletion, uploads, auth, storage, and decision fetching behind API boundaries.
 - The app requires sign-in for saved deals, sync, uploads, portfolio data, and deletion controls.
 - The app does not include seeded fake property data or synthetic recommendations.
+- Field captures upload to the private `field-captures` bucket and are recorded through the `field-capture` Edge Function.
+- DealIQ mobile recommendations read from the RLS-aware `mobile_decision_snapshots` view.
 
 ## Backend Requirements Before App Review
 
@@ -21,8 +23,8 @@ This checklist tracks App Store requirements that affect BRIX iOS.
 - Verify native iOS Sign in with Apple token exchange against Supabase Auth in TestFlight.
 - Revoke Sign in with Apple tokens through Apple's REST API when users delete accounts, when Apple token material is available.
 - Deploy the `request-account-deletion` Supabase Edge Function.
-- Deploy the `field-capture` Supabase Edge Function and `property-captures` Storage bucket.
-- Create or expose the `mobile_decision_snapshots` view/table or update `BRIXAPIClient.fetchDecisionSnapshot` to the production DealIQ memo endpoint.
+- Deploy the `field-capture` Supabase Edge Function and confirm the private `field-captures` Storage bucket exists.
+- Apply the migration that exposes `mobile_decision_snapshots` for production DealIQ memo summaries.
 - Apply the BRIX OS + Apple compliance Supabase migration.
 - Confirm full account and associated personal-data deletion behavior, except legally required retention.
 - Send deletion confirmation when deletion is complete.
