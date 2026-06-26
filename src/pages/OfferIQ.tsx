@@ -24,7 +24,7 @@ export default function OfferIQ() {
         <CardContainer className="min-h-[360px]">
           <div className="flex min-h-[300px] flex-col items-center justify-center text-center">
             <Workflow className="h-10 w-10 text-muted-foreground" />
-            <h2 className="mt-4 text-xl font-semibold text-foreground">No offer workspace selected</h2>
+            <h2 className="mt-4 text-xl font-semibold text-foreground">No deal selected for OfferIQ</h2>
             <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
               Select a DealIQ record to structure offer terms, communication drafts, diligence requests, and negotiation notes from the property file.
             </p>

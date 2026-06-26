@@ -280,7 +280,7 @@ export default function FindIQ() {
     <SectionContainer>
       <PageHeader
         title="FindIQ"
-        description="Start with a location search, manual listing entry, or dropped listing file. FindIQ ranks real BRIX deal files and sends the strongest candidates into DealIQ."
+        description="Source opportunities, import listings, rank deal files, and move the strongest candidates into DealIQ for underwriting."
       >
         <Button variant="outline">
           <Bell className="mr-2 h-4 w-4" />
@@ -299,14 +299,14 @@ export default function FindIQ() {
               <FileSearch className="h-4 w-4" />
               Acquisition Search
             </div>
-            <h2 className="mt-2 text-xl font-semibold text-foreground">Choose where to look first</h2>
+            <h2 className="mt-2 text-xl font-semibold text-foreground">Build the opportunity queue</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Enter a state, ZIP code, county, or city to run a location search. You can also add listings manually or drop a URL, CSV, XLS, or XLSX file into BRIX.
+              Search by state, ZIP code, county, or city. Add a listing URL, spreadsheet, copied text, or property photos when you already have a property.
             </p>
           </div>
 
           <div className="grid gap-2">
-            <StartMethod icon={Search} title="Run a search" text="Search saved and imported BRIX properties by geography and buying criteria." />
+            <StartMethod icon={Search} title="Run a search" text="Rank your saved deal files against this location and buying criteria." />
             <StartMethod icon={Plus} title="Enter manually" text="Type property facts when you already know the deal you want to evaluate." />
             <StartMethod icon={Upload} title="Drop or import" text="Use a listing URL, copied text, CSV, XLS, or XLSX to start the deal file faster." />
           </div>
@@ -385,7 +385,7 @@ export default function FindIQ() {
                 <Upload className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-foreground">Drop a listing URL or spreadsheet</h3>
+                <h3 className="text-sm font-semibold text-foreground">Drop a listing, spreadsheet, or photos</h3>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   Supports URLs, copied listing text, CSV, XLS, XLSX, and property photos. BRIX will prefill what it can and ask you to verify the rest.
                 </p>
@@ -432,10 +432,10 @@ export default function FindIQ() {
                   Opportunity Queue
                 </div>
                 <h2 className="mt-2 text-lg font-semibold text-foreground">
-                  {submittedSearch ? "Ranked property results" : "Start your search"}
+                  {submittedSearch ? "Ranked property results" : "Opportunity queue"}
                 </h2>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Search results come from saved BRIX properties, manual entries, and imported listing records. Live listing-provider results will enter this same queue when connected.
+                  Ranked results appear here after you run a search or save an imported property. Each result shows score, missing data, risks, and the path into DealIQ.
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
@@ -461,13 +461,13 @@ export default function FindIQ() {
               </div>
             ) : submittedSearch ? (
               <div className="flex min-h-[360px] flex-col justify-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-muted/30">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-muted/30">
                   <FileSearch className="h-6 w-6 text-primary" />
                 </div>
                 <div className="mx-auto mt-5 max-w-xl text-center">
-                  <h3 className="text-xl font-semibold text-foreground">No matching BRIX properties yet</h3>
+                  <h3 className="text-xl font-semibold text-foreground">No properties match this search</h3>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Add a property from a listing URL, listing text, screenshots, or manual facts. FindIQ will rank it immediately after saving.
+                    Add a property from a listing URL, listing text, screenshots, or manual facts, or widen the criteria and search again.
                   </p>
                 </div>
                 <div className="mx-auto mt-5 flex max-w-2xl flex-wrap justify-center gap-2">
@@ -496,9 +496,9 @@ export default function FindIQ() {
             ) : (
               <div className="flex min-h-[360px] flex-col items-center justify-center text-center">
                 <Home className="h-10 w-10 text-muted-foreground" />
-                <h3 className="mt-4 text-xl font-semibold text-foreground">Start with a location, listing, or file</h3>
+                <h3 className="mt-4 text-xl font-semibold text-foreground">Build your opportunity queue</h3>
                 <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                  Run a geography search, enter a property manually, or drop a listing URL/spreadsheet. FindIQ ranks only real deal files in BRIX.
+                  Run a search against your deal files, add a listing manually, or import a listing file/photo to begin ranking.
                 </p>
                 <div className="mt-5 flex flex-wrap justify-center gap-3">
                   <Button onClick={runSearch}>
@@ -518,9 +518,9 @@ export default function FindIQ() {
             <div className="flex items-start gap-3">
               <Link2 className="mt-1 h-5 w-5 shrink-0 text-primary" />
               <div>
-                <h3 className="font-semibold text-foreground">Provider-ready search</h3>
+                <h3 className="font-semibold text-foreground">Decision-ready intake</h3>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  Today, FindIQ ranks saved and imported deal files. The same queue is prewired for future listing APIs, MLS feeds, and provider enrichment without changing your workflow.
+                  Every imported property becomes a deal file with known facts, missing data, source confidence, photo findings, and verification questions.
                 </p>
               </div>
             </div>

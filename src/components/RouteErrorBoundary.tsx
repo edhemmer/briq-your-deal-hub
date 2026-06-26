@@ -44,7 +44,7 @@ export class RouteErrorBoundary extends React.Component<RouteErrorBoundaryProps,
               <AlertTriangle className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-foreground">This workspace did not load correctly</h1>
+              <h1 className="text-lg font-semibold text-foreground">This screen did not load correctly</h1>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 BRIX isolated the issue so the rest of the app can continue running. Refresh the page once; if it repeats, this route needs engineering review before relying on its output.
               </p>

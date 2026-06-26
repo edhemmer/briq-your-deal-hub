@@ -114,7 +114,7 @@ export default function Index() {
               Deal Dashboard
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Find the address, build the file, analyze the economics and contract, then record what won or lost.
+              Source properties, complete the deal file, underwrite the economics, review contract risk, and track the outcome.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button size="sm" asChild>
@@ -274,19 +274,19 @@ function EmptyWorkspace() {
       <CardContainer className="space-y-5">
         <PanelTitle
           icon={Home}
-          title="Start a Deal File"
-          subtitle="Begin with an address, listing URL, screenshots, or property facts. BRIX will organize the relationship, analysis, contract, and outcome."
+          title="Build Your Deal Queue"
+          subtitle="Add a real property to begin underwriting. BRIX will organize facts, source confidence, risks, strategy fit, and next actions."
         />
         <div className="grid gap-3 md:grid-cols-2">
           <StartAction
             title="1. Find the address"
-            body="Use FindIQ to start with a location and buying criteria, then add real properties you want to investigate."
+            body="Use FindIQ to search a geography, import listings, and rank properties against your buying criteria."
             to="/findiq"
             action="Open FindIQ"
           />
           <StartAction
             title="2. Build the file"
-            body="Use DealIQ when you already have a listing URL, screenshots, listing text, or property facts."
+            body="Use DealIQ when you already have a listing URL, screenshots, listing text, or known property facts."
             to="/dealiq/new"
             action="Start DealIQ"
           />
@@ -321,9 +321,9 @@ function DealJourney({ activeDeals, readyCount, needsVerification }: { activeDea
       <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Deal flow</p>
-          <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">From address to outcome intelligence</h2>
+          <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">From property to decision record</h2>
         </div>
-        <p className="text-sm text-muted-foreground">Find, prepare, analyze, pursue, win or lose, learn.</p>
+        <p className="text-sm text-muted-foreground">Source, prepare, underwrite, pursue, close or pass, learn.</p>
       </div>
       <div className="grid gap-2 md:grid-cols-5">
         {steps.map((step, index) => (

@@ -34,8 +34,8 @@ function ModuleRail() {
   return (
     <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[258px] shrink-0 border-r border-border bg-card/35 p-3 lg:block">
       <div className="mb-3 rounded-md border border-border bg-background p-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Deal flow</p>
-        <p className="mt-1 text-sm leading-5 text-foreground">Find the address, build the file, analyze the deal, record the outcome, and learn from what wins.</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Investor workflow</p>
+        <p className="mt-1 text-sm leading-5 text-foreground">Source, underwrite, pursue, close, and learn from every deal file.</p>
       </div>
 
       <nav className="space-y-1">

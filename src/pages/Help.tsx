@@ -22,7 +22,7 @@ const quickStartCards = [
   {
     icon: Zap,
     title: "Win, lose, learn",
-    text: "Closed, passed, and lost deals preserve why the outcome happened so future decisions get sharper.",
+    text: "Closed, passed, and lost deals preserve why the outcome happened so your next decision gets sharper.",
   },
 ];
 
@@ -51,7 +51,7 @@ export default function Help() {
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                 You can start with one property, one strategy, or one question. BRIX keeps the workflow structured:
-                find the address, build the deal file, verify the facts, compare strategies, understand the risks,
+                source the property, build the deal file, verify the facts, compare strategies, understand the risks,
                 work the offer, record the outcome, and keep the intelligence after closing.
               </p>
             </div>
@@ -122,8 +122,8 @@ export default function Help() {
             ))}
           </div>
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-            If the platform ever feels big, follow that sequence. Each module answers one question and hands the work to
-            the next module without forcing duplicate data entry.
+            Follow that sequence when you want the fastest path through a deal. Each module answers one question and hands
+            the work to the next module without forcing duplicate data entry.
           </p>
         </CardContainer>
       </div>
