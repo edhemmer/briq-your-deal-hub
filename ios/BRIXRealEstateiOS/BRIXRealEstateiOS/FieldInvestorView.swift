@@ -1,86 +1,179 @@
+import PhotosUI
 import SwiftUI
+import UIKit
 
 struct FieldInvestorView: View {
     @Environment(BRIXAppState.self) private var appState
-    @State private var selectedCapture = "Photos"
+    @State private var selectedCapture = "Photo"
+    @State private var note = ""
+    @State private var photoPickerItem: PhotosPickerItem?
+    @State private var isCameraPresented = false
 
-    private let captureTypes = ["Photos", "Video", "Scan", "Voice"]
+    private let captureTypes = ["Photo", "Document", "Voice Note", "General Note"]
+    private var cameraAvailable: Bool {
+        UIImagePickerController.isSourceTypeAvailable(.camera)
+    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                BrixCard {
-                    VStack(alignment: .leading, spacing: 14) {
-                        SectionHeader(title: "Field Investor Mode", subtitle: "Capture evidence from the property.", symbol: "camera.viewfinder")
-                        Picker("Capture type", selection: $selectedCapture) {
-                            ForEach(captureTypes, id: \.self) { type in
-                                Text(type).tag(type)
+                if appState.authState.isSignedIn == false {
+                    SignInRequiredCard(
+                        title: "Field capture sync requires sign-in",
+                        message: "Photos, documents, and notes attach to your BRIX deal files and upload to the backend when available."
+                    )
+                } else {
+                    BrixCard {
+                        VStack(alignment: .leading, spacing: 14) {
+                            SectionHeader(title: "Field Capture", subtitle: "Capture evidence from the property and attach it to the selected deal.", symbol: "camera.viewfinder")
+
+                            if let deal = appState.selectedDeal {
+                                Text("Selected: \(deal.title)")
+                                    .font(.subheadline.weight(.semibold))
+                            } else {
+                                Text("Select a deal in FindIQ before uploading field evidence.")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Picker("Capture type", selection: $selectedCapture) {
+                                ForEach(captureTypes, id: \.self) { type in
+                                    Text(type).tag(type)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+
+                            TextField("Optional note for this capture", text: $note, axis: .vertical)
+                                .textFieldStyle(.roundedBorder)
+
+                            HStack {
+                                Button {
+                                    isCameraPresented = true
+                                } label: {
+                                    Label("Use Camera", systemImage: "camera")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(appState.selectedDeal == nil || cameraAvailable == false)
+
+                                PhotosPicker(selection: $photoPickerItem, matching: .images) {
+                                    Label("Upload Photo", systemImage: "photo")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.bordered)
+                                .disabled(appState.selectedDeal == nil)
+                            }
+
+                            Button {
+                                Task {
+                                    await appState.uploadFieldCapture(imageData: nil, captureType: selectedCapture, note: note.isEmpty ? nil : note)
+                                    note = ""
+                                }
+                            } label: {
+                                Label("Save Note", systemImage: "square.and.arrow.up")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(appState.selectedDeal == nil || note.isEmpty)
+                        }
+                    }
+
+                    BrixCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            SectionHeader(title: "Upload Queue", subtitle: "Captures sync to BRIX and remain visible if an upload needs retry.", symbol: "icloud.and.arrow.up")
+                            if appState.queuedOfflineActions.isEmpty {
+                                Text("No queued captures.")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                ForEach(appState.queuedOfflineActions) { action in
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(action.title).font(.subheadline.weight(.semibold))
+                                            Text(action.detail).font(.caption).foregroundStyle(.secondary)
+                                        }
+                                        Spacer()
+                                        SeverityBadge(text: action.uploadState.rawValue, severity: action.uploadState == .uploaded ? .positive : action.uploadState == .failed ? .risk : .caution)
+                                    }
+                                    .padding(12)
+                                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
+                                }
                             }
                         }
-                        .pickerStyle(.segmented)
-
-                        Button {
-                            appState.queuedOfflineActions.append(
-                                OfflineAction(title: "\(selectedCapture) capture", detail: "Queued locally until sync is available")
-                            )
-                        } label: {
-                            Label("Add \(selectedCapture)", systemImage: "plus.circle.fill")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
                     }
+
+                    EmptyOperatingState(
+                        title: "Visual findings come from BRIX analysis",
+                        message: "After upload, backend visual intelligence should return condition findings, confidence, severity, and verification recommendations. The mobile app does not diagnose property conditions locally.",
+                        symbol: "wrench.and.screwdriver"
+                    )
                 }
 
-                BrixCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(title: "Offline Queue", subtitle: "Uploads automatically when connected.", symbol: "icloud.and.arrow.up")
-                        ForEach(appState.queuedOfflineActions) { action in
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(action.title).font(.subheadline.weight(.semibold))
-                                Text(action.detail).font(.caption).foregroundStyle(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(12)
-                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
-                        }
-                    }
-                }
-
-                BrixCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(title: "Visual Scope Builder", subtitle: "Photos become preliminary scope intelligence.", symbol: "wrench.and.screwdriver")
-                        ForEach(BrixDemoData.findings) { finding in
-                            VisualFindingRow(finding: finding)
-                        }
-                    }
+                if let error = appState.lastError {
+                    ErrorCard(message: error)
                 }
             }
             .padding()
         }
         .background(Color.brixSurface)
+        .sheet(isPresented: $isCameraPresented) {
+            CameraCaptureSheet { imageData in
+                Task {
+                    await appState.uploadFieldCapture(imageData: imageData, captureType: selectedCapture, note: note.isEmpty ? nil : note)
+                    note = ""
+                }
+            }
+        }
+        .onChange(of: photoPickerItem) { _, newItem in
+            guard let newItem else { return }
+            Task {
+                if let data = try? await newItem.loadTransferable(type: Data.self) {
+                    await appState.uploadFieldCapture(imageData: data, captureType: selectedCapture, note: note.isEmpty ? nil : note)
+                    note = ""
+                }
+                photoPickerItem = nil
+            }
+        }
     }
 }
 
-private struct VisualFindingRow: View {
-    let finding: VisualFinding
+private struct CameraCaptureSheet: UIViewControllerRepresentable {
+    let onImageData: (Data) -> Void
+    @Environment(\.dismiss) private var dismiss
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(finding.area).font(.headline)
-                Spacer()
-                SeverityBadge(text: "\(finding.confidence)%", severity: finding.severity)
-            }
-            Text(finding.finding)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Text(finding.estimate)
-                .font(.subheadline.weight(.bold))
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        picker.allowsEditing = false
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onImageData: onImageData, dismiss: dismiss)
+    }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let onImageData: (Data) -> Void
+        let dismiss: DismissAction
+
+        init(onImageData: @escaping (Data) -> Void, dismiss: DismissAction) {
+            self.onImageData = onImageData
+            self.dismiss = dismiss
         }
-        .padding(12)
-        .background(.background, in: RoundedRectangle(cornerRadius: 8))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8).stroke(.quaternary)
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let image = info[.originalImage] as? UIImage,
+               let data = image.jpegData(compressionQuality: 0.84) {
+                onImageData(data)
+            }
+            dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            dismiss()
         }
     }
 }

@@ -86,3 +86,68 @@ struct SeverityBadge: View {
             .background(severity.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
     }
 }
+
+struct EmptyOperatingState: View {
+    let title: String
+    let message: String
+    let symbol: String
+
+    var body: some View {
+        BrixCard {
+            VStack(spacing: 12) {
+                Image(systemName: symbol)
+                    .font(.title2)
+                    .foregroundStyle(.brixBlue)
+                    .frame(width: 44, height: 44)
+                    .background(.blue.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+                Text(title)
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(Color.brixInk)
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+}
+
+struct SignInRequiredCard: View {
+    let title: String
+    let message: String
+
+    var body: some View {
+        BrixCard {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader(title: title, subtitle: "Apple-compliant account access.", symbol: "lock.shield")
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text("Open Account to sign in with Apple. BRIX does not track users across apps or websites.")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+struct ErrorCard: View {
+    let message: String
+
+    var body: some View {
+        BrixCard {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Connection issue")
+                        .font(.subheadline.weight(.bold))
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+}

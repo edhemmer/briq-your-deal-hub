@@ -18,17 +18,17 @@ The iOS app is the field-ready BRIX client. It focuses on:
 
 Business logic belongs in backend services. The app does not duplicate scoring engines, trust calculations, strategy calculations, or underwriting engines.
 
-## Current App Slice
+## Current App
 
-This starter implements:
+This native client implements:
 
-- `TodayDecisionView`: recommendation, trust, readiness, confidence, next actions, Mentor Mode
-- `FieldInvestorView`: photos/video/scan/voice capture entry points, offline queue, Visual Scope Builder findings
-- `DigitalTwinView`: property source-of-truth summary and timeline
-- `StrategyLabView`: strategy comparison cards
-- `ProjectOSView`: execution tasks and priority flags
-- `PortfolioOSView`: portfolio impact and exposure view
-- `BRIXAPIClient`: API boundary stub so backend services remain authoritative
+- `TodayDecisionView`: live mobile Deal Dashboard from BRIX deal records
+- `DigitalTwinView`: FindIQ search across signed-in user deal records
+- `StrategyLabView`: DealIQ mobile review for selected deal files and backend recommendation snapshots
+- `FieldInvestorView`: camera/photo capture, upload queue, and backend field-capture submission
+- `PortfolioOSView`: portfolio metrics rendered from BRIX backend state when assets exist
+- `AccountView`: Sign in with Apple, privacy disclosures, sign out, and account deletion request flow
+- `BRIXAPIClient`: URLSession boundary to Supabase Auth, REST, Storage, and Edge Functions
 
 ## Xcode Setup
 
@@ -43,6 +43,7 @@ Recommended settings:
 - Add the `Sign in with Apple` capability.
 - Use `BRIXRealEstateiOS.entitlements`.
 - Include `Info.plist` and `PrivacyInfo.xcprivacy` in the app target.
+- Confirm `BRIX_SUPABASE_URL` and `BRIX_SUPABASE_PUBLISHABLE_KEY` in `Info.plist` point at the production Supabase project.
 
 The source uses SwiftUI Observation (`@Observable`), so iOS 17+ is recommended for this first native build.
 

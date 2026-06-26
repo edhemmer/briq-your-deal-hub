@@ -4,6 +4,10 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>BRIX Real Estate</string>
+	<key>BRIX_SUPABASE_URL</key>
+	<string>https://luwaqrkhmxcqsozmilbw.supabase.co</string>
+	<key>BRIX_SUPABASE_PUBLISHABLE_KEY</key>
+	<string>sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f</string>
 	<key>NSCameraUsageDescription</key>
 	<string>BRIX uses the camera to capture property photos, videos, and documents for the Property Digital Twin and field due diligence.</string>
 	<key>NSMicrophoneUsageDescription</key>

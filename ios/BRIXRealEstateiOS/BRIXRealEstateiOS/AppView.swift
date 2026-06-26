@@ -20,21 +20,22 @@ struct AppView: View {
             }
         }
         .tint(.brixBlue)
+        .task {
+            await appState.restore()
+        }
     }
 
     @ViewBuilder
     private func content(for tab: AppTab) -> some View {
         switch tab {
-        case .today:
+        case .dashboard:
             TodayDecisionView()
+        case .find:
+            DigitalTwinView()
+        case .deal:
+            StrategyLabView()
         case .field:
             FieldInvestorView()
-        case .twin:
-            DigitalTwinView()
-        case .strategy:
-            StrategyLabView()
-        case .project:
-            ProjectOSView()
         case .portfolio:
             PortfolioOSView()
         case .account:

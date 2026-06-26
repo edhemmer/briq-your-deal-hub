@@ -6,6 +6,7 @@ struct AccountView: View {
     @State private var isShowingDeleteConfirmation = false
     @State private var deletionReason = ""
     @State private var deletionStatus: String?
+    @State private var authStatus: String?
     private let apiClient = BRIXAPIClient()
 
     var body: some View {
@@ -27,7 +28,7 @@ struct AccountView: View {
                             }
 
                             Button(role: .destructive) {
-                                appState.signOut()
+                                Task { await appState.signOut() }
                             } label: {
                                 Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                                     .frame(maxWidth: .infinity)
@@ -42,8 +43,14 @@ struct AccountView: View {
                             .signInWithAppleButtonStyle(.black)
                             .frame(height: 48)
 
-                            Text("You can browse the BRIX OS demo without signing in. Saved deals, sync, field uploads, and portfolio data require an account.")
+                            Text("Sign in is required for saved deals, sync, field uploads, portfolio data, and account deletion controls.")
                                 .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if let authStatus {
+                            Text(authStatus)
+                                .font(.footnote.weight(.medium))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -57,7 +64,7 @@ struct AccountView: View {
                         PrivacyDisclosureRow(title: "Microphone", detail: "Optional. Used only when you record a property voice note.")
                         PrivacyDisclosureRow(title: "Documents", detail: "Used for OCR and extraction from inspections, bids, leases, and closing files.")
 
-                        Link(destination: URL(string: "https://brix.realestate/privacy")!) {
+                        Link(destination: BRIXAppConfig.privacyPolicyURL) {
                             Label("Open Privacy Policy", systemImage: "safari")
                                 .frame(maxWidth: .infinity)
                         }
@@ -109,16 +116,29 @@ struct AccountView: View {
         switch result {
         case .success(let authorization):
             guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else { return }
-            appState.signInWithApple(userID: credential.user, email: credential.email)
+            guard let identityToken = credential.identityToken else {
+                authStatus = "Apple did not return an identity token."
+                return
+            }
+
+            Task {
+                do {
+                    let session = try await apiClient.signInWithApple(identityToken: identityToken)
+                    await appState.signIn(with: session)
+                    authStatus = "Signed in securely with Apple."
+                } catch {
+                    authStatus = "Sign in failed: \(error.localizedDescription)"
+                }
+            }
         case .failure(let error):
-            deletionStatus = "Sign in failed: \(error.localizedDescription)"
+            authStatus = "Sign in failed: \(error.localizedDescription)"
         }
     }
 
     private func requestDeletion() async {
         do {
-            try await apiClient.requestAccountDeletion(reason: deletionReason.isEmpty ? nil : deletionReason)
-            appState.signOut()
+            try await apiClient.requestAccountDeletion(reason: deletionReason.isEmpty ? nil : deletionReason, session: appState.session)
+            await appState.signOut()
             deletionStatus = "Deletion request submitted. BRIX will confirm when deletion is complete."
         } catch {
             deletionStatus = "Could not submit deletion request. Try again or contact support."

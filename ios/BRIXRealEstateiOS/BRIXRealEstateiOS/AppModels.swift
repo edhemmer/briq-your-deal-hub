@@ -1,22 +1,24 @@
 import Foundation
 import SwiftUI
 
-enum VerificationStatus: String, CaseIterable, Identifiable {
+enum VerificationStatus: String, CaseIterable, Identifiable, Codable {
     case verified = "Verified"
     case sourceBacked = "Source Backed"
     case corroborated = "Corroborated"
     case estimated = "Estimated"
     case userEntered = "User Entered"
     case missing = "Missing"
+    case unknown = "Unknown"
 
     var id: String { rawValue }
 }
 
-enum Severity: String {
+enum Severity: String, Codable {
     case positive = "Positive"
     case info = "Info"
     case caution = "Caution"
     case risk = "Risk"
+    case neutral = "Neutral"
 
     var color: Color {
         switch self {
@@ -24,136 +26,267 @@ enum Severity: String {
         case .info: return .blue
         case .caution: return .orange
         case .risk: return .red
+        case .neutral: return .secondary
         }
     }
 }
 
-struct DecisionSnapshot: Identifiable {
-    let id = UUID()
+struct AuthSession: Codable, Equatable {
+    let accessToken: String
+    let refreshToken: String?
+    let userID: String
+    let email: String?
+
+    enum CodingKeys: String, CodingKey {
+        case accessToken = "access_token"
+        case refreshToken = "refresh_token"
+        case user
+    }
+
+    enum UserKeys: String, CodingKey {
+        case id
+        case email
+    }
+
+    init(accessToken: String, refreshToken: String?, userID: String, email: String?) {
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
+        self.userID = userID
+        self.email = email
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        accessToken = try container.decode(String.self, forKey: .accessToken)
+        refreshToken = try container.decodeIfPresent(String.self, forKey: .refreshToken)
+
+        let userContainer = try container.nestedContainer(keyedBy: UserKeys.self, forKey: .user)
+        userID = try userContainer.decode(String.self, forKey: .id)
+        email = try userContainer.decodeIfPresent(String.self, forKey: .email)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(accessToken, forKey: .accessToken)
+        try container.encodeIfPresent(refreshToken, forKey: .refreshToken)
+    }
+}
+
+struct DealSummary: Identifiable, Codable, Hashable {
+    let id: String
+    var propertyAddress: String?
+    var city: String?
+    var state: String?
+    var zipCode: String?
+    var propertyType: String?
+    var beds: Double?
+    var baths: Double?
+    var squareFeet: Double?
+    var purchasePrice: Double?
+    var monthlyRent: Double?
+    var annualPropertyTax: Double?
+    var taxes: Double?
+    var insurance: Double?
+    var estimatedARV: Double?
+    var strategyPrimary: String?
+    var dealStatus: String?
+    var sourceConfidence: String?
+    var listingURL: String?
+    var createdAt: String?
+    var updatedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case propertyAddress = "property_address"
+        case city
+        case state
+        case zipCode = "zip_code"
+        case propertyType = "property_type"
+        case beds
+        case baths
+        case squareFeet = "square_feet"
+        case purchasePrice = "purchase_price"
+        case monthlyRent = "monthly_rent"
+        case annualPropertyTax = "annual_property_tax"
+        case taxes
+        case insurance
+        case estimatedARV = "estimated_arv"
+        case strategyPrimary = "strategy_primary"
+        case dealStatus = "deal_status"
+        case sourceConfidence = "source_confidence"
+        case listingURL = "listing_url"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+
+    var title: String {
+        propertyAddress?.isEmpty == false ? propertyAddress! : "Unnamed property"
+    }
+
+    var locationLine: String {
+        [city, state, zipCode]
+            .compactMap { $0?.isEmpty == false ? $0 : nil }
+            .joined(separator: ", ")
+    }
+
+    var displayStatus: String {
+        dealStatus?.isEmpty == false ? dealStatus! : "Draft"
+    }
+
+    var annualTaxesForDisplay: Double? {
+        annualPropertyTax ?? taxes
+    }
+
+    var missingInputs: [String] {
+        var items: [String] = []
+        if propertyAddress?.isEmpty ?? true { items.append("Property address") }
+        if city?.isEmpty ?? true { items.append("City") }
+        if state?.isEmpty ?? true { items.append("State") }
+        if purchasePrice == nil || purchasePrice == 0 { items.append("Purchase price") }
+        if monthlyRent == nil || monthlyRent == 0 { items.append("Monthly rent") }
+        if annualTaxesForDisplay == nil || annualTaxesForDisplay == 0 { items.append("Annual taxes") }
+        if insurance == nil || insurance == 0 { items.append("Annual insurance") }
+        if propertyType?.isEmpty ?? true { items.append("Property type") }
+        if strategyPrimary?.isEmpty ?? true { items.append("Strategy") }
+        return items
+    }
+
+    var mobileCompletenessScore: Int {
+        let total = 9
+        let present = total - missingInputs.count
+        return max(0, min(100, Int(round(Double(present) / Double(total) * 100))))
+    }
+}
+
+struct DecisionSnapshot: Identifiable, Codable, Hashable {
+    let id: String
+    let dealID: String
     let recommendation: String
     let confidence: Int
     let trustScore: Int
     let readinessScore: Int
     let primaryRisk: String
     let nextAction: String
+    let evidenceSummary: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case dealID = "deal_id"
+        case recommendation
+        case confidence
+        case trustScore = "trust_score"
+        case readinessScore = "readiness_score"
+        case primaryRisk = "primary_risk"
+        case nextAction = "next_action"
+        case evidenceSummary = "evidence_summary"
+    }
 }
 
-struct PropertyTwin: Identifiable {
+struct StrategyOption: Identifiable, Codable, Hashable {
     let id: String
-    let address: String
-    let propertyType: String
-    let ownershipStatus: String
-    let verificationStatus: VerificationStatus
-    let timeline: [TwinEvent]
-}
-
-struct TwinEvent: Identifiable {
-    let id = UUID()
-    let title: String
-    let stage: String
-    let date: String
-}
-
-struct StrategyOption: Identifiable {
-    let id = UUID()
     let name: String
-    let score: Int
-    let trust: Int
+    let score: Int?
+    let trust: Int?
     let risk: Severity
-    let capitalRequired: String
+    let capitalRequired: String?
     let nextAction: String
 }
 
-struct CommitteeOpinion: Identifiable {
-    let id = UUID()
-    let role: String
-    let position: String
-    let detail: String
-    let severity: Severity
-}
-
-struct VisualFinding: Identifiable {
-    let id = UUID()
+struct VisualFinding: Identifiable, Codable, Hashable {
+    let id: String
     let area: String
     let finding: String
-    let estimate: String
-    let confidence: Int
+    let estimate: String?
+    let confidence: Int?
     let severity: Severity
 }
 
-struct ProjectTask: Identifiable {
-    let id = UUID()
+struct ProjectTask: Identifiable, Codable, Hashable {
+    let id: String
     let title: String
-    let owner: String
-    let due: String
+    let owner: String?
+    let due: String?
     let severity: Severity
 }
 
-struct PortfolioMetric: Identifiable {
-    let id = UUID()
+struct PortfolioMetric: Identifiable, Codable, Hashable {
+    let id: String
     let label: String
     let value: String
-    let score: Int
+    let score: Int?
     let severity: Severity
 }
 
-struct BrixDemoData {
-    static let decision = DecisionSnapshot(
-        recommendation: "Buy with conditions",
-        confidence: 74,
-        trustScore: 78,
-        readinessScore: 72,
-        primaryRisk: "Insurance and roof scope are not verified.",
-        nextAction: "Verify insurance quote before inspection period ends."
-    )
+struct OfflineAction: Identifiable, Codable, Hashable {
+    let id: UUID
+    let title: String
+    let detail: String
+    let createdAt: Date
+    var uploadState: UploadState
 
-    static let property = PropertyTwin(
-        id: "BRX-1042",
-        address: "1248 W Maple Ave",
-        propertyType: "Duplex",
-        ownershipStatus: "Under Contract",
-        verificationStatus: .sourceBacked,
-        timeline: [
-            TwinEvent(title: "Offer accepted", stage: "Acquisition", date: "Today"),
-            TwinEvent(title: "Inspection window open", stage: "Due Diligence", date: "3 days left"),
-            TwinEvent(title: "Contractor walk scheduled", stage: "Renovation", date: "Tomorrow"),
-            TwinEvent(title: "Lease-up model pending", stage: "Operations", date: "Queued")
-        ]
-    )
+    init(id: UUID = UUID(), title: String, detail: String, createdAt: Date = Date(), uploadState: UploadState = .queued) {
+        self.id = id
+        self.title = title
+        self.detail = detail
+        self.createdAt = createdAt
+        self.uploadState = uploadState
+    }
+}
 
-    static let strategies = [
-        StrategyOption(name: "Buy and Hold", score: 84, trust: 78, risk: .caution, capitalRequired: "$84k", nextAction: "Verify rent comps"),
-        StrategyOption(name: "Seller Finance", score: 79, trust: 72, risk: .info, capitalRequired: "$52k", nextAction: "Review terms"),
-        StrategyOption(name: "BRRRR", score: 73, trust: 66, risk: .caution, capitalRequired: "$118k", nextAction: "Contractor bid required"),
-        StrategyOption(name: "Flip", score: 58, trust: 61, risk: .risk, capitalRequired: "$126k", nextAction: "Exit comps too thin")
-    ]
+enum UploadState: String, Codable, Hashable {
+    case queued = "Queued"
+    case uploading = "Uploading"
+    case uploaded = "Uploaded"
+    case failed = "Needs Retry"
+}
 
-    static let committee = [
-        CommitteeOpinion(role: "Acquisition Analyst", position: "Conditional buy", detail: "Value works if rents are verified.", severity: .positive),
-        CommitteeOpinion(role: "Contractor", position: "Caution", detail: "Roof and bath scope need bid support.", severity: .caution),
-        CommitteeOpinion(role: "Lender", position: "Mostly ready", detail: "Base-case DSCR clears lender threshold.", severity: .info),
-        CommitteeOpinion(role: "Insurance Underwriter", position: "Concern", detail: "Premium exposure is unverified.", severity: .risk),
-        CommitteeOpinion(role: "Portfolio Manager", position: "Good fit", detail: "Adds cash flow without market over-concentration.", severity: .positive)
-    ]
+struct FieldCapturePayload: Codable {
+    let localIdentifier: String
+    let captureType: String
+    let note: String?
+    let createdAt: Date
+}
 
-    static let findings = [
-        VisualFinding(area: "Kitchen", finding: "Replace cabinets, counters, and appliances.", estimate: "$14.5k - $21k", confidence: 82, severity: .caution),
-        VisualFinding(area: "Bathrooms", finding: "Two full remodels and tile repair.", estimate: "$10k - $15k", confidence: 76, severity: .caution),
-        VisualFinding(area: "Roof", finding: "Aging shingles visible. Professional review required.", estimate: "Review needed", confidence: 61, severity: .risk),
-        VisualFinding(area: "Flooring", finding: "Replace carpet and refinish common areas.", estimate: "$6.8k - $9.2k", confidence: 87, severity: .positive)
-    ]
+enum InvestorLevel: String, CaseIterable, Identifiable {
+    case explorer = "Explorer"
+    case firstDeal = "First Deal"
+    case active = "Active"
+    case operatorLevel = "Operator"
 
-    static let projectTasks = [
-        ProjectTask(title: "Order insurance quote", owner: "Investor", due: "Today", severity: .risk),
-        ProjectTask(title: "Request contractor roof review", owner: "Contractor", due: "Tomorrow", severity: .caution),
-        ProjectTask(title: "Pull three rent comps", owner: "BRIX", due: "Queued", severity: .caution),
-        ProjectTask(title: "Confirm DSCR terms", owner: "Lender", due: "2 days", severity: .info)
-    ]
+    var id: String { rawValue }
 
-    static let portfolioMetrics = [
-        PortfolioMetric(label: "Cash flow", value: "$8.7k/mo", score: 84, severity: .positive),
-        PortfolioMetric(label: "Liquidity", value: "$186k", score: 74, severity: .info),
-        PortfolioMetric(label: "Debt risk", value: "Moderate", score: 62, severity: .caution),
-        PortfolioMetric(label: "Insurance exposure", value: "Elevated", score: 58, severity: .risk)
-    ]
+    var mentorMessage: String {
+        switch self {
+        case .explorer:
+            return "BRIX defines terms, explains calculations, and flags common first-pass mistakes."
+        case .firstDeal:
+            return "BRIX guides verification, financing, due diligence, and first-deal risk without hiding uncertainty."
+        case .active:
+            return "BRIX emphasizes tradeoffs, strategy fit, and portfolio impact."
+        case .operatorLevel:
+            return "BRIX focuses on execution variance, capital allocation, and optimization."
+        }
+    }
+}
+
+enum AppTab: String, CaseIterable, Identifiable {
+    case dashboard = "Dashboard"
+    case find = "FindIQ"
+    case deal = "DealIQ"
+    case field = "Field"
+    case portfolio = "Portfolio"
+    case account = "Account"
+
+    var id: String { rawValue }
+
+    var symbol: String {
+        switch self {
+        case .dashboard: return "target"
+        case .find: return "magnifyingglass"
+        case .deal: return "chart.bar.xaxis"
+        case .field: return "camera.viewfinder"
+        case .portfolio: return "chart.pie"
+        case .account: return "person.crop.circle"
+        }
+    }
 }
