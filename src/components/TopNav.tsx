@@ -33,16 +33,14 @@ export function TopNav() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-border bg-card/95 backdrop-blur-sm supports-[backdrop-filter]:bg-card/85">
-      <div className="mx-auto flex h-full max-w-[1500px] items-center justify-between px-4 md:px-6">
-        {/* Left: Brand */}
+    <header className="fixed left-0 right-0 top-0 z-50 h-14 border-b border-border bg-card/95 backdrop-blur-sm supports-[backdrop-filter]:bg-card/85">
+      <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-4 md:px-5 xl:px-6">
         <Link to="/dashboard" className="flex items-baseline gap-1.5 shrink-0">
           <BrixIcon size={34} className="text-primary self-center" />
           <span className="text-lg font-extrabold tracking-tight text-foreground leading-none">BRIX</span>
-          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-none">Real Estate</span>
+          <span className="hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-none sm:inline">Real Estate</span>
         </Link>
 
-        {/* Right: Actions */}
         <div className="flex items-center gap-2">
           <ThemeToggle />
           {user ? (
@@ -83,14 +81,13 @@ export function TopNav() {
         </div>
       </div>
 
-      {/* Mobile nav */}
-      <div className="border-t border-border bg-card md:hidden">
-        <nav className="scrollbar-hide flex items-center gap-1 overflow-x-auto px-2">
-          {appNavItems.slice(0, 7).map((item) => (
+      <div className="border-t border-border bg-card xl:hidden">
+        <nav className="scrollbar-hide mx-auto flex max-w-[1440px] items-center gap-1 overflow-x-auto px-2 md:px-4">
+          {appNavItems.map((item) => (
             <Link
               key={item.url}
               to={item.url}
-              className={`relative shrink-0 py-2.5 px-2 text-xs font-medium transition-colors ${
+              className={`relative shrink-0 px-2 py-2.5 text-xs font-medium transition-colors md:px-3 ${
                 isActive(item.url)
                   ? "text-foreground"
                   : "text-muted-foreground"

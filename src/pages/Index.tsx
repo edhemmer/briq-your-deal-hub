@@ -129,7 +129,7 @@ export default function Index() {
             </div>
           </div>
 
-          <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-[430px]">
+          <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-[390px] xl:w-[430px]">
             <ExecutiveMetric label="Open deal files" value={String(activeDeals.length)} tone="neutral" />
             <ExecutiveMetric label="Ready to act" value={String(readyCount)} tone="positive" />
             <ExecutiveMetric label="Need verification" value={String(needsVerification)} tone={needsVerification > 0 ? "caution" : "positive"} />
@@ -143,7 +143,7 @@ export default function Index() {
         <>
           <DealJourney activeDeals={activeDeals.length} readyCount={readyCount} needsVerification={needsVerification} />
 
-          <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+          <section className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
             <CardContainer className="relative overflow-hidden space-y-5">
               <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
               <PanelTitle
@@ -153,7 +153,7 @@ export default function Index() {
               />
               {primaryDeal && (
                 <div className="relative rounded-lg border border-border bg-gradient-to-br from-background via-background to-primary/5 p-4">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <h2 className="text-lg font-semibold text-foreground">{primaryDeal.property_address}</h2>
                       <p className="mt-1 text-sm text-muted-foreground">
@@ -167,7 +167,7 @@ export default function Index() {
                         </Badge>
                       </div>
                     </div>
-                    <div className="min-w-[210px] rounded-md border border-border bg-card p-3 shadow-sm">
+                    <div className="w-full rounded-md border border-border bg-card p-3 shadow-sm sm:w-[210px] sm:shrink-0">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-muted-foreground">Readiness</span>
                         <span className={`text-xl font-black ${scoreText(primaryScore)}`}>{primaryScore}</span>
@@ -181,7 +181,7 @@ export default function Index() {
                 </div>
               )}
 
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-3">
                 <FactTile label="Purchase price" value={money(primaryDeal?.purchase_price)} verified={!!numberOrNull(primaryDeal?.purchase_price)} />
                 <FactTile label="Monthly rent" value={numberOrNull(primaryDeal?.monthly_rent) ? money(primaryDeal?.monthly_rent) : "Missing"} verified={!!numberOrNull(primaryDeal?.monthly_rent)} />
                 <FactTile label="Annual insurance" value={numberOrNull(primaryDeal?.insurance) ? money(primaryDeal?.insurance) : "Missing"} verified={!!numberOrNull(primaryDeal?.insurance)} />
@@ -236,7 +236,7 @@ export default function Index() {
             </CardContainer>
           </section>
 
-          <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+          <section className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
             <CardContainer className="space-y-4">
               <PanelTitle
                 icon={BarChart3}
@@ -325,7 +325,7 @@ function DealJourney({ activeDeals, readyCount, needsVerification }: { activeDea
         </div>
         <p className="text-sm text-muted-foreground">Source, prepare, underwrite, pursue, close or pass, learn.</p>
       </div>
-      <div className="grid gap-2 md:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         {steps.map((step, index) => (
           <div
             key={step.label}
@@ -367,7 +367,7 @@ function DealStackCard({ deal, rank }: { deal: Deal; rank: number }) {
     >
       <div className={cn("absolute inset-y-0 left-0 w-1 bg-muted", tone === "positive" && "bg-signal-positive", tone === "caution" && "bg-signal-warning", tone === "risk" && "bg-signal-risk")} />
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-card text-sm font-bold text-muted-foreground">
             {rank}
@@ -385,7 +385,7 @@ function DealStackCard({ deal, rank }: { deal: Deal; rank: number }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 md:w-[330px]">
+        <div className="grid grid-cols-3 gap-2 lg:w-[310px] xl:w-[330px]">
           <MiniSignal label="Readiness" value={String(score)} tone={tone} />
           <MiniSignal label="Price" value={money(deal.purchase_price)} tone={numberOrNull(deal.purchase_price) ? "positive" : "caution"} />
           <MiniSignal label="Missing" value={String(missing.length)} tone={missing.length > 0 ? "caution" : "positive"} />

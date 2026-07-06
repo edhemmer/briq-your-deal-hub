@@ -134,11 +134,11 @@ export function DealIQLanding() {
         <EmptyDealCockpit />
       ) : (
         <div className="space-y-4">
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
             <CardContainer className="relative overflow-hidden p-0">
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
-              <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
-                <div>
+              <div className="grid gap-5 p-4 md:p-5 lg:grid-cols-[minmax(0,1fr)_250px] xl:grid-cols-[minmax(0,1fr)_280px]">
+                <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Active Underwriting Cockpit</p>
                   <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
                     {activeDeal.property_address || activeDeal.deal_name || "Unnamed property"}
@@ -154,7 +154,7 @@ export function DealIQLanding() {
                     </Badge>
                   </div>
 
-                  <div className="mt-5 grid gap-3 sm:grid-cols-4">
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <Kpi label="Price" value={money(activeDeal.purchase_price)} />
                     <Kpi label="Rent/mo" value={money(activeDeal.monthly_rent)} />
                     <Kpi label="Cash flow/mo" value={activeAnalysis ? money(activeAnalysis.metrics.monthly_cashflow) : "Needed"} tone={activeAnalysis && activeAnalysis.metrics.monthly_cashflow >= 0 ? "good" : "warn"} />
@@ -211,7 +211,7 @@ export function DealIQLanding() {
             </CardContainer>
           </section>
 
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Metric label="Open files" value={liveDeals.length} />
             <Metric label="Ready files" value={readyCount} tone="good" />
             <Metric label="Need proof" value={liveDeals.length - readyCount} tone={liveDeals.length - readyCount > 0 ? "warn" : "good"} />
@@ -268,7 +268,7 @@ function DealRow({ deal, onOpen, onDelete }: { deal: Deal; onOpen: () => void; o
   const missing = missingInputs(deal);
 
   return (
-    <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_420px_150px] lg:items-center">
+    <div className="grid gap-4 p-4 md:p-5 lg:grid-cols-[minmax(0,1fr)_320px_120px] xl:grid-cols-[minmax(0,1fr)_420px_150px] lg:items-center">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-semibold text-foreground">{deal.property_address || "Unnamed property"}</h3>
@@ -285,7 +285,7 @@ function DealRow({ deal, onOpen, onDelete }: { deal: Deal; onOpen: () => void; o
         </p>
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
         <Mini label="Ready" value={String(score)} tone={score >= 80 ? "good" : "warn"} />
         <Mini label="Cap" value={pct(analysis.metrics.cap_rate)} tone={analysis.metrics.cap_rate >= 0.06 ? "good" : "warn"} />
         <Mini label="CoC" value={pct(analysis.metrics.cash_on_cash)} tone={analysis.metrics.cash_on_cash >= 0.08 ? "good" : "warn"} />

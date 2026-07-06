@@ -295,11 +295,11 @@ export default function FindIQ() {
         </Button>
       </PageHeader>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
         <CardContainer className="relative overflow-hidden">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Opportunity Cockpit</p>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
                 Start with a place, then add the properties you want BRIX to rank.
@@ -314,7 +314,7 @@ export default function FindIQ() {
                 <Badge variant="outline">Phone photos</Badge>
               </div>
             </div>
-            <div className="grid min-w-[280px] grid-cols-3 gap-2">
+            <div className="grid w-full grid-cols-3 gap-2 lg:w-[280px] lg:shrink-0">
               <MiniMetric label="Files" value={String(workspaceDeals.length)} />
               <MiniMetric label="Imported" value={String(importedDeals.length)} />
               <MiniMetric label="Ready" value={String(readyForDealIQ)} />
@@ -337,7 +337,7 @@ export default function FindIQ() {
         </CardContainer>
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-[390px_minmax(0,1fr)]">
+      <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[390px_minmax(0,1fr)]">
         <CardContainer className="space-y-5">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
@@ -374,7 +374,7 @@ export default function FindIQ() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               <LabeledInput
                 label="Min budget"
                 value={search.budgetMin}
@@ -429,7 +429,7 @@ export default function FindIQ() {
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
                 <Upload className="h-5 w-5" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-foreground">Drop a listing, spreadsheet, or photos</h3>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   Supports URLs, copied listing text, CSV, XLS, XLSX, and property photos. BRIX will prefill what it can and ask you to verify the rest.
@@ -483,7 +483,7 @@ export default function FindIQ() {
                   Ranked results appear here after you run a search or save an imported property. Each result shows score, missing data, risks, and the path into DealIQ.
                 </p>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="grid grid-cols-3 gap-2 text-center lg:w-[260px] lg:shrink-0">
                 <MiniMetric label="Found" value={String(rankedOpportunities.length)} />
                 <MiniMetric label="Strong" value={String(strongMatches)} />
                 <MiniMetric label="Needs data" value={String(needsVerification)} />
@@ -491,7 +491,7 @@ export default function FindIQ() {
             </div>
           </CardContainer>
 
-          <CardContainer className="min-h-[420px]">
+          <CardContainer className="min-h-[360px] lg:min-h-[420px]">
             {isLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, index) => (
@@ -1142,8 +1142,8 @@ function normalizePropertyType(value: string | null | undefined) {
 
 function OpportunityRow({ opportunity }: { opportunity: RankedOpportunity }) {
   return (
-    <div className="grid gap-4 py-5 lg:grid-cols-[minmax(0,1fr)_260px]">
-      <div className="flex gap-4">
+    <div className="grid gap-4 py-5 lg:grid-cols-[minmax(0,1fr)_240px] xl:grid-cols-[minmax(0,1fr)_260px]">
+      <div className="flex min-w-0 gap-4">
         {opportunity.photoUrl ? (
           <div className="hidden h-24 w-32 shrink-0 overflow-hidden rounded-lg border border-border bg-muted/20 sm:block">
             <img src={opportunity.photoUrl} alt="" className="h-full w-full object-cover" loading="lazy" />

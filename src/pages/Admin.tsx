@@ -68,7 +68,7 @@ export default function Admin() {
   const [planFilter, setPlanFilter] = useState<(typeof PLAN_FILTERS)[number]>("all");
   const [overrideNotes, setOverrideNotes] = useState<Record<string, string>>({});
 
-  const users = data?.users ?? [];
+  const users = useMemo(() => data?.users ?? [], [data?.users]);
   const kpis = data?.kpis;
 
   const filteredUsers = useMemo(() => {

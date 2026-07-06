@@ -9,14 +9,14 @@ interface PageHeaderProps {
 
 const PageHeader = ({ title, description, children, className }: PageHeaderProps) => {
   return (
-    <div className={cn("flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between", className)}>
+    <div className={cn("flex flex-col gap-3 md:flex-row md:items-start md:justify-between", className)}>
       <div className="min-w-0">
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground truncate">{title}</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{title}</h1>
         {description && (
-          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">{description}</p>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p>
         )}
       </div>
-      {children && <div className="mt-2 sm:mt-0 flex items-center gap-2 sm:gap-3 shrink-0">{children}</div>}
+      {children && <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:shrink-0 md:justify-end">{children}</div>}
     </div>
   );
 };

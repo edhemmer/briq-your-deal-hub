@@ -17,10 +17,10 @@ export function AppLayout({ children }: AppLayoutProps) {
     <div className="min-h-screen bg-background">
       <TopNav />
       <div className="h-14" />
-      <div className="md:hidden h-10" />
-      <div className="mx-auto flex w-full max-w-[1500px]">
+      <div className="h-10 xl:hidden" />
+      <div className="mx-auto flex w-full max-w-[1440px]">
         <ModuleRail />
-        <main className="min-w-0 flex-1 px-4 py-4 pb-safe md:px-6 md:py-5 lg:px-7">
+        <main className="min-w-0 flex-1 px-3 py-3 pb-safe sm:px-4 md:px-5 md:py-4 xl:px-6">
           <DealOperatingStrip />
           {children}
         </main>
@@ -42,8 +42,8 @@ function DealOperatingStrip() {
   const missing = activeDeal ? missingInputs(activeDeal) : [];
 
   return (
-    <section className="mb-4 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-border bg-muted/20 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+    <section className="mb-3 overflow-hidden rounded-lg border border-border bg-card shadow-sm md:mb-4">
+      <div className="flex flex-col gap-3 border-b border-border bg-muted/20 px-3 py-3 md:px-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
             <Workflow className="h-4 w-4" />
@@ -55,7 +55,7 @@ function DealOperatingStrip() {
             </h2>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
           <Button size="sm" asChild>
             <Link to="/findiq">
               <FilePlus2 className="mr-2 h-4 w-4" />
@@ -72,7 +72,7 @@ function DealOperatingStrip() {
         </div>
       </div>
 
-      <div className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
+      <div className="grid gap-3 px-3 py-3 md:px-4 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
         <div className="min-w-0">
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading your live deal workspace...</p>
@@ -156,7 +156,7 @@ function ModuleRail() {
   };
 
   return (
-    <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[258px] shrink-0 border-r border-border bg-card/35 p-3 lg:block">
+    <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[248px] shrink-0 border-r border-border bg-card/35 p-3 xl:block 2xl:w-[258px]">
       <div className="mb-3 rounded-md border border-border bg-background p-3">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Investor workflow</p>
         <p className="mt-1 text-sm leading-5 text-foreground">Source, underwrite, pursue, close, and learn from every deal file.</p>
