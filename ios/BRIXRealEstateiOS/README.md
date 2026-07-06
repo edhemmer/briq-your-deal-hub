@@ -32,6 +32,31 @@ This native client implements:
 
 ## Xcode Setup
 
+### Clone the repo on your Mac
+
+Repository:
+
+```bash
+https://github.com/edhemmer/briq-your-deal-hub.git
+```
+
+In Xcode:
+
+1. Open Xcode.
+2. Choose `File > Clone Repository...`.
+3. Paste `https://github.com/edhemmer/briq-your-deal-hub.git` into the search/address field.
+4. If Xcode does not list it from GitHub search, use the pasted URL directly. The repo is private and its GitHub name is `briq-your-deal-hub`, not `BRIX`.
+5. Clone it to your Mac.
+
+Terminal fallback:
+
+```bash
+git clone https://github.com/edhemmer/briq-your-deal-hub.git
+cd briq-your-deal-hub
+```
+
+### Create or attach the Xcode project
+
 Create a new Xcode iOS App project named `BRIXRealEstateiOS`, then add the Swift files from `BRIXRealEstateiOS/` to the app target.
 
 Recommended settings:
@@ -43,6 +68,7 @@ Recommended settings:
 - Add the `Sign in with Apple` capability.
 - Use `BRIXRealEstateiOS.entitlements`.
 - Include `Info.plist` and `PrivacyInfo.xcprivacy` in the app target.
+- Include `Assets.xcassets` in the app target and set the app icon source to `AppIcon`.
 - Confirm `BRIX_SUPABASE_URL` and `BRIX_SUPABASE_PUBLISHABLE_KEY` in `Info.plist` point at the production Supabase project.
 
 The source uses SwiftUI Observation (`@Observable`), so iOS 17+ is recommended for this first native build.
