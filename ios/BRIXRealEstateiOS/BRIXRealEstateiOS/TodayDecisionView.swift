@@ -53,7 +53,7 @@ struct TodayDecisionView: View {
                 } else {
                     EmptyOperatingState(
                         title: "No deal files yet",
-                        message: "Add or import a property in BRIX web, then refresh here. Mobile deal creation can be added after the backend intake endpoint is available.",
+                        message: "Open FindIQ to add the first property from your phone or iPad. BRIX will save it to the same backend used by the web app.",
                         symbol: "tray"
                     )
                 }

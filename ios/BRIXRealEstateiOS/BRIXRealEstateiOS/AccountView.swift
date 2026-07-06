@@ -75,7 +75,7 @@ struct AccountView: View {
                 BrixCard {
                     VStack(alignment: .leading, spacing: 12) {
                         SectionHeader(title: "Delete Account", subtitle: "Permanently remove your BRIX account and personal data.", symbol: "trash")
-                        Text("Deletion removes your BRIX account and associated personal data, except information BRIX is legally required to retain. This is not temporary deactivation. If subscriptions are added later, this screen must also link to Apple subscription management.")
+                        Text("Deletion removes your BRIX account and associated personal data, except information BRIX is legally required to retain. This is not temporary deactivation. Active Apple subscriptions, if any, must be managed through your Apple account.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 

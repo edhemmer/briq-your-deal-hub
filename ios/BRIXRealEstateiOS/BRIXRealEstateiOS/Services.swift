@@ -60,6 +60,36 @@ struct BRIXAPIClient {
         return try decode([DecisionSnapshot].self, from: data).first
     }
 
+    func createDeal(_ draft: CreateDealDraft, session: AuthSession?) async throws -> DealSummary {
+        guard let session else {
+            throw BRIXAPIError.missingConfiguration
+        }
+
+        let request = CreateDealRequest(
+            userID: session.userID,
+            propertyAddress: draft.propertyAddress.trimmingCharacters(in: .whitespacesAndNewlines),
+            city: draft.city.trimmingCharacters(in: .whitespacesAndNewlines),
+            state: draft.state.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(),
+            zipCode: optionalText(draft.zipCode),
+            propertyType: optionalText(draft.propertyType),
+            purchasePrice: optionalNumber(draft.purchasePrice),
+            monthlyRent: optionalNumber(draft.monthlyRent),
+            annualPropertyTax: optionalNumber(draft.annualTaxes),
+            taxes: optionalNumber(draft.annualTaxes),
+            insurance: optionalNumber(draft.annualInsurance),
+            strategyPrimary: optionalText(draft.strategy),
+            listingURL: optionalText(draft.listingURL),
+            listingRemarks: optionalText(draft.notes)
+        )
+
+        let data = try await send(path: "/rest/v1/deals?select=*", method: "POST", body: request, session: session)
+        let createdDeals = try decode([DealSummary].self, from: data)
+        guard let createdDeal = createdDeals.first else {
+            throw BRIXAPIError.invalidResponse
+        }
+        return createdDeal
+    }
+
     func signInWithApple(identityToken: Data) async throws -> AuthSession {
         guard let token = String(data: identityToken, encoding: .utf8), token.isEmpty == false else {
             throw BRIXAPIError.missingAppleIdentityToken
@@ -131,6 +161,9 @@ struct BRIXAPIClient {
         request.setValue("Bearer \(session?.accessToken ?? publishableKey)", forHTTPHeaderField: "Authorization")
         request.setValue(contentType, forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if path.hasPrefix("/rest/v1/"), method != "GET" {
+            request.setValue("return=representation", forHTTPHeaderField: "Prefer")
+        }
         request.httpBody = data
 
         let (responseData, response) = try await urlSession.data(for: request)
@@ -163,6 +196,17 @@ struct BRIXAPIClient {
         default:
             return "photo"
         }
+    }
+
+    private func optionalText(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func optionalNumber(_ value: String) -> Double? {
+        let cleaned = value.replacingOccurrences(of: "$", with: "").replacingOccurrences(of: ",", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let number = Double(cleaned), number > 0 else { return nil }
+        return number
     }
 }
 

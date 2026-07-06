@@ -247,6 +247,67 @@ struct FieldCapturePayload: Codable {
     let createdAt: Date
 }
 
+struct CreateDealDraft {
+    var propertyAddress = ""
+    var city = ""
+    var state = ""
+    var zipCode = ""
+    var propertyType = "Single Family"
+    var purchasePrice = ""
+    var monthlyRent = ""
+    var annualTaxes = ""
+    var annualInsurance = ""
+    var strategy = "Buy & Hold"
+    var listingURL = ""
+    var notes = ""
+
+    var isReadyToSave: Bool {
+        propertyAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false &&
+        city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false &&
+        state.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+    }
+}
+
+struct CreateDealRequest: Encodable {
+    let userID: String
+    let propertyAddress: String
+    let city: String
+    let state: String
+    let zipCode: String?
+    let propertyType: String?
+    let purchasePrice: Double?
+    let monthlyRent: Double?
+    let annualPropertyTax: Double?
+    let taxes: Double?
+    let insurance: Double?
+    let strategyPrimary: String?
+    let listingURL: String?
+    let listingRemarks: String?
+    let assetType = "investment"
+    let dealStatus = "draft"
+    let sourceConfidence = "user_entered"
+
+    enum CodingKeys: String, CodingKey {
+        case userID = "user_id"
+        case propertyAddress = "property_address"
+        case city
+        case state
+        case zipCode = "zip_code"
+        case propertyType = "property_type"
+        case purchasePrice = "purchase_price"
+        case monthlyRent = "monthly_rent"
+        case annualPropertyTax = "annual_property_tax"
+        case taxes
+        case insurance
+        case strategyPrimary = "strategy_primary"
+        case listingURL = "listing_url"
+        case listingRemarks = "listing_remarks"
+        case assetType = "asset_type"
+        case dealStatus = "deal_status"
+        case sourceConfidence = "source_confidence"
+    }
+}
+
 enum InvestorLevel: String, CaseIterable, Identifiable {
     case explorer = "Explorer"
     case firstDeal = "First Deal"

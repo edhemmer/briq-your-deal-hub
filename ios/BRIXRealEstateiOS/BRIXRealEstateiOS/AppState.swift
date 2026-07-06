@@ -124,6 +124,30 @@ final class BRIXAppState {
         }
     }
 
+    func createDeal(_ draft: CreateDealDraft) async -> Bool {
+        guard authState.isSignedIn else {
+            lastError = "Sign in before creating a BRIX deal file."
+            return false
+        }
+
+        isLoading = true
+        lastError = nil
+        defer { isLoading = false }
+
+        do {
+            let createdDeal = try await apiClient.createDeal(draft, session: session)
+            deals.insert(createdDeal, at: 0)
+            selectedDealID = createdDeal.id
+            selectedTab = .deal
+            lastSyncDate = Date()
+            await loadSelectedDecision()
+            return true
+        } catch {
+            lastError = error.localizedDescription
+            return false
+        }
+    }
+
     private func updateQueue(localIdentifier: String, state: UploadState) {
         guard let uuid = UUID(uuidString: localIdentifier),
               let index = queuedOfflineActions.firstIndex(where: { $0.id == uuid }) else { return }

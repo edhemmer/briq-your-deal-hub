@@ -3,6 +3,8 @@ import SwiftUI
 struct DigitalTwinView: View {
     @Environment(BRIXAppState.self) private var appState
     @State private var searchText = ""
+    @State private var isAddingDeal = false
+    @State private var draft = CreateDealDraft()
 
     var filteredDeals: [DealSummary] {
         guard searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
@@ -27,16 +29,27 @@ struct DigitalTwinView: View {
                 } else {
                     BrixCard {
                         VStack(alignment: .leading, spacing: 12) {
-                            SectionHeader(title: "FindIQ", subtitle: "Search real deal files and open the strongest candidates.", symbol: "magnifyingglass")
+                            SectionHeader(title: "FindIQ", subtitle: "Create, search, and rank real BRIX deal files.", symbol: "magnifyingglass")
                             TextField("Search address, city, ZIP, or property type", text: $searchText)
                                 .textFieldStyle(.roundedBorder)
-                            Button {
-                                Task { await appState.refresh() }
-                            } label: {
-                                Label("Refresh from BRIX", systemImage: "arrow.clockwise")
-                                    .frame(maxWidth: .infinity)
+
+                            HStack {
+                                Button {
+                                    isAddingDeal = true
+                                } label: {
+                                    Label("Add Deal", systemImage: "plus")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.borderedProminent)
+
+                                Button {
+                                    Task { await appState.refresh() }
+                                } label: {
+                                    Label("Refresh", systemImage: "arrow.clockwise")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.bordered)
                             }
-                            .buttonStyle(.borderedProminent)
                         }
                     }
 
@@ -63,6 +76,84 @@ struct DigitalTwinView: View {
             await appState.refresh()
         }
         .background(Color.brixSurface)
+        .sheet(isPresented: $isAddingDeal) {
+            AddDealSheet(draft: $draft) {
+                let saved = await appState.createDeal(draft)
+                if saved {
+                    draft = CreateDealDraft()
+                    isAddingDeal = false
+                }
+            }
+        }
+    }
+}
+
+private struct AddDealSheet: View {
+    @Binding var draft: CreateDealDraft
+    let onSave: () async -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var isSaving = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Required") {
+                    TextField("Property address", text: $draft.propertyAddress)
+                        .textContentType(.streetAddressLine1)
+                    TextField("City", text: $draft.city)
+                        .textContentType(.addressCity)
+                    TextField("State", text: $draft.state)
+                        .textInputAutocapitalization(.characters)
+                    TextField("ZIP", text: $draft.zipCode)
+                        .keyboardType(.numbersAndPunctuation)
+                        .textContentType(.postalCode)
+                }
+
+                Section("Deal facts") {
+                    TextField("Property type", text: $draft.propertyType)
+                    TextField("Purchase price", text: $draft.purchasePrice)
+                        .keyboardType(.decimalPad)
+                    TextField("Monthly rent", text: $draft.monthlyRent)
+                        .keyboardType(.decimalPad)
+                    TextField("Annual taxes", text: $draft.annualTaxes)
+                        .keyboardType(.decimalPad)
+                    TextField("Annual insurance", text: $draft.annualInsurance)
+                        .keyboardType(.decimalPad)
+                    TextField("Strategy", text: $draft.strategy)
+                }
+
+                Section("Source") {
+                    TextField("Listing URL", text: $draft.listingURL)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    TextField("Notes or listing text", text: $draft.notes, axis: .vertical)
+                        .lineLimit(3...7)
+                }
+
+                Section {
+                    Text("BRIX labels this as user-entered until verified. Missing rent, taxes, insurance, or condition data lowers confidence.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("Add Deal")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isSaving ? "Saving..." : "Save") {
+                        Task {
+                            isSaving = true
+                            await onSave()
+                            isSaving = false
+                        }
+                    }
+                    .disabled(isSaving || draft.isReadyToSave == false)
+                }
+            }
+        }
     }
 }
 
