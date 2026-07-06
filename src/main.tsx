@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-const BRIX_APP_VERSION = "2026-06-19-production-shell-v3";
+const BRIX_APP_VERSION = "2026-07-06-live-cockpit-cache-reset-v1";
 
 const clearLegacyPwaCache = async () => {
   if ("serviceWorker" in navigator) {

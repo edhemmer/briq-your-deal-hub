@@ -1,16 +1,17 @@
-self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("install", (event) => {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.keys().then((names) => Promise.all(names.map((name) => caches.delete(name)))),
+  );
+});
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    (async () => {
-      const names = await caches.keys();
-      await Promise.all(names.map((name) => caches.delete(name)));
-      await self.registration.unregister();
-      const clients = await self.clients.matchAll({ type: "window" });
-      for (const client of clients) {
-        client.postMessage({ type: "BRIX_CACHE_CLEARED" });
-      }
-    })(),
+    Promise.all([
+      caches.keys().then((names) => Promise.all(names.map((name) => caches.delete(name)))),
+      self.registration.unregister(),
+      self.clients.claim(),
+    ]),
   );
 });
 

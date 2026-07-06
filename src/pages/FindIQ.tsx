@@ -1,6 +1,6 @@
 import { useMemo, useState, type DragEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Bell, CheckCircle2, FileSearch, FileSpreadsheet, Home, Link2, MapPin, Plus, Search, ShieldAlert, SlidersHorizontal, Upload, type LucideIcon } from "lucide-react";
+import { ArrowRight, Bell, CheckCircle2, FileSearch, FileSpreadsheet, Home, Link2, MapPin, Plus, Search, ShieldAlert, SlidersHorizontal, Target, Upload, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
@@ -127,6 +127,9 @@ export default function FindIQ() {
 
   const strongMatches = rankedOpportunities.filter((opportunity) => opportunity.score >= 82).length;
   const needsVerification = rankedOpportunities.filter((opportunity) => opportunity.missingData.length > 0 || opportunity.risks.length > 0).length;
+  const workspaceDeals = deals ?? [];
+  const importedDeals = workspaceDeals.filter((deal) => deal.listing_url || deal.listing_remarks || deal.listing_photo_urls);
+  const readyForDealIQ = rankedOpportunities.filter((opportunity) => opportunity.score >= 75 && opportunity.missingData.length <= 2).length;
 
   const updateSearch = (key: keyof SearchState, value: string) => {
     setSearch((current) => ({ ...current, [key]: value }));
@@ -291,6 +294,48 @@ export default function FindIQ() {
           Run Search
         </Button>
       </PageHeader>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <CardContainer className="relative overflow-hidden">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Opportunity Cockpit</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
+                Start with a place, then add the properties you want BRIX to rank.
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                FindIQ ranks real property files in your workspace. You can enter a deal manually, drop a URL or spreadsheet, upload photos, or run a criteria search against saved records.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Badge variant="outline">Manual entry</Badge>
+                <Badge variant="outline">URL or listing text</Badge>
+                <Badge variant="outline">CSV / XLS import</Badge>
+                <Badge variant="outline">Phone photos</Badge>
+              </div>
+            </div>
+            <div className="grid min-w-[280px] grid-cols-3 gap-2">
+              <MiniMetric label="Files" value={String(workspaceDeals.length)} />
+              <MiniMetric label="Imported" value={String(importedDeals.length)} />
+              <MiniMetric label="Ready" value={String(readyForDealIQ)} />
+            </div>
+          </div>
+        </CardContainer>
+
+        <CardContainer>
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <Target className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">Faster than a spreadsheet</h3>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                One saved property can flow into ranking, underwriting, comparison, offer work, pipeline status, and portfolio history without retyping the same facts.
+              </p>
+            </div>
+          </div>
+        </CardContainer>
+      </section>
 
       <div className="grid gap-4 xl:grid-cols-[390px_minmax(0,1fr)]">
         <CardContainer className="space-y-5">
