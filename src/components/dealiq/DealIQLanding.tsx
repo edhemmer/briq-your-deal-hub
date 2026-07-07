@@ -4,14 +4,19 @@ import {
   BarChart3,
   Briefcase,
   CheckCircle2,
+  ChevronRight,
+  ClipboardCheck,
+  FileText,
   GitCompareArrows,
+  Home,
+  MoreHorizontal,
   Plus,
   ShieldAlert,
+  SlidersHorizontal,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { PageHeader } from "@/components/ui/page-header";
-import { SectionContainer } from "@/components/ui/section-container";
 import { CardContainer } from "@/components/ui/card-container";
 import { PrimaryButton } from "@/components/ui/primary-button";
 import { Badge } from "@/components/ui/badge";
@@ -102,139 +107,215 @@ export function DealIQLanding() {
   const activeIntelligence = activeAnalysis ? analyzeDealIntelligence(activeAnalysis) : null;
   const activeMissing = activeDeal ? missingInputs(activeDeal) : [];
   const readyCount = liveDeals.filter((deal) => readiness(deal) >= 80).length;
+  const averageReadiness = liveDeals.length
+    ? Math.round(liveDeals.reduce((sum, deal) => sum + readiness(deal), 0) / liveDeals.length)
+    : 0;
 
   return (
-    <SectionContainer>
-      <PageHeader
-        title="DealIQ"
-        description="Underwrite active property files, verify assumptions, compare strategies, and move only defensible deals forward."
-      >
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link to="/dealiq/compare">
-              <GitCompareArrows className="mr-2 h-4 w-4" />
-              Compare
-            </Link>
-          </Button>
-          <Link to="/dealiq/new">
-            <PrimaryButton>
-              <Plus className="mr-2 h-4 w-4" />
-              Add deal
-            </PrimaryButton>
-          </Link>
-        </div>
-      </PageHeader>
-
+    <div className="space-y-4 pb-20">
       {isLoading ? (
         <div className="space-y-4">
-          <Skeleton className="h-44 rounded-lg" />
-          <Skeleton className="h-72 rounded-lg" />
+          <Skeleton className="h-24 rounded-2xl" />
+          <Skeleton className="h-[560px] rounded-2xl" />
         </div>
       ) : liveDeals.length === 0 ? (
         <EmptyDealCockpit />
       ) : (
-        <div className="space-y-4">
-          <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
-            <CardContainer className="relative overflow-hidden p-0">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
-              <div className="grid gap-5 p-4 md:p-5 lg:grid-cols-[minmax(0,1fr)_250px] xl:grid-cols-[minmax(0,1fr)_280px]">
+        <>
+          <section className="ios-material rounded-2xl p-4">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <BarChart3 className="h-5 w-5" />
+                </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Active Underwriting Cockpit</p>
-                  <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
-                    {activeDeal.property_address || activeDeal.deal_name || "Unnamed property"}
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {[activeDeal.city, activeDeal.state, activeDeal.zip_code].filter(Boolean).join(", ") || "Location needed"}
+                  <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">DealIQ Cockpit</h1>
+                  <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+                    Work the active deal, test the numbers, compare strategies, and clear the verification items that change the decision.
                   </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Badge variant="outline">{activeDeal.property_type || "Property type needed"}</Badge>
-                    <Badge variant="outline">{activeDeal.strategy_primary || "Strategy needed"}</Badge>
-                    <Badge className={cn("border", readiness(activeDeal) >= 80 ? "border-signal-positive/25 bg-signal-positive/10 text-signal-positive" : "border-signal-warning/25 bg-signal-warning/10 text-signal-warning")}>
-                      {readiness(activeDeal) >= 80 ? "Core file ready" : "Verification needed"}
-                    </Badge>
-                  </div>
-
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <Kpi label="Price" value={money(activeDeal.purchase_price)} />
-                    <Kpi label="Rent/mo" value={money(activeDeal.monthly_rent)} />
-                    <Kpi label="Cash flow/mo" value={activeAnalysis ? money(activeAnalysis.metrics.monthly_cashflow) : "Needed"} tone={activeAnalysis && activeAnalysis.metrics.monthly_cashflow >= 0 ? "good" : "warn"} />
-                    <Kpi label="DSCR" value={activeAnalysis ? ratio(activeAnalysis.metrics.dscr) : "Needed"} tone={activeAnalysis && activeAnalysis.metrics.dscr >= 1.2 ? "good" : "warn"} />
-                  </div>
-
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <Button asChild>
-                      <Link to={`/dealiq/${activeDeal.id}`}>
-                        Open full analysis
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
-                    <Button variant="outline" asChild>
-                      <Link to="/dealiq/compare">Compare against other deals</Link>
-                    </Button>
-                  </div>
                 </div>
+              </div>
 
-                <div className="rounded-lg border border-border bg-background/55 p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">Decision readiness</span>
-                    <span className={cn("text-3xl font-black", scoreColor(readiness(activeDeal)))}>{readiness(activeDeal)}</span>
-                  </div>
-                  <Progress value={readiness(activeDeal)} className="mt-3 h-2" />
-                  <div className="mt-4 rounded-md border border-border bg-card p-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current read</p>
-                    <p className="mt-2 text-sm font-semibold text-foreground">{activeIntelligence?.decision ?? "Waiting for required numbers"}</p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      {activeIntelligence?.summary ?? "Add purchase price, rent, taxes, and insurance to generate deterministic underwriting."}
-                    </p>
-                  </div>
+              <div className="grid gap-2 sm:grid-cols-4 xl:w-[560px]">
+                <MetricTile label="Open" value={String(liveDeals.length)} />
+                <MetricTile label="Ready" value={String(readyCount)} tone="good" />
+                <MetricTile label="Need proof" value={String(liveDeals.length - readyCount)} tone={liveDeals.length - readyCount > 0 ? "warn" : "good"} />
+                <MetricTile label="Avg" value={`${averageReadiness}/100`} tone={averageReadiness >= 80 ? "good" : "warn"} />
+              </div>
+            </div>
+          </section>
+
+          <section className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)_340px] 2xl:grid-cols-[330px_minmax(0,1fr)_360px]">
+            <CardContainer className="p-0">
+              <div className="flex items-center justify-between border-b border-border/70 p-4">
+                <div>
+                  <h2 className="text-base font-semibold text-foreground">Deals</h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{rankedDeals.length} active files</p>
                 </div>
+                <Button variant="ghost" size="icon" aria-label="Filter deals">
+                  <SlidersHorizontal className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="border-b border-border/70 p-3">
+                <div className="grid grid-cols-4 gap-1 rounded-xl bg-muted/45 p-1 text-xs font-semibold text-muted-foreground">
+                  {["All", "Ready", "Verify", "Risk"].map((label, index) => (
+                    <button
+                      key={label}
+                      type="button"
+                      className={cn("rounded-lg px-2 py-1.5 transition-colors", index === 0 ? "bg-background text-foreground shadow-sm" : "hover:text-foreground")}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="max-h-[640px] divide-y divide-border/70 overflow-y-auto">
+                {rankedDeals.map((deal) => (
+                  <DealListItem key={deal.id} deal={deal} active={deal.id === activeDeal.id} onOpen={() => navigate(`/dealiq/${deal.id}`)} />
+                ))}
               </div>
             </CardContainer>
 
-            <CardContainer>
-              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <ShieldAlert className="h-4 w-4 text-primary" />
-                Confidence Work
+            <CardContainer className="p-0">
+              <div className="border-b border-border/70 p-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="rounded-full">{activeDeal.property_type || "Property type needed"}</Badge>
+                      <Badge variant="outline" className="rounded-full">{activeDeal.strategy_primary || "Strategy needed"}</Badge>
+                      <Badge className={cn("rounded-full border", readiness(activeDeal) >= 80 ? "border-signal-positive/25 bg-signal-positive/10 text-signal-positive" : "border-signal-warning/25 bg-signal-warning/10 text-signal-warning")}>
+                        {readiness(activeDeal) >= 80 ? "Mostly ready" : "Under review"}
+                      </Badge>
+                    </div>
+                    <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
+                      {activeDeal.property_address || activeDeal.deal_name || "Unnamed property"}
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {[activeDeal.city, activeDeal.state, activeDeal.zip_code].filter(Boolean).join(", ") || "Location needed"}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:w-[420px]">
+                    <Kpi label="Score" value={String(readiness(activeDeal))} tone={readiness(activeDeal) >= 80 ? "good" : "warn"} />
+                    <Kpi label="Cash flow" value={activeAnalysis ? money(activeAnalysis.metrics.monthly_cashflow) : "Needed"} tone={activeAnalysis && activeAnalysis.metrics.monthly_cashflow >= 0 ? "good" : "warn"} />
+                    <Kpi label="DSCR" value={activeAnalysis ? ratio(activeAnalysis.metrics.dscr) : "Needed"} tone={activeAnalysis && activeAnalysis.metrics.dscr >= 1.2 ? "good" : "warn"} />
+                    <Kpi label="Cap rate" value={activeAnalysis ? pct(activeAnalysis.metrics.cap_rate) : "Needed"} tone={activeAnalysis && activeAnalysis.metrics.cap_rate >= 0.06 ? "good" : "warn"} />
+                  </div>
+                </div>
               </div>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                The fastest way to beat a spreadsheet is to know exactly which assumption is still weak.
-              </p>
-              <div className="mt-4 space-y-2">
-                {activeMissing.length === 0 ? (
-                  <ActionLine icon={CheckCircle2} text="Core inputs are present. Move into source review, scenario testing, and professional diligence." tone="good" />
-                ) : (
-                  activeMissing.slice(0, 5).map((item) => (
-                    <ActionLine key={item} icon={AlertTriangle} text={`${item} needs verification.`} tone="warn" />
-                  ))
-                )}
+
+              <div className="border-b border-border/70 px-4">
+                <div className="scrollbar-hide flex gap-1 overflow-x-auto">
+                  {["Underwrite", "Property", "Financials", "Strategy", "Sensitivity", "Notes", "Documents"].map((tab, index) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      className={cn(
+                        "relative shrink-0 px-3 py-3 text-sm font-semibold transition-colors",
+                        index === 0 ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {tab}
+                      {index === 0 && <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-4 p-4 lg:grid-cols-2">
+                <InstrumentPanel title="Purchase & Capital" action="Edit">
+                  <ValueLine label="Purchase price" value={money(activeDeal.purchase_price)} />
+                  <ValueLine label="Closing costs" value={money(activeDeal.closing_costs)} />
+                  <ValueLine label="Rehab budget" value={money(activeDeal.rehab_cost)} />
+                  <ValueLine label="Down payment" value={activeInput ? pct(activeInput.down_payment_percent) : "Needed"} />
+                  <ValueLine label="Interest rate" value={activeInput ? pct(activeInput.interest_rate) : "Needed"} />
+                </InstrumentPanel>
+
+                <InstrumentPanel title="Income & Expenses" action="Edit">
+                  <ValueLine label="Monthly rent" value={money(activeDeal.monthly_rent)} />
+                  <ValueLine label="Other income" value={money(activeDeal.other_income)} />
+                  <ValueLine label="Annual taxes" value={money(activeDeal.annual_property_tax ?? activeDeal.taxes)} />
+                  <ValueLine label="Annual insurance" value={money(activeDeal.insurance)} />
+                  <ValueLine label="Vacancy reserve" value={activeInput ? pct(activeInput.vacancy_percent) : "Needed"} />
+                </InstrumentPanel>
+              </div>
+
+              <div className="px-4 pb-4">
+                <StrategyInstrument analysis={activeAnalysis} intelligence={activeIntelligence} />
+              </div>
+            </CardContainer>
+
+            <CardContainer className="space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-foreground">Verification & Next Actions</h2>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">Clear the items that can change the recommendation.</p>
+                </div>
+                <ShieldAlert className="h-5 w-5 text-primary" />
+              </div>
+
+              <div className="rounded-2xl border border-border/70 bg-background/45 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-foreground">Checklist</span>
+                  <span className="text-xs text-muted-foreground">{Math.max(0, 9 - activeMissing.length)} / 9 complete</span>
+                </div>
+                <Progress value={readiness(activeDeal)} className="h-2" />
+                <div className="mt-4 space-y-2">
+                  {activeMissing.length === 0 ? (
+                    <ActionLine icon={CheckCircle2} text="Core inputs are present. Continue source review and stress testing." tone="good" />
+                  ) : (
+                    activeMissing.slice(0, 6).map((item) => (
+                      <ActionLine key={item} icon={AlertTriangle} text={item} tone="warn" />
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border/70 bg-background/45 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current read</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">{activeIntelligence?.decision ?? "Waiting for required numbers"}</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {activeIntelligence?.summary ?? "Add purchase price, rent, taxes, and insurance to generate deterministic underwriting."}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Button className="w-full justify-between" asChild>
+                  <Link to={`/dealiq/${activeDeal.id}`}>
+                    Open full DealIQ analysis <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button className="w-full justify-between" variant="outline" asChild>
+                  <Link to="/dealiq/compare">
+                    Compare active deals <GitCompareArrows className="h-4 w-4" />
+                  </Link>
+                </Button>
               </div>
             </CardContainer>
           </section>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric label="Open files" value={liveDeals.length} />
-            <Metric label="Ready files" value={readyCount} tone="good" />
-            <Metric label="Need proof" value={liveDeals.length - readyCount} tone={liveDeals.length - readyCount > 0 ? "warn" : "good"} />
-            <Metric label="Avg readiness" value={Math.round(liveDeals.reduce((sum, deal) => sum + readiness(deal), 0) / liveDeals.length)} suffix="/100" />
-          </div>
-
-          <CardContainer className="p-0">
-            <div className="border-b border-border p-5">
-              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <BarChart3 className="h-4 w-4 text-primary" />
-                Deal Queue
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-card/85 px-3 py-2 backdrop-blur-2xl xl:left-[236px] 2xl:left-[248px]">
+            <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-2">
+              <div className="hidden min-w-0 sm:block">
+                <p className="truncate text-sm font-semibold text-foreground">{activeDeal.property_address || "Active deal"}</p>
+                <p className="text-xs text-muted-foreground">Score {readiness(activeDeal)} · {activeMissing.length} verification item{activeMissing.length === 1 ? "" : "s"}</p>
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">Open any file, remove bad records, or compare the strongest candidates side by side.</p>
+              <div className="grid w-full grid-cols-4 gap-2 sm:w-auto sm:flex">
+                <Button variant="outline" asChild>
+                  <Link to="/dealiq/compare"><GitCompareArrows className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Compare</span></Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link to="/dealiq/new"><Plus className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Add</span></Link>
+                </Button>
+                <Button variant="outline"><Upload className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Import</span></Button>
+                <Button asChild>
+                  <Link to={`/dealiq/${activeDeal.id}`}><FileText className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Report</span></Link>
+                </Button>
+              </div>
             </div>
-            <div className="divide-y divide-border">
-              {rankedDeals.map((deal) => (
-                <DealRow key={deal.id} deal={deal} onOpen={() => navigate(`/dealiq/${deal.id}`)} onDelete={() => deleteDeal.mutate(deal.id)} />
-              ))}
-            </div>
-          </CardContainer>
-        </div>
+          </div>
+        </>
       )}
-    </SectionContainer>
+    </div>
   );
 }
 
