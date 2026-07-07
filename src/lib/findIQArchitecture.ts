@@ -23,6 +23,7 @@ export interface FindIQOpportunity {
   photoUrl: string;
   address: string;
   city: string;
+  county?: string;
   state: string;
   zip: string;
   propertyType: string;

@@ -1,6 +1,6 @@
 import { useMemo, useState, type DragEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, ArrowRight, Bell, CheckCircle2, FileSearch, FileSpreadsheet, Home, Link2, MapPin, Plus, Search, ShieldAlert, SlidersHorizontal, Target, Upload, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bell, CheckCircle2, ClipboardPaste, FileSearch, FileSpreadsheet, Home, Link2, Plus, ShieldAlert, SlidersHorizontal, Target, Upload, XCircle, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
@@ -32,6 +32,7 @@ type ManualListingState = {
   listingText: string;
   property_address: string;
   city: string;
+  county: string;
   state: string;
   zip_code: string;
   property_type: string;
@@ -69,6 +70,7 @@ const initialManualListing: ManualListingState = {
   listingText: "",
   property_address: "",
   city: "",
+  county: "",
   state: "",
   zip_code: "",
   property_type: "",
@@ -82,7 +84,7 @@ const initialManualListing: ManualListingState = {
   annual_property_tax: "",
   insurance: "",
   estimated_arv: "",
-  strategy_primary: "Buy & Hold",
+  strategy_primary: "Owner Occupant",
   listing_url: "",
   listing_source: "",
   listing_photo_urls: "",
@@ -93,47 +95,74 @@ const initialManualListing: ManualListingState = {
   photo_analysis_status: "not_requested",
 };
 
+const edOwnerOccupiedIllinoisProfile: AcquisitionProfile = {
+  id: "owner-occupied-il-home-search",
+  name: "Owner-Occupied Illinois Home",
+  budgetMin: 0,
+  budgetMax: 400000,
+  markets: [
+    "Naperville",
+    "Aurora",
+    "Montgomery",
+    "Oswego",
+    "Plainfield",
+    "Bolingbrook",
+    "Lisle",
+    "Warrenville",
+    "Wheaton",
+    "Winfield",
+    "West Chicago",
+    "Batavia",
+    "Geneva",
+    "North Aurora",
+    "Sugar Grove",
+    "Yorkville",
+    "Plano",
+    "Sandwich",
+    "Elburn",
+    "Lemont",
+  ],
+  propertyTypes: ["Single Family"],
+  minBedrooms: 4,
+  minBathrooms: 2,
+  garageRequired: false,
+  preferredMaxTaxes: Number.MAX_SAFE_INTEGER,
+  requiresFutureRentalPotential: false,
+  requiresFutureResalePotential: true,
+  preferredValueAdd: ["Ranch", "Basement", "Light renovation", "Not Cook County", "Within 60 minutes of Naperville"],
+};
+
+const profileMustHaves = [
+  "Illinois, about 60 minutes from Naperville",
+  "Not Cook County",
+  "4 bedrooms",
+  "2+ bathrooms",
+  "Under $400K",
+];
+
+const profilePreferences = ["Ranch layout", "Basement", "Light renovation okay", "Single-family home"];
+
 export default function FindIQ() {
   const { data: deals, isLoading } = useDeals();
   const createDeal = useCreateDeal();
-  const [search, setSearch] = useState<SearchState>(initialSearch);
-  const [submittedSearch, setSubmittedSearch] = useState<SearchState | null>(null);
+  const [search] = useState<SearchState>(initialSearch);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [manualListing, setManualListing] = useState<ManualListingState>(initialManualListing);
-
-  const hasLocation = search.location.trim().length > 0;
-  const activeCriteria = useMemo(() => {
-    const criteria = submittedSearch ?? search;
-
-    return [
-      criteria.location && `Location: ${criteria.location}`,
-      criteria.budgetMin && `Min budget: ${criteria.budgetMin}`,
-      criteria.budgetMax && `Max budget: ${criteria.budgetMax}`,
-      criteria.propertyType && `Property: ${criteria.propertyType}`,
-      criteria.bedrooms && `Beds: ${criteria.bedrooms}+`,
-      criteria.bathrooms && `Baths: ${criteria.bathrooms}+`,
-    ].filter(Boolean) as string[];
-  }, [search, submittedSearch]);
+  const [quickInput, setQuickInput] = useState("");
+  const [isQuickScanning, setIsQuickScanning] = useState(false);
 
   const rankedOpportunities = useMemo(() => {
-    if (!submittedSearch) return [];
-    const profile = searchToProfile(submittedSearch);
     return (deals ?? [])
       .map(dealToOpportunity)
-      .filter((opportunity) => opportunityMatchesSearch(opportunity, submittedSearch))
-      .map((opportunity) => rankOpportunity(profile, opportunity))
+      .map((opportunity) => applyOwnerOccupiedFit(rankOpportunity(edOwnerOccupiedIllinoisProfile, opportunity)))
       .sort((a, b) => b.score - a.score);
-  }, [deals, submittedSearch]);
+  }, [deals]);
 
   const strongMatches = rankedOpportunities.filter((opportunity) => opportunity.score >= 82).length;
   const needsVerification = rankedOpportunities.filter((opportunity) => opportunity.missingData.length > 0 || opportunity.risks.length > 0).length;
   const workspaceDeals = deals ?? [];
   const importedDeals = workspaceDeals.filter((deal) => deal.listing_url || deal.listing_remarks || deal.listing_photo_urls);
   const readyForDealIQ = rankedOpportunities.filter((opportunity) => opportunity.score >= 75 && opportunity.missingData.length <= 2).length;
-
-  const updateSearch = (key: keyof SearchState, value: string) => {
-    setSearch((current) => ({ ...current, [key]: value }));
-  };
 
   const updateManualListing = (key: keyof ManualListingState, value: string) => {
     setManualListing((current) => ({ ...current, [key]: value }));
@@ -144,6 +173,7 @@ export default function FindIQ() {
     setManualListing((current) => ({
       ...current,
       city: fields.city || current.city || geography.city,
+      county: fields.county || current.county,
       state: fields.state || current.state || geography.state,
       zip_code: fields.zip_code || current.zip_code || geography.zip_code,
       property_type: fields.property_type || current.property_type || search.propertyType,
@@ -157,6 +187,7 @@ export default function FindIQ() {
     setManualListing((current) => ({
       ...current,
       city: current.city || geography.city,
+      county: current.county,
       state: current.state || geography.state,
       zip_code: current.zip_code || geography.zip_code,
       property_type: current.property_type || search.propertyType,
@@ -168,6 +199,54 @@ export default function FindIQ() {
     const parsed = parseListingText(manualListing.listingText);
     setManualListing((current) => ({ ...current, ...parsed }));
     toast.success("Listing text scanned. Review the fields before saving.");
+  };
+
+  const scanQuickInput = async () => {
+    const text = quickInput.trim();
+    if (!text) {
+      toast.error("Paste a listing URL, listing text, email, notes, or property facts first.");
+      return;
+    }
+
+    setIsQuickScanning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("extract-deal-from-text", {
+        body: { listing_text: text },
+      });
+      if (error) throw error;
+
+      const extracted = (data as { extracted?: VisualExtraction })?.extracted;
+      const deterministic = parseListingText(text);
+      const aiFields = extracted ? visualToManualFields(extracted) : {};
+      const listingUrl = text.match(/https?:\/\/[^\s"'<>]+/i)?.[0] ?? deterministic.listing_url;
+
+      openImportIntake({
+        ...deterministic,
+        ...aiFields,
+        listingText: text,
+        listing_url: listingUrl,
+        listing_source: inferListingSource(listingUrl) || deterministic.listing_source,
+        missing_questions: uniqueLines([
+          ...splitLines(deterministic.missing_questions ?? ""),
+          ...splitLines(aiFields.missing_questions ?? ""),
+        ]).join("\n"),
+        visible_or_stated_risks: uniqueLines([
+          ...splitLines(deterministic.visible_or_stated_risks ?? ""),
+          ...splitLines(aiFields.visible_or_stated_risks ?? ""),
+        ]).join("\n"),
+      });
+      toast.success("FindIQ extracted the deal facts it could. Review once, then save and rank.");
+    } catch {
+      const fields = parseListingText(text);
+      openImportIntake({
+        ...fields,
+        listingText: text,
+        listing_url: fields.listing_url || text.match(/https?:\/\/[^\s"'<>]+/i)?.[0],
+      });
+      toast.warning("AI extraction was unavailable. BRIX used deterministic parsing; review the fields carefully.");
+    } finally {
+      setIsQuickScanning(false);
+    }
   };
 
   const handleDroppedText = (text: string) => {
@@ -218,6 +297,7 @@ export default function FindIQ() {
       const deal = await createDeal.mutateAsync({
         property_address: manualListing.property_address.trim(),
         city: manualListing.city.trim(),
+        county: manualListing.county.trim() || undefined,
         state: manualListing.state.trim(),
         zip_code: manualListing.zip_code.trim() || undefined,
         property_type: manualListing.property_type.trim() || undefined,
@@ -232,7 +312,7 @@ export default function FindIQ() {
         taxes: parseNumber(manualListing.annual_property_tax) ?? undefined,
         insurance: parseNumber(manualListing.insurance) ?? undefined,
         estimated_arv: parseNumber(manualListing.estimated_arv) ?? undefined,
-        strategy_primary: manualListing.strategy_primary.trim() || "Buy & Hold",
+        strategy_primary: manualListing.strategy_primary.trim() || "Owner Occupant",
         listing_url: manualListing.listing_url.trim() || undefined,
         listing_source: manualListing.listing_source.trim() || inferListingSource(manualListing.listing_url),
         listing_remarks: manualListing.listingText.trim() || undefined,
@@ -246,15 +326,6 @@ export default function FindIQ() {
         deal_status: "draft",
       });
 
-      const nextSearch = {
-        ...search,
-        location: [manualListing.city.trim(), manualListing.state.trim()].filter(Boolean).join(" ") || manualListing.zip_code.trim() || search.location,
-        propertyType: manualListing.property_type.trim() || search.propertyType,
-        budgetMax: search.budgetMax || manualListing.purchase_price.trim(),
-      };
-
-      setSearch(nextSearch);
-      setSubmittedSearch(nextSearch);
       setManualListing(initialManualListing);
       setIsAddOpen(false);
       toast.success(`${deal.property_address} added to FindIQ.`);
@@ -263,35 +334,19 @@ export default function FindIQ() {
     }
   };
 
-  const runSearch = () => {
-    if (!hasLocation) {
-      toast.error("Enter a state, ZIP code, county, or city to start FindIQ.");
-      return;
-    }
-
-    setSubmittedSearch({
-      location: search.location.trim(),
-      budgetMin: search.budgetMin.trim(),
-      budgetMax: search.budgetMax.trim(),
-      propertyType: search.propertyType.trim(),
-      bedrooms: search.bedrooms.trim(),
-      bathrooms: search.bathrooms.trim(),
-    });
-  };
-
   return (
     <SectionContainer>
       <PageHeader
         title="FindIQ"
-        description="Source opportunities, import listings, rank deal files, and move the strongest candidates into DealIQ for underwriting."
+        description="Paste, import, or enter a property. BRIX turns it into a ranked opportunity queue and tells you what to verify before you spend time on it."
       >
         <Button variant="outline">
           <Bell className="mr-2 h-4 w-4" />
           Alerts
         </Button>
-        <Button onClick={runSearch}>
-          <Search className="mr-2 h-4 w-4" />
-          Run Search
+        <Button onClick={() => document.getElementById("findiq-quick-input")?.focus()}>
+          <ClipboardPaste className="mr-2 h-4 w-4" />
+          Paste Property
         </Button>
       </PageHeader>
 
@@ -300,18 +355,16 @@ export default function FindIQ() {
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Opportunity Cockpit</p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
-                Start with a place, then add the properties you want BRIX to rank.
-              </h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Find faster</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">Drop in a property. Let BRIX decide if it is worth your time.</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-                FindIQ ranks real property files in your workspace. You can enter a deal manually, drop a URL or spreadsheet, upload photos, or run a criteria search against saved records.
+                Paste a listing URL, listing text, broker email, spreadsheet row, or field notes. FindIQ extracts what it can, labels what is missing, and ranks the property before deeper underwriting.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Badge variant="outline">Manual entry</Badge>
-                <Badge variant="outline">URL or listing text</Badge>
-                <Badge variant="outline">CSV / XLS import</Badge>
-                <Badge variant="outline">Phone photos</Badge>
+                <Badge variant="outline">Paste URL or text</Badge>
+                <Badge variant="outline">Upload CSV / XLS</Badge>
+                <Badge variant="outline">Upload photos</Badge>
+                <Badge variant="outline">Rank saved deals</Badge>
               </div>
             </div>
             <div className="grid w-full grid-cols-3 gap-2 lg:w-[280px] lg:shrink-0">
@@ -328,97 +381,69 @@ export default function FindIQ() {
               <Target className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">Faster than a spreadsheet</h3>
+              <h3 className="font-semibold text-foreground">Active strategy: Owner-occupied</h3>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                One saved property can flow into ranking, underwriting, comparison, offer work, pipeline status, and portfolio history without retyping the same facts.
+                BRIX is currently ranking live-in homes against your Illinois criteria. Investment strategies should use their own inputs and scoring rules.
               </p>
             </div>
           </div>
         </CardContainer>
       </section>
 
+      <CardContainer className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+            <Home className="h-4 w-4" />
+            Owner-Occupied Profile
+          </div>
+          <h2 className="mt-2 text-lg font-semibold text-foreground">Illinois home search criteria</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            Use this profile when you are evaluating a house to live in. BRIX should help decide whether a property is worth visiting before you spend the drive time.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <ProfileList title="Must have" items={profileMustHaves} icon="must" />
+          <ProfileList title="Preferred" items={profilePreferences} icon="prefer" />
+        </div>
+      </CardContainer>
+
       <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[390px_minmax(0,1fr)]">
         <CardContainer className="space-y-5">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
               <FileSearch className="h-4 w-4" />
-              Acquisition Search
+              Property Intake
             </div>
-            <h2 className="mt-2 text-xl font-semibold text-foreground">Build the opportunity queue</h2>
+            <h2 className="mt-2 text-xl font-semibold text-foreground">Add the first property</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Search by state, ZIP code, county, or city. Add a listing URL, spreadsheet, copied text, or property photos when you already have a property.
+              Start with whatever you have. FindIQ will prefill the deal file, then ask for the facts it still needs.
             </p>
           </div>
 
-          <div className="grid gap-2">
-            <StartMethod icon={Search} title="Run a search" text="Rank your saved deal files against this location and buying criteria." />
-            <StartMethod icon={Plus} title="Enter manually" text="Type property facts when you already know the deal you want to evaluate." />
-            <StartMethod icon={Upload} title="Drop or import" text="Use a listing URL, copied text, CSV, XLS, or XLSX to start the deal file faster." />
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="findiq-location" className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <MapPin className="h-4 w-4 text-primary" />
-                Search geography
-              </label>
-              <Input
-                id="findiq-location"
-                className="mt-2"
-                value={search.location}
-                onChange={(event) => updateSearch("location", event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") runSearch();
-                }}
-                placeholder="State, ZIP, county, or city"
-              />
+          <div className="rounded-xl border border-primary/25 bg-primary/5 p-3">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+              <ClipboardPaste className="h-4 w-4 text-primary" />
+              Paste anything
             </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-              <LabeledInput
-                label="Min budget"
-                value={search.budgetMin}
-                onChange={(value) => updateSearch("budgetMin", value)}
-                placeholder="$"
-              />
-              <LabeledInput
-                label="Max budget"
-                value={search.budgetMax}
-                onChange={(value) => updateSearch("budgetMax", value)}
-                placeholder="$"
-              />
-              <LabeledInput
-                label="Property type"
-                value={search.propertyType}
-                onChange={(value) => updateSearch("propertyType", value)}
-                placeholder="Single family"
-              />
-              <LabeledInput
-                label="Bedrooms"
-                value={search.bedrooms}
-                onChange={(value) => updateSearch("bedrooms", value)}
-                placeholder="3"
-              />
-              <LabeledInput
-                label="Bathrooms"
-                value={search.bathrooms}
-                onChange={(value) => updateSearch("bathrooms", value)}
-                placeholder="2"
-              />
-            </div>
+            <Textarea
+              id="findiq-quick-input"
+              value={quickInput}
+              onChange={(event) => setQuickInput(event.target.value)}
+              placeholder="Paste a listing URL, listing text, email from an agent, property notes, tax notes, rent notes, or anything you know about the deal..."
+              rows={7}
+              className="min-h-[148px] resize-none"
+            />
+            <Button className="mt-3 w-full" onClick={scanQuickInput} disabled={isQuickScanning}>
+              {isQuickScanning ? "Reading property..." : "Extract Deal Facts"}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              BRIX will not invent missing numbers. Anything uncertain becomes a verification item.
+            </p>
           </div>
-
-          <Button className="w-full" onClick={runSearch}>
-            Run FindIQ Search
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-          <Button className="w-full" variant="outline" onClick={openAddProperty}>
-            Add Listing Manually
-            <Plus className="ml-2 h-4 w-4" />
-          </Button>
 
           <div
-            className="rounded-lg border border-dashed border-primary/35 bg-primary/5 p-4 transition-colors hover:border-primary/60 hover:bg-primary/10"
+            className="rounded-lg border border-dashed border-primary/35 bg-muted/10 p-4 transition-colors hover:border-primary/60 hover:bg-primary/10"
             onDragOver={(event) => {
               event.preventDefault();
               event.dataTransfer.dropEffect = "copy";
@@ -430,40 +455,62 @@ export default function FindIQ() {
                 <Upload className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-foreground">Drop a listing, spreadsheet, or photos</h3>
+                <h3 className="text-sm font-semibold text-foreground">Drag, upload, or use your camera</h3>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Supports URLs, copied listing text, CSV, XLS, XLSX, and property photos. BRIX will prefill what it can and ask you to verify the rest.
+                  Import spreadsheets, screenshots, property photos, or listing notes. Mobile camera uploads work here too.
                 </p>
-                <label className="mt-3 inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-primary hover:text-primary/80">
-                  <FileSpreadsheet className="h-3.5 w-3.5" />
-                  Choose file or photo
-                  <input
-                    type="file"
-                    className="sr-only"
-                    accept=".csv,.txt,.xls,.xlsx,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/*"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (file) void handleImportFile(file);
-                      event.currentTarget.value = "";
-                    }}
-                  />
-                </label>
-                <label className="ml-4 mt-3 inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-primary hover:text-primary/80">
-                  <Upload className="h-3.5 w-3.5" />
-                  Use phone camera
-                  <input
-                    type="file"
-                    className="sr-only"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (file) void handleImportFile(file);
-                      event.currentTarget.value = "";
-                    }}
-                  />
-                </label>
+                <div className="mt-3 flex flex-wrap gap-4">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-primary hover:text-primary/80">
+                    <FileSpreadsheet className="h-3.5 w-3.5" />
+                    Choose file/photo
+                    <input
+                      type="file"
+                      className="sr-only"
+                      accept=".csv,.txt,.xls,.xlsx,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/*"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) void handleImportFile(file);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-primary hover:text-primary/80">
+                    <Upload className="h-3.5 w-3.5" />
+                    Phone camera
+                    <input
+                      type="file"
+                      className="sr-only"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) void handleImportFile(file);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
+            </div>
+          </div>
+
+          <Button className="w-full" variant="outline" onClick={openAddProperty}>
+            Enter Property Manually
+            <Plus className="ml-2 h-4 w-4" />
+          </Button>
+
+          <div className="rounded-xl border border-border bg-muted/10 p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+              <FileSearch className="h-4 w-4 text-primary" />
+              Owner-direct sourcing
+            </div>
+            <p className="text-xs leading-5 text-muted-foreground">
+              Paste links or text from owner posts, classifieds, smaller posting sites, agent emails, or public listings. BRIX will save and rank what you add. Automated marketplace search is disabled until compliant provider adapters are connected.
+            </p>
+            <div className="mt-3 grid gap-2">
+              <StartMethod icon={Link2} title="Paste owner post" text="Use any public listing URL or copied post text you can legally access." />
+              <StartMethod icon={FileSpreadsheet} title="Import a lead list" text="Drop CSV/XLS files from your own sourcing workflow." />
+              <StartMethod icon={Upload} title="Upload screenshots/photos" text="Capture mobile screenshots or property photos and turn them into deal evidence." />
             </div>
           </div>
         </CardContainer>
@@ -477,10 +524,10 @@ export default function FindIQ() {
                   Opportunity Queue
                 </div>
                 <h2 className="mt-2 text-lg font-semibold text-foreground">
-                  {submittedSearch ? "Ranked property results" : "Opportunity queue"}
+                  {rankedOpportunities.length > 0 ? "Ranked property results" : "Opportunity queue"}
                 </h2>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Ranked results appear here after you run a search or save an imported property. Each result shows score, missing data, risks, and the path into DealIQ.
+                  Saved properties appear here automatically. Each result shows score, missing data, risks, and the path into DealIQ.
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center lg:w-[260px] lg:shrink-0">
@@ -498,60 +545,26 @@ export default function FindIQ() {
                   <Skeleton key={index} className="h-40 rounded-xl" />
                 ))}
               </div>
-            ) : submittedSearch && rankedOpportunities.length > 0 ? (
+            ) : rankedOpportunities.length > 0 ? (
               <div className="divide-y divide-border">
                 {rankedOpportunities.map((opportunity) => (
                   <OpportunityRow key={opportunity.id} opportunity={opportunity} />
                 ))}
               </div>
-            ) : submittedSearch ? (
-              <div className="flex min-h-[360px] flex-col justify-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-muted/30">
-                  <FileSearch className="h-6 w-6 text-primary" />
-                </div>
-                <div className="mx-auto mt-5 max-w-xl text-center">
-                  <h3 className="text-xl font-semibold text-foreground">No properties match this search</h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Add a property from a listing URL, listing text, screenshots, or manual facts, or widen the criteria and search again.
-                  </p>
-                </div>
-                <div className="mx-auto mt-5 flex max-w-2xl flex-wrap justify-center gap-2">
-                  {activeCriteria.map((criterion) => (
-                    <Badge key={criterion} variant="outline">
-                      {criterion}
-                    </Badge>
-                  ))}
-                </div>
-                <div className="mx-auto mt-6 flex flex-wrap justify-center gap-3">
-                  <Button onClick={openAddProperty}>
-                    Add Manually
-                    <Plus className="ml-2 h-4 w-4" />
-                  </Button>
-                  <Link to="/dealiq/new">
-                    <Button variant="outline">
-                      Open DealIQ Intake
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
-                  <Link to="/dealiq">
-                    <Button variant="outline">View DealIQ Records</Button>
-                  </Link>
-                </div>
-              </div>
             ) : (
               <div className="flex min-h-[360px] flex-col items-center justify-center text-center">
                 <Home className="h-10 w-10 text-muted-foreground" />
-                <h3 className="mt-4 text-xl font-semibold text-foreground">Build your opportunity queue</h3>
+                <h3 className="mt-4 text-xl font-semibold text-foreground">No properties yet</h3>
                 <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                  Run a search against your deal files, add a listing manually, or import a listing file/photo to begin ranking.
+                  Paste a listing, upload a file/photo, or enter the property manually. FindIQ will create a real deal file, score it, and show what to verify before you visit.
                 </p>
                 <div className="mt-5 flex flex-wrap justify-center gap-3">
-                  <Button onClick={runSearch}>
-                    Run Search
-                    <Search className="ml-2 h-4 w-4" />
+                  <Button onClick={() => document.getElementById("findiq-quick-input")?.focus()}>
+                    Paste Listing
+                    <ClipboardPaste className="ml-2 h-4 w-4" />
                   </Button>
                   <Button variant="outline" onClick={openAddProperty}>
-                    Add Manually
+                    Enter Manually
                     <Plus className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
@@ -601,9 +614,10 @@ export default function FindIQ() {
               <ManualField label="Property address" required value={manualListing.property_address} onChange={(value) => updateManualListing("property_address", value)} placeholder="123 Main St" />
               <ManualField label="City" required value={manualListing.city} onChange={(value) => updateManualListing("city", value)} placeholder="Sandwich" />
               <ManualField label="State" required value={manualListing.state} onChange={(value) => updateManualListing("state", value)} placeholder="IL" />
+              <ManualField label="County" value={manualListing.county} onChange={(value) => updateManualListing("county", value)} placeholder="DuPage, Kane, Kendall..." />
               <ManualField label="ZIP code" value={manualListing.zip_code} onChange={(value) => updateManualListing("zip_code", value)} placeholder="60548" />
               <ManualField label="Property type" value={manualListing.property_type} onChange={(value) => updateManualListing("property_type", value)} placeholder="Single Family" />
-              <ManualField label="Strategy to test first" value={manualListing.strategy_primary} onChange={(value) => updateManualListing("strategy_primary", value)} placeholder="Buy & Hold" />
+              <ManualField label="Strategy to test first" value={manualListing.strategy_primary} onChange={(value) => updateManualListing("strategy_primary", value)} placeholder="Owner Occupant" />
               <ManualField label="Beds" value={manualListing.beds} onChange={(value) => updateManualListing("beds", value)} placeholder="3" inputMode="decimal" />
               <ManualField label="Baths" value={manualListing.baths} onChange={(value) => updateManualListing("baths", value)} placeholder="2" inputMode="decimal" />
               <ManualField label="Square feet" value={manualListing.square_feet} onChange={(value) => updateManualListing("square_feet", value)} placeholder="1688" inputMode="numeric" />
@@ -690,20 +704,40 @@ function dealToOpportunity(deal: DealRow): FindIQOpportunity {
   const photoUrls = jsonStringArray(deal.listing_photo_urls);
   const savedRisks = jsonStringArray(deal.visible_or_stated_risks);
   const savedQuestions = jsonStringArray(deal.missing_questions);
+  const conditionNotes = jsonStringArray(deal.condition_notes);
+  const searchableText = [
+    deal.property_address,
+    deal.city,
+    deal.county,
+    deal.state,
+    deal.property_type,
+    deal.listing_remarks,
+    ...conditionNotes,
+    ...savedRisks,
+    ...savedQuestions,
+  ].filter(Boolean).join(" ");
+  const county = deal.county ?? extractCounty(searchableText);
+  const ownerFit = inferOwnerOccupiedSignals(searchableText);
   const missingData = [
     !price && "Purchase price",
-    !rent && "Rent support",
+    !deal.county && "County verification",
     !taxes && "Annual taxes",
     !deal.insurance && "Annual insurance",
-    !deal.estimated_arv && !deal.arv && "After repair value",
     !deal.square_feet && "Square footage",
     photoUrls.length === 0 && "Property photos",
+    !ownerFit.ranchConfirmed && "Ranch layout not confirmed",
+    ownerFit.basementConfirmed == null && "Basement not confirmed",
     ...(savedQuestions.length > 0 ? savedQuestions : []),
   ].filter(Boolean) as string[];
 
   const risks = [
-    !rent && "Rent support requires verification",
     !deal.insurance && "Insurance quote requires verification",
+    county && /cook/i.test(county) && "Outside owner-occupied profile: Cook County is excluded.",
+    deal.state && deal.state.toUpperCase() !== "IL" && "Outside owner-occupied profile: property is not in Illinois.",
+    price > 400000 && "Outside owner-occupied profile: price is above $400K.",
+    Number(deal.beds ?? 0) > 0 && Number(deal.beds ?? 0) < 4 && "Outside owner-occupied profile: fewer than 4 bedrooms.",
+    Number(deal.baths ?? 0) > 0 && Number(deal.baths ?? 0) < 2 && "Outside owner-occupied profile: fewer than 2 bathrooms.",
+    ownerFit.heavyReno && "Renovation risk: listing suggests more than light renovation.",
     deal.photo_analysis_status === "blocked" && "Listing photos could not be downloaded; upload screenshots for visual review",
     ...savedRisks,
   ].filter(Boolean) as string[];
@@ -713,6 +747,7 @@ function dealToOpportunity(deal: DealRow): FindIQOpportunity {
     photoUrl: photoUrls[0] ?? "",
     address: deal.property_address,
     city: deal.city ?? "",
+    county: county ?? "",
     state: deal.state ?? "",
     zip: deal.zip_code ?? "",
     propertyType,
@@ -726,7 +761,12 @@ function dealToOpportunity(deal: DealRow): FindIQOpportunity {
     estimatedAnnualTaxes: taxes,
     rentalPotential: rent > 0 ? "moderate" : "unknown",
     resalePotential: deal.estimated_arv || deal.arv ? "moderate" : "unknown",
-    valueAddSignals: deal.rehab_cost && deal.rehab_cost > 0 ? ["Rehab scope entered"] : [],
+    valueAddSignals: [
+      ownerFit.ranchConfirmed && "Ranch layout",
+      ownerFit.basementConfirmed === true && "Basement",
+      ownerFit.lightReno && "Light renovation potential",
+      deal.rehab_cost && deal.rehab_cost > 0 && "Rehab scope entered",
+    ].filter(Boolean) as string[],
     risks,
     missingData,
     providerSignals: [deal.listing_source ?? "user_entered", deal.source_confidence].filter(Boolean),
@@ -738,23 +778,130 @@ function jsonStringArray(value: Json | null | undefined) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
 }
 
-function opportunityMatchesSearch(opportunity: FindIQOpportunity, search: SearchState) {
-  const location = search.location.trim().toLowerCase();
-  const propertyType = normalizePropertyType(search.propertyType);
-  const minBudget = parseNumber(search.budgetMin);
-  const maxBudget = parseNumber(search.budgetMax);
+function applyOwnerOccupiedFit(opportunity: RankedOpportunity): RankedOpportunity {
+  let score = opportunity.score;
+  const reasons = [...opportunity.reasons];
+  const risks = [...opportunity.risks];
+  const missingData = [...opportunity.missingData];
+  const signals = inferOwnerOccupiedSignals([
+    opportunity.address,
+    opportunity.city,
+    opportunity.county,
+    opportunity.state,
+    opportunity.propertyType,
+    opportunity.valueAddSignals.join(" "),
+    opportunity.risks.join(" "),
+    opportunity.missingData.join(" "),
+  ].filter(Boolean).join(" "));
 
-  const haystack = [opportunity.city, opportunity.state, opportunity.zip, opportunity.address]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  const locationTokens = location.split(/[,\s]+/).filter(Boolean);
-  const locationMatch = locationTokens.length === 0 || locationTokens.every((token) => haystack.includes(token));
-  const typeMatch = !propertyType || opportunity.propertyType.toLowerCase().includes(propertyType.toLowerCase());
-  const minMatch = minBudget == null || opportunity.listPrice >= minBudget;
-  const maxMatch = maxBudget == null || opportunity.listPrice <= maxBudget;
+  const county = opportunity.county ?? "";
+  const city = opportunity.city ?? "";
+  const state = opportunity.state ?? "";
 
-  return locationMatch && typeMatch && minMatch && maxMatch;
+  if (state && state.toUpperCase() !== "IL") {
+    score -= 35;
+    risks.push("Outside owner-occupied profile: not in Illinois.");
+  } else if (state.toUpperCase() === "IL") {
+    score += 6;
+    reasons.push("Illinois location matches the live-in search.");
+  }
+
+  if (/cook/i.test(county)) {
+    score -= 45;
+    risks.push("Pass trigger: Cook County is excluded from this profile.");
+  } else if (county) {
+    score += 8;
+    reasons.push(`${county} County is not Cook County.`);
+  } else {
+    missingData.push("County must be verified to rule out Cook County.");
+  }
+
+  if (opportunity.listPrice > 400000) {
+    score -= 35;
+    risks.push("Pass trigger: price is above the $400K cap.");
+  } else if (opportunity.listPrice > 0) {
+    score += 12;
+    reasons.push("Price is under the $400K cap.");
+  }
+
+  if (opportunity.bedrooms >= 4) {
+    score += 12;
+    reasons.push("Bedroom count meets the 4-room requirement.");
+  } else if (opportunity.bedrooms > 0) {
+    score -= 25;
+    risks.push("Pass trigger unless flexible: fewer than 4 bedrooms.");
+  } else {
+    missingData.push("Bedroom count must be verified.");
+  }
+
+  if (opportunity.bathrooms >= 2) {
+    score += 10;
+    reasons.push("Bathroom count meets the 2+ bath requirement.");
+  } else if (opportunity.bathrooms > 0) {
+    score -= 22;
+    risks.push("Pass trigger unless flexible: fewer than 2 bathrooms.");
+  } else {
+    missingData.push("Bathroom count must be verified.");
+  }
+
+  if (edOwnerOccupiedIllinoisProfile.markets.some((market) => market.toLowerCase() === city.toLowerCase())) {
+    score += 10;
+    reasons.push("City is in the Naperville-area watch list.");
+  } else if (city) {
+    missingData.push("Verify drive time to Naperville is 60 minutes or less.");
+  }
+
+  if (signals.ranchConfirmed) {
+    score += 10;
+    reasons.push("Ranch layout preference appears to be met.");
+  } else {
+    missingData.push("Ranch layout preference not confirmed.");
+  }
+
+  if (signals.basementConfirmed === true) {
+    score += 8;
+    reasons.push("Basement preference appears to be met.");
+  } else if (signals.basementConfirmed === false) {
+    score -= 4;
+    risks.push("Basement preference is not met.");
+  } else {
+    missingData.push("Basement must be verified.");
+  }
+
+  if (signals.lightReno) {
+    score += 6;
+    reasons.push("Light renovation appears acceptable for this profile.");
+  }
+
+  if (signals.heavyReno) {
+    score -= 20;
+    risks.push("Renovation may exceed light-reno tolerance.");
+  }
+
+  const boundedScore = Math.max(0, Math.min(100, Math.round(score)));
+  const fit =
+    boundedScore >= 82
+      ? "Strong Match"
+      : boundedScore >= 70
+        ? "Good Match"
+        : boundedScore >= 55
+          ? "Watchlist"
+          : "Investigate Carefully";
+
+  const passTrigger = risks.some((risk) => /Pass trigger/i.test(risk));
+  return {
+    ...opportunity,
+    score: boundedScore,
+    fit,
+    reasons: uniqueLines(reasons).slice(0, 6),
+    risks: uniqueLines(risks),
+    missingData: uniqueLines(missingData),
+    nextAction: passTrigger
+      ? "Do not visit unless the flagged constraint is wrong or negotiable"
+      : fit === "Strong Match" || fit === "Good Match"
+        ? "Review in DealIQ before scheduling a visit"
+        : "Verify missing fit items before spending drive time",
+  };
 }
 
 function parseListingText(text: string): Partial<ManualListingState> {
@@ -766,6 +913,7 @@ function parseListingText(text: string): Partial<ManualListingState> {
   const joined = lines.join(" ");
   const addressLine = lines.find((line) => /\d{1,6}\s+[A-Za-z0-9.' -]+/.test(line) && !/^https?:\/\//i.test(line));
   const cityStateZip = joined.match(/\b([A-Za-z][A-Za-z .'-]+),\s*([A-Z]{2})\s*(\d{5})?\b/);
+  const county = extractCounty(joined);
   const zip = joined.match(/\b\d{5}(?:-\d{4})?\b/);
   const price = joined.match(/(?:\$|price[:\s$]+)(\d[\d,]{4,})/i);
   const taxes = joined.match(/(?:tax(?:es)?|property tax(?:es)?)[^\d$]{0,20}\$?(\d[\d,]{2,})/i);
@@ -793,6 +941,7 @@ function parseListingText(text: string): Partial<ManualListingState> {
   return {
     property_address: addressLine ?? undefined,
     city: cityStateZip?.[1]?.trim() ?? undefined,
+    county: county ?? undefined,
     state: cityStateZip?.[2]?.trim() ?? undefined,
     zip_code: cityStateZip?.[3] ?? zip?.[0] ?? undefined,
     purchase_price: price?.[1]?.replace(/,/g, "") ?? undefined,
@@ -858,6 +1007,7 @@ async function enrichWithPhotoAnalysis(fields: Partial<ManualListingState>): Pro
 type VisualExtraction = {
   property_address?: string | null;
   city?: string | null;
+  county?: string | null;
   state?: string | null;
   zip_code?: string | null;
   property_type?: string | null;
@@ -930,6 +1080,7 @@ function parseTabularRow(row: Record<string, unknown>): Partial<ManualListingSta
     listingText: joined,
     property_address: pick("address", "property address", "street address", "full address"),
     city: pick("city", "municipality"),
+    county: pick("county", "county name"),
     state: pick("state", "st"),
     zip_code: pick("zip", "zipcode", "zip code", "postal code"),
     property_type: normalizePropertyType(pick("property type", "type", "asset type")),
@@ -997,6 +1148,7 @@ function visualToManualFields(extracted: VisualExtraction, sourceName?: string):
     listingText: sourceName ? `Image upload: ${sourceName}` : "",
     property_address: extracted.property_address ?? undefined,
     city: extracted.city ?? undefined,
+    county: extracted.county ?? undefined,
     state: extracted.state ?? undefined,
     zip_code: extracted.zip_code ?? undefined,
     property_type: extracted.property_type ?? undefined,
@@ -1072,6 +1224,28 @@ function inferStatedRisks(text: string) {
   if (/tenant occupied|lease in place|do not disturb/i.test(text)) risks.push("Occupancy or access constraint mentioned.");
   risks.push(...inferLocationFrictionRisks(text));
   return uniqueLines(risks);
+}
+
+function extractCounty(text: string) {
+  const match = text.match(/\b([A-Za-z][A-Za-z .'-]{1,40})\s+County\b/i);
+  if (!match?.[1]) return "";
+  return match[1]
+    .replace(/\b(county|il|illinois)\b/gi, "")
+    .replace(/[,.-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function inferOwnerOccupiedSignals(text: string) {
+  const normalized = text.toLowerCase();
+  const noBasement = /\b(no basement|slab|crawlspace only)\b/i.test(text);
+  const basementMentioned = /\b(basement|full basement|partial basement|finished basement|unfinished basement)\b/i.test(text);
+  return {
+    ranchConfirmed: /\b(ranch|single[-\s]?story|one[-\s]?story|1[-\s]?story|all on one level)\b/i.test(text),
+    basementConfirmed: noBasement ? false : basementMentioned ? true : null,
+    lightReno: /\b(light renovation|lite renovation|cosmetic|fresh paint|paint|flooring|refresh|needs updating|updates needed|minor repairs|tlc)\b/i.test(text),
+    heavyReno: /\b(gut rehab|full rehab|major rehab|tear down|teardown|structural|foundation issue|fire damage|mold|not habitable|cash only|will not qualify)\b/i.test(normalized),
+  };
 }
 
 function inferLocationFrictionRisks(text: string) {
@@ -1232,25 +1406,6 @@ const money = (value: number | null | undefined) =>
     ? Number(value).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })
     : "Price missing";
 
-function LabeledInput({
-  label,
-  value,
-  onChange,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-}) {
-  return (
-    <div>
-      <label className="text-xs font-semibold text-muted-foreground">{label}</label>
-      <Input className="mt-1" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
-    </div>
-  );
-}
-
 function ManualField({
   label,
   value,
@@ -1320,6 +1475,25 @@ function StartMethod({ icon: Icon, title, text }: { icon: LucideIcon; title: str
       <div>
         <p className="text-sm font-semibold text-foreground">{title}</p>
         <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{text}</p>
+      </div>
+    </div>
+  );
+}
+
+function ProfileList({ title, items, icon }: { title: string; items: string[]; icon: "must" | "prefer" }) {
+  const Icon = icon === "must" ? XCircle : CheckCircle2;
+  const tone = icon === "must" ? "text-signal-warning" : "text-signal-positive";
+
+  return (
+    <div className="rounded-xl border border-border bg-muted/15 p-4">
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      <div className="mt-3 space-y-2">
+        {items.map((item) => (
+          <div key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
+            <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${tone}`} />
+            <span>{item}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

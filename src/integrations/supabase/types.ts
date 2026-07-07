@@ -628,6 +628,7 @@ export type Database = {
           city: string
           closing_costs: number
           condition_notes: Json
+          county: string | null
           created_at: string
           deal_name: string | null
           deal_status: string | null
@@ -682,6 +683,7 @@ export type Database = {
           city: string
           closing_costs?: number
           condition_notes?: Json
+          county?: string | null
           created_at?: string
           deal_name?: string | null
           deal_status?: string | null
@@ -736,6 +738,7 @@ export type Database = {
           city?: string
           closing_costs?: number
           condition_notes?: Json
+          county?: string | null
           created_at?: string
           deal_name?: string | null
           deal_status?: string | null
