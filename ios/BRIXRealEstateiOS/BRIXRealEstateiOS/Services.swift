@@ -40,6 +40,14 @@ struct BRIXAppConfig {
     static var privacyPolicyURL: URL {
         URL(string: "https://brixrealestate.app/privacy")!
     }
+
+    static var termsURL: URL {
+        URL(string: "https://brixrealestate.app/terms")!
+    }
+
+    static var supportURL: URL {
+        URL(string: "https://brixrealestate.app/support")!
+    }
 }
 
 struct BRIXAPIClient {

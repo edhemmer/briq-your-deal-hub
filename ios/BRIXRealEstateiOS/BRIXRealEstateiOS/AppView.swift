@@ -31,9 +31,13 @@ struct AppView: View {
         case .dashboard:
             TodayDecisionView()
         case .find:
-            DigitalTwinView()
+            FindIQView()
         case .deal:
-            StrategyLabView()
+            DealIQCockpitView()
+        case .pipeline:
+            PipelineIQView()
+        case .offer:
+            OfferIQView()
         case .field:
             FieldInvestorView()
         case .portfolio:

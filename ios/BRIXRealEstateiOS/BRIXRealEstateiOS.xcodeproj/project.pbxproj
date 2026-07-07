@@ -20,6 +20,10 @@
 		1A0000010000000000000011 /* DigitalTwinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000011 /* DigitalTwinView.swift */; };
 		1A0000010000000000000012 /* ProjectOSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000012 /* ProjectOSView.swift */; };
 		1A0000010000000000000013 /* PortfolioOSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000013 /* PortfolioOSView.swift */; };
+		1A0000010000000000000014 /* FindIQView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000014 /* FindIQView.swift */; };
+		1A0000010000000000000015 /* DealIQCockpitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000015 /* DealIQCockpitView.swift */; };
+		1A0000010000000000000016 /* PipelineIQView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000016 /* PipelineIQView.swift */; };
+		1A0000010000000000000017 /* OfferIQView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000017 /* OfferIQView.swift */; };
 		1A0000020000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A0001020000000000000001 /* Assets.xcassets */; };
 		1A0000020000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1A0001020000000000000002 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
@@ -39,6 +43,10 @@
 		1A0001010000000000000011 /* DigitalTwinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DigitalTwinView.swift; sourceTree = "<group>"; };
 		1A0001010000000000000012 /* ProjectOSView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectOSView.swift; sourceTree = "<group>"; };
 		1A0001010000000000000013 /* PortfolioOSView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioOSView.swift; sourceTree = "<group>"; };
+		1A0001010000000000000014 /* FindIQView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindIQView.swift; sourceTree = "<group>"; };
+		1A0001010000000000000015 /* DealIQCockpitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DealIQCockpitView.swift; sourceTree = "<group>"; };
+		1A0001010000000000000016 /* PipelineIQView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineIQView.swift; sourceTree = "<group>"; };
+		1A0001010000000000000017 /* OfferIQView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfferIQView.swift; sourceTree = "<group>"; };
 		1A0001020000000000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1A0001020000000000000002 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		1A0001020000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -80,6 +88,10 @@
 				1A0001010000000000000011 /* DigitalTwinView.swift */,
 				1A0001010000000000000012 /* ProjectOSView.swift */,
 				1A0001010000000000000013 /* PortfolioOSView.swift */,
+				1A0001010000000000000014 /* FindIQView.swift */,
+				1A0001010000000000000015 /* DealIQCockpitView.swift */,
+				1A0001010000000000000016 /* PipelineIQView.swift */,
+				1A0001010000000000000017 /* OfferIQView.swift */,
 				1A0001020000000000000001 /* Assets.xcassets */,
 				1A0001020000000000000002 /* PrivacyInfo.xcprivacy */,
 				1A0001020000000000000003 /* Info.plist */,
@@ -179,6 +191,10 @@
 				1A0000010000000000000011 /* DigitalTwinView.swift in Sources */,
 				1A0000010000000000000012 /* ProjectOSView.swift in Sources */,
 				1A0000010000000000000013 /* PortfolioOSView.swift in Sources */,
+				1A0000010000000000000014 /* FindIQView.swift in Sources */,
+				1A0000010000000000000015 /* DealIQCockpitView.swift in Sources */,
+				1A0000010000000000000016 /* PipelineIQView.swift in Sources */,
+				1A0000010000000000000017 /* OfferIQView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

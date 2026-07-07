@@ -331,11 +331,13 @@ enum InvestorLevel: String, CaseIterable, Identifiable {
 }
 
 enum AppTab: String, CaseIterable, Identifiable {
-    case dashboard = "Dashboard"
+    case dashboard = "Deal Dashboard"
     case find = "FindIQ"
     case deal = "DealIQ"
+    case pipeline = "PipelineIQ"
+    case offer = "OfferIQ"
     case field = "Field"
-    case portfolio = "Portfolio"
+    case portfolio = "PortfolioIQ"
     case account = "Account"
 
     var id: String { rawValue }
@@ -345,6 +347,8 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .dashboard: return "target"
         case .find: return "magnifyingglass"
         case .deal: return "chart.bar.xaxis"
+        case .pipeline: return "rectangle.stack.badge.play"
+        case .offer: return "doc.text"
         case .field: return "camera.viewfinder"
         case .portfolio: return "chart.pie"
         case .account: return "person.crop.circle"

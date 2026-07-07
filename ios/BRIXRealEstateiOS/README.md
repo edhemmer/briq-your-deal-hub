@@ -23,8 +23,10 @@ Business logic belongs in backend services. The app does not duplicate scoring e
 This native client implements:
 
 - `TodayDecisionView`: live mobile Deal Dashboard from BRIX deal records
-- `DigitalTwinView`: FindIQ search across signed-in user deal records
-- `StrategyLabView`: DealIQ mobile review for selected deal files and backend recommendation snapshots
+- `FindIQView`: native acquisition search, manual property entry, and opportunity queue
+- `DealIQCockpitView`: native underwriting cockpit for the selected deal
+- `PipelineIQView`: mobile opportunity pipeline status
+- `OfferIQView`: offer readiness and next-action workspace
 - `FieldInvestorView`: camera/photo capture, upload queue, and backend field-capture submission
 - `PortfolioOSView`: portfolio metrics rendered from BRIX backend state when assets exist
 - `AccountView`: Sign in with Apple, privacy disclosures, sign out, and account deletion request flow
@@ -84,3 +86,11 @@ The source uses SwiftUI Observation (`@Observable`), so iOS 17+ is recommended f
 ## Privacy and App Store Compliance
 
 See `APP_STORE_COMPLIANCE.md`.
+
+The native app must remain a field-ready client for the BRIX backend:
+
+- Do not add demo listings, mock recommendations, or local scoring engines.
+- Do not add non-Apple social login unless Sign in with Apple remains available with equal or greater prominence.
+- Keep account deletion in the native Account screen.
+- Keep privacy disclosures aligned with the actual backend, storage, AI, and provider behavior.
+- Keep business logic, scoring, recommendation generation, and provider integrations in backend services.

@@ -58,14 +58,21 @@ struct AccountView: View {
 
                 BrixCard {
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(title: "Privacy", subtitle: "Data collection must be visible and controllable.", symbol: "hand.raised")
+                        SectionHeader(title: "Privacy", subtitle: "Data collection is visible, purposeful, and not used for tracking.", symbol: "hand.raised")
+                        PrivacyDisclosureRow(title: "No cross-app tracking", detail: "BRIX does not track you across other companies' apps or websites and does not use advertising identifiers.")
                         PrivacyDisclosureRow(title: "Photos and videos", detail: "Used to attach evidence to a Property Digital Twin and generate preliminary visual findings.")
                         PrivacyDisclosureRow(title: "Location", detail: "Optional. Used to tag field captures to a property visit when you allow access.")
                         PrivacyDisclosureRow(title: "Microphone", detail: "Optional. Used only when you record a property voice note.")
-                        PrivacyDisclosureRow(title: "Documents", detail: "Used for OCR and extraction from inspections, bids, leases, and closing files.")
+                        PrivacyDisclosureRow(title: "Property and deal content", detail: "Used to save listing details, notes, documents, inspections, bids, leases, and due diligence records.")
 
                         Link(destination: BRIXAppConfig.privacyPolicyURL) {
                             Label("Open Privacy Policy", systemImage: "safari")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Link(destination: BRIXAppConfig.termsURL) {
+                            Label("Open Terms of Use", systemImage: "doc.text")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
@@ -96,6 +103,20 @@ struct AccountView: View {
                                 .font(.footnote.weight(.medium))
                                 .foregroundStyle(.secondary)
                         }
+                    }
+                }
+
+                BrixCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        SectionHeader(title: "Support", subtitle: "Apple Review and users need a clear contact path.", symbol: "questionmark.circle")
+                        Text("Use support for account access, deletion questions, data export requests, or production issues.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Link(destination: BRIXAppConfig.supportURL) {
+                            Label("Contact BRIX Support", systemImage: "envelope")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
                     }
                 }
             }
@@ -139,7 +160,7 @@ struct AccountView: View {
         do {
             try await apiClient.requestAccountDeletion(reason: deletionReason.isEmpty ? nil : deletionReason, session: appState.session)
             await appState.signOut()
-            deletionStatus = "Account deletion completed or is being finalized by BRIX. You have been signed out."
+            deletionStatus = "Account deletion was started. BRIX will remove your account and associated personal data except records legally required to retain. You have been signed out."
         } catch {
             deletionStatus = "Could not submit deletion request. Try again or contact support."
         }
