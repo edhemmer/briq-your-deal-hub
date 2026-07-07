@@ -10,6 +10,7 @@ final class BRIXAppState {
     var selectedDecisionSnapshot: DecisionSnapshot?
     var strategyOptions: [StrategyOption] = []
     var visualFindings: [VisualFinding] = []
+    var fieldCaptureAnalyses: [FieldCaptureAnalysis] = []
     var projectTasks: [ProjectTask] = []
     var portfolioMetrics: [PortfolioMetric] = []
     var queuedOfflineActions: [OfflineAction] = []
@@ -61,6 +62,7 @@ final class BRIXAppState {
             }
             lastSyncDate = Date()
             await loadSelectedDecision()
+            await loadFieldCaptureAnalyses()
         } catch {
             lastError = error.localizedDescription
         }
@@ -68,7 +70,10 @@ final class BRIXAppState {
 
     func selectDeal(_ deal: DealSummary) {
         selectedDealID = deal.id
-        Task { await loadSelectedDecision() }
+        Task {
+            await loadSelectedDecision()
+            await loadFieldCaptureAnalyses()
+        }
     }
 
     func loadSelectedDecision() async {
@@ -81,6 +86,19 @@ final class BRIXAppState {
             selectedDecisionSnapshot = try await apiClient.fetchDecisionSnapshot(dealID: dealID, session: session)
         } catch {
             selectedDecisionSnapshot = nil
+        }
+    }
+
+    func loadFieldCaptureAnalyses() async {
+        guard let dealID = selectedDealID, authState.isSignedIn else {
+            fieldCaptureAnalyses = []
+            return
+        }
+
+        do {
+            fieldCaptureAnalyses = try await apiClient.fetchFieldCaptureAnalyses(dealID: dealID, session: session)
+        } catch {
+            fieldCaptureAnalyses = []
         }
     }
 
@@ -118,6 +136,7 @@ final class BRIXAppState {
         do {
             try await apiClient.uploadFieldCapture(propertyID: selectedDeal.id, payload: payload, imageData: imageData, session: session)
             updateQueue(localIdentifier: localID, state: .uploaded)
+            await loadFieldCaptureAnalyses()
         } catch {
             updateQueue(localIdentifier: localID, state: .failed)
             lastError = error.localizedDescription

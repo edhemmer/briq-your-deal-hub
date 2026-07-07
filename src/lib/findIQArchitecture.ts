@@ -135,9 +135,17 @@ export function rankOpportunity(profile: AcquisitionProfile, opportunity: FindIQ
     reasons.push("Longer market exposure may justify deeper investigation.");
   }
 
+  const locationFrictionCount = opportunity.risks.filter((risk) =>
+    /busy[-\s]road|high[-\s]traffic|traffic[-\s]noise|road[-\s]exposure|access[-\s]friction|commuter[-\s]route|railroad|rail line|highway|route/i.test(risk),
+  ).length;
+
   score += Math.min(opportunity.providerSignals.length * 3, 9);
   score -= Math.min(opportunity.risks.length * 4, 16);
+  score -= Math.min(locationFrictionCount * 8, 16);
   score -= Math.min(opportunity.missingData.length * 2, 10);
+  if (locationFrictionCount > 0) {
+    score = Math.min(score, 88);
+  }
 
   const boundedScore = Math.max(0, Math.min(100, Math.round(score)));
   const fit =

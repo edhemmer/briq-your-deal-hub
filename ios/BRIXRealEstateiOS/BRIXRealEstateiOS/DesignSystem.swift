@@ -1,9 +1,14 @@
 import SwiftUI
+import UIKit
 
 extension Color {
     static let brixBlue = Color(red: 0.20, green: 0.47, blue: 0.92)
-    static let brixSurface = Color(red: 0.96, green: 0.97, blue: 0.98)
-    static let brixInk = Color(red: 0.07, green: 0.10, blue: 0.16)
+    static let brixSurface = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.03, green: 0.06, blue: 0.11, alpha: 1.0)
+            : UIColor(red: 0.96, green: 0.97, blue: 0.98, alpha: 1.0)
+    })
+    static let brixInk = Color.primary
 }
 
 struct ScorePill: View {

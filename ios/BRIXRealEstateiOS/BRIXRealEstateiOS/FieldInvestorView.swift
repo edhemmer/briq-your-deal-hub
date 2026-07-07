@@ -102,11 +102,22 @@ struct FieldInvestorView: View {
                         }
                     }
 
-                    EmptyOperatingState(
-                        title: "Visual findings come from BRIX analysis",
-                        message: "After upload, backend visual intelligence should return condition findings, confidence, severity, and verification recommendations. The mobile app does not diagnose property conditions locally.",
-                        symbol: "wrench.and.screwdriver"
-                    )
+                    BrixCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            SectionHeader(title: "Visual Findings", subtitle: "Photo observations returned by BRIX. Verify before relying on them.", symbol: "wrench.and.screwdriver")
+                            if appState.fieldCaptureAnalyses.flatMap(\.aiFindings).isEmpty {
+                                Text("No visual findings yet. Upload a property photo to attach it to the deal and run visual review when AI is configured.")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                ForEach(appState.fieldCaptureAnalyses) { analysis in
+                                    ForEach(Array(analysis.aiFindings.enumerated()), id: \.offset) { _, finding in
+                                        VisualFindingRow(analysis: analysis, finding: finding)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 if let error = appState.lastError {
@@ -133,6 +144,64 @@ struct FieldInvestorView: View {
                 }
                 photoPickerItem = nil
             }
+        }
+    }
+}
+
+private struct VisualFindingRow: View {
+    let analysis: FieldCaptureAnalysis
+    let finding: CaptureFinding
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top) {
+                Text(finding.area ?? "Photo")
+                    .font(.subheadline.weight(.bold))
+                Spacer()
+                SeverityBadge(text: displaySeverity, severity: severity)
+            }
+            Text(finding.finding ?? "Visible condition requires verification.")
+                .font(.subheadline)
+            if let evidence = finding.evidence, evidence.isEmpty == false {
+                Text("Evidence: \(evidence)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if let limitation = finding.limitation, limitation.isEmpty == false {
+                Text("Limit: \(limitation)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Text(finding.recommendedAction ?? analysis.verificationRecommendation ?? "Verify during due diligence before relying on this observation.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if let confidence = finding.confidence ?? analysis.confidenceScore {
+                Text("Confidence \(confidence)%")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(12)
+        .background(.background, in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8).stroke(.quaternary)
+        }
+    }
+
+    private var displaySeverity: String {
+        (finding.severity ?? analysis.severity ?? "informational")
+            .replacingOccurrences(of: "_", with: " ")
+            .capitalized
+    }
+
+    private var severity: Severity {
+        switch (finding.severity ?? analysis.severity ?? "").lowercased() {
+        case "critical":
+            return .risk
+        case "important":
+            return .caution
+        default:
+            return .info
         }
     }
 }

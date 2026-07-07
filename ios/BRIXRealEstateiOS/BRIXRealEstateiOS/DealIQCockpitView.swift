@@ -84,13 +84,51 @@ struct DealIQCockpitView: View {
     }
 
     private func overview(_ deal: DealSummary) -> some View {
-        BrixCard {
-            VStack(alignment: .leading, spacing: 12) {
-                SectionHeader(title: "Underwriting Snapshot", subtitle: "What BRIX can evaluate right now.", symbol: "gauge.with.dots.needle.50percent")
-                MetricLine(label: "Purchase price", value: deal.purchasePrice?.formatted(.currency(code: "USD").precision(.fractionLength(0))) ?? "Missing")
-                MetricLine(label: "Monthly rent", value: deal.monthlyRent?.formatted(.currency(code: "USD").precision(.fractionLength(0))) ?? "Missing")
-                MetricLine(label: "Annual taxes", value: deal.annualTaxesForDisplay?.formatted(.currency(code: "USD").precision(.fractionLength(0))) ?? "Missing")
-                MetricLine(label: "Annual insurance", value: deal.insurance?.formatted(.currency(code: "USD").precision(.fractionLength(0))) ?? "Missing")
+        VStack(spacing: 16) {
+            BrixCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    SectionHeader(title: "Underwriting Snapshot", subtitle: "What BRIX can evaluate right now.", symbol: "gauge.with.dots.needle.50percent")
+                    MetricLine(label: "Purchase price", value: deal.purchasePrice?.formatted(.currency(code: "USD").precision(.fractionLength(0))) ?? "Missing")
+                    MetricLine(label: "Monthly rent", value: deal.monthlyRent?.formatted(.currency(code: "USD").precision(.fractionLength(0))) ?? "Missing")
+                    MetricLine(label: "Annual taxes", value: deal.annualTaxesForDisplay?.formatted(.currency(code: "USD").precision(.fractionLength(0))) ?? "Missing")
+                    MetricLine(label: "Annual insurance", value: deal.insurance?.formatted(.currency(code: "USD").precision(.fractionLength(0))) ?? "Missing")
+                    MetricLine(label: "Beds / Baths", value: formatBedsBaths(deal))
+                    MetricLine(label: "Size", value: deal.squareFeet.map { "\($0.formatted(.number.precision(.fractionLength(0)))) sq ft" } ?? "Missing")
+                }
+            }
+
+            BrixCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    SectionHeader(title: "Quick Math", subtitle: "Directional math from entered facts. Final recommendations come from BRIX backend analysis.", symbol: "function")
+                    let math = DealQuickMath(deal: deal)
+                    MetricLine(label: "Annual gross rent", value: money(math.annualGrossRent))
+                    MetricLine(label: "Gross rent ratio", value: math.grossRentRatio.map { "\(($0 * 100).formatted(.number.precision(.fractionLength(2))))%" } ?? "Missing")
+                    MetricLine(label: "Known monthly tax + insurance", value: money(math.knownMonthlyCarry))
+                    MetricLine(label: "Known NOI before debt", value: money(math.knownAnnualNOIBeforeDebt))
+                }
+            }
+
+            BrixCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    SectionHeader(title: "Continue Workflow", subtitle: "Move from analysis to action without leaving the selected deal.", symbol: "arrow.forward.circle")
+                    HStack {
+                        Button {
+                            appState.selectedTab = .offer
+                        } label: {
+                            Label("OfferIQ", systemImage: "doc.text")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button {
+                            appState.selectedTab = .pipeline
+                        } label: {
+                            Label("PipelineIQ", systemImage: "rectangle.stack.badge.play")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
             }
         }
     }
@@ -132,6 +170,17 @@ struct DealIQCockpitView: View {
             }
         }
     }
+}
+
+private func money(_ value: Double?) -> String {
+    value?.formatted(.currency(code: "USD").precision(.fractionLength(0))) ?? "Missing"
+}
+
+private func formatBedsBaths(_ deal: DealSummary) -> String {
+    let beds = deal.beds.map { "\($0.formatted(.number.precision(.fractionLength(1)))) bd" }
+    let baths = deal.baths.map { "\($0.formatted(.number.precision(.fractionLength(1)))) ba" }
+    let value = [beds, baths].compactMap { $0 }.joined(separator: " / ")
+    return value.isEmpty ? "Missing" : value.replacingOccurrences(of: ".0", with: "")
 }
 
 private enum DealPanel: String, CaseIterable, Identifiable {

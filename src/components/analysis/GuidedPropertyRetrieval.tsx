@@ -183,7 +183,7 @@ export function GuidedPropertyRetrieval({ dealAddress, onAcceptDraft }: GuidedPr
                 <Input
                   value={listingUrlInput}
                   onChange={e => setListingUrlInput(e.target.value)}
-                  placeholder="https://zillow.com/..."
+                  placeholder="https://real-estate-listing-url.example/..."
                   className="h-9"
                 />
               </div>

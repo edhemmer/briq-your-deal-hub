@@ -98,6 +98,30 @@ describe("BRIX operating system regression", () => {
     expect(dealInsert.strategy_primary).toBe("Buy & Hold");
   });
 
+  it("penalizes FindIQ opportunities with location friction before a wasted site visit", () => {
+    const [cleanOpportunity] = testOpportunities;
+    const busyRoadOpportunity: FindIQOpportunity = {
+      ...cleanOpportunity,
+      id: "busy-road-opportunity",
+      address: "101 Test Route",
+      risks: [
+        ...cleanOpportunity.risks,
+        "Location access concern: listing text suggests busy-road or traffic-noise exposure. Verify street context before visiting.",
+      ],
+    };
+
+    const ranked = rankOpportunities(
+      { ...defaultAcquisitionProfile, markets: ["Test Market"] },
+      [cleanOpportunity, busyRoadOpportunity],
+    );
+
+    const clean = ranked.find((item) => item.id === cleanOpportunity.id);
+    const busyRoad = ranked.find((item) => item.id === busyRoadOpportunity.id);
+
+    expect(clean?.score).toBeGreaterThan(busyRoad?.score ?? 100);
+    expect(busyRoad?.risks.join(" ")).toMatch(/busy-road|traffic-noise|street context/i);
+  });
+
   it("keeps DealIQ strategy and stress scenario outputs directionally sane", () => {
     const analysis = analyzeDeal(baseDeal);
     const stress = runStressTests(baseDeal, analysis);

@@ -17,6 +17,7 @@ import {
   Upload,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { CardContainer } from "@/components/ui/card-container";
 import { PrimaryButton } from "@/components/ui/primary-button";
 import { Badge } from "@/components/ui/badge";
@@ -24,11 +25,21 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { useDeals, useDeleteDeal } from "@/hooks/useDeals";
+import { supabase } from "@/integrations/supabase/client";
 import { analyzeDeal, type DealInput } from "@/lib/dealAnalysisEngine";
 import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
 import { cn } from "@/lib/utils";
 
 type Deal = NonNullable<ReturnType<typeof useDeals>["data"]>[number];
+type CaptureFinding = {
+  area?: string;
+  finding?: string;
+  evidence?: string;
+  severity?: "critical" | "important" | "informational" | string;
+  confidence?: number;
+  limitation?: string;
+  recommended_action?: string;
+};
 
 const money = (value: number | null | undefined) =>
   value != null && Number.isFinite(Number(value))
@@ -106,6 +117,7 @@ export function DealIQLanding() {
   const activeAnalysis = activeInput ? analyzeDeal(activeInput) : null;
   const activeIntelligence = activeAnalysis ? analyzeDealIntelligence(activeAnalysis) : null;
   const activeMissing = activeDeal ? missingInputs(activeDeal) : [];
+  const { data: fieldEvidence } = useFieldEvidence(activeDeal?.id);
   const readyCount = liveDeals.filter((deal) => readiness(deal) >= 80).length;
   const averageReadiness = liveDeals.length
     ? Math.round(liveDeals.reduce((sum, deal) => sum + readiness(deal), 0) / liveDeals.length)
@@ -242,6 +254,10 @@ export function DealIQLanding() {
               <div className="px-4 pb-4">
                 <StrategyInstrument analysis={activeAnalysis} intelligence={activeIntelligence} />
               </div>
+
+              <div className="px-4 pb-4">
+                <FieldEvidencePanel evidence={fieldEvidence ?? []} />
+              </div>
             </CardContainer>
 
             <CardContainer className="space-y-4">
@@ -316,6 +332,69 @@ export function DealIQLanding() {
         </>
       )}
     </div>
+  );
+}
+
+function useFieldEvidence(dealId: string | undefined) {
+  return useQuery({
+    queryKey: ["field-evidence", dealId],
+    enabled: Boolean(dealId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("brix_field_captures")
+        .select("id,capture_type,ai_findings,confidence_score,severity,verification_recommendation,created_at")
+        .eq("deal_id", dealId!)
+        .order("created_at", { ascending: false })
+        .limit(25);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+function FieldEvidencePanel({ evidence }: { evidence: Array<{ id: string; ai_findings: unknown; confidence_score: number | null; severity: string | null; verification_recommendation: string | null }> }) {
+  const findings = evidence.flatMap((item) => {
+    const raw = Array.isArray(item.ai_findings) ? item.ai_findings : [];
+    return raw.map((finding) => ({ capture: item, finding: finding as CaptureFinding }));
+  });
+
+  return (
+    <InstrumentPanel title="Field Evidence" action={findings.length ? `${findings.length} finding${findings.length === 1 ? "" : "s"}` : "None yet"}>
+      {findings.length === 0 ? (
+        <p className="text-sm leading-6 text-muted-foreground">
+          No mobile photo findings yet. Capture photos from the iOS app to attach evidence to this deal and run visual review when AI is configured.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {findings.slice(0, 5).map(({ capture, finding }, index) => (
+            <div key={`${capture.id}-${index}`} className="rounded-xl border border-border/70 bg-background/55 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{finding.area || "Photo review"}</p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">{finding.finding || "Visible condition requires verification."}</p>
+                  {finding.evidence && (
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                      <span className="font-semibold text-foreground">Evidence:</span> {finding.evidence}
+                    </p>
+                  )}
+                  {finding.limitation && (
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      <span className="font-semibold text-foreground">Limit:</span> {finding.limitation}
+                    </p>
+                  )}
+                </div>
+                <Badge variant="outline" className="shrink-0 rounded-full">
+                  {finding.confidence ?? capture.confidence_score ?? "?"}%
+                </Badge>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {finding.recommended_action || capture.verification_recommendation || "Verify during due diligence before relying on this observation."}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </InstrumentPanel>
   );
 }
 

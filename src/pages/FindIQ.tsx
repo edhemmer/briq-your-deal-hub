@@ -1,6 +1,6 @@
 import { useMemo, useState, type DragEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Bell, CheckCircle2, FileSearch, FileSpreadsheet, Home, Link2, MapPin, Plus, Search, ShieldAlert, SlidersHorizontal, Target, Upload, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bell, CheckCircle2, FileSearch, FileSpreadsheet, Home, Link2, MapPin, Plus, Search, ShieldAlert, SlidersHorizontal, Target, Upload, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
@@ -615,7 +615,7 @@ export default function FindIQ() {
               <ManualField label="Insurance quote, annual" value={manualListing.insurance} onChange={(value) => updateManualListing("insurance", value)} placeholder="1800" inputMode="numeric" />
               <ManualField label="Estimated ARV" value={manualListing.estimated_arv} onChange={(value) => updateManualListing("estimated_arv", value)} placeholder="295000" inputMode="numeric" />
               <ManualField label="Listing URL" value={manualListing.listing_url} onChange={(value) => updateManualListing("listing_url", value)} placeholder="https://..." />
-              <ManualField label="Listing source" value={manualListing.listing_source} onChange={(value) => updateManualListing("listing_source", value)} placeholder="Zillow, MLS, broker, county" />
+              <ManualField label="Listing source" value={manualListing.listing_source} onChange={(value) => updateManualListing("listing_source", value)} placeholder="MLS, broker, county, public listing" />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -1045,11 +1045,8 @@ function inferListingSource(url: string | undefined) {
   if (!url) return "";
   try {
     const host = new URL(url).hostname.replace(/^www\./, "");
-    if (host.includes("zillow")) return "Zillow";
-    if (host.includes("redfin")) return "Redfin";
-    if (host.includes("realtor")) return "Realtor.com";
     if (host.includes("mls")) return "MLS";
-    return host;
+    return "Public listing URL";
   } catch {
     return "";
   }
@@ -1073,7 +1070,25 @@ function inferStatedRisks(text: string) {
   if (/mold|water damage|leak|seepage|flood/i.test(text)) risks.push("Water/moisture concern mentioned; professional review required.");
   if (/foundation|structural|settling/i.test(text)) risks.push("Structural/foundation concern mentioned; professional review required.");
   if (/tenant occupied|lease in place|do not disturb/i.test(text)) risks.push("Occupancy or access constraint mentioned.");
+  risks.push(...inferLocationFrictionRisks(text));
   return uniqueLines(risks);
+}
+
+function inferLocationFrictionRisks(text: string) {
+  const risks: string[] = [];
+  if (/\b(busy road|busy street|main road|main street|high traffic|traffic noise|road noise|commuter route)\b/i.test(text)) {
+    risks.push("Location access concern: listing text suggests busy-road or traffic-noise exposure. Verify street context before visiting.");
+  }
+  if (/\b(highway|expressway|interstate|state route|county highway|us route|il route|route \d+|rt\.?\s*\d+)\b/i.test(text)) {
+    risks.push("Location access concern: possible highway or route exposure. Check ingress, egress, noise, and tenant/resale impact.");
+  }
+  if (/\b(railroad|rail line|train tracks|tracks nearby)\b/i.test(text)) {
+    risks.push("Location friction concern: nearby rail exposure mentioned. Verify noise, safety, and resale impact.");
+  }
+  if (/\b(no parking|limited parking|shared driveway|easement|private road)\b/i.test(text)) {
+    risks.push("Access/parking constraint mentioned. Verify daily usability, tenant demand, and resale impact.");
+  }
+  return risks;
 }
 
 function inferMissingQuestions(input: {
@@ -1091,6 +1106,7 @@ function inferMissingQuestions(input: {
   if (!input.taxes) questions.push("Verify annual property taxes from official records.");
   if (!input.beds || !input.baths || !input.sqft) questions.push("Verify beds, baths, and square footage.");
   if (input.photoUrls.length === 0) questions.push("Upload listing screenshots or property photos for visual condition triage.");
+  questions.push("Check map/street context for road noise, access friction, parking, and nearby traffic corridors before visiting.");
   questions.push("Verify insurance quote before relying on cash flow.");
   return uniqueLines(questions);
 }
@@ -1179,6 +1195,16 @@ function OpportunityRow({ opportunity }: { opportunity: RankedOpportunity }) {
             {opportunity.missingData.map((item) => (
               <Badge key={item} variant="outline" className="border-signal-warning/40 text-signal-warning">
                 <ShieldAlert className="mr-1 h-3 w-3" />
+                {item}
+              </Badge>
+            ))}
+          </div>
+        )}
+        {opportunity.risks.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {opportunity.risks.slice(0, 4).map((item) => (
+              <Badge key={item} variant="outline" className="border-destructive/40 text-destructive">
+                <AlertTriangle className="mr-1 h-3 w-3" />
                 {item}
               </Badge>
             ))}

@@ -201,6 +201,46 @@ struct VisualFinding: Identifiable, Codable, Hashable {
     let severity: Severity
 }
 
+struct FieldCaptureAnalysis: Identifiable, Codable, Hashable {
+    let id: String
+    let captureType: String
+    let confidenceScore: Int?
+    let severity: String?
+    let verificationRecommendation: String?
+    let createdAt: String?
+    let aiFindings: [CaptureFinding]
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case captureType = "capture_type"
+        case confidenceScore = "confidence_score"
+        case severity
+        case verificationRecommendation = "verification_recommendation"
+        case createdAt = "created_at"
+        case aiFindings = "ai_findings"
+    }
+}
+
+struct CaptureFinding: Codable, Hashable {
+    let area: String?
+    let finding: String?
+    let evidence: String?
+    let severity: String?
+    let confidence: Int?
+    let limitation: String?
+    let recommendedAction: String?
+
+    enum CodingKeys: String, CodingKey {
+        case area
+        case finding
+        case evidence
+        case severity
+        case confidence
+        case limitation
+        case recommendedAction = "recommended_action"
+    }
+}
+
 struct ProjectTask: Identifiable, Codable, Hashable {
     let id: String
     let title: String
@@ -257,14 +297,46 @@ struct CreateDealDraft {
     var monthlyRent = ""
     var annualTaxes = ""
     var annualInsurance = ""
+    var beds = ""
+    var baths = ""
+    var squareFeet = ""
+    var yearBuilt = ""
     var strategy = "Buy & Hold"
     var listingURL = ""
     var notes = ""
+    var sourceConfidence = "user_entered"
 
     var isReadyToSave: Bool {
         propertyAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false &&
         city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false &&
         state.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+    }
+
+    mutating func apply(_ extracted: ExtractedListingDeal, originalText: String) {
+        propertyAddress = extracted.propertyAddress ?? propertyAddress
+        city = extracted.city ?? city
+        state = extracted.state ?? state
+        zipCode = extracted.zipCode ?? zipCode
+        propertyType = extracted.propertyType ?? propertyType
+        purchasePrice = extracted.purchasePrice.map { String(format: "%.0f", $0) } ?? purchasePrice
+        monthlyRent = extracted.monthlyRent.map { String(format: "%.0f", $0) } ?? monthlyRent
+        annualTaxes = (extracted.annualPropertyTax ?? extracted.taxes).map { String(format: "%.0f", $0) } ?? annualTaxes
+        annualInsurance = extracted.insurance.map { String(format: "%.0f", $0) } ?? annualInsurance
+        beds = extracted.beds.map { String(format: "%.1f", $0).replacingOccurrences(of: ".0", with: "") } ?? beds
+        baths = extracted.baths.map { String(format: "%.1f", $0).replacingOccurrences(of: ".0", with: "") } ?? baths
+        squareFeet = extracted.squareFeet.map { String(format: "%.0f", $0) } ?? squareFeet
+        yearBuilt = extracted.yearBuilt.map { String(format: "%.0f", $0) } ?? yearBuilt
+        strategy = extracted.strategyPrimary ?? strategy
+        sourceConfidence = extracted.sourceConfidence ?? sourceConfidence
+        if let url = ListingTextParser.firstURL(in: originalText) {
+            listingURL = url
+        }
+        let notesToAppend = extracted.summaryNotes
+        if notesToAppend.isEmpty == false {
+            notes = ([notes, notesToAppend].filter { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false }).joined(separator: "\n\n")
+        } else if notes.isEmpty {
+            notes = originalText
+        }
     }
 }
 
@@ -280,12 +352,16 @@ struct CreateDealRequest: Encodable {
     let annualPropertyTax: Double?
     let taxes: Double?
     let insurance: Double?
+    let beds: Double?
+    let baths: Double?
+    let squareFeet: Double?
+    let yearBuilt: Double?
     let strategyPrimary: String?
     let listingURL: String?
     let listingRemarks: String?
+    let sourceConfidence: String
     let assetType = "investment"
     let dealStatus = "draft"
-    let sourceConfidence = "user_entered"
 
     enum CodingKeys: String, CodingKey {
         case userID = "user_id"
@@ -299,12 +375,101 @@ struct CreateDealRequest: Encodable {
         case annualPropertyTax = "annual_property_tax"
         case taxes
         case insurance
+        case beds
+        case baths
+        case squareFeet = "square_feet"
+        case yearBuilt = "year_built"
         case strategyPrimary = "strategy_primary"
         case listingURL = "listing_url"
         case listingRemarks = "listing_remarks"
         case assetType = "asset_type"
         case dealStatus = "deal_status"
         case sourceConfidence = "source_confidence"
+    }
+}
+
+struct DealQuickMath {
+    let grossRentRatio: Double?
+    let annualGrossRent: Double?
+    let knownMonthlyCarry: Double?
+    let knownAnnualNOIBeforeDebt: Double?
+
+    init(deal: DealSummary) {
+        let price = deal.purchasePrice ?? 0
+        let rent = deal.monthlyRent ?? 0
+        let taxes = deal.annualTaxesForDisplay ?? 0
+        let insurance = deal.insurance ?? 0
+
+        grossRentRatio = price > 0 && rent > 0 ? rent / price : nil
+        annualGrossRent = rent > 0 ? rent * 12 : nil
+        knownMonthlyCarry = taxes > 0 || insurance > 0 ? (taxes + insurance) / 12 : nil
+        knownAnnualNOIBeforeDebt = rent > 0 ? (rent * 12) - taxes - insurance : nil
+    }
+}
+
+struct ExtractListingResponse: Decodable {
+    let extracted: ExtractedListingDeal
+    let mode: String?
+    let warning: String?
+}
+
+struct ExtractedListingDeal: Decodable, Hashable {
+    let propertyAddress: String?
+    let city: String?
+    let state: String?
+    let zipCode: String?
+    let propertyType: String?
+    let purchasePrice: Double?
+    let estimatedARV: Double?
+    let monthlyRent: Double?
+    let annualPropertyTax: Double?
+    let taxes: Double?
+    let insurance: Double?
+    let beds: Double?
+    let baths: Double?
+    let squareFeet: Double?
+    let yearBuilt: Double?
+    let conditionNotes: [String]?
+    let visibleOrStatedRisks: [String]?
+    let missingQuestions: [String]?
+    let strategyPrimary: String?
+    let sourceConfidence: String?
+
+    enum CodingKeys: String, CodingKey {
+        case propertyAddress = "property_address"
+        case city
+        case state
+        case zipCode = "zip_code"
+        case propertyType = "property_type"
+        case purchasePrice = "purchase_price"
+        case estimatedARV = "estimated_arv"
+        case monthlyRent = "monthly_rent"
+        case annualPropertyTax = "annual_property_tax"
+        case taxes
+        case insurance
+        case beds
+        case baths
+        case squareFeet = "sqft"
+        case yearBuilt = "year_built"
+        case conditionNotes = "condition_notes"
+        case visibleOrStatedRisks = "visible_or_stated_risks"
+        case missingQuestions = "missing_questions"
+        case strategyPrimary = "strategy_primary"
+        case sourceConfidence = "source_confidence"
+    }
+
+    var summaryNotes: String {
+        var sections: [String] = []
+        if let conditionNotes, conditionNotes.isEmpty == false {
+            sections.append("Condition notes: \(conditionNotes.joined(separator: " "))")
+        }
+        if let visibleOrStatedRisks, visibleOrStatedRisks.isEmpty == false {
+            sections.append("Stated risks: \(visibleOrStatedRisks.joined(separator: " "))")
+        }
+        if let missingQuestions, missingQuestions.isEmpty == false {
+            sections.append("Questions to verify: \(missingQuestions.joined(separator: " "))")
+        }
+        return sections.joined(separator: "\n")
     }
 }
 

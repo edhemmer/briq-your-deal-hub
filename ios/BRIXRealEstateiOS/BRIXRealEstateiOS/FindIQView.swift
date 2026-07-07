@@ -160,12 +160,54 @@ private struct OpportunityRow: View {
 private struct AddPropertySheet: View {
     @Binding var draft: CreateDealDraft
     let onSave: () async -> Void
+    @Environment(BRIXAppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @State private var isSaving = false
+    @State private var listingText = ""
+    @State private var isExtracting = false
+    @State private var extractionMessage: String?
+    private let apiClient = BRIXAPIClient()
 
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Paste a listing")
+                            .font(.headline)
+                        Text("Paste a real estate listing URL, listing description, agent notes, or copied property facts. BRIX will prefill the deal file, then you verify before saving.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+
+                        TextEditor(text: $listingText)
+                            .frame(minHeight: 120)
+                            .padding(8)
+                            .background(Color.brixSurface, in: RoundedRectangle(cornerRadius: 10))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(.quaternary)
+                            }
+                            .accessibilityLabel("Pasted listing text or URL")
+
+                        Button {
+                            Task { await extractListing() }
+                        } label: {
+                            Label(isExtracting ? "Extracting..." : "Extract Listing Details", systemImage: "sparkle.magnifyingglass")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isExtracting || listingText.trimmingCharacters(in: .whitespacesAndNewlines).count < 8)
+
+                        if let extractionMessage {
+                            Text(extractionMessage)
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("Fast intake")
+                }
+
                 Section("Property") {
                     TextField("Property address", text: $draft.propertyAddress)
                         .textContentType(.streetAddressLine1)
@@ -188,6 +230,14 @@ private struct AddPropertySheet: View {
                         .keyboardType(.decimalPad)
                     TextField("Annual insurance quote", text: $draft.annualInsurance)
                         .keyboardType(.decimalPad)
+                    TextField("Beds", text: $draft.beds)
+                        .keyboardType(.decimalPad)
+                    TextField("Baths", text: $draft.baths)
+                        .keyboardType(.decimalPad)
+                    TextField("Square feet", text: $draft.squareFeet)
+                        .keyboardType(.decimalPad)
+                    TextField("Year built", text: $draft.yearBuilt)
+                        .keyboardType(.numberPad)
                     TextField("Primary strategy", text: $draft.strategy)
                 }
 
@@ -201,7 +251,7 @@ private struct AddPropertySheet: View {
                 }
 
                 Section {
-                    Text("BRIX saves this as user-entered until source-backed records, rent support, insurance, taxes, and condition evidence are verified.")
+                    Text("BRIX saves this as \(draft.sourceConfidence.replacingOccurrences(of: "_", with: " ")) until source-backed records, rent support, insurance, taxes, and condition evidence are verified. Insurance should be entered as an annual quote.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -222,6 +272,25 @@ private struct AddPropertySheet: View {
                     .disabled(isSaving || draft.isReadyToSave == false)
                 }
             }
+        }
+    }
+
+    private func extractListing() async {
+        let text = listingText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard text.count >= 8 else { return }
+
+        isExtracting = true
+        extractionMessage = nil
+        defer { isExtracting = false }
+
+        do {
+            let response = try await apiClient.extractListing(from: text, session: appState.session)
+            draft.apply(response.extracted, originalText: text)
+            extractionMessage = response.warning ?? "Listing details extracted. Review every field before saving."
+        } catch {
+            let fallback = ListingTextParser.localExtract(from: text)
+            draft.apply(fallback, originalText: text)
+            extractionMessage = "BRIX used on-device parsing because live extraction was unavailable. Review every field before saving."
         }
     }
 }

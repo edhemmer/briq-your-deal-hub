@@ -85,9 +85,14 @@ struct BRIXAPIClient {
             annualPropertyTax: optionalNumber(draft.annualTaxes),
             taxes: optionalNumber(draft.annualTaxes),
             insurance: optionalNumber(draft.annualInsurance),
+            beds: optionalNumber(draft.beds),
+            baths: optionalNumber(draft.baths),
+            squareFeet: optionalNumber(draft.squareFeet),
+            yearBuilt: optionalNumber(draft.yearBuilt),
             strategyPrimary: optionalText(draft.strategy),
             listingURL: optionalText(draft.listingURL),
-            listingRemarks: optionalText(draft.notes)
+            listingRemarks: optionalText(draft.notes),
+            sourceConfidence: draft.sourceConfidence
         )
 
         let data = try await send(path: "/rest/v1/deals?select=*", method: "POST", body: request, session: session)
@@ -96,6 +101,19 @@ struct BRIXAPIClient {
             throw BRIXAPIError.invalidResponse
         }
         return createdDeal
+    }
+
+    func extractListing(from text: String, session: AuthSession?) async throws -> ExtractListingResponse {
+        let body = ["listing_text": text]
+        let data = try await send(path: "/functions/v1/extract-deal-from-text", method: "POST", body: body, session: session)
+        return try decode(ExtractListingResponse.self, from: data)
+    }
+
+    func fetchFieldCaptureAnalyses(dealID: String, session: AuthSession?) async throws -> [FieldCaptureAnalysis] {
+        let encodedID = dealID.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? dealID
+        let path = "/rest/v1/brix_field_captures?select=id,capture_type,ai_findings,confidence_score,severity,verification_recommendation,created_at&deal_id=eq.\(encodedID)&order=created_at.desc&limit=50"
+        let data = try await send(path: path, method: "GET", session: session)
+        return try decode([FieldCaptureAnalysis].self, from: data)
     }
 
     func signInWithApple(identityToken: Data) async throws -> AuthSession {
