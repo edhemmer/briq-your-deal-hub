@@ -884,11 +884,14 @@ export type Database = {
       profiles: {
         Row: {
           admin_override: boolean | null
+          account_status: string
           apple_full_name_captured_at: string | null
           apple_private_relay_email: boolean | null
           apple_user_identifier: string | null
           auth_provider: string | null
           created_at: string
+          deactivated_at: string | null
+          deactivated_by: string | null
           deletion_completed_at: string | null
           deletion_requested_at: string | null
           deletion_status: string | null
@@ -908,11 +911,14 @@ export type Database = {
         }
         Insert: {
           admin_override?: boolean | null
+          account_status?: string
           apple_full_name_captured_at?: string | null
           apple_private_relay_email?: boolean | null
           apple_user_identifier?: string | null
           auth_provider?: string | null
           created_at?: string
+          deactivated_at?: string | null
+          deactivated_by?: string | null
           deletion_completed_at?: string | null
           deletion_requested_at?: string | null
           deletion_status?: string | null
@@ -932,11 +938,14 @@ export type Database = {
         }
         Update: {
           admin_override?: boolean | null
+          account_status?: string
           apple_full_name_captured_at?: string | null
           apple_private_relay_email?: boolean | null
           apple_user_identifier?: string | null
           auth_provider?: string | null
           created_at?: string
+          deactivated_at?: string | null
+          deactivated_by?: string | null
           deletion_completed_at?: string | null
           deletion_requested_at?: string | null
           deletion_status?: string | null

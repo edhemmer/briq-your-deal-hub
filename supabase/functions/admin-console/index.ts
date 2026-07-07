@@ -10,7 +10,9 @@ type AdminAction =
   | "overview"
   | "set_subscription"
   | "set_premium_override"
-  | "send_password_reset";
+  | "send_password_reset"
+  | "set_account_status"
+  | "delete_user";
 
 type AdminBody = {
   action?: AdminAction;
@@ -20,6 +22,7 @@ type AdminBody = {
   enabled?: boolean;
   note?: string;
   redirectTo?: string;
+  accountStatus?: string;
 };
 
 serve(async (req) => {
@@ -67,9 +70,14 @@ serve(async (req) => {
     }
 
     const roleNames = (roles ?? []).map((role) => role.role);
-    const isAdmin = roleNames.includes("admin") || roleNames.includes("superadmin");
+    const isOwnerEmail = isConfiguredOwnerEmail(caller.email);
+    const isAdmin = isOwnerEmail || roleNames.includes("admin") || roleNames.includes("superadmin");
     if (!isAdmin) {
       return json({ error: "Admin access required" }, 403);
+    }
+
+    if (isOwnerEmail) {
+      await ensureOwnerAdmin(adminClient, caller.id);
     }
 
     const body = (await req.json().catch(() => ({}))) as AdminBody;
@@ -120,7 +128,7 @@ serve(async (req) => {
         return json({ error: "Could not resolve user email" }, 400);
       }
 
-      const redirectTo = body.redirectTo ?? "https://briq-your-deal-hub.vercel.app/reset-password";
+      const redirectTo = body.redirectTo ?? "https://brixrealestate.app/reset-password";
       const { error: resetError } = await adminClient.auth.resetPasswordForEmail(email, { redirectTo });
       if (resetError) {
         console.error("Password reset failed:", resetError);
@@ -130,6 +138,72 @@ serve(async (req) => {
       await insertAudit(adminClient, caller.id, body.targetUserId ?? null, "password_reset_sent", {
         email,
         redirectTo,
+      });
+
+      return json({ ok: true }, 200);
+    }
+
+    if (action === "set_account_status") {
+      const status = sanitizeAccountStatus(body.accountStatus);
+      if (!body.targetUserId || !status) {
+        return json({ error: "targetUserId and valid accountStatus are required" }, 400);
+      }
+
+      const updates =
+        status === "active"
+          ? {
+              account_status: "active",
+              deactivated_at: null,
+              deactivated_by: null,
+              deletion_status: "active",
+            }
+          : {
+              account_status: status,
+              deactivated_at: new Date().toISOString(),
+              deactivated_by: caller.id,
+              subscription_status: "inactive",
+            };
+
+      await updateProfile(adminClient, caller.id, body.targetUserId, updates, `account_${status}`);
+      return json({ ok: true }, 200);
+    }
+
+    if (action === "delete_user") {
+      if (!body.targetUserId) {
+        return json({ error: "targetUserId is required" }, 400);
+      }
+
+      if (body.targetUserId === caller.id) {
+        return json({ error: "You cannot delete your own admin account from this panel" }, 400);
+      }
+
+      await insertAudit(adminClient, caller.id, body.targetUserId, "admin_delete_user_requested", {
+        note: truncate(body.note, 500),
+      });
+
+      const { error: profileError } = await adminClient
+        .from("profiles")
+        .update({
+          account_status: "deleted",
+          deletion_status: "completed",
+          deletion_completed_at: new Date().toISOString(),
+          subscription_status: "inactive",
+        })
+        .eq("id", body.targetUserId);
+
+      if (profileError) {
+        console.error("Profile deletion marker failed:", profileError);
+        return json({ error: "Could not mark profile deleted" }, 500);
+      }
+
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(body.targetUserId);
+      if (deleteError) {
+        console.error("Auth user deletion failed:", deleteError);
+        return json({ error: "Profile marked deleted, but auth user deletion failed" }, 500);
+      }
+
+      await insertAudit(adminClient, caller.id, body.targetUserId, "admin_delete_user_completed", {
+        note: truncate(body.note, 500),
       });
 
       return json({ ok: true }, 200);
@@ -172,22 +246,49 @@ async function buildOverview(adminClient: ReturnType<typeof createClient>) {
     };
   });
 
+  const authOnlyUsers = (authUsers?.users ?? [])
+    .filter((authUser) => !profileRows.some((profile) => profile.id === authUser.id))
+    .map((authUser) => ({
+      id: authUser.id,
+      created_at: authUser.created_at,
+      subscription_status: "free",
+      free_deal_used: false,
+      admin_override: false,
+      manual_premium_override: false,
+      manual_override_note: null,
+      stripe_customer_id: null,
+      stripe_subscription_id: null,
+      deletion_status: "active",
+      account_status: "active",
+      apple_private_relay_email: false,
+      apple_user_identifier: null,
+      email: authUser.email ?? null,
+      last_sign_in_at: authUser.last_sign_in_at ?? null,
+      email_confirmed_at: authUser.email_confirmed_at ?? null,
+      phone: authUser.phone ?? null,
+      provider: authUser.app_metadata?.provider ?? "email",
+      deal_count: dealRows.filter((deal) => deal.user_id === authUser.id).length,
+    }));
+
+  const allUsers = [...users, ...authOnlyUsers];
+
   const kpis = {
     monthlyPriceCents: monthlyPriceCents(),
-    totalUsers: users.length,
-    newUsers7d: users.filter((user) => isWithin(user.created_at, now, 7 * day)).length,
-    newUsers30d: users.filter((user) => isWithin(user.created_at, now, 30 * day)).length,
-    activeSubscribers: users.filter((user) => user.subscription_status === "active").length,
-    activePaidUsers: users.filter((user) => user.subscription_status === "active" && !user.manual_premium_override && !user.admin_override).length,
-    manualOverrides: users.filter((user) => user.manual_premium_override || user.admin_override).length,
-    freeUsers: users.filter((user) => (user.subscription_status ?? "free") === "free" && !user.manual_premium_override && !user.admin_override).length,
-    lockedUsers: users.filter((user) => ["inactive", "canceled"].includes(user.subscription_status ?? "")).length,
-    cancellations30d: users.filter((user) => user.subscription_status === "canceled" && isWithin(user.subscription_end_date, now, 30 * day)).length,
+    totalUsers: allUsers.length,
+    newUsers7d: allUsers.filter((user) => isWithin(user.created_at, now, 7 * day)).length,
+    newUsers30d: allUsers.filter((user) => isWithin(user.created_at, now, 30 * day)).length,
+    activeSubscribers: allUsers.filter((user) => user.subscription_status === "active").length,
+    activePaidUsers: allUsers.filter((user) => user.subscription_status === "active" && !user.manual_premium_override && !user.admin_override).length,
+    manualOverrides: allUsers.filter((user) => user.manual_premium_override || user.admin_override).length,
+    freeUsers: allUsers.filter((user) => (user.subscription_status ?? "free") === "free" && !user.manual_premium_override && !user.admin_override).length,
+    lockedUsers: allUsers.filter((user) => ["inactive", "canceled"].includes(user.subscription_status ?? "") || user.account_status === "inactive").length,
+    cancellations30d: allUsers.filter((user) => user.subscription_status === "canceled" && isWithin(user.subscription_end_date, now, 30 * day)).length,
     totalDeals: dealRows.length,
     deals30d: dealRows.filter((deal) => isWithin(deal.created_at, now, 30 * day)).length,
     usersWithDeals: new Set(dealRows.map((deal) => deal.user_id)).size,
     openDeletionRequests: (deletionRequests ?? []).filter((request) => ["requested", "processing"].includes(request.status)).length,
-    appleUsers: users.filter((user) => user.provider === "apple" || user.apple_user_identifier).length,
+    appleUsers: allUsers.filter((user) => user.provider === "apple" || user.apple_user_identifier).length,
+    stripeConfigured: isStripeServerConfigured(),
   };
 
   const activePaidUsers = kpis.activePaidUsers;
@@ -199,10 +300,16 @@ async function buildOverview(adminClient: ReturnType<typeof createClient>) {
       monthlyRecurringRevenueCents,
       quarterlyRunRateCents: monthlyRecurringRevenueCents * 3,
     },
-    users,
+    users: allUsers,
     deals: dealRows,
     auditLog: auditLog ?? [],
     deletionRequests: deletionRequests ?? [],
+    system: {
+      stripeConfigured: isStripeServerConfigured(),
+      stripeSecretConfigured: Boolean(Deno.env.get("STRIPE_SECRET_KEY")),
+      stripeWebhookConfigured: Boolean(Deno.env.get("STRIPE_WEBHOOK_SECRET")),
+      stripePriceConfigured: Boolean(Deno.env.get("STRIPE_PRICE_ID") || Deno.env.get("BRIX_STRIPE_PRICE_ID")),
+    },
   };
 }
 
@@ -266,6 +373,56 @@ async function resolveEmail(adminClient: ReturnType<typeof createClient>, body: 
 function sanitizeStatus(status?: string) {
   if (!status) return null;
   return ["free", "active", "inactive", "canceled", "admin_override"].includes(status) ? status : null;
+}
+
+function sanitizeAccountStatus(status?: string) {
+  if (!status) return null;
+  return ["active", "inactive"].includes(status) ? status : null;
+}
+
+function isConfiguredOwnerEmail(email?: string | null) {
+  if (!email) return false;
+  const configured = (Deno.env.get("BRIX_SUPERADMIN_EMAILS") ?? "edhemmer@gmail.com")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  return configured.includes(email.toLowerCase());
+}
+
+async function ensureOwnerAdmin(adminClient: ReturnType<typeof createClient>, userId: string) {
+  await adminClient
+    .from("user_roles")
+    .upsert(
+      [
+        { user_id: userId, role: "admin" },
+        { user_id: userId, role: "superadmin" },
+      ],
+      { onConflict: "user_id,role" },
+    );
+
+  await adminClient
+    .from("profiles")
+    .upsert(
+      {
+        id: userId,
+        subscription_status: "admin_override",
+        admin_override: true,
+        manual_premium_override: true,
+        manual_override_note: "Founder/developer super admin access",
+        manual_override_updated_at: new Date().toISOString(),
+        account_status: "active",
+        deletion_status: "active",
+      },
+      { onConflict: "id" },
+    );
+}
+
+function isStripeServerConfigured() {
+  return Boolean(
+    Deno.env.get("STRIPE_SECRET_KEY")
+      && (Deno.env.get("STRIPE_PRICE_ID") || Deno.env.get("BRIX_STRIPE_PRICE_ID"))
+      && Deno.env.get("STRIPE_WEBHOOK_SECRET"),
+  );
 }
 
 function truncate(value: unknown, maxLength: number) {

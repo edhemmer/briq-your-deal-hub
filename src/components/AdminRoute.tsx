@@ -9,7 +9,7 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
   if (loading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground text-sm">Loading…</div>
+        <div className="animate-pulse text-muted-foreground text-sm">Loading...</div>
       </div>
     );
   }

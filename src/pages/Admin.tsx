@@ -11,6 +11,8 @@ import {
   Shield,
   Sparkles,
   TrendingUp,
+  Trash2,
+  UserX,
   Users,
   Zap,
 } from "lucide-react";
@@ -32,7 +34,7 @@ import {
   type AdminConsoleUser,
 } from "@/hooks/useAdminData";
 import { toast } from "@/hooks/use-toast";
-import { isStripeConfigured, resolveAccessSource, getAccessSourceLabel, type AccessSource } from "@/lib/billingAccess";
+import { resolveAccessSource, getAccessSourceLabel, type AccessSource } from "@/lib/billingAccess";
 
 const SUBSCRIPTION_OPTIONS = ["free", "active", "inactive", "canceled", "admin_override"] as const;
 const PLAN_FILTERS = ["all", "paid", "free", "comped", "locked"] as const;
@@ -63,7 +65,7 @@ function AccessSourceBadge({ source }: { source: AccessSource }) {
 export default function Admin() {
   const { data, isLoading, error } = useAdminConsoleOverview();
   const adminAction = useAdminConsoleAction();
-  const stripeReady = isStripeConfigured();
+  const stripeReady = data?.system?.stripeConfigured ?? data?.kpis?.stripeConfigured ?? false;
   const [search, setSearch] = useState("");
   const [planFilter, setPlanFilter] = useState<(typeof PLAN_FILTERS)[number]>("all");
   const [overrideNotes, setOverrideNotes] = useState<Record<string, string>>({});
@@ -129,6 +131,40 @@ export default function Admin() {
     }
   };
 
+  const handleAccountStatusChange = async (user: AdminConsoleUser, accountStatus: "active" | "inactive") => {
+    try {
+      await adminAction.mutateAsync({
+        action: "set_account_status",
+        targetUserId: user.id,
+        accountStatus,
+      });
+      toast({
+        title: accountStatus === "active" ? "User reactivated" : "User deactivated",
+        description: user.email ?? user.id,
+      });
+    } catch (e) {
+      toast({ title: "Account update failed", description: getErrorMessage(e), variant: "destructive" });
+    }
+  };
+
+  const handleDeleteUser = async (user: AdminConsoleUser) => {
+    const confirmed = window.confirm(
+      `Delete ${user.email ?? user.id}? This removes the Supabase auth account and marks the profile deleted. This cannot be undone from BRIX.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      await adminAction.mutateAsync({
+        action: "delete_user",
+        targetUserId: user.id,
+        note: "Deleted from BRIX admin control panel",
+      });
+      toast({ title: "User deleted", description: user.email ?? user.id });
+    } catch (e) {
+      toast({ title: "Delete failed", description: getErrorMessage(e), variant: "destructive" });
+    }
+  };
+
   if (error) {
     return (
       <SectionContainer>
@@ -178,6 +214,11 @@ export default function Admin() {
           <StatusItem icon={Sparkles} label="Access model" value="Manual free access available" tone="info" />
           <StatusItem icon={TrendingUp} label="Activated users" value={`${kpis?.usersWithDeals ?? 0} users have created deals`} tone="positive" />
         </div>
+        <div className="mt-4 grid gap-2 border-t border-border pt-4 text-xs md:grid-cols-3">
+          <SecretStatus label="Stripe secret" ok={!!data?.system?.stripeSecretConfigured} />
+          <SecretStatus label="Webhook secret" ok={!!data?.system?.stripeWebhookConfigured} />
+          <SecretStatus label="Price ID" ok={!!data?.system?.stripePriceConfigured} />
+        </div>
       </CardContainer>
 
       <Tabs defaultValue="users" className="space-y-4">
@@ -225,19 +266,20 @@ export default function Admin() {
                     <TableHead>Usage</TableHead>
                     <TableHead>Free access</TableHead>
                     <TableHead>Subscription</TableHead>
+                    <TableHead>Account</TableHead>
                     <TableHead>Password</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">Loading admin users...</TableCell>
+                      <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">Loading admin users...</TableCell>
                     </TableRow>
                   ) : filteredUsers.length ? (
-                    filteredUsers.map((user) => <UserRow key={user.id} user={user} overrideNotes={overrideNotes} setOverrideNotes={setOverrideNotes} onToggleOverride={handleTogglePremiumOverride} onStatusChange={handleStatusChange} onPasswordReset={handlePasswordReset} />)
+                    filteredUsers.map((user) => <UserRow key={user.id} user={user} overrideNotes={overrideNotes} setOverrideNotes={setOverrideNotes} onToggleOverride={handleTogglePremiumOverride} onStatusChange={handleStatusChange} onAccountStatusChange={handleAccountStatusChange} onDeleteUser={handleDeleteUser} onPasswordReset={handlePasswordReset} />)
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">No users found.</TableCell>
+                      <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">No users found.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -347,6 +389,8 @@ function UserRow({
   setOverrideNotes,
   onToggleOverride,
   onStatusChange,
+  onAccountStatusChange,
+  onDeleteUser,
   onPasswordReset,
 }: {
   user: AdminConsoleUser;
@@ -354,6 +398,8 @@ function UserRow({
   setOverrideNotes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   onToggleOverride: (user: AdminConsoleUser, enabled: boolean) => void;
   onStatusChange: (userId: string, subscriptionStatus: string) => void;
+  onAccountStatusChange: (user: AdminConsoleUser, accountStatus: "active" | "inactive") => void;
+  onDeleteUser: (user: AdminConsoleUser) => void;
   onPasswordReset: (user: AdminConsoleUser) => void;
 }) {
   const accessSource = resolveAccessSource({
@@ -365,9 +411,10 @@ function UserRow({
     stripe_subscription_id: user.stripe_subscription_id,
   });
   const hasOverride = user.manual_premium_override || user.admin_override;
+  const isInactive = user.account_status === "inactive" || user.deletion_status === "inactive";
 
   return (
-    <TableRow>
+    <TableRow className={isInactive ? "opacity-60" : undefined}>
       <TableCell>
         <div className="min-w-[220px]">
           <div className="flex items-center gap-2">
@@ -376,6 +423,7 @@ function UserRow({
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{shortId(user.id)} · {user.provider ?? "email"} · joined {formatDate(user.created_at)}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">Last sign in: {user.last_sign_in_at ? formatRelative(user.last_sign_in_at) : "Never"}</p>
+          {isInactive && <p className="mt-1 text-xs font-semibold text-destructive">Inactive account</p>}
         </div>
       </TableCell>
       <TableCell><PlanBadge user={user} /></TableCell>
@@ -441,6 +489,28 @@ function UserRow({
         </Select>
       </TableCell>
       <TableCell>
+        <div className="flex min-w-[170px] gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 gap-2 text-xs"
+            onClick={() => onAccountStatusChange(user, isInactive ? "active" : "inactive")}
+          >
+            <UserX className="h-3.5 w-3.5" />
+            {isInactive ? "Reactivate" : "Deactivate"}
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            className="h-8 px-2"
+            onClick={() => onDeleteUser(user)}
+            title="Delete user"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </TableCell>
+      <TableCell>
         <Button size="sm" variant="outline" className="h-8 gap-2 text-xs" disabled={!user.email} onClick={() => onPasswordReset(user)}>
           <KeyRound className="h-3.5 w-3.5" />
           Reset
@@ -501,6 +571,17 @@ function StatusItem({ icon: Icon, label, value, tone }: { icon: React.ElementTyp
         <p className="text-xs text-muted-foreground">{label}</p>
         <p className="text-sm font-semibold text-foreground">{value}</p>
       </div>
+    </div>
+  );
+}
+
+function SecretStatus({ label, ok }: { label: string; ok: boolean }) {
+  return (
+    <div className="flex items-center justify-between rounded-md border border-border bg-muted/20 px-3 py-2">
+      <span className="text-muted-foreground">{label}</span>
+      <Badge variant="outline" className={ok ? "border-signal-positive/20 text-signal-positive" : "border-signal-warning/20 text-signal-warning"}>
+        {ok ? "Set" : "Missing"}
+      </Badge>
     </div>
   );
 }

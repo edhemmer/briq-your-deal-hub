@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,14 +11,61 @@ import { toast } from "@/hooks/use-toast";
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingRecovery, setCheckingRecovery] = useState(true);
+  const [recoveryReady, setRecoveryReady] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for recovery token in URL hash
-    const hash = window.location.hash;
-    if (!hash.includes("type=recovery")) {
-      navigate("/login");
+    let mounted = true;
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setRecoveryReady(true);
+        setCheckingRecovery(false);
+      }
+    });
+
+    async function prepareRecoverySession() {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          toast({ title: "Reset link expired", description: error.message, variant: "destructive" });
+          navigate("/forgot-password", { replace: true });
+          return;
+        }
+      }
+
+      const { data } = await supabase.auth.getSession();
+      const hash = window.location.hash;
+      const hasRecoveryToken = hash.includes("type=recovery") || hash.includes("access_token=");
+
+      if (!mounted) return;
+
+      if (data.session || hasRecoveryToken) {
+        setRecoveryReady(true);
+        setCheckingRecovery(false);
+        return;
+      }
+
+      toast({
+        title: "Password reset link required",
+        description: "Request a new reset email so BRIX can verify this password change.",
+        variant: "destructive",
+      });
+      navigate("/forgot-password", { replace: true });
     }
+
+    prepareRecoverySession();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -27,12 +74,20 @@ export default function ResetPassword() {
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Password update failed", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Password updated", description: "You can now sign in with your new password." });
-      navigate("/");
+      toast({ title: "Password updated", description: "You can now continue in BRIX." });
+      navigate("/dashboard", { replace: true });
     }
   };
+
+  if (checkingRecovery) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="text-sm text-muted-foreground">Verifying reset link...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -49,10 +104,18 @@ export default function ResetPassword() {
           <form onSubmit={handleUpdate} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password">New password</Label>
-              <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} placeholder="••••••••" />
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={8}
+                placeholder="Enter at least 8 characters"
+              />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Updating…" : "Update password"}
+            <Button type="submit" className="w-full" disabled={loading || !recoveryReady}>
+              {loading ? "Updating..." : "Update password"}
             </Button>
           </form>
         </CardContainer>

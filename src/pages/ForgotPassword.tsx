@@ -44,7 +44,7 @@ export default function ForgotPassword() {
               <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com" />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Sending…" : "Send reset link"}
+              {loading ? "Sending..." : "Send reset link"}
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">

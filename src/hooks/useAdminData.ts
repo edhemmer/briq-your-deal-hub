@@ -32,6 +32,7 @@ export type AdminConsoleUser = {
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   deletion_status: string | null;
+  account_status: string | null;
   apple_private_relay_email: boolean | null;
   deal_count: number;
 };
@@ -55,6 +56,13 @@ export type AdminConsoleOverview = {
     usersWithDeals: number;
     openDeletionRequests: number;
     appleUsers: number;
+    stripeConfigured: boolean;
+  };
+  system?: {
+    stripeConfigured: boolean;
+    stripeSecretConfigured: boolean;
+    stripeWebhookConfigured: boolean;
+    stripePriceConfigured: boolean;
   };
   users: AdminConsoleUser[];
   deals: Array<{
