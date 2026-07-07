@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 @MainActor
 @Observable
@@ -20,6 +21,7 @@ final class BRIXAppState {
     var lastSyncDate: Date?
 
     private let apiClient = BRIXAPIClient()
+    private let sessionStore = KeychainSessionStore()
 
     var session: AuthSession? {
         if case .signedIn(let session) = authState { return session }
@@ -39,6 +41,9 @@ final class BRIXAppState {
     }
 
     func restore() async {
+        if let savedSession = sessionStore.loadSession() {
+            authState = .signedIn(savedSession)
+        }
         await refresh()
     }
 
@@ -103,6 +108,7 @@ final class BRIXAppState {
     }
 
     func signIn(with session: AuthSession) async {
+        sessionStore.save(session)
         authState = .signedIn(session)
         await refresh()
     }
@@ -113,6 +119,7 @@ final class BRIXAppState {
         } catch {
             lastError = error.localizedDescription
         }
+        sessionStore.clear()
         authState = .signedOut
         deals = []
         selectedDealID = nil
@@ -171,6 +178,47 @@ final class BRIXAppState {
         guard let uuid = UUID(uuidString: localIdentifier),
               let index = queuedOfflineActions.firstIndex(where: { $0.id == uuid }) else { return }
         queuedOfflineActions[index].uploadState = state
+    }
+}
+
+struct KeychainSessionStore {
+    private let service = "BrixRealEstate.SupabaseSession"
+    private let account = "current"
+
+    func save(_ session: AuthSession) {
+        guard let data = try? JSONEncoder.brix.encode(session) else { return }
+        clear()
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+            kSecValueData as String: data
+        ]
+        SecItemAdd(query as CFDictionary, nil)
+    }
+
+    func loadSession() -> AuthSession? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        guard status == errSecSuccess, let data = result as? Data else { return nil }
+        return try? JSONDecoder.brix.decode(AuthSession.self, from: data)
+    }
+
+    func clear() {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        SecItemDelete(query as CFDictionary)
     }
 }
 

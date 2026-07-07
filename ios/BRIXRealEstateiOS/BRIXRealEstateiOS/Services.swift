@@ -129,6 +129,24 @@ struct BRIXAPIClient {
         return try decode(AuthSession.self, from: data)
     }
 
+    func signInWithEmail(email: String, password: String) async throws -> AuthSession {
+        let body = [
+            "email": email.trimmingCharacters(in: .whitespacesAndNewlines),
+            "password": password
+        ]
+        let data = try await send(path: "/auth/v1/token?grant_type=password", method: "POST", body: body, session: nil)
+        return try decode(AuthSession.self, from: data)
+    }
+
+    func signUpWithEmail(email: String, password: String) async throws -> AuthSession {
+        let body = [
+            "email": email.trimmingCharacters(in: .whitespacesAndNewlines),
+            "password": password
+        ]
+        let data = try await send(path: "/auth/v1/signup", method: "POST", body: body, session: nil)
+        return try decode(AuthSession.self, from: data)
+    }
+
     func signOut(session: AuthSession?) async throws {
         _ = try await send(path: "/auth/v1/logout", method: "POST", session: session)
     }
@@ -198,7 +216,7 @@ struct BRIXAPIClient {
         }
 
         guard (200..<300).contains(http.statusCode) else {
-            let message = String(data: responseData, encoding: .utf8) ?? "No error body"
+            let message = parseBackendMessage(responseData) ?? String(data: responseData, encoding: .utf8) ?? "No error body"
             throw BRIXAPIError.backend(status: http.statusCode, message: message)
         }
 
@@ -207,6 +225,19 @@ struct BRIXAPIClient {
 
     private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
         try JSONDecoder.brix.decode(type, from: data)
+    }
+
+    private func parseBackendMessage(_ data: Data) -> String? {
+        guard
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+
+        for key in ["msg", "message", "error_description", "error"] {
+            if let value = object[key] as? String, value.isEmpty == false {
+                return value
+            }
+        }
+        return nil
     }
 
     private func normalizeCaptureType(_ value: String) -> String {

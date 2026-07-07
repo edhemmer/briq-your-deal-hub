@@ -69,6 +69,10 @@ struct AuthSession: Codable, Equatable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(accessToken, forKey: .accessToken)
         try container.encodeIfPresent(refreshToken, forKey: .refreshToken)
+
+        var userContainer = container.nestedContainer(keyedBy: UserKeys.self, forKey: .user)
+        try userContainer.encode(userID, forKey: .id)
+        try userContainer.encodeIfPresent(email, forKey: .email)
     }
 }
 

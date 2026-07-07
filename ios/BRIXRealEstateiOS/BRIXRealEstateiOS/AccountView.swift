@@ -7,6 +7,9 @@ struct AccountView: View {
     @State private var deletionReason = ""
     @State private var deletionStatus: String?
     @State private var authStatus: String?
+    @State private var email = ""
+    @State private var password = ""
+    @State private var isAuthWorking = false
     private let apiClient = BRIXAPIClient()
 
     var body: some View {
@@ -25,6 +28,14 @@ struct AccountView: View {
                                 Text(appState.authState.displayEmail)
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
+                                Text("BRIX Cloud connected - \(appState.deals.count) deal file\(appState.deals.count == 1 ? "" : "s") synced.")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.green)
+                                if let lastSyncDate = appState.lastSyncDate {
+                                    Text("Last sync \(lastSyncDate.formatted(date: .abbreviated, time: .shortened))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
 
                             Button(role: .destructive) {
@@ -35,6 +46,47 @@ struct AccountView: View {
                             }
                             .buttonStyle(.bordered)
                         } else {
+                            VStack(alignment: .leading, spacing: 10) {
+                                TextField("Email", text: $email)
+                                    .textContentType(.username)
+                                    .keyboardType(.emailAddress)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .textFieldStyle(.roundedBorder)
+
+                                SecureField("Password", text: $password)
+                                    .textContentType(.password)
+                                    .textFieldStyle(.roundedBorder)
+
+                                HStack {
+                                    Button {
+                                        Task { await signInWithEmail() }
+                                    } label: {
+                                        Label("Sign In", systemImage: "person.fill.checkmark")
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .disabled(isAuthWorking || email.isEmpty || password.isEmpty)
+
+                                    Button {
+                                        Task { await createEmailAccount() }
+                                    } label: {
+                                        Text("Create")
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .disabled(isAuthWorking || email.isEmpty || password.count < 6)
+                                }
+                            }
+
+                            HStack {
+                                Rectangle().frame(height: 1).foregroundStyle(.quaternary)
+                                Text("or")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Rectangle().frame(height: 1).foregroundStyle(.quaternary)
+                            }
+
                             SignInWithAppleButton(.signIn) { request in
                                 request.requestedScopes = [.fullName, .email]
                             } onCompletion: { result in
@@ -43,7 +95,7 @@ struct AccountView: View {
                             .signInWithAppleButtonStyle(.black)
                             .frame(height: 48)
 
-                            Text("Sign in is required for saved deals, sync, field uploads, portfolio data, and account deletion controls.")
+                            Text("Use the same BRIX account as web to sync saved deals, field uploads, portfolio data, and account deletion controls.")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
@@ -131,6 +183,47 @@ struct AccountView: View {
         } message: {
             Text("This starts deletion of the full account record and associated personal data. This is not temporary deactivation.")
         }
+    }
+
+    private func signInWithEmail() async {
+        isAuthWorking = true
+        authStatus = "Signing in..."
+        defer { isAuthWorking = false }
+
+        do {
+            let session = try await apiClient.signInWithEmail(email: email, password: password)
+            await appState.signIn(with: session)
+            password = ""
+            authStatus = "Signed in. BRIX is connected to your account."
+        } catch {
+            authStatus = "Sign in failed: \(friendlyAuthMessage(error))"
+        }
+    }
+
+    private func createEmailAccount() async {
+        isAuthWorking = true
+        authStatus = "Creating account..."
+        defer { isAuthWorking = false }
+
+        do {
+            let session = try await apiClient.signUpWithEmail(email: email, password: password)
+            await appState.signIn(with: session)
+            password = ""
+            authStatus = "Account created. BRIX is connected to your account."
+        } catch {
+            authStatus = "Account creation failed: \(friendlyAuthMessage(error))"
+        }
+    }
+
+    private func friendlyAuthMessage(_ error: Error) -> String {
+        let message = error.localizedDescription
+        if message.localizedCaseInsensitiveContains("invalid") || message.localizedCaseInsensitiveContains("credentials") {
+            return "The email or password was not accepted by Supabase."
+        }
+        if message.localizedCaseInsensitiveContains("network") || message.localizedCaseInsensitiveContains("offline") {
+            return "Network connection failed. Check internet access and try again."
+        }
+        return message
     }
 
     private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
