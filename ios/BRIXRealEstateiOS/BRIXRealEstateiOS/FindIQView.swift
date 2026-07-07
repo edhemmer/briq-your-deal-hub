@@ -10,7 +10,7 @@ struct FindIQView: View {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard trimmed.isEmpty == false else { return appState.deals }
         return appState.deals.filter { deal in
-            [deal.propertyAddress, deal.city, deal.state, deal.zipCode, deal.propertyType, deal.listingURL]
+            [deal.propertyAddress, deal.city, deal.county, deal.state, deal.zipCode, deal.propertyType, deal.listingURL]
                 .compactMap { $0?.lowercased() }
                 .contains { $0.contains(trimmed) }
         }
@@ -212,6 +212,8 @@ private struct AddPropertySheet: View {
                     TextField("Property address", text: $draft.propertyAddress)
                         .textContentType(.streetAddressLine1)
                     TextField("City", text: $draft.city)
+                        .textContentType(.addressCity)
+                    TextField("County", text: $draft.county)
                         .textContentType(.addressCity)
                     TextField("State", text: $draft.state)
                         .textInputAutocapitalization(.characters)

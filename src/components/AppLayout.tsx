@@ -49,7 +49,7 @@ function DealOperatingStrip() {
             <Workflow className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current workspace</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Active module</p>
             <h2 className="truncate text-sm font-semibold leading-5 text-foreground">
               {activeModule.title}
               <span className="hidden font-medium text-muted-foreground sm:inline"> · {activeModule.question}</span>
@@ -76,7 +76,7 @@ function DealOperatingStrip() {
       <div className="grid gap-3 px-3 py-3 md:px-4 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_340px] lg:items-center">
         <div className="min-w-0">
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading your live deal workspace...</p>
+            <p className="text-sm text-muted-foreground">Loading your deal files...</p>
           ) : activeDeal ? (
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="min-w-0 flex-1">
@@ -92,7 +92,7 @@ function DealOperatingStrip() {
           ) : (
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted-foreground">Start by adding a property, importing a listing, or searching saved deal files.</p>
-              <Badge variant="outline" className="w-fit">Live workspace</Badge>
+              <Badge variant="outline" className="w-fit">Live account</Badge>
             </div>
           )}
         </div>

@@ -77,6 +77,7 @@ struct BRIXAPIClient {
             userID: session.userID,
             propertyAddress: draft.propertyAddress.trimmingCharacters(in: .whitespacesAndNewlines),
             city: draft.city.trimmingCharacters(in: .whitespacesAndNewlines),
+            county: optionalText(draft.county),
             state: draft.state.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(),
             zipCode: optionalText(draft.zipCode),
             propertyType: optionalText(draft.propertyType),

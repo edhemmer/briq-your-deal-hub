@@ -80,6 +80,7 @@ struct DealSummary: Identifiable, Codable, Hashable {
     let id: String
     var propertyAddress: String?
     var city: String?
+    var county: String?
     var state: String?
     var zipCode: String?
     var propertyType: String?
@@ -103,6 +104,7 @@ struct DealSummary: Identifiable, Codable, Hashable {
         case id
         case propertyAddress = "property_address"
         case city
+        case county
         case state
         case zipCode = "zip_code"
         case propertyType = "property_type"
@@ -145,6 +147,7 @@ struct DealSummary: Identifiable, Codable, Hashable {
         var items: [String] = []
         if propertyAddress?.isEmpty ?? true { items.append("Property address") }
         if city?.isEmpty ?? true { items.append("City") }
+        if county?.isEmpty ?? true { items.append("County") }
         if state?.isEmpty ?? true { items.append("State") }
         if purchasePrice == nil || purchasePrice == 0 { items.append("Purchase price") }
         if monthlyRent == nil || monthlyRent == 0 { items.append("Monthly rent") }
@@ -294,6 +297,7 @@ struct FieldCapturePayload: Codable {
 struct CreateDealDraft {
     var propertyAddress = ""
     var city = ""
+    var county = ""
     var state = ""
     var zipCode = ""
     var propertyType = "Single Family"
@@ -319,6 +323,7 @@ struct CreateDealDraft {
     mutating func apply(_ extracted: ExtractedListingDeal, originalText: String) {
         propertyAddress = extracted.propertyAddress ?? propertyAddress
         city = extracted.city ?? city
+        county = extracted.county ?? county
         state = extracted.state ?? state
         zipCode = extracted.zipCode ?? zipCode
         propertyType = extracted.propertyType ?? propertyType
@@ -348,6 +353,7 @@ struct CreateDealRequest: Encodable {
     let userID: String
     let propertyAddress: String
     let city: String
+    let county: String?
     let state: String
     let zipCode: String?
     let propertyType: String?
@@ -371,6 +377,7 @@ struct CreateDealRequest: Encodable {
         case userID = "user_id"
         case propertyAddress = "property_address"
         case city
+        case county
         case state
         case zipCode = "zip_code"
         case propertyType = "property_type"
@@ -420,6 +427,7 @@ struct ExtractListingResponse: Decodable {
 struct ExtractedListingDeal: Decodable, Hashable {
     let propertyAddress: String?
     let city: String?
+    let county: String?
     let state: String?
     let zipCode: String?
     let propertyType: String?
@@ -442,6 +450,7 @@ struct ExtractedListingDeal: Decodable, Hashable {
     enum CodingKeys: String, CodingKey {
         case propertyAddress = "property_address"
         case city
+        case county
         case state
         case zipCode = "zip_code"
         case propertyType = "property_type"

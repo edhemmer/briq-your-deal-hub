@@ -9,6 +9,7 @@ enum ListingTextParser {
         return ExtractedListingDeal(
             propertyAddress: firstAddress(in: text) ?? urlParts?.address,
             city: cityStateZip(in: text)?.city ?? urlParts?.city,
+            county: county(in: text),
             state: cityStateZip(in: text)?.state ?? urlParts?.state,
             zipCode: cityStateZip(in: text)?.zip ?? urlParts?.zip,
             propertyType: propertyType(in: text),
@@ -76,6 +77,15 @@ enum ListingTextParser {
         return (capture(match, in: text, group: 1), capture(match, in: text, group: 2), capture(match, in: text, group: 3))
     }
 
+    private static func county(in text: String) -> String? {
+        guard let value = firstCapture(in: text, pattern: #"\b([A-Za-z][A-Za-z .'-]{1,40})\s+County\b"#) else { return nil }
+        return value
+            .replacingOccurrences(of: #"(?i)\b(county|il|illinois)\b"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"[,\.-]"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private static func propertyType(in text: String) -> String? {
         let lower = text.lowercased()
         if lower.contains("duplex") { return "Duplex" }
@@ -91,6 +101,7 @@ enum ListingTextParser {
 
     private static func strategy(in text: String) -> String? {
         let lower = text.lowercased()
+        if lower.contains("owner occupant") || lower.contains("owner-occupant") || lower.contains("primary residence") || lower.contains("live in") || lower.contains("live-in") || lower.contains("home search") { return "Owner Occupant" }
         if lower.contains("brrrr") { return "BRRRR" }
         if lower.contains("flip") || lower.contains("resale") { return "Fix & Flip" }
         if lower.contains("wholesale") { return "Wholesale" }

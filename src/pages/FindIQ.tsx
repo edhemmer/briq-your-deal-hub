@@ -26,6 +26,11 @@ type SearchState = {
   propertyType: string;
   bedrooms: string;
   bathrooms: string;
+  strategy: string;
+  excludedCounties: string;
+  mustHaveKeywords: string;
+  preferredKeywords: string;
+  renovationTolerance: string;
 };
 
 type ManualListingState = {
@@ -64,6 +69,11 @@ const initialSearch: SearchState = {
   propertyType: "",
   bedrooms: "",
   bathrooms: "",
+  strategy: "Owner Occupant",
+  excludedCounties: "",
+  mustHaveKeywords: "",
+  preferredKeywords: "",
+  renovationTolerance: "Light renovation okay",
 };
 
 const initialManualListing: ManualListingState = {
@@ -95,77 +105,38 @@ const initialManualListing: ManualListingState = {
   photo_analysis_status: "not_requested",
 };
 
-const edOwnerOccupiedIllinoisProfile: AcquisitionProfile = {
-  id: "owner-occupied-il-home-search",
-  name: "Owner-Occupied Illinois Home",
-  budgetMin: 0,
-  budgetMax: 400000,
-  markets: [
-    "Naperville",
-    "Aurora",
-    "Montgomery",
-    "Oswego",
-    "Plainfield",
-    "Bolingbrook",
-    "Lisle",
-    "Warrenville",
-    "Wheaton",
-    "Winfield",
-    "West Chicago",
-    "Batavia",
-    "Geneva",
-    "North Aurora",
-    "Sugar Grove",
-    "Yorkville",
-    "Plano",
-    "Sandwich",
-    "Elburn",
-    "Lemont",
-  ],
-  propertyTypes: ["Single Family"],
-  minBedrooms: 4,
-  minBathrooms: 2,
-  garageRequired: false,
-  preferredMaxTaxes: Number.MAX_SAFE_INTEGER,
-  requiresFutureRentalPotential: false,
-  requiresFutureResalePotential: true,
-  preferredValueAdd: ["Ranch", "Basement", "Light renovation", "Not Cook County", "Within 60 minutes of Naperville"],
-};
-
-const profileMustHaves = [
-  "Illinois, about 60 minutes from Naperville",
-  "Not Cook County",
-  "4 bedrooms",
-  "2+ bathrooms",
-  "Under $400K",
-];
-
-const profilePreferences = ["Ranch layout", "Basement", "Light renovation okay", "Single-family home"];
-
 export default function FindIQ() {
   const { data: deals, isLoading } = useDeals();
   const createDeal = useCreateDeal();
-  const [search] = useState<SearchState>(initialSearch);
+  const [search, setSearch] = useState<SearchState>(initialSearch);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [manualListing, setManualListing] = useState<ManualListingState>(initialManualListing);
   const [quickInput, setQuickInput] = useState("");
   const [isQuickScanning, setIsQuickScanning] = useState(false);
 
+  const activeProfile = useMemo(() => searchToProfile(search), [search]);
+  const profileMustHaves = useMemo(() => buildProfileRequirements(search), [search]);
+  const profilePreferences = useMemo(() => splitProfileTerms(search.preferredKeywords), [search.preferredKeywords]);
+
   const rankedOpportunities = useMemo(() => {
     return (deals ?? [])
       .map(dealToOpportunity)
-      .map((opportunity) => applyOwnerOccupiedFit(rankOpportunity(edOwnerOccupiedIllinoisProfile, opportunity)))
+      .map((opportunity) => applyActiveProfileFit(rankOpportunity(activeProfile, opportunity), activeProfile, search))
       .sort((a, b) => b.score - a.score);
-  }, [deals]);
+  }, [activeProfile, deals, search]);
 
   const strongMatches = rankedOpportunities.filter((opportunity) => opportunity.score >= 82).length;
   const needsVerification = rankedOpportunities.filter((opportunity) => opportunity.missingData.length > 0 || opportunity.risks.length > 0).length;
-  const workspaceDeals = deals ?? [];
-  const importedDeals = workspaceDeals.filter((deal) => deal.listing_url || deal.listing_remarks || deal.listing_photo_urls);
+  const dealFiles = deals ?? [];
+  const importedDeals = dealFiles.filter((deal) => deal.listing_url || deal.listing_remarks || deal.listing_photo_urls);
   const readyForDealIQ = rankedOpportunities.filter((opportunity) => opportunity.score >= 75 && opportunity.missingData.length <= 2).length;
 
   const updateManualListing = (key: keyof ManualListingState, value: string) => {
     setManualListing((current) => ({ ...current, [key]: value }));
+  };
+
+  const updateSearch = (key: keyof SearchState, value: string) => {
+    setSearch((current) => ({ ...current, [key]: value }));
   };
 
   const openImportIntake = (fields: Partial<ManualListingState>) => {
@@ -294,35 +265,40 @@ export default function FindIQ() {
     }
 
     try {
+      const verified = await verifyManualListingLocation(manualListing);
+      const verificationQuestions = splitLines(verified.missing_questions ?? manualListing.missing_questions);
+      const verificationRisks = splitLines(verified.visible_or_stated_risks ?? manualListing.visible_or_stated_risks);
+      const conditionNotes = splitLines(verified.condition_notes ?? manualListing.condition_notes);
+
       const deal = await createDeal.mutateAsync({
-        property_address: manualListing.property_address.trim(),
-        city: manualListing.city.trim(),
-        county: manualListing.county.trim() || undefined,
-        state: manualListing.state.trim(),
-        zip_code: manualListing.zip_code.trim() || undefined,
-        property_type: manualListing.property_type.trim() || undefined,
-        beds: parseNumber(manualListing.beds) ?? undefined,
-        baths: parseNumber(manualListing.baths) ?? undefined,
-        square_feet: parseNumber(manualListing.square_feet) ?? undefined,
-        year_built: parseNumber(manualListing.year_built) ?? undefined,
-        lot_size: manualListing.lot_size.trim() || undefined,
-        purchase_price: parseNumber(manualListing.purchase_price) ?? undefined,
-        monthly_rent: parseNumber(manualListing.monthly_rent) ?? undefined,
-        annual_property_tax: parseNumber(manualListing.annual_property_tax) ?? undefined,
-        taxes: parseNumber(manualListing.annual_property_tax) ?? undefined,
-        insurance: parseNumber(manualListing.insurance) ?? undefined,
-        estimated_arv: parseNumber(manualListing.estimated_arv) ?? undefined,
-        strategy_primary: manualListing.strategy_primary.trim() || "Owner Occupant",
-        listing_url: manualListing.listing_url.trim() || undefined,
-        listing_source: manualListing.listing_source.trim() || inferListingSource(manualListing.listing_url),
-        listing_remarks: manualListing.listingText.trim() || undefined,
+        property_address: verified.property_address.trim(),
+        city: verified.city.trim(),
+        county: verified.county.trim() || undefined,
+        state: verified.state.trim(),
+        zip_code: verified.zip_code.trim() || undefined,
+        property_type: verified.property_type.trim() || undefined,
+        beds: parseNumber(verified.beds) ?? undefined,
+        baths: parseNumber(verified.baths) ?? undefined,
+        square_feet: parseNumber(verified.square_feet) ?? undefined,
+        year_built: parseNumber(verified.year_built) ?? undefined,
+        lot_size: verified.lot_size.trim() || undefined,
+        purchase_price: parseNumber(verified.purchase_price) ?? undefined,
+        monthly_rent: parseNumber(verified.monthly_rent) ?? undefined,
+        annual_property_tax: parseNumber(verified.annual_property_tax) ?? undefined,
+        taxes: parseNumber(verified.annual_property_tax) ?? undefined,
+        insurance: parseNumber(verified.insurance) ?? undefined,
+        estimated_arv: parseNumber(verified.estimated_arv) ?? undefined,
+        strategy_primary: verified.strategy_primary.trim() || search.strategy || "Owner Occupant",
+        listing_url: verified.listing_url.trim() || undefined,
+        listing_source: verified.listing_source.trim() || inferListingSource(verified.listing_url),
+        listing_remarks: verified.listingText.trim() || undefined,
         listing_photo_urls: splitLines(manualListing.listing_photo_urls) as Json,
-        condition_notes: splitLines(manualListing.condition_notes) as Json,
-        visible_or_stated_risks: splitLines(manualListing.visible_or_stated_risks) as Json,
-        missing_questions: splitLines(manualListing.missing_questions) as Json,
-        source_confidence: manualListing.source_confidence,
-        photo_analysis_status: manualListing.photo_analysis_status,
-        asset_type: "investment",
+        condition_notes: conditionNotes as Json,
+        visible_or_stated_risks: verificationRisks as Json,
+        missing_questions: verificationQuestions as Json,
+        source_confidence: verified.source_confidence,
+        photo_analysis_status: verified.photo_analysis_status,
+        asset_type: verified.strategy_primary.toLowerCase().includes("owner") || search.strategy.toLowerCase().includes("owner") ? "owner_occupied" : "investment",
         deal_status: "draft",
       });
 
@@ -368,7 +344,7 @@ export default function FindIQ() {
               </div>
             </div>
             <div className="grid w-full grid-cols-3 gap-2 lg:w-[280px] lg:shrink-0">
-              <MiniMetric label="Files" value={String(workspaceDeals.length)} />
+              <MiniMetric label="Deal files" value={String(dealFiles.length)} />
               <MiniMetric label="Imported" value={String(importedDeals.length)} />
               <MiniMetric label="Ready" value={String(readyForDealIQ)} />
             </div>
@@ -381,9 +357,9 @@ export default function FindIQ() {
               <Target className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">Active strategy: Owner-occupied</h3>
+              <h3 className="font-semibold text-foreground">Active buying profile</h3>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                BRIX is currently ranking live-in homes against your Illinois criteria. Investment strategies should use their own inputs and scoring rules.
+                Choose the strategy and constraints for this search. BRIX ranks only against the criteria you enter here.
               </p>
             </div>
           </div>
@@ -394,16 +370,16 @@ export default function FindIQ() {
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
             <Home className="h-4 w-4" />
-            Owner-Occupied Profile
+            Buying Profile
           </div>
-          <h2 className="mt-2 text-lg font-semibold text-foreground">Illinois home search criteria</h2>
+          <h2 className="mt-2 text-lg font-semibold text-foreground">Define what a good property means</h2>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Use this profile when you are evaluating a house to live in. BRIX should help decide whether a property is worth visiting before you spend the drive time.
+            This is not hard-coded to one market. Enter your location, budget, must-haves, exclusions, and strategy before ranking properties.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <ProfileList title="Must have" items={profileMustHaves} icon="must" />
-          <ProfileList title="Preferred" items={profilePreferences} icon="prefer" />
+          <ProfileList title="Must have" items={profileMustHaves.length > 0 ? profileMustHaves : ["Add budget, location, beds, baths, exclusions, and must-have words."]} icon="must" />
+          <ProfileList title="Preferred" items={profilePreferences.length > 0 ? profilePreferences : ["Add preference words like ranch, basement, garage, light renovation, ADU."]} icon="prefer" />
         </div>
       </CardContainer>
 
@@ -416,8 +392,32 @@ export default function FindIQ() {
             </div>
             <h2 className="mt-2 text-xl font-semibold text-foreground">Add the first property</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Start with whatever you have. FindIQ will prefill the deal file, then ask for the facts it still needs.
+              Start with a profile, then add whatever property information you have. FindIQ will prefill the deal file and ask for the facts it still needs.
             </p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-muted/10 p-3">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Target className="h-4 w-4 text-primary" />
+              Buying profile
+            </div>
+            <div className="grid gap-3">
+              <ManualField label="Strategy" value={search.strategy} onChange={(value) => updateSearch("strategy", value)} placeholder="Owner Occupant, Buy & Hold, BRRRR..." />
+              <ManualField label="Search geography" value={search.location} onChange={(value) => updateSearch("location", value)} placeholder="City, county, ZIP, state, or commute anchor" />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <ManualField label="Min budget" value={search.budgetMin} onChange={(value) => updateSearch("budgetMin", value)} placeholder="$" inputMode="numeric" />
+                <ManualField label="Max budget" value={search.budgetMax} onChange={(value) => updateSearch("budgetMax", value)} placeholder="$" inputMode="numeric" />
+              </div>
+              <ManualField label="Property type" value={search.propertyType} onChange={(value) => updateSearch("propertyType", value)} placeholder="Single Family, Duplex, Land..." />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <ManualField label="Minimum bedrooms" value={search.bedrooms} onChange={(value) => updateSearch("bedrooms", value)} placeholder="4" inputMode="decimal" />
+                <ManualField label="Minimum bathrooms" value={search.bathrooms} onChange={(value) => updateSearch("bathrooms", value)} placeholder="2" inputMode="decimal" />
+              </div>
+              <ManualField label="Excluded counties or areas" value={search.excludedCounties} onChange={(value) => updateSearch("excludedCounties", value)} placeholder="County, flood zone, busy road, HOA, school district..." />
+              <ManualField label="Must-have words" value={search.mustHaveKeywords} onChange={(value) => updateSearch("mustHaveKeywords", value)} placeholder="ranch, basement, garage, no HOA..." />
+              <ManualField label="Preferred words" value={search.preferredKeywords} onChange={(value) => updateSearch("preferredKeywords", value)} placeholder="light renovation, fenced yard, first-floor primary..." />
+              <ManualField label="Renovation tolerance" value={search.renovationTolerance} onChange={(value) => updateSearch("renovationTolerance", value)} placeholder="Light renovation okay" />
+            </div>
           </div>
 
           <div className="rounded-xl border border-primary/25 bg-primary/5 p-3">
@@ -678,13 +678,14 @@ function searchToProfile(search: SearchState): AcquisitionProfile {
   const budgetMin = parseNumber(search.budgetMin) ?? 0;
   const budgetMax = parseNumber(search.budgetMax) ?? Number.MAX_SAFE_INTEGER;
   const propertyType = normalizePropertyType(search.propertyType);
+  const geographyTerms = splitProfileTerms(search.location);
 
   return {
     id: "active-findiq-search",
-    name: "Active FindIQ Search",
+    name: search.strategy.trim() || "Active Buying Profile",
     budgetMin,
     budgetMax,
-    markets: search.location.trim().split(/[,\s]+/).filter(Boolean),
+    markets: geographyTerms,
     propertyTypes: propertyType ? [propertyType] : [],
     minBedrooms: parseNumber(search.bedrooms) ?? 0,
     minBathrooms: parseNumber(search.bathrooms) ?? 0,
@@ -692,8 +693,70 @@ function searchToProfile(search: SearchState): AcquisitionProfile {
     preferredMaxTaxes: Number.MAX_SAFE_INTEGER,
     requiresFutureRentalPotential: false,
     requiresFutureResalePotential: false,
-    preferredValueAdd: [],
+    preferredValueAdd: splitProfileTerms(search.preferredKeywords),
   };
+}
+
+async function verifyManualListingLocation(listing: ManualListingState): Promise<ManualListingState> {
+  const address = [
+    listing.property_address,
+    listing.city,
+    listing.state,
+    listing.zip_code,
+  ].filter(Boolean).join(", ");
+
+  if (address.trim().length < 8) return listing;
+
+  try {
+    const { data, error } = await supabase.functions.invoke("geocode-address", {
+      body: { address },
+    });
+    if (error) throw error;
+
+    const result = data as {
+      found?: boolean;
+      source?: string;
+      source_quality?: string;
+      formatted_address?: string | null;
+      city?: string | null;
+      county?: string | null;
+      state?: string | null;
+      zip?: string | null;
+    };
+
+    if (!result.found) {
+      return {
+        ...listing,
+        missing_questions: uniqueLines([
+          ...splitLines(listing.missing_questions),
+          "Verify address and county from an official source; geocoder did not return a match.",
+        ]).join("\n"),
+      };
+    }
+
+    const notes = uniqueLines([
+      ...splitLines(listing.condition_notes),
+      `Address checked against ${result.source ?? "official geocoder"}${result.source_quality ? ` (${result.source_quality})` : ""}.`,
+    ]);
+
+    return {
+      ...listing,
+      city: listing.city || result.city || "",
+      county: listing.county || result.county?.replace(/\s+County$/i, "") || "",
+      state: listing.state || result.state || "",
+      zip_code: listing.zip_code || result.zip || "",
+      condition_notes: notes.join("\n"),
+      source_confidence: listing.source_confidence === "low" ? "medium" : listing.source_confidence,
+    };
+  } catch {
+    return {
+      ...listing,
+      missing_questions: uniqueLines([
+        ...splitLines(listing.missing_questions),
+        "Verify address/county manually; official geocoding was unavailable at save time.",
+      ]).join("\n"),
+    };
+  }
 }
 
 function dealToOpportunity(deal: DealRow): FindIQOpportunity {
@@ -717,7 +780,7 @@ function dealToOpportunity(deal: DealRow): FindIQOpportunity {
     ...savedQuestions,
   ].filter(Boolean).join(" ");
   const county = deal.county ?? extractCounty(searchableText);
-  const ownerFit = inferOwnerOccupiedSignals(searchableText);
+  const propertySignals = inferPropertySignals(searchableText);
   const missingData = [
     !price && "Purchase price",
     !deal.county && "County verification",
@@ -725,19 +788,12 @@ function dealToOpportunity(deal: DealRow): FindIQOpportunity {
     !deal.insurance && "Annual insurance",
     !deal.square_feet && "Square footage",
     photoUrls.length === 0 && "Property photos",
-    !ownerFit.ranchConfirmed && "Ranch layout not confirmed",
-    ownerFit.basementConfirmed == null && "Basement not confirmed",
     ...(savedQuestions.length > 0 ? savedQuestions : []),
   ].filter(Boolean) as string[];
 
   const risks = [
     !deal.insurance && "Insurance quote requires verification",
-    county && /cook/i.test(county) && "Outside owner-occupied profile: Cook County is excluded.",
-    deal.state && deal.state.toUpperCase() !== "IL" && "Outside owner-occupied profile: property is not in Illinois.",
-    price > 400000 && "Outside owner-occupied profile: price is above $400K.",
-    Number(deal.beds ?? 0) > 0 && Number(deal.beds ?? 0) < 4 && "Outside owner-occupied profile: fewer than 4 bedrooms.",
-    Number(deal.baths ?? 0) > 0 && Number(deal.baths ?? 0) < 2 && "Outside owner-occupied profile: fewer than 2 bathrooms.",
-    ownerFit.heavyReno && "Renovation risk: listing suggests more than light renovation.",
+    propertySignals.heavyReno && "Renovation risk: listing suggests more than light renovation.",
     deal.photo_analysis_status === "blocked" && "Listing photos could not be downloaded; upload screenshots for visual review",
     ...savedRisks,
   ].filter(Boolean) as string[];
@@ -762,14 +818,14 @@ function dealToOpportunity(deal: DealRow): FindIQOpportunity {
     rentalPotential: rent > 0 ? "moderate" : "unknown",
     resalePotential: deal.estimated_arv || deal.arv ? "moderate" : "unknown",
     valueAddSignals: [
-      ownerFit.ranchConfirmed && "Ranch layout",
-      ownerFit.basementConfirmed === true && "Basement",
-      ownerFit.lightReno && "Light renovation potential",
+      propertySignals.ranchConfirmed && "Ranch layout",
+      propertySignals.basementConfirmed === true && "Basement",
+      propertySignals.lightReno && "Light renovation potential",
       deal.rehab_cost && deal.rehab_cost > 0 && "Rehab scope entered",
     ].filter(Boolean) as string[],
     risks,
     missingData,
-    providerSignals: [deal.listing_source ?? "user_entered", deal.source_confidence].filter(Boolean),
+    providerSignals: deal.listing_photo_urls ? ["user_entered", "uploaded_image"] : ["user_entered"],
     daysOnMarket: 0,
   };
 }
@@ -778,12 +834,12 @@ function jsonStringArray(value: Json | null | undefined) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
 }
 
-function applyOwnerOccupiedFit(opportunity: RankedOpportunity): RankedOpportunity {
+function applyActiveProfileFit(opportunity: RankedOpportunity, profile: AcquisitionProfile, search: SearchState): RankedOpportunity {
   let score = opportunity.score;
   const reasons = [...opportunity.reasons];
   const risks = [...opportunity.risks];
   const missingData = [...opportunity.missingData];
-  const signals = inferOwnerOccupiedSignals([
+  const signals = inferPropertySignals([
     opportunity.address,
     opportunity.city,
     opportunity.county,
@@ -796,86 +852,108 @@ function applyOwnerOccupiedFit(opportunity: RankedOpportunity): RankedOpportunit
 
   const county = opportunity.county ?? "";
   const city = opportunity.city ?? "";
-  const state = opportunity.state ?? "";
+  const combinedText = [
+    opportunity.address,
+    opportunity.city,
+    opportunity.county,
+    opportunity.state,
+    opportunity.propertyType,
+    opportunity.valueAddSignals.join(" "),
+    opportunity.risks.join(" "),
+    opportunity.missingData.join(" "),
+  ].filter(Boolean).join(" ").toLowerCase();
+  const excludedTerms = splitProfileTerms(search.excludedCounties);
+  const mustHaveTerms = splitProfileTerms(search.mustHaveKeywords);
+  const preferredTerms = splitProfileTerms(search.preferredKeywords);
+  const hasBudgetCap = profile.budgetMax < Number.MAX_SAFE_INTEGER;
+  const heavyRenoNotAllowed = /light|cosmetic|minor/i.test(search.renovationTolerance);
 
-  if (state && state.toUpperCase() !== "IL") {
+  for (const term of excludedTerms) {
+    if (!term) continue;
+    const normalizedTerm = term.toLowerCase().replace(/\s+county$/, "");
+    const matched =
+      combinedText.includes(term.toLowerCase()) ||
+      (!!county && county.toLowerCase().includes(normalizedTerm));
+    if (matched) {
+      score -= 45;
+      risks.push(`Pass trigger: ${term} is excluded by this profile.`);
+    } else if (county && /county/i.test(term)) {
+      score += 5;
+      reasons.push(`${county} County does not match the excluded county term "${term}".`);
+    }
+  }
+
+  if (excludedTerms.some((term) => /county/i.test(term)) && !county) {
+    missingData.push("County must be verified against excluded areas.");
+  }
+
+  if (hasBudgetCap && opportunity.listPrice > profile.budgetMax) {
     score -= 35;
-    risks.push("Outside owner-occupied profile: not in Illinois.");
-  } else if (state.toUpperCase() === "IL") {
-    score += 6;
-    reasons.push("Illinois location matches the live-in search.");
-  }
-
-  if (/cook/i.test(county)) {
-    score -= 45;
-    risks.push("Pass trigger: Cook County is excluded from this profile.");
-  } else if (county) {
-    score += 8;
-    reasons.push(`${county} County is not Cook County.`);
-  } else {
-    missingData.push("County must be verified to rule out Cook County.");
-  }
-
-  if (opportunity.listPrice > 400000) {
-    score -= 35;
-    risks.push("Pass trigger: price is above the $400K cap.");
-  } else if (opportunity.listPrice > 0) {
+    risks.push(`Pass trigger: price is above the ${money(profile.budgetMax)} cap.`);
+  } else if (hasBudgetCap && opportunity.listPrice > 0) {
     score += 12;
-    reasons.push("Price is under the $400K cap.");
+    reasons.push(`Price is under the ${money(profile.budgetMax)} cap.`);
   }
 
-  if (opportunity.bedrooms >= 4) {
+  if (profile.minBedrooms > 0 && opportunity.bedrooms >= profile.minBedrooms) {
     score += 12;
-    reasons.push("Bedroom count meets the 4-room requirement.");
-  } else if (opportunity.bedrooms > 0) {
+    reasons.push(`Bedroom count meets the ${profile.minBedrooms}+ bedroom requirement.`);
+  } else if (profile.minBedrooms > 0 && opportunity.bedrooms > 0) {
     score -= 25;
-    risks.push("Pass trigger unless flexible: fewer than 4 bedrooms.");
-  } else {
+    risks.push(`Pass trigger unless flexible: fewer than ${profile.minBedrooms} bedrooms.`);
+  } else if (profile.minBedrooms > 0) {
     missingData.push("Bedroom count must be verified.");
   }
 
-  if (opportunity.bathrooms >= 2) {
+  if (profile.minBathrooms > 0 && opportunity.bathrooms >= profile.minBathrooms) {
     score += 10;
-    reasons.push("Bathroom count meets the 2+ bath requirement.");
-  } else if (opportunity.bathrooms > 0) {
+    reasons.push(`Bathroom count meets the ${profile.minBathrooms}+ bath requirement.`);
+  } else if (profile.minBathrooms > 0 && opportunity.bathrooms > 0) {
     score -= 22;
-    risks.push("Pass trigger unless flexible: fewer than 2 bathrooms.");
-  } else {
+    risks.push(`Pass trigger unless flexible: fewer than ${profile.minBathrooms} bathrooms.`);
+  } else if (profile.minBathrooms > 0) {
     missingData.push("Bathroom count must be verified.");
   }
 
-  if (edOwnerOccupiedIllinoisProfile.markets.some((market) => market.toLowerCase() === city.toLowerCase())) {
+  const locationMatched = profile.markets.some((market) => {
+    const lower = market.toLowerCase();
+    return [opportunity.city, opportunity.county, opportunity.state, opportunity.zip, opportunity.address]
+      .filter(Boolean)
+      .some((value) => value.toLowerCase().includes(lower));
+  });
+  if (profile.markets.length > 0 && locationMatched) {
     score += 10;
-    reasons.push("City is in the Naperville-area watch list.");
-  } else if (city) {
-    missingData.push("Verify drive time to Naperville is 60 minutes or less.");
+    reasons.push("Location appears to match the active buying geography.");
+  } else if (profile.markets.length > 0 && city) {
+    missingData.push("Verify location/commute fit against the active buying profile.");
   }
 
-  if (signals.ranchConfirmed) {
-    score += 10;
-    reasons.push("Ranch layout preference appears to be met.");
-  } else {
-    missingData.push("Ranch layout preference not confirmed.");
+  for (const term of mustHaveTerms) {
+    const matches = combinedText.includes(term.toLowerCase());
+    if (matches) {
+      score += 8;
+      reasons.push(`Must-have appears present: ${term}.`);
+    } else {
+      missingData.push(`Must-have not confirmed: ${term}.`);
+    }
   }
 
-  if (signals.basementConfirmed === true) {
-    score += 8;
-    reasons.push("Basement preference appears to be met.");
-  } else if (signals.basementConfirmed === false) {
-    score -= 4;
-    risks.push("Basement preference is not met.");
-  } else {
-    missingData.push("Basement must be verified.");
+  for (const term of preferredTerms) {
+    const matches = combinedText.includes(term.toLowerCase());
+    if (matches) {
+      score += 5;
+      reasons.push(`Preference appears present: ${term}.`);
+    }
   }
 
-  if (signals.lightReno) {
+  if (signals.lightReno && /light|cosmetic|minor/i.test(search.renovationTolerance)) {
     score += 6;
-    reasons.push("Light renovation appears acceptable for this profile.");
+    reasons.push("Renovation language appears within the stated tolerance.");
   }
 
-  if (signals.heavyReno) {
+  if (signals.heavyReno && heavyRenoNotAllowed) {
     score -= 20;
-    risks.push("Renovation may exceed light-reno tolerance.");
+    risks.push("Renovation may exceed the stated tolerance.");
   }
 
   const boundedScore = Math.max(0, Math.min(100, Math.round(score)));
@@ -902,6 +980,27 @@ function applyOwnerOccupiedFit(opportunity: RankedOpportunity): RankedOpportunit
         ? "Review in DealIQ before scheduling a visit"
         : "Verify missing fit items before spending drive time",
   };
+}
+
+function buildProfileRequirements(search: SearchState) {
+  return uniqueLines([
+    search.location && `Location/geography: ${search.location}`,
+    search.budgetMax && `Max price: ${money(parseNumber(search.budgetMax) ?? 0)}`,
+    search.propertyType && `Property type: ${search.propertyType}`,
+    search.bedrooms && `Minimum bedrooms: ${search.bedrooms}`,
+    search.bathrooms && `Minimum bathrooms: ${search.bathrooms}`,
+    search.excludedCounties && `Exclude: ${search.excludedCounties}`,
+    ...splitProfileTerms(search.mustHaveKeywords),
+  ].filter(Boolean) as string[]);
+}
+
+function splitProfileTerms(value: string) {
+  return uniqueLines(
+    value
+      .split(/[,;\n|]+/)
+      .map((item) => item.trim())
+      .filter(Boolean),
+  );
 }
 
 function parseListingText(text: string): Partial<ManualListingState> {
@@ -1236,7 +1335,7 @@ function extractCounty(text: string) {
     .trim();
 }
 
-function inferOwnerOccupiedSignals(text: string) {
+function inferPropertySignals(text: string) {
   const normalized = text.toLowerCase();
   const noBasement = /\b(no basement|slab|crawlspace only)\b/i.test(text);
   const basementMentioned = /\b(basement|full basement|partial basement|finished basement|unfinished basement)\b/i.test(text);

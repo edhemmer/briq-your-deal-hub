@@ -22,6 +22,16 @@ const firstMatch = (text: string, patterns: RegExp[]) => {
   return null;
 };
 
+const extractCounty = (text: string) => {
+  const match = text.match(/\b([A-Za-z][A-Za-z .'-]{1,40})\s+County\b/i);
+  if (!match?.[1]) return null;
+  return match[1]
+    .replace(/\b(county|il|illinois)\b/gi, "")
+    .replace(/[,.-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
 function deterministicListingExtract(listingText: string) {
   const text = listingText.replace(/\s+/g, " ").trim();
   const addressMatch = text.match(/\b(\d{1,6}\s+[A-Za-z0-9.' -]+(?:St|Street|Ave|Avenue|Rd|Road|Dr|Drive|Ln|Lane|Ct|Court|Cir|Circle|Way|Blvd|Boulevard|Pl|Place|Ter|Terrace|Trl|Trail)\b[^,\n]*)(?:,\s*([A-Za-z .'-]+),\s*([A-Z]{2})\s*(\d{5})?)?/i);
@@ -63,6 +73,7 @@ function deterministicListingExtract(listingText: string) {
   const extracted = {
     property_address: addressMatch?.[1] ?? null,
     city: addressMatch?.[2]?.trim() ?? cityStateZip?.[1]?.trim() ?? null,
+    county: extractCounty(text),
     state: addressMatch?.[3] ?? cityStateZip?.[2] ?? null,
     zip_code: addressMatch?.[4] ?? cityStateZip?.[3] ?? null,
     property_type: propertyType,
@@ -84,7 +95,7 @@ function deterministicListingExtract(listingText: string) {
       "Verify insurance quote before offer.",
       "Verify condition through inspection or field photos.",
     ],
-    strategy_primary: /flip|resale/i.test(text) ? "Fix & Flip" : /brrrr/i.test(text) ? "BRRRR" : "Buy & Hold",
+    strategy_primary: /owner[-\s]?occup|primary residence|live[-\s]?in|house hack|home search/i.test(text) ? "Owner Occupant" : /flip|resale/i.test(text) ? "Fix & Flip" : /brrrr/i.test(text) ? "BRRRR" : "Buy & Hold",
     source_confidence: price || addressMatch ? "medium" : "low",
   };
 
@@ -133,6 +144,7 @@ serve(async (req) => {
 {
   "property_address": string | null,
   "city": string | null,
+  "county": string | null,
   "state": string | null (2-letter code),
   "zip_code": string | null,
   "property_type": string | null (one of: "Single Family", "Duplex", "Triplex", "Fourplex", "Small Multifamily", "Commercial", "Land", "Mixed Use"),
