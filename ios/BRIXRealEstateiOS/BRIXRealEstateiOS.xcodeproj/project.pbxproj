@@ -1,0 +1,385 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1A0000010000000000000001 /* BRIXRealEstateiOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000001 /* BRIXRealEstateiOSApp.swift */; };
+		1A0000010000000000000002 /* AppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000002 /* AppView.swift */; };
+		1A0000010000000000000003 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000003 /* AppState.swift */; };
+		1A0000010000000000000004 /* AppModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000004 /* AppModels.swift */; };
+		1A0000010000000000000005 /* Services.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000005 /* Services.swift */; };
+		1A0000010000000000000006 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000006 /* DesignSystem.swift */; };
+		1A0000010000000000000007 /* AccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000007 /* AccountView.swift */; };
+		1A0000010000000000000008 /* TodayDecisionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000008 /* TodayDecisionView.swift */; };
+		1A0000010000000000000009 /* StrategyLabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000009 /* StrategyLabView.swift */; };
+		1A0000010000000000000010 /* FieldInvestorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000010 /* FieldInvestorView.swift */; };
+		1A0000010000000000000011 /* DigitalTwinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000011 /* DigitalTwinView.swift */; };
+		1A0000010000000000000012 /* ProjectOSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000012 /* ProjectOSView.swift */; };
+		1A0000010000000000000013 /* PortfolioOSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000013 /* PortfolioOSView.swift */; };
+		1A0000020000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A0001020000000000000001 /* Assets.xcassets */; };
+		1A0000020000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1A0001020000000000000002 /* PrivacyInfo.xcprivacy */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1A0001000000000000000001 /* BRIX Real Estate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "BRIX Real Estate.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		1A0001010000000000000001 /* BRIXRealEstateiOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BRIXRealEstateiOSApp.swift; sourceTree = "<group>"; };
+		1A0001010000000000000002 /* AppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppView.swift; sourceTree = "<group>"; };
+		1A0001010000000000000003 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		1A0001010000000000000004 /* AppModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModels.swift; sourceTree = "<group>"; };
+		1A0001010000000000000005 /* Services.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services.swift; sourceTree = "<group>"; };
+		1A0001010000000000000006 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
+		1A0001010000000000000007 /* AccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountView.swift; sourceTree = "<group>"; };
+		1A0001010000000000000008 /* TodayDecisionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayDecisionView.swift; sourceTree = "<group>"; };
+		1A0001010000000000000009 /* StrategyLabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrategyLabView.swift; sourceTree = "<group>"; };
+		1A0001010000000000000010 /* FieldInvestorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FieldInvestorView.swift; sourceTree = "<group>"; };
+		1A0001010000000000000011 /* DigitalTwinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DigitalTwinView.swift; sourceTree = "<group>"; };
+		1A0001010000000000000012 /* ProjectOSView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectOSView.swift; sourceTree = "<group>"; };
+		1A0001010000000000000013 /* PortfolioOSView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioOSView.swift; sourceTree = "<group>"; };
+		1A0001020000000000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		1A0001020000000000000002 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		1A0001020000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		1A0001020000000000000004 /* BRIXRealEstateiOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BRIXRealEstateiOS.entitlements; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		1A0002000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1A0003000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				1A0003010000000000000001 /* BRIXRealEstateiOS */,
+				1A0003020000000000000001 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		1A0003010000000000000001 /* BRIXRealEstateiOS */ = {
+			isa = PBXGroup;
+			children = (
+				1A0001010000000000000001 /* BRIXRealEstateiOSApp.swift */,
+				1A0001010000000000000002 /* AppView.swift */,
+				1A0001010000000000000003 /* AppState.swift */,
+				1A0001010000000000000004 /* AppModels.swift */,
+				1A0001010000000000000005 /* Services.swift */,
+				1A0001010000000000000006 /* DesignSystem.swift */,
+				1A0001010000000000000007 /* AccountView.swift */,
+				1A0001010000000000000008 /* TodayDecisionView.swift */,
+				1A0001010000000000000009 /* StrategyLabView.swift */,
+				1A0001010000000000000010 /* FieldInvestorView.swift */,
+				1A0001010000000000000011 /* DigitalTwinView.swift */,
+				1A0001010000000000000012 /* ProjectOSView.swift */,
+				1A0001010000000000000013 /* PortfolioOSView.swift */,
+				1A0001020000000000000001 /* Assets.xcassets */,
+				1A0001020000000000000002 /* PrivacyInfo.xcprivacy */,
+				1A0001020000000000000003 /* Info.plist */,
+				1A0001020000000000000004 /* BRIXRealEstateiOS.entitlements */,
+			);
+			path = BRIXRealEstateiOS;
+			sourceTree = "<group>";
+		};
+		1A0003020000000000000001 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1A0001000000000000000001 /* BRIX Real Estate.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1A0004000000000000000001 /* BRIXRealEstateiOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1A0008000000000000000002 /* Build configuration list for PBXNativeTarget "BRIXRealEstateiOS" */;
+			buildPhases = (
+				1A0005000000000000000001 /* Sources */,
+				1A0002000000000000000001 /* Frameworks */,
+				1A0006000000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BRIXRealEstateiOS;
+			productName = "BRIX Real Estate";
+			productReference = 1A0001000000000000000001 /* BRIX Real Estate.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		1A0007000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1540;
+				LastUpgradeCheck = 1540;
+				TargetAttributes = {
+					1A0004000000000000000001 = {
+						CreatedOnToolsVersion = 15.4;
+					};
+				};
+			};
+			buildConfigurationList = 1A0008000000000000000001 /* Build configuration list for PBXProject "BRIXRealEstateiOS" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 1A0003000000000000000001;
+			productRefGroup = 1A0003020000000000000001 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				1A0004000000000000000001 /* BRIXRealEstateiOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		1A0006000000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1A0000020000000000000001 /* Assets.xcassets in Resources */,
+				1A0000020000000000000002 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1A0005000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1A0000010000000000000001 /* BRIXRealEstateiOSApp.swift in Sources */,
+				1A0000010000000000000002 /* AppView.swift in Sources */,
+				1A0000010000000000000003 /* AppState.swift in Sources */,
+				1A0000010000000000000004 /* AppModels.swift in Sources */,
+				1A0000010000000000000005 /* Services.swift in Sources */,
+				1A0000010000000000000006 /* DesignSystem.swift in Sources */,
+				1A0000010000000000000007 /* AccountView.swift in Sources */,
+				1A0000010000000000000008 /* TodayDecisionView.swift in Sources */,
+				1A0000010000000000000009 /* StrategyLabView.swift in Sources */,
+				1A0000010000000000000010 /* FieldInvestorView.swift in Sources */,
+				1A0000010000000000000011 /* DigitalTwinView.swift in Sources */,
+				1A0000010000000000000012 /* ProjectOSView.swift in Sources */,
+				1A0000010000000000000013 /* PortfolioOSView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		1A0009000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		1A0009000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		1A0009000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = BRIXRealEstateiOS/BRIXRealEstateiOS.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BRIXRealEstateiOS/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "BrixRE.Brix-Real-Estate";
+				PRODUCT_NAME = "BRIX Real Estate";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		1A0009000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = BRIXRealEstateiOS/BRIXRealEstateiOS.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BRIXRealEstateiOS/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "BrixRE.Brix-Real-Estate";
+				PRODUCT_NAME = "BRIX Real Estate";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1A0008000000000000000001 /* Build configuration list for PBXProject "BRIXRealEstateiOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1A0009000000000000000001 /* Debug */,
+				1A0009000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1A0008000000000000000002 /* Build configuration list for PBXNativeTarget "BRIXRealEstateiOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1A0009000000000000000003 /* Debug */,
+				1A0009000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 1A0007000000000000000001 /* Project object */;
+}

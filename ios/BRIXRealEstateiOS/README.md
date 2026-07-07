@@ -55,16 +55,24 @@ git clone https://github.com/edhemmer/briq-your-deal-hub.git
 cd briq-your-deal-hub
 ```
 
-### Create or attach the Xcode project
+### Open the iOS Xcode project
 
-Create a new Xcode iOS App project named `BRIXRealEstateiOS`, then add the Swift files from `BRIXRealEstateiOS/` to the app target.
+Open this project file:
 
-Recommended settings:
+```bash
+open ios/BRIXRealEstateiOS/BRIXRealEstateiOS.xcodeproj
+```
+
+The repository now includes a real iOS Xcode project wrapper, so you should not need to create a new macOS project or manually attach loose Swift files.
+
+Project settings:
 
 - Interface: SwiftUI
 - Language: Swift
 - Minimum iOS: 17.0
-- Bundle ID: `com.brix.realestate.ios`
+- Bundle ID: `BrixRE.Brix-Real-Estate`
+- Supported destinations: iPhone and iPad
+- Mac Catalyst: Off
 - Add the `Sign in with Apple` capability.
 - Use `BRIXRealEstateiOS.entitlements`.
 - Include `Info.plist` and `PrivacyInfo.xcprivacy` in the app target.
