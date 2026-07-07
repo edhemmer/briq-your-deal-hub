@@ -16,6 +16,7 @@ final class BRIXAppState {
     var portfolioMetrics: [PortfolioMetric] = []
     var queuedOfflineActions: [OfflineAction] = []
     var investorLevel: InvestorLevel = .firstDeal
+    var didRestoreSession = false
     var isLoading = false
     var lastError: String?
     var lastSyncDate: Date?
@@ -45,6 +46,7 @@ final class BRIXAppState {
             authState = .signedIn(savedSession)
         }
         await refresh()
+        didRestoreSession = true
     }
 
     func refresh() async {
@@ -113,6 +115,36 @@ final class BRIXAppState {
         await refresh()
     }
 
+    func signInWithEmail(email: String, password: String) async -> Bool {
+        isLoading = true
+        lastError = nil
+        defer { isLoading = false }
+
+        do {
+            let session = try await apiClient.signInWithEmail(email: email, password: password)
+            await signIn(with: session)
+            return true
+        } catch {
+            lastError = friendlyConnectionMessage(error)
+            return false
+        }
+    }
+
+    func createAccountWithEmail(email: String, password: String) async -> Bool {
+        isLoading = true
+        lastError = nil
+        defer { isLoading = false }
+
+        do {
+            let session = try await apiClient.signUpWithEmail(email: email, password: password)
+            await signIn(with: session)
+            return true
+        } catch {
+            lastError = friendlyConnectionMessage(error)
+            return false
+        }
+    }
+
     func signOut() async {
         do {
             try await apiClient.signOut(session: session)
@@ -179,6 +211,20 @@ final class BRIXAppState {
               let index = queuedOfflineActions.firstIndex(where: { $0.id == uuid }) else { return }
         queuedOfflineActions[index].uploadState = state
     }
+}
+
+private func friendlyConnectionMessage(_ error: Error) -> String {
+    let message = error.localizedDescription
+    if message.localizedCaseInsensitiveContains("invalid") || message.localizedCaseInsensitiveContains("credentials") {
+        return "The email or password was not accepted by BRIX Cloud."
+    }
+    if message.localizedCaseInsensitiveContains("email not confirmed") {
+        return "Confirm your email address, then sign in again."
+    }
+    if message.localizedCaseInsensitiveContains("network") || message.localizedCaseInsensitiveContains("offline") || message.localizedCaseInsensitiveContains("internet") {
+        return "Network connection failed. Check internet access and try again."
+    }
+    return message
 }
 
 struct KeychainSessionStore {

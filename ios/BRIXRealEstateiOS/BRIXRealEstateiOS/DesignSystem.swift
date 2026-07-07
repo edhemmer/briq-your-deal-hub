@@ -129,7 +129,7 @@ struct SignInRequiredCard: View {
                 Text(message)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text("Open Account to sign in with Apple. BRIX does not track users across apps or websites.")
+                Text("Sign in from the BRIX launch screen to sync this device with BRIX Cloud. BRIX does not track users across apps or websites.")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.secondary)
             }
