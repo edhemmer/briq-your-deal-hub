@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { User, HelpCircle, ShieldCheck, LogOut, ChevronDown } from "lucide-react";
+import { User, HelpCircle, ShieldCheck, LogOut, ChevronDown, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,20 +33,28 @@ export function TopNav() {
   };
 
   return (
-    <header className="fixed left-0 right-0 top-0 z-50 h-14 border-b border-border bg-card/95 backdrop-blur-sm supports-[backdrop-filter]:bg-card/85">
-      <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-4 md:px-5 xl:px-6">
-        <Link to="/dashboard" className="flex items-baseline gap-1.5 shrink-0">
-          <BrixIcon size={34} className="text-primary self-center" />
+    <header className="fixed left-0 right-0 top-0 z-50 h-14 ios-toolbar">
+      <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-3 md:px-4 xl:px-5">
+        <Link to="/dashboard" className="ios-pressable flex shrink-0 items-baseline gap-1.5 rounded-xl px-1 py-1">
+          <BrixIcon size={32} className="self-center text-primary" />
           <span className="text-lg font-extrabold tracking-tight text-foreground leading-none">BRIX</span>
           <span className="hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-none sm:inline">Real Estate</span>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="hidden min-w-0 flex-1 justify-center px-6 xl:flex">
+          <div className="ios-control flex h-9 w-full max-w-[420px] items-center gap-2 px-3 text-sm text-muted-foreground">
+            <Search className="h-4 w-4 shrink-0" />
+            <span className="truncate">Search deals, addresses, reports</span>
+            <span className="ml-auto rounded-md border border-border/70 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">/</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5">
           <ThemeToggle />
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground">
+                <Button variant="ghost" size="sm" className="h-9 gap-1 rounded-xl text-muted-foreground">
                   <User className="h-4 w-4" />
                   <ChevronDown className="h-3 w-3" />
                 </Button>
@@ -74,23 +82,23 @@ export function TopNav() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button size="sm" onClick={() => navigate("/login")}>
+            <Button size="sm" className="rounded-xl" onClick={() => navigate("/login")}>
               Login
             </Button>
           )}
         </div>
       </div>
 
-      <div className="border-t border-border bg-card xl:hidden">
+      <div className="border-t border-border/70 bg-card/75 backdrop-blur-xl xl:hidden">
         <nav className="scrollbar-hide mx-auto flex max-w-[1440px] items-center gap-1 overflow-x-auto px-2 md:px-4">
           {appNavItems.map((item) => (
             <Link
               key={item.url}
               to={item.url}
-              className={`relative shrink-0 px-2 py-2.5 text-xs font-medium transition-colors md:px-3 ${
+              className={`ios-pressable relative shrink-0 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
                 isActive(item.url)
-                  ? "text-foreground"
-                  : "text-muted-foreground"
+                  ? "bg-primary/10 text-foreground"
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
               }`}
             >
               {item.shortTitle}

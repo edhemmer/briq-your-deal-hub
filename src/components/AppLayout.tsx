@@ -20,7 +20,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div className="h-10 xl:hidden" />
       <div className="mx-auto flex w-full max-w-[1440px]">
         <ModuleRail />
-        <main className="min-w-0 flex-1 px-3 py-3 pb-safe sm:px-4 md:px-5 md:py-4 xl:px-6">
+        <main className="min-w-0 flex-1 px-3 py-3 pb-safe sm:px-4 md:px-5 md:py-4 xl:px-5">
           <DealOperatingStrip />
           {children}
         </main>
@@ -42,16 +42,17 @@ function DealOperatingStrip() {
   const missing = activeDeal ? missingInputs(activeDeal) : [];
 
   return (
-    <section className="mb-3 overflow-hidden rounded-lg border border-border bg-card shadow-sm md:mb-4">
-      <div className="flex flex-col gap-3 border-b border-border bg-muted/20 px-3 py-3 md:px-4 lg:flex-row lg:items-center lg:justify-between">
+    <section className="ios-material mb-3 overflow-hidden rounded-2xl md:mb-4">
+      <div className="flex flex-col gap-3 border-b border-border/70 px-3 py-3 md:px-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Workflow className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">BRIX Deal Flow</p>
-            <h2 className="truncate text-sm font-semibold text-foreground">
-              {activeModule.title}: {activeModule.question}
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current workspace</p>
+            <h2 className="truncate text-sm font-semibold leading-5 text-foreground">
+              {activeModule.title}
+              <span className="hidden font-medium text-muted-foreground sm:inline"> · {activeModule.question}</span>
             </h2>
           </div>
         </div>
@@ -59,20 +60,20 @@ function DealOperatingStrip() {
           <Button size="sm" asChild>
             <Link to="/findiq">
               <FilePlus2 className="mr-2 h-4 w-4" />
-              Add or Import Deal
+              Add deal
             </Link>
           </Button>
           {activeDeal ? (
             <Button size="sm" variant="outline" asChild>
               <Link to={`/dealiq/${activeDeal.id}`}>
-                Open Active Deal <ArrowRight className="ml-2 h-4 w-4" />
+                Open deal <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           ) : null}
         </div>
       </div>
 
-      <div className="grid gap-3 px-3 py-3 md:px-4 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
+      <div className="grid gap-3 px-3 py-3 md:px-4 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_340px] lg:items-center">
         <div className="min-w-0">
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading your live deal workspace...</p>
@@ -84,7 +85,7 @@ function DealOperatingStrip() {
                   {[activeDeal.city, activeDeal.state, activeDeal.zip_code].filter(Boolean).join(", ") || "Location missing"} · {activeDeal.strategy_primary || "Strategy not selected"}
                 </p>
               </div>
-              <Badge className={cn("w-fit border", score >= 80 ? "border-signal-positive/25 bg-signal-positive/10 text-signal-positive" : "border-signal-warning/25 bg-signal-warning/10 text-signal-warning")}>
+              <Badge className={cn("w-fit rounded-full border px-2.5 py-1 text-[11px]", score >= 80 ? "border-signal-positive/25 bg-signal-positive/10 text-signal-positive" : "border-signal-warning/25 bg-signal-warning/10 text-signal-warning")}>
                 {score >= 80 ? "Decision file ready" : `${missing.length} verification gap${missing.length === 1 ? "" : "s"}`}
               </Badge>
             </div>
@@ -96,7 +97,7 @@ function DealOperatingStrip() {
           )}
         </div>
 
-        <div className="rounded-md border border-border bg-background p-3">
+        <div className="ios-control p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">Confidence workflow</span>
             <span className={cn("text-sm font-bold", score >= 80 ? "text-signal-positive" : "text-signal-warning")}>{score}/100</span>
@@ -156,10 +157,10 @@ function ModuleRail() {
   };
 
   return (
-    <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[248px] shrink-0 border-r border-border bg-card/35 p-3 xl:block 2xl:w-[258px]">
-      <div className="mb-3 rounded-md border border-border bg-background p-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Investor workflow</p>
-        <p className="mt-1 text-sm leading-5 text-foreground">Source, underwrite, pursue, close, and learn from every deal file.</p>
+    <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[236px] shrink-0 border-r border-border/70 bg-card/38 p-3 backdrop-blur-xl xl:block 2xl:w-[248px]">
+      <div className="mb-3 rounded-2xl border border-border/70 bg-background/45 p-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Acquisition OS</p>
+        <p className="mt-1 text-sm font-semibold leading-5 text-foreground">One deal record from search to ownership.</p>
       </div>
 
       <nav className="space-y-1">
@@ -170,10 +171,10 @@ function ModuleRail() {
               key={item.url}
               to={item.url}
               className={cn(
-                "group flex gap-3 rounded-md border border-transparent px-3 py-2.5 transition-colors",
+                "ios-pressable group flex gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-colors",
                 active
-                  ? "border-primary/25 bg-primary/10 text-foreground"
-                  : "text-muted-foreground hover:border-border hover:bg-background hover:text-foreground",
+                  ? "border-primary/25 bg-primary/10 text-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]"
+                  : "text-muted-foreground hover:border-border/70 hover:bg-background/50 hover:text-foreground",
               )}
             >
               <item.icon className={cn("mt-0.5 h-4 w-4 shrink-0", active ? "text-primary" : "text-muted-foreground group-hover:text-primary")} />

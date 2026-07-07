@@ -107,16 +107,16 @@ export default function Index() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-lg border border-border bg-card p-4 shadow-sm md:p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+      <section className="ios-material rounded-2xl p-4 md:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-2xl">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">
               Deal Dashboard
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Source properties, complete the deal file, underwrite the economics, review contract risk, and track the outcome.
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Open the next property, close verification gaps, compare active deals, and move the strongest file forward.
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               <Button size="sm" asChild>
                 <Link to="/findiq">Find an address</Link>
               </Button>
@@ -129,7 +129,7 @@ export default function Index() {
             </div>
           </div>
 
-          <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-[390px] xl:w-[430px]">
+          <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-[390px] xl:w-[410px]">
             <ExecutiveMetric label="Open deal files" value={String(activeDeals.length)} tone="neutral" />
             <ExecutiveMetric label="Ready to act" value={String(readyCount)} tone="positive" />
             <ExecutiveMetric label="Need verification" value={String(needsVerification)} tone={needsVerification > 0 ? "caution" : "positive"} />
@@ -152,7 +152,7 @@ export default function Index() {
                 subtitle="The property you are working now, what is known, and what still needs proof."
               />
               {primaryDeal && (
-                <div className="relative rounded-lg border border-border bg-gradient-to-br from-background via-background to-primary/5 p-4">
+                <div className="relative rounded-2xl border border-border/70 bg-background/45 p-4">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <h2 className="text-lg font-semibold text-foreground">{primaryDeal.property_address}</h2>
@@ -167,7 +167,7 @@ export default function Index() {
                         </Badge>
                       </div>
                     </div>
-                    <div className="w-full rounded-md border border-border bg-card p-3 shadow-sm sm:w-[210px] sm:shrink-0">
+                    <div className="ios-control w-full p-3 sm:w-[210px] sm:shrink-0">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-muted-foreground">Readiness</span>
                         <span className={`text-xl font-black ${scoreText(primaryScore)}`}>{primaryScore}</span>
@@ -211,7 +211,7 @@ export default function Index() {
                 subtitle="What must be confirmed before relying on the recommendation."
               />
               {primaryMissing.length === 0 ? (
-                <div className="rounded-lg border border-signal-positive/25 bg-signal-positive/10 p-4">
+                <div className="rounded-2xl border border-signal-positive/25 bg-signal-positive/10 p-4">
                   <div className="flex items-start gap-3">
                     <CheckCircle2 className="mt-0.5 h-5 w-5 text-signal-positive" />
                     <div>
@@ -223,14 +223,14 @@ export default function Index() {
               ) : (
                 <div className="space-y-2">
                   {primaryMissing.map((item) => (
-                    <div key={item} className="flex items-start gap-2 rounded-md border border-signal-warning/25 bg-signal-warning/10 p-3 text-sm">
+                    <div key={item} className="flex items-start gap-2 rounded-xl border border-signal-warning/25 bg-signal-warning/10 p-3 text-sm">
                       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-signal-warning" />
                       <span className="capitalize text-foreground">{item} requires verification</span>
                     </div>
                   ))}
                 </div>
               )}
-              <div className="rounded-lg border border-border bg-muted/25 p-4 text-sm leading-6 text-muted-foreground">
+              <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
                 BRIX can help structure the decision, but your buy/renegotiate/pass decision should stay provisional until source quality is strong enough.
               </div>
             </CardContainer>
@@ -316,31 +316,25 @@ function DealJourney({ activeDeals, readyCount, needsVerification }: { activeDea
   ];
 
   return (
-    <section className="relative overflow-hidden rounded-lg border border-border bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--card)),hsl(var(--primary)/0.08))] p-4 shadow-sm">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
+    <section className="ios-material relative overflow-hidden rounded-2xl p-4">
       <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Deal flow</p>
           <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">From property to decision record</h2>
         </div>
         <p className="text-sm text-muted-foreground">Source, prepare, underwrite, pursue, close or pass, learn.</p>
       </div>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        {steps.map((step, index) => (
+        {steps.map((step) => (
           <div
             key={step.label}
             className={cn(
-              "group relative overflow-hidden rounded-md border bg-background p-3 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5",
+              "ios-pressable group relative overflow-hidden rounded-xl border bg-background/55 p-3 transition-colors hover:border-primary/35 hover:bg-muted/35",
               step.tone === "positive" && "border-signal-positive/25 bg-signal-positive/5",
               step.tone === "caution" && "border-signal-warning/25 bg-signal-warning/5",
             )}
           >
-            <div className="absolute inset-x-0 bottom-0 h-0.5 origin-left scale-x-0 bg-gradient-to-r from-primary to-cyan-400 transition-transform duration-300 group-hover:scale-x-100" />
-            {index < steps.length - 1 && (
-              <div className="absolute left-[calc(100%-0.25rem)] top-1/2 hidden h-px w-4 bg-border md:block" />
-            )}
             <div className="flex items-center gap-2">
-              <span className={cn("flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground", step.tone === "positive" && "bg-signal-positive/10 text-signal-positive", step.tone === "caution" && "bg-signal-warning/10 text-signal-warning")}>
+              <span className={cn("flex h-8 w-8 items-center justify-center rounded-xl bg-muted text-muted-foreground", step.tone === "positive" && "bg-signal-positive/10 text-signal-positive", step.tone === "caution" && "bg-signal-warning/10 text-signal-warning")}>
                 <step.icon className="h-4 w-4" />
               </span>
               <div>
@@ -363,13 +357,13 @@ function DealStackCard({ deal, rank }: { deal: Deal; rank: number }) {
   return (
     <Link
       to={`/dealiq/${deal.id}`}
-      className="group relative block overflow-hidden rounded-lg border border-border bg-background p-4 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
+      className="ios-pressable group relative block overflow-hidden rounded-2xl border border-border/70 bg-background/55 p-4 transition-colors hover:border-primary/35 hover:bg-muted/35"
     >
       <div className={cn("absolute inset-y-0 left-0 w-1 bg-muted", tone === "positive" && "bg-signal-positive", tone === "caution" && "bg-signal-warning", tone === "risk" && "bg-signal-risk")} />
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-card text-sm font-bold text-muted-foreground">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-card/80 text-sm font-bold text-muted-foreground">
             {rank}
           </div>
           <div className="min-w-0">
@@ -397,7 +391,7 @@ function DealStackCard({ deal, rank }: { deal: Deal; rank: number }) {
 
 function MiniSignal({ label, value, tone }: { label: string; value: string; tone: Tone }) {
   return (
-    <div className="rounded-md border border-border bg-card px-3 py-2">
+    <div className="rounded-xl border border-border/70 bg-card/70 px-3 py-2">
       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
       <p className={cn("mt-1 truncate text-sm font-black text-foreground", scoreText(tone === "positive" ? 90 : tone === "caution" ? 70 : tone === "risk" ? 40 : 80))}>
         {value}
@@ -413,7 +407,7 @@ function PanelTitle({ icon: Icon, title, subtitle }: { icon: ElementType; title:
         <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">{subtitle}</p>
       </div>
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
         <Icon className="h-4 w-4" />
       </div>
     </div>
@@ -428,7 +422,7 @@ function ExecutiveMetric({ label, value, tone }: { label: string; value: string;
     "text-foreground";
 
   return (
-    <div className="rounded-md border border-border bg-background p-3">
+    <div className="ios-control p-3">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className={`mt-1 text-2xl font-semibold tracking-tight ${valueClass}`}>
         {value}
@@ -439,7 +433,7 @@ function ExecutiveMetric({ label, value, tone }: { label: string; value: string;
 
 function FactTile({ label, value, verified }: { label: string; value: string; verified: boolean }) {
   return (
-    <div className="rounded-md border border-border bg-background p-3">
+    <div className="ios-control p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
         <Badge className={`shrink-0 border text-[10px] ${verified ? toneClass("positive") : toneClass("caution")}`}>
@@ -453,7 +447,7 @@ function FactTile({ label, value, verified }: { label: string; value: string; ve
 
 function ActionLine({ text, tone }: { text: string; tone: Tone }) {
   return (
-    <div className="flex items-start gap-3 rounded-md border border-border bg-background p-3">
+    <div className="ios-control flex items-start gap-3 p-3">
       {tone === "caution" ? (
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-signal-warning" />
       ) : (
@@ -466,7 +460,7 @@ function ActionLine({ text, tone }: { text: string; tone: Tone }) {
 
 function StartAction({ title, body, to, action }: { title: string; body: string; to: string; action: string }) {
   return (
-    <div className="rounded-lg border border-border bg-background p-4">
+    <div className="ios-control p-4">
       <h3 className="font-semibold text-foreground">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
       <Button className="mt-4" asChild>
