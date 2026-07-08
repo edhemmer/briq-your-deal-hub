@@ -56,6 +56,21 @@ if ! grep -q "INFOPLIST_KEY_CFBundleDisplayName" "$PROJECT_PATH/project.pbxproj"
   exit 1
 fi
 
+if [[ ! -f "$ROOT_DIR/BRIXRealEstateiOS/LaunchScreen.storyboard" ]]; then
+  echo "ERROR: LaunchScreen.storyboard is missing. iPad multitasking uploads require a launch storyboard."
+  exit 1
+fi
+
+if ! grep -q "INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;" "$PROJECT_PATH/project.pbxproj"; then
+  echo "ERROR: Generated Info.plist does not reference LaunchScreen.storyboard."
+  exit 1
+fi
+
+if ! grep -q "LaunchScreen.storyboard in Resources" "$PROJECT_PATH/project.pbxproj"; then
+  echo "ERROR: LaunchScreen.storyboard is not included in target resources."
+  exit 1
+fi
+
 echo ""
 echo "Building for iOS Simulator..."
 xcodebuild \

@@ -27,6 +27,7 @@
 		1A0000010000000000000018 /* ListingTextParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000018 /* ListingTextParser.swift */; };
 		1A0000020000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A0001020000000000000001 /* Assets.xcassets */; };
 		1A0000020000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1A0001020000000000000002 /* PrivacyInfo.xcprivacy */; };
+		1A0000020000000000000003 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 1A0001020000000000000005 /* LaunchScreen.storyboard */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,6 +54,7 @@
 		1A0001020000000000000002 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		1A0001020000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		1A0001020000000000000004 /* BRIXRealEstateiOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BRIXRealEstateiOS.entitlements; sourceTree = "<group>"; };
+		1A0001020000000000000005 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,6 +101,7 @@
 				1A0001020000000000000002 /* PrivacyInfo.xcprivacy */,
 				1A0001020000000000000003 /* Info.plist */,
 				1A0001020000000000000004 /* BRIXRealEstateiOS.entitlements */,
+				1A0001020000000000000005 /* LaunchScreen.storyboard */,
 			);
 			path = BRIXRealEstateiOS;
 			sourceTree = "<group>";
@@ -171,6 +174,7 @@
 			files = (
 				1A0000020000000000000001 /* Assets.xcassets in Resources */,
 				1A0000020000000000000002 /* PrivacyInfo.xcprivacy in Resources */,
+				1A0000020000000000000003 /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -348,6 +352,7 @@
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "BRIX uses the microphone only when you record voice notes for property walkthroughs.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "BRIX may save captured property images to your library only when you choose to export or save them.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "BRIX accesses selected photos and videos you choose to attach to a property, project, or deal.";
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -389,6 +394,7 @@
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "BRIX uses the microphone only when you record voice notes for property walkthroughs.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "BRIX may save captured property images to your library only when you choose to export or save them.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "BRIX accesses selected photos and videos you choose to attach to a property, project, or deal.";
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

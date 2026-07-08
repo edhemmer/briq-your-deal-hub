@@ -44,6 +44,7 @@ echo "Archived app Info.plist keys:"
 /usr/libexec/PlistBuddy -c "Print :CFBundlePackageType" "$PLIST_PATH" || true
 /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST_PATH" || true
 /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST_PATH" || true
+/usr/libexec/PlistBuddy -c "Print :UILaunchStoryboardName" "$PLIST_PATH" || true
 echo ""
 
 bundle_id="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$PLIST_PATH" 2>/dev/null || true)"
