@@ -123,7 +123,7 @@ private struct OpportunityRow: View {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "house.lodge")
                     .font(.title3)
-                    .foregroundStyle(.brixBlue)
+                    .foregroundStyle(Color.brixBlue)
                     .frame(width: 44, height: 44)
                     .background(.blue.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
 

@@ -31,7 +31,7 @@ struct AppView: View {
                         .tag(tab)
                     }
                 }
-                .tint(.brixBlue)
+                .tint(Color.brixBlue)
             }
         }
         .task {
@@ -71,7 +71,7 @@ private struct NativeLaunchView: View {
             VStack(spacing: 14) {
                 Image(systemName: "square.grid.3x3.fill")
                     .font(.system(size: 44, weight: .bold))
-                    .foregroundStyle(.brixBlue)
+                    .foregroundStyle(Color.brixBlue)
                 Text("BRIX Real Estate")
                     .font(.title2.weight(.black))
                 ProgressView("Connecting to BRIX Cloud")
@@ -97,7 +97,7 @@ private struct AuthGateView: View {
                 VStack(spacing: 10) {
                     Image(systemName: "square.grid.3x3.fill")
                         .font(.system(size: 42, weight: .bold))
-                        .foregroundStyle(.brixBlue)
+                        .foregroundStyle(Color.brixBlue)
                     Text("BRIX Real Estate")
                         .font(.largeTitle.weight(.black))
                     Text("Sign in to connect your iPhone or iPad to the same deal files, field photos, and acquisition work you use on the web.")

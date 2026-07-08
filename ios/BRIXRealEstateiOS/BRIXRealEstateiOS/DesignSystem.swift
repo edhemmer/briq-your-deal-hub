@@ -71,7 +71,7 @@ struct SectionHeader: View {
             Spacer()
             Image(systemName: symbol)
                 .font(.headline)
-                .foregroundStyle(.brixBlue)
+                .foregroundStyle(Color.brixBlue)
                 .frame(width: 34, height: 34)
                 .background(.blue.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
         }
@@ -102,7 +102,7 @@ struct EmptyOperatingState: View {
             VStack(spacing: 12) {
                 Image(systemName: symbol)
                     .font(.title2)
-                    .foregroundStyle(.brixBlue)
+                    .foregroundStyle(Color.brixBlue)
                     .frame(width: 44, height: 44)
                     .background(.blue.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
                 Text(title)
