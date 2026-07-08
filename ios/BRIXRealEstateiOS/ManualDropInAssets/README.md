@@ -9,7 +9,7 @@ If App Store Connect says this is a macOS app, the app record was likely created
 - App Store Connect app platform must be `iOS`.
 - Xcode target should support `iPhone` and `iPad`.
 - Disable Mac/Catalyst destinations unless you intentionally want a macOS submission.
-- Bundle ID: `BrixRE.Brix-Real-Estate`.
+- Bundle ID: `BrixRE.BRIX-Real-Estate`.
 
 App Store Connect platform cannot usually be changed after app creation. If the record was created as macOS, create a new iOS app record with the iOS bundle identifier.
 

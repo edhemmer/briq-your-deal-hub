@@ -72,7 +72,7 @@ Project settings:
 - Interface: SwiftUI
 - Language: Swift
 - Minimum iOS: 17.0
-- Bundle ID: `BrixRE.Brix-Real-Estate`
+- Bundle ID: `BrixRE.BRIX-Real-Estate`
 - Supported destinations: iPhone and iPad
 - Mac Catalyst: Off
 - Add the `Sign in with Apple` capability.
