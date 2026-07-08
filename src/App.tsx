@@ -1,5 +1,5 @@
 import { HelmetProvider } from "react-helmet-async";
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,27 +13,27 @@ import { AdminRoute } from "@/components/AdminRoute";
 import { AppLayout } from "@/components/AppLayout";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { OnboardingWalkthrough } from "@/components/help/OnboardingWalkthrough";
-import Index from "./pages/Index";
-import Landing from "./pages/Landing";
-import FindIQ from "./pages/FindIQ";
-import NewDeal from "./pages/NewDeal";
-import DealCompare from "./pages/DealCompare";
-import Analysis from "./pages/Analysis";
-import OfferIQ from "./pages/OfferIQ";
-import PipelineIQ from "./pages/PipelineIQ";
-import PortfolioIQ from "./pages/PortfolioIQ";
-import ContractIQ from "./pages/ContractIQ";
-import ContractAnalysis from "./pages/ContractAnalysis";
-import Reports from "./pages/Reports";
-import Account from "./pages/Account";
-import Admin from "./pages/Admin";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import Help from "./pages/Help";
-import Privacy from "./pages/Privacy";
-import NotFound from "./pages/NotFound";
+const Index = lazy(() => import("./pages/Index"));
+const Landing = lazy(() => import("./pages/Landing"));
+const FindIQ = lazy(() => import("./pages/FindIQ"));
+const NewDeal = lazy(() => import("./pages/NewDeal"));
+const DealCompare = lazy(() => import("./pages/DealCompare"));
+const Analysis = lazy(() => import("./pages/Analysis"));
+const OfferIQ = lazy(() => import("./pages/OfferIQ"));
+const PipelineIQ = lazy(() => import("./pages/PipelineIQ"));
+const PortfolioIQ = lazy(() => import("./pages/PortfolioIQ"));
+const ContractIQ = lazy(() => import("./pages/ContractIQ"));
+const ContractAnalysis = lazy(() => import("./pages/ContractAnalysis"));
+const Reports = lazy(() => import("./pages/Reports"));
+const Account = lazy(() => import("./pages/Account"));
+const Admin = lazy(() => import("./pages/Admin"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Help = lazy(() => import("./pages/Help"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
@@ -49,6 +49,14 @@ function ProtectedAppPage({ children, routeName }: { children: ReactNode; routeN
         <AppLayout>{children}</AppLayout>
       </RouteErrorBoundary>
     </ProtectedRoute>
+  );
+}
+
+function RouteLoading() {
+  return (
+    <div className="flex min-h-[45vh] items-center justify-center bg-background px-4 text-sm font-medium text-muted-foreground">
+      Loading BRIX...
+    </div>
   );
 }
 
@@ -73,6 +81,7 @@ const App = () => (
         <AuthProvider>
           <HelpProvider>
           <OnboardingWalkthrough />
+          <Suspense fallback={<RouteLoading />}>
           <Routes>
             {/* Public landing page */}
             <Route path="/landing" element={<Landing />} />
@@ -163,6 +172,7 @@ const App = () => (
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
           </HelpProvider>
         </AuthProvider>
       </BrowserRouter>

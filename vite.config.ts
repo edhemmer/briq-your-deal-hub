@@ -17,4 +17,23 @@ export default defineConfig(() => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("recharts")) {
+            return "vendor-charts";
+          }
+          if (id.includes("xlsx") || id.includes("exceljs")) {
+            return "vendor-spreadsheets";
+          }
+          if (id.includes("pdfjs-dist") || id.includes("mammoth") || id.includes("jspdf")) {
+            return "vendor-documents";
+          }
+          return "vendor";
+        },
+      },
+    },
+  },
 }));
