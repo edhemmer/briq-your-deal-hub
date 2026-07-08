@@ -336,6 +336,11 @@
 				INFOPLIST_KEY_BRIX_SUPABASE_PUBLISHABLE_KEY = sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f;
 				INFOPLIST_KEY_BRIX_SUPABASE_URL = "https://luwaqrkhmxcqsozmilbw.supabase.co";
 				INFOPLIST_KEY_CFBundleDisplayName = "BRIX Real Estate";
+				INFOPLIST_KEY_CFBundleIdentifier = "BrixRE.BRIX-Real-Estate";
+				INFOPLIST_KEY_CFBundleName = "BRIX Real Estate";
+				INFOPLIST_KEY_CFBundlePackageType = APPL;
+				INFOPLIST_KEY_CFBundleShortVersionString = 1.0;
+				INFOPLIST_KEY_CFBundleVersion = 2;
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "BRIX uses the camera to capture property photos, videos, and documents for the Property Digital Twin and field due diligence.";
 				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "BRIX imports documents you select for inspection, bid, lease, and due diligence analysis.";
@@ -372,6 +377,11 @@
 				INFOPLIST_KEY_BRIX_SUPABASE_PUBLISHABLE_KEY = sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f;
 				INFOPLIST_KEY_BRIX_SUPABASE_URL = "https://luwaqrkhmxcqsozmilbw.supabase.co";
 				INFOPLIST_KEY_CFBundleDisplayName = "BRIX Real Estate";
+				INFOPLIST_KEY_CFBundleIdentifier = "BrixRE.BRIX-Real-Estate";
+				INFOPLIST_KEY_CFBundleName = "BRIX Real Estate";
+				INFOPLIST_KEY_CFBundlePackageType = APPL;
+				INFOPLIST_KEY_CFBundleShortVersionString = 1.0;
+				INFOPLIST_KEY_CFBundleVersion = 2;
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "BRIX uses the camera to capture property photos, videos, and documents for the Property Digital Twin and field due diligence.";
 				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "BRIX imports documents you select for inspection, bid, lease, and due diligence analysis.";
