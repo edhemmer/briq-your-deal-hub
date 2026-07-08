@@ -11,7 +11,7 @@ fi
 ARCHIVE_PATH="$1"
 APP_PATH="$ARCHIVE_PATH/Products/Applications/BRIX Real Estate.app"
 PLIST_PATH="$APP_PATH/Info.plist"
-PROJECT_BUNDLE_ID="BrixRE.BRIX-Real-Estate"
+PROJECT_BUNDLE_ID="BrixRE.Brix-Real-Estate"
 
 echo "Archive: $ARCHIVE_PATH"
 echo "Expected app: $APP_PATH"

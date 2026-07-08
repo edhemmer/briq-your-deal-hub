@@ -46,8 +46,8 @@ if ! grep -q "GENERATE_INFOPLIST_FILE = YES;" "$PROJECT_PATH/project.pbxproj"; t
   exit 1
 fi
 
-if ! grep -q 'PRODUCT_BUNDLE_IDENTIFIER = "BrixRE.BRIX-Real-Estate";' "$PROJECT_PATH/project.pbxproj"; then
-  echo "ERROR: Project bundle id does not match the Apple registered id BrixRE.BRIX-Real-Estate."
+if ! grep -q 'PRODUCT_BUNDLE_IDENTIFIER = "BrixRE.Brix-Real-Estate";' "$PROJECT_PATH/project.pbxproj"; then
+  echo "ERROR: Project bundle id does not match the Apple registered id BrixRE.Brix-Real-Estate."
   exit 1
 fi
 

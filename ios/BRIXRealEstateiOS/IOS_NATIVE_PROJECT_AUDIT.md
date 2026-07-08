@@ -30,7 +30,7 @@ Do not create a new Xcode project and do not open a generated `ContentView` app 
 
 ## Target Configuration
 
-- Bundle ID: `BrixRE.BRIX-Real-Estate`
+- Bundle ID: `BrixRE.Brix-Real-Estate`
 - Platforms: `iphoneos iphonesimulator`
 - Targeted devices: iPhone and iPad
 - Mac Catalyst: disabled
