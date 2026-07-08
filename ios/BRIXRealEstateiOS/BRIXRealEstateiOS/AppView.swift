@@ -3,6 +3,7 @@ import SwiftUI
 
 struct AppView: View {
     @Environment(BRIXAppState.self) private var appState
+    @State private var didStartRestore = false
 
     var body: some View {
         @Bindable var appState = appState
@@ -35,7 +36,8 @@ struct AppView: View {
             }
         }
         .task {
-            if appState.didRestoreSession == false {
+            if didStartRestore == false {
+                didStartRestore = true
                 await appState.restore()
             }
         }

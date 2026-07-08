@@ -16,7 +16,7 @@ final class BRIXAppState {
     var portfolioMetrics: [PortfolioMetric] = []
     var queuedOfflineActions: [OfflineAction] = []
     var investorLevel: InvestorLevel = .firstDeal
-    var didRestoreSession = false
+    var didRestoreSession = true
     var isLoading = false
     var lastError: String?
     var lastSyncDate: Date?
