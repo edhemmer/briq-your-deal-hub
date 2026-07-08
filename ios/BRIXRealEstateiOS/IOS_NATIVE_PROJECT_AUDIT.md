@@ -41,8 +41,8 @@ Do not create a new Xcode project and do not open a generated `ContentView` app 
 
 ## Backend Connections
 
-- Supabase URL is stored in `Info.plist` as `BRIX_SUPABASE_URL`.
-- Supabase publishable key is stored in `Info.plist` as `BRIX_SUPABASE_PUBLISHABLE_KEY`.
+- Supabase URL is emitted into the generated archive plist from `INFOPLIST_KEY_BRIX_SUPABASE_URL`.
+- Supabase publishable key is emitted into the generated archive plist from `INFOPLIST_KEY_BRIX_SUPABASE_PUBLISHABLE_KEY`.
 - Email sign-in uses `/auth/v1/token?grant_type=password`.
 - Sign-up uses `/auth/v1/signup`.
 - Password recovery uses `/auth/v1/recover`.

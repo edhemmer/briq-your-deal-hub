@@ -40,13 +40,21 @@ if grep -R "Hello World\|ContentView" "$ROOT_DIR/BRIXRealEstateiOS" >/dev/null 2
 fi
 
 echo ""
-echo "Checking archive Info.plist identity keys..."
-for key in CFBundleIdentifier CFBundleShortVersionString CFBundleVersion CFBundleExecutable CFBundlePackageType; do
-  if ! grep -q "<key>$key</key>" "$ROOT_DIR/BRIXRealEstateiOS/Info.plist"; then
-    echo "ERROR: Info.plist is missing $key. Archive/export may fail even if Xcode General shows a bundle id."
-    exit 1
-  fi
-done
+echo "Checking archive bundle identity settings..."
+if ! grep -q "GENERATE_INFOPLIST_FILE = YES;" "$PROJECT_PATH/project.pbxproj"; then
+  echo "ERROR: Target should generate the archive Info.plist so Xcode writes the bundle id into the final app."
+  exit 1
+fi
+
+if ! grep -q 'PRODUCT_BUNDLE_IDENTIFIER = "BrixRE.BRIX-Real-Estate";' "$PROJECT_PATH/project.pbxproj"; then
+  echo "ERROR: Project bundle id does not match the Apple registered id BrixRE.BRIX-Real-Estate."
+  exit 1
+fi
+
+if ! grep -q "INFOPLIST_KEY_CFBundleDisplayName" "$PROJECT_PATH/project.pbxproj"; then
+  echo "ERROR: Generated Info.plist display/privacy keys are missing from build settings."
+  exit 1
+fi
 
 echo ""
 echo "Building for iOS Simulator..."

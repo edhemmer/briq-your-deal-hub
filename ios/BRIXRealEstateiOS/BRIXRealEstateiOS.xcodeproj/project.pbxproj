@@ -332,8 +332,17 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "";
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = BRIXRealEstateiOS/Info.plist;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_BRIX_SUPABASE_PUBLISHABLE_KEY = sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f;
+				INFOPLIST_KEY_BRIX_SUPABASE_URL = "https://luwaqrkhmxcqsozmilbw.supabase.co";
+				INFOPLIST_KEY_CFBundleDisplayName = "BRIX Real Estate";
+				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "BRIX uses the camera to capture property photos, videos, and documents for the Property Digital Twin and field due diligence.";
+				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "BRIX imports documents you select for inspection, bid, lease, and due diligence analysis.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "BRIX uses location only with permission to tag field captures to a property visit and improve property organization.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "BRIX uses the microphone only when you record voice notes for property walkthroughs.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "BRIX may save captured property images to your library only when you choose to export or save them.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "BRIX accesses selected photos and videos you choose to attach to a property, project, or deal.";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -359,8 +368,17 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "";
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = BRIXRealEstateiOS/Info.plist;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_BRIX_SUPABASE_PUBLISHABLE_KEY = sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f;
+				INFOPLIST_KEY_BRIX_SUPABASE_URL = "https://luwaqrkhmxcqsozmilbw.supabase.co";
+				INFOPLIST_KEY_CFBundleDisplayName = "BRIX Real Estate";
+				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "BRIX uses the camera to capture property photos, videos, and documents for the Property Digital Twin and field due diligence.";
+				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "BRIX imports documents you select for inspection, bid, lease, and due diligence analysis.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "BRIX uses location only with permission to tag field captures to a property visit and improve property organization.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "BRIX uses the microphone only when you record voice notes for property walkthroughs.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "BRIX may save captured property images to your library only when you choose to export or save them.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "BRIX accesses selected photos and videos you choose to attach to a property, project, or deal.";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

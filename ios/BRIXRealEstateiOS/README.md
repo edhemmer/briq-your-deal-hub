@@ -79,7 +79,7 @@ Project settings:
 - Use `BRIXRealEstateiOS.entitlements`.
 - Include `Info.plist` and `PrivacyInfo.xcprivacy` in the app target.
 - Include `Assets.xcassets` in the app target and set the app icon source to `AppIcon`.
-- Confirm `BRIX_SUPABASE_URL` and `BRIX_SUPABASE_PUBLISHABLE_KEY` in `Info.plist` point at the production Supabase project.
+- Confirm `INFOPLIST_KEY_BRIX_SUPABASE_URL` and `INFOPLIST_KEY_BRIX_SUPABASE_PUBLISHABLE_KEY` in the Xcode project build settings point at the production Supabase project.
 
 The source uses SwiftUI Observation (`@Observable`), so iOS 17+ is recommended for this first native build.
 
