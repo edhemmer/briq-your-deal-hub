@@ -148,6 +148,14 @@ struct BRIXAPIClient {
         return try decode(AuthSession.self, from: data)
     }
 
+    func sendPasswordReset(email: String) async throws {
+        let body = [
+            "email": email.trimmingCharacters(in: .whitespacesAndNewlines),
+            "redirect_to": "https://brixrealestate.app/reset-password"
+        ]
+        _ = try await send(path: "/auth/v1/recover", method: "POST", body: body, session: nil)
+    }
+
     func signOut(session: AuthSession?) async throws {
         _ = try await send(path: "/auth/v1/logout", method: "POST", session: session)
     }

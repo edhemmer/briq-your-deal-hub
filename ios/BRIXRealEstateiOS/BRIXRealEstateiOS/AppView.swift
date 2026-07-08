@@ -86,6 +86,7 @@ private struct AuthGateView: View {
     @State private var password = ""
     @State private var isCreatingAccount = false
     @State private var isAppleWorking = false
+    @State private var authMessage: String?
     private let apiClient = BRIXAPIClient()
 
     var body: some View {
@@ -137,6 +138,15 @@ private struct AuthGateView: View {
                         .buttonStyle(.bordered)
                         .disabled(isCreatingAccount || appState.isLoading || email.isEmpty || password.count < 6)
 
+                        Button {
+                            Task { await sendPasswordReset() }
+                        } label: {
+                            Text("Forgot password?")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
                         HStack {
                             Rectangle().frame(height: 1).foregroundStyle(.quaternary)
                             Text("or")
@@ -153,6 +163,12 @@ private struct AuthGateView: View {
                         .signInWithAppleButtonStyle(.black)
                         .frame(height: 48)
                         .disabled(isAppleWorking)
+
+                        if let authMessage {
+                            Text(authMessage)
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
@@ -187,6 +203,16 @@ private struct AuthGateView: View {
         defer { isCreatingAccount = false }
         _ = await appState.createAccountWithEmail(email: email, password: password)
         password = ""
+    }
+
+    private func sendPasswordReset() async {
+        authMessage = "Sending password reset..."
+        do {
+            try await apiClient.sendPasswordReset(email: email)
+            authMessage = "Password reset sent. Check your email and continue through the secure BRIX reset page."
+        } catch {
+            authMessage = "Password reset failed: \(error.localizedDescription)"
+        }
     }
 
     private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {

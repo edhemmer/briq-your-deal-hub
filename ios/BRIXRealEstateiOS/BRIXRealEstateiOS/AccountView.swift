@@ -77,6 +77,15 @@ struct AccountView: View {
                                     .buttonStyle(.bordered)
                                     .disabled(isAuthWorking || email.isEmpty || password.count < 6)
                                 }
+
+                                Button {
+                                    Task { await sendPasswordReset() }
+                                } label: {
+                                    Text("Forgot password?")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(isAuthWorking || email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             }
 
                             HStack {
@@ -212,6 +221,19 @@ struct AccountView: View {
             authStatus = "Account created. BRIX is connected to your account."
         } catch {
             authStatus = "Account creation failed: \(friendlyAuthMessage(error))"
+        }
+    }
+
+    private func sendPasswordReset() async {
+        isAuthWorking = true
+        authStatus = "Sending password reset..."
+        defer { isAuthWorking = false }
+
+        do {
+            try await apiClient.sendPasswordReset(email: email)
+            authStatus = "Password reset sent. Check your email and continue through the secure BRIX reset page."
+        } catch {
+            authStatus = "Password reset failed: \(friendlyAuthMessage(error))"
         }
     }
 
