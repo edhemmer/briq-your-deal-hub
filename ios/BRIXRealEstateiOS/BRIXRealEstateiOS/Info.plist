@@ -4,6 +4,10 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>BRIX Real Estate</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchScreen</key>
+	<dict/>
 	<key>BRIX_SUPABASE_URL</key>
 	<string>https://luwaqrkhmxcqsozmilbw.supabase.co</string>
 	<key>BRIX_SUPABASE_PUBLISHABLE_KEY</key>

@@ -35,7 +35,9 @@ struct AppView: View {
             }
         }
         .task {
-            await appState.restore()
+            if appState.didRestoreSession == false {
+                await appState.restore()
+            }
         }
     }
 

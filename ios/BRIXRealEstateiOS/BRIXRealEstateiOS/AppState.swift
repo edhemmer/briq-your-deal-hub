@@ -44,8 +44,10 @@ final class BRIXAppState {
     func restore() async {
         if let savedSession = sessionStore.loadSession() {
             authState = .signedIn(savedSession)
+            didRestoreSession = true
+            await refresh()
+            return
         }
-        await refresh()
         didRestoreSession = true
     }
 
