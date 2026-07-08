@@ -40,6 +40,15 @@ if grep -R "Hello World\|ContentView" "$ROOT_DIR/BRIXRealEstateiOS" >/dev/null 2
 fi
 
 echo ""
+echo "Checking archive Info.plist identity keys..."
+for key in CFBundleIdentifier CFBundleShortVersionString CFBundleVersion CFBundleExecutable CFBundlePackageType; do
+  if ! grep -q "<key>$key</key>" "$ROOT_DIR/BRIXRealEstateiOS/Info.plist"; then
+    echo "ERROR: Info.plist is missing $key. Archive/export may fail even if Xcode General shows a bundle id."
+    exit 1
+  fi
+done
+
+echo ""
 echo "Building for iOS Simulator..."
 xcodebuild \
   -project "$PROJECT_PATH" \
