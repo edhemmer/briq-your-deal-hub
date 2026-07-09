@@ -50,8 +50,7 @@ export function ReturnsPanel({ result, assumptions, onAssumptionsChange }: Props
           <AssumptionField label="Appreciation %" value={draft.appreciation * 100} step={0.25}
             onChange={v => setDraft({ ...draft, appreciation: v / 100 })} />
           <AssumptionField label="Exit Cap % (opt)" value={(draft.exit_cap_rate ?? 0) * 100} step={0.25}
-            onChange={v => setDraft({ ...draft, exit_cap_rate: v > 0 ? v / 100 : null })}
-            placeholder="Appreciation" />
+            onChange={v => setDraft({ ...draft, exit_cap_rate: v > 0 ? v / 100 : null })} />
           <AssumptionField label="Cost of Sale %" value={draft.cost_of_sale_pct * 100} step={0.25}
             onChange={v => setDraft({ ...draft, cost_of_sale_pct: v / 100 })} />
         </div>
@@ -165,8 +164,8 @@ function SaleStat({
 }
 
 function AssumptionField({
-  label, value, step = 1, min, max, onChange, placeholder,
-}: { label: string; value: number; step?: number; min?: number; max?: number; onChange: (v: number) => void; placeholder?: string }) {
+  label, value, step = 1, min, max, onChange,
+}: { label: string; value: number; step?: number; min?: number; max?: number; onChange: (v: number) => void }) {
   return (
     <div className="space-y-1">
       <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</Label>
@@ -176,7 +175,6 @@ function AssumptionField({
         min={min}
         max={max}
         value={value || ""}
-        placeholder={placeholder}
         onChange={e => onChange(parseFloat(e.target.value) || 0)}
         className="h-8 text-sm tabular-nums"
       />

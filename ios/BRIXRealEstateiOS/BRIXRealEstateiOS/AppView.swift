@@ -110,14 +110,14 @@ private struct AuthGateView: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
 
-                        TextField("Email", text: $email)
+                        TextField("", text: $email)
                             .textContentType(.username)
                             .keyboardType(.emailAddress)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .textFieldStyle(.roundedBorder)
 
-                        SecureField("Password", text: $password)
+                        SecureField("", text: $password)
                             .textContentType(.password)
                             .textFieldStyle(.roundedBorder)
 

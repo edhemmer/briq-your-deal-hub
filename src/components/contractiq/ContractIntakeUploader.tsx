@@ -239,7 +239,6 @@ export function ContractIntakeUploader({ onExtracted }: ContractIntakeUploaderPr
         <Textarea
           id="emailpaste"
           rows={3}
-          placeholder="Paste a broker email body, term sheet snippet, or contract clauses..."
           value={emailText}
           onChange={(e) => setEmailText(e.target.value)}
           className="mt-1"

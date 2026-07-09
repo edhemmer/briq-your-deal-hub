@@ -988,18 +988,17 @@ const Analysis = () => {
                           value={taxHistory[f.key as keyof typeof taxHistory]}
                           onChange={e => setTaxHistory(prev => ({ ...prev, [f.key]: e.target.value }))}
                           onBlur={handleEnrichmentBlur}
-                          placeholder="0"
                         />
                       </div>
                     ))}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {[
-                      { key: "assessed_value", label: "Assessed Value", type: "number", placeholder: "0" },
-                      { key: "annual_property_tax", label: "Annual Property Tax", type: "number", placeholder: "0" },
-                      { key: "year_built", label: "Year Built", type: "number", placeholder: "0" },
-                      { key: "lot_size", label: "Lot Size", type: "text", placeholder: "e.g. 0.25 acres" },
-                      { key: "zoning_type", label: "Zoning Type", type: "text", placeholder: "e.g. R-1, Commercial" },
+                      { key: "assessed_value", label: "Assessed Value", type: "number" },
+                      { key: "annual_property_tax", label: "Annual Property Tax", type: "number" },
+                      { key: "year_built", label: "Year Built", type: "number" },
+                      { key: "lot_size", label: "Lot Size", type: "text" },
+                      { key: "zoning_type", label: "Zoning Type", type: "text" },
                     ].map(f => (
                       <div key={f.key} className="space-y-1.5">
                         <Label className="text-xs text-muted-foreground">{f.label}</Label>
@@ -1009,7 +1008,6 @@ const Analysis = () => {
                           value={enrichmentFields[f.key] ?? ""}
                           onChange={e => setEnrichmentField(f.key, e.target.value)}
                           onBlur={handleEnrichmentBlur}
-                          placeholder={f.placeholder}
                         />
                       </div>
                     ))}
@@ -1295,7 +1293,6 @@ const Analysis = () => {
                           value={marketFields[f.key] ?? ""}
                           onChange={e => setMarketField(f.key, e.target.value)}
                           onBlur={handleMarketBlur}
-                          placeholder="0"
                         />
                       </div>
                     ))}

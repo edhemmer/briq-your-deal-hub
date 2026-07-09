@@ -130,7 +130,7 @@ export default function NewDeal() {
 
             <div className="space-y-2">
               <Label htmlFor="address">Property Address *</Label>
-              <Input id="address" required value={form.property_address} onChange={e => set("property_address", e.target.value)} placeholder="123 Main St" />
+              <Input id="address" required value={form.property_address} onChange={e => set("property_address", e.target.value)} />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -140,11 +140,11 @@ export default function NewDeal() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="state">State *</Label>
-                <Input id="state" required value={form.state} onChange={e => set("state", e.target.value)} placeholder="TX" />
+                <Input id="state" required value={form.state} onChange={e => set("state", e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="zip">ZIP</Label>
-                <Input id="zip" value={form.zip_code} onChange={e => set("zip_code", e.target.value)} placeholder="75001" />
+                <Input id="zip" value={form.zip_code} onChange={e => set("zip_code", e.target.value)} />
               </div>
             </div>
 
@@ -152,7 +152,7 @@ export default function NewDeal() {
               <div className="space-y-2">
                 <Label>Property Type</Label>
                 <Select value={form.property_type} onValueChange={v => set("property_type", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {propertyTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                   </SelectContent>
@@ -161,7 +161,7 @@ export default function NewDeal() {
               <div className="space-y-2">
                 <Label>Strategy</Label>
                 <Select value={form.strategy_primary} onValueChange={v => set("strategy_primary", v)}>
-                  <SelectTrigger><SelectValue placeholder={form.asset_type === "live_in" ? "Owner Occupant" : "Select strategy"} /></SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {strategies.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
@@ -172,30 +172,30 @@ export default function NewDeal() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="price" className="flex items-center gap-1.5">Purchase Price <HelpTooltip content={DEAL_INPUT_HELP.purchase_price} /></Label>
-                <Input id="price" type="number" value={form.purchase_price} onChange={e => set("purchase_price", e.target.value)} placeholder="250000" />
+                <Input id="price" type="number" value={form.purchase_price} onChange={e => set("purchase_price", e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="arv" className="flex items-center gap-1.5">Estimated ARV <HelpTooltip content={DEAL_INPUT_HELP.arv} /></Label>
-                <Input id="arv" type="number" value={form.estimated_arv} onChange={e => set("estimated_arv", e.target.value)} placeholder="350000" />
+                <Input id="arv" type="number" value={form.estimated_arv} onChange={e => set("estimated_arv", e.target.value)} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="rent">Market / Lease Rent</Label>
-                <Input id="rent" type="number" value={form.monthly_rent} onChange={e => set("monthly_rent", e.target.value)} placeholder="2200" />
+                <Input id="rent" type="number" value={form.monthly_rent} onChange={e => set("monthly_rent", e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="tax">Annual Tax</Label>
-                <Input id="tax" type="number" value={form.annual_property_tax} onChange={e => set("annual_property_tax", e.target.value)} placeholder="5200" />
+                <Input id="tax" type="number" value={form.annual_property_tax} onChange={e => set("annual_property_tax", e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="insurance">Annual Insurance</Label>
-                <Input id="insurance" type="number" value={form.insurance} onChange={e => set("insurance", e.target.value)} placeholder="1800" />
+                <Input id="insurance" type="number" value={form.insurance} onChange={e => set("insurance", e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="year-built">Year Built</Label>
-                <Input id="year-built" type="number" value={form.year_built} onChange={e => set("year_built", e.target.value)} placeholder="1998" />
+                <Input id="year-built" type="number" value={form.year_built} onChange={e => set("year_built", e.target.value)} />
               </div>
             </div>
 

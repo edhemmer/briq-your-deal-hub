@@ -283,7 +283,6 @@ const ContractIQ = () => {
                     id="cname"
                     value={form.contract_name}
                     onChange={(e) => setForm({ ...form, contract_name: e.target.value })}
-                    placeholder="e.g. Hemmer–Pulte Purchase Agreement"
                   />
                 </div>
 
@@ -568,7 +567,6 @@ const ReviewFields = ({
           rows={4}
           value={form.contract_text}
           onChange={(e) => setForm({ ...form, contract_text: e.target.value })}
-          placeholder="Paste relevant contract clauses for reference..."
         />
       </div>
     </>

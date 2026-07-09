@@ -106,7 +106,7 @@ enum ListingTextParser {
         if lower.contains("flip") || lower.contains("resale") { return "Fix & Flip" }
         if lower.contains("wholesale") { return "Wholesale" }
         if lower.contains("development") { return "Development" }
-        return "Buy & Hold"
+        return nil
     }
 
     private static func conditionNotes(in text: String) -> [String] {

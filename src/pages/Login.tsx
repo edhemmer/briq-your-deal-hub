@@ -66,7 +66,6 @@ export default function Login() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 required
-                placeholder="you@example.com"
               />
             </div>
             <div className="space-y-2">
@@ -78,7 +77,6 @@ export default function Login() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   required
-                  placeholder="Password"
                 />
                 <button
                   type="button"

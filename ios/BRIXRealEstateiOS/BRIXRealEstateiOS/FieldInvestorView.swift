@@ -48,7 +48,7 @@ struct PropertyCapturePanel: View {
                     }
                     .pickerStyle(.segmented)
 
-                    TextField("Optional note", text: $note, axis: .vertical)
+                    TextField("", text: $note, axis: .vertical)
                         .textFieldStyle(.roundedBorder)
 
                     HStack {

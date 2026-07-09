@@ -47,14 +47,14 @@ struct AccountView: View {
                             .buttonStyle(.bordered)
                         } else {
                             VStack(alignment: .leading, spacing: 10) {
-                                TextField("Email", text: $email)
+                                TextField("", text: $email)
                                     .textContentType(.username)
                                     .keyboardType(.emailAddress)
                                     .textInputAutocapitalization(.never)
                                     .autocorrectionDisabled()
                                     .textFieldStyle(.roundedBorder)
 
-                                SecureField("Password", text: $password)
+                                SecureField("", text: $password)
                                     .textContentType(.password)
                                     .textFieldStyle(.roundedBorder)
 
@@ -144,7 +144,7 @@ struct AccountView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
-                        TextField("Optional reason", text: $deletionReason, axis: .vertical)
+                        TextField("", text: $deletionReason, axis: .vertical)
                             .textFieldStyle(.roundedBorder)
 
                         Button(role: .destructive) {

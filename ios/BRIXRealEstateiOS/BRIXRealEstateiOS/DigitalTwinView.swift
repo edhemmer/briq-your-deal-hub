@@ -30,7 +30,7 @@ struct DigitalTwinView: View {
                     BrixCard {
                         VStack(alignment: .leading, spacing: 12) {
                             SectionHeader(title: "FindIQ", subtitle: "Create, search, and rank properties.", symbol: "magnifyingglass")
-                            TextField("Search address, city, ZIP, or property type", text: $searchText)
+                            TextField("", text: $searchText)
                                 .textFieldStyle(.roundedBorder)
 
                             HStack {
@@ -98,36 +98,36 @@ private struct AddDealSheet: View {
         NavigationStack {
             Form {
                 Section("Property") {
-                    TextField("Property address", text: $draft.propertyAddress)
+                    TextField("", text: $draft.propertyAddress)
                         .textContentType(.streetAddressLine1)
-                    TextField("City", text: $draft.city)
+                    TextField("", text: $draft.city)
                         .textContentType(.addressCity)
-                    TextField("State", text: $draft.state)
+                    TextField("", text: $draft.state)
                         .textInputAutocapitalization(.characters)
-                    TextField("ZIP", text: $draft.zipCode)
+                    TextField("", text: $draft.zipCode)
                         .keyboardType(.numbersAndPunctuation)
                         .textContentType(.postalCode)
                 }
 
                 Section("Deal facts") {
-                    TextField("Property type", text: $draft.propertyType)
-                    TextField("Purchase price", text: $draft.purchasePrice)
+                    TextField("", text: $draft.propertyType)
+                    TextField("", text: $draft.purchasePrice)
                         .keyboardType(.decimalPad)
-                    TextField("Monthly rent", text: $draft.monthlyRent)
+                    TextField("", text: $draft.monthlyRent)
                         .keyboardType(.decimalPad)
-                    TextField("Annual taxes", text: $draft.annualTaxes)
+                    TextField("", text: $draft.annualTaxes)
                         .keyboardType(.decimalPad)
-                    TextField("Annual insurance", text: $draft.annualInsurance)
+                    TextField("", text: $draft.annualInsurance)
                         .keyboardType(.decimalPad)
-                    TextField("Strategy", text: $draft.strategy)
+                    TextField("", text: $draft.strategy)
                 }
 
                 Section("Source") {
-                    TextField("Listing URL", text: $draft.listingURL)
+                    TextField("", text: $draft.listingURL)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                    TextField("Notes or listing text", text: $draft.notes, axis: .vertical)
+                    TextField("", text: $draft.notes, axis: .vertical)
                         .lineLimit(3...7)
                 }
 

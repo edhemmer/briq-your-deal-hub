@@ -162,7 +162,6 @@ export function AnalysisContextGate({ onContextComplete, initialContext }: Analy
                 value={intlCountry}
                 onChange={e => { setIntlCountry(e.target.value); setAssetType(intlCountry ? "international" : ""); }}
                 onBlur={() => { if (intlCountry && intlRegion) setAssetType("international"); }}
-                placeholder="e.g. United Kingdom"
                 className="h-9"
               />
             </div>
@@ -172,7 +171,6 @@ export function AnalysisContextGate({ onContextComplete, initialContext }: Analy
                 value={intlRegion}
                 onChange={e => { setIntlRegion(e.target.value); }}
                 onBlur={() => { if (intlCountry && intlRegion) setAssetType("international"); }}
-                placeholder="e.g. London"
                 className="h-9"
               />
             </div>

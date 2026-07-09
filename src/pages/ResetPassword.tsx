@@ -112,7 +112,6 @@ export default function ResetPassword() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
-                placeholder="Enter at least 8 characters"
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading || !recoveryReady}>

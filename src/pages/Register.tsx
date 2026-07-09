@@ -75,7 +75,6 @@ export default function Register() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 required
-                placeholder="you@example.com"
               />
             </div>
             <div className="space-y-2">
@@ -88,7 +87,6 @@ export default function Register() {
                   onChange={(event) => setPassword(event.target.value)}
                   required
                   minLength={6}
-                  placeholder="Password"
                 />
                 <button
                   type="button"

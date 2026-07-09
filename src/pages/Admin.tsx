@@ -251,7 +251,7 @@ export default function Admin() {
                 </Select>
                 <div className="relative w-full md:w-80">
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input className="pl-9" placeholder="Search email, ID, provider..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                  <Input className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
                 </div>
               </div>
             </div>
@@ -455,7 +455,6 @@ function UserRow({
                 <Input
                   value={overrideNotes[user.id] ?? ""}
                   onChange={(e) => setOverrideNotes((prev) => ({ ...prev, [user.id]: e.target.value }))}
-                  placeholder="Beta, partner, comped account..."
                 />
               </div>
             )}

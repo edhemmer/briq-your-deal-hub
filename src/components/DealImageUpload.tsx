@@ -300,7 +300,6 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
 
       <div className="space-y-2">
         <Textarea
-          placeholder="Paste a property listing, listing URL, rent roll, broker notes, MLS remarks, or inspection/photo observations..."
           value={pastedText}
           onChange={(e) => { setPastedText(e.target.value); setMode("text"); }}
           className="min-h-[100px] text-sm resize-none"

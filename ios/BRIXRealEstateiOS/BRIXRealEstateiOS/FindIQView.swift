@@ -4,6 +4,7 @@ struct FindIQView: View {
     @Environment(BRIXAppState.self) private var appState
     @State private var queueSearch = ""
     @State private var quickStart = ""
+    @State private var intakeStep: FindIQIntakeStep = .property
     @State private var draft = CreateDealDraft()
     @State private var listingText = ""
     @State private var isExtracting = false
@@ -55,45 +56,72 @@ struct FindIQView: View {
                     symbol: "magnifyingglass"
                 )
 
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Address or listing link")
-                        .font(.subheadline.weight(.bold))
-                    TextField("Enter address or paste listing URL", text: $quickStart)
-                        .textInputAutocapitalization(.words)
-                        .autocorrectionDisabled()
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityLabel("Address or listing URL")
+                if intakeStep == .property {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Address or listing link")
+                            .font(.subheadline.weight(.bold))
+                        TextField("", text: $quickStart)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled()
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityLabel("Address or listing URL")
 
-                    Button {
-                        Task { await startQuickProperty() }
-                    } label: {
-                        Label(isExtracting ? "Reading Property..." : "Start Property", systemImage: "arrow.right.circle.fill")
-                            .frame(maxWidth: .infinity)
+                        Button {
+                            Task { await startQuickProperty() }
+                        } label: {
+                            Label(isExtracting ? "Reading Property..." : "Next", systemImage: "arrow.right.circle.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isExtracting || quickStart.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isExtracting || quickStart.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                } else {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Strategy to test")
+                            .font(.subheadline.weight(.bold))
+                        TextField("", text: $draft.strategy)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityLabel("Strategy to test")
+                        HStack(spacing: 10) {
+                            Button {
+                                intakeStep = .property
+                            } label: {
+                                Label("Back", systemImage: "chevron.left")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button {
+                                intakeMessage = "Add any known details, then save the property."
+                            } label: {
+                                Label("Continue", systemImage: "arrow.right")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Property")
                         .font(.subheadline.weight(.bold))
 
-                    TextField("Property address", text: $draft.propertyAddress)
+                    TextField("", text: $draft.propertyAddress)
                         .textContentType(.streetAddressLine1)
                         .textFieldStyle(.roundedBorder)
 
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                        TextField("City", text: $draft.city)
+                        TextField("", text: $draft.city)
                             .textContentType(.addressCity)
                             .textFieldStyle(.roundedBorder)
-                        TextField("State", text: $draft.state)
+                        TextField("", text: $draft.state)
                             .textInputAutocapitalization(.characters)
                             .textFieldStyle(.roundedBorder)
-                        TextField("ZIP", text: $draft.zipCode)
+                        TextField("", text: $draft.zipCode)
                             .keyboardType(.numbersAndPunctuation)
                             .textContentType(.postalCode)
                             .textFieldStyle(.roundedBorder)
-                        TextField("County", text: $draft.county)
+                        TextField("", text: $draft.county)
                             .textFieldStyle(.roundedBorder)
                     }
                 }
@@ -123,42 +151,42 @@ struct FindIQView: View {
 
                     VStack(spacing: 10) {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                            TextField("Property type", text: $draft.propertyType)
+                            TextField("", text: $draft.propertyType)
                                 .textFieldStyle(.roundedBorder)
-                            TextField("Strategy", text: $draft.strategy)
+                            TextField("", text: $draft.strategy)
                                 .textFieldStyle(.roundedBorder)
-                            TextField("Purchase price", text: $draft.purchasePrice)
+                            TextField("", text: $draft.purchasePrice)
                                 .keyboardType(.decimalPad)
                                 .textFieldStyle(.roundedBorder)
-                            TextField("Monthly rent", text: $draft.monthlyRent)
+                            TextField("", text: $draft.monthlyRent)
                                 .keyboardType(.decimalPad)
                                 .textFieldStyle(.roundedBorder)
-                            TextField("Annual taxes", text: $draft.annualTaxes)
+                            TextField("", text: $draft.annualTaxes)
                                 .keyboardType(.decimalPad)
                                 .textFieldStyle(.roundedBorder)
-                            TextField("Annual insurance", text: $draft.annualInsurance)
+                            TextField("", text: $draft.annualInsurance)
                                 .keyboardType(.decimalPad)
                                 .textFieldStyle(.roundedBorder)
-                            TextField("Beds", text: $draft.beds)
+                            TextField("", text: $draft.beds)
                                 .keyboardType(.decimalPad)
                                 .textFieldStyle(.roundedBorder)
-                            TextField("Baths", text: $draft.baths)
+                            TextField("", text: $draft.baths)
                                 .keyboardType(.decimalPad)
                                 .textFieldStyle(.roundedBorder)
-                            TextField("Square feet", text: $draft.squareFeet)
+                            TextField("", text: $draft.squareFeet)
                                 .keyboardType(.decimalPad)
                                 .textFieldStyle(.roundedBorder)
-                            TextField("Year built", text: $draft.yearBuilt)
+                            TextField("", text: $draft.yearBuilt)
                                 .keyboardType(.numberPad)
                                 .textFieldStyle(.roundedBorder)
                         }
 
-                        TextField("Listing URL", text: $draft.listingURL)
+                        TextField("", text: $draft.listingURL)
                             .keyboardType(.URL)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .textFieldStyle(.roundedBorder)
-                        TextField("Notes, risks, or showing observations", text: $draft.notes, axis: .vertical)
+                        TextField("", text: $draft.notes, axis: .vertical)
                             .lineLimit(3...8)
                             .textFieldStyle(.roundedBorder)
                     }
@@ -212,7 +240,7 @@ struct FindIQView: View {
                 )
 
                 if appState.deals.isEmpty == false {
-                    TextField("Search saved properties", text: $queueSearch)
+                    TextField("", text: $queueSearch)
                         .textInputAutocapitalization(.words)
                         .textFieldStyle(.roundedBorder)
                 }
@@ -258,10 +286,13 @@ struct FindIQView: View {
             await extractListing()
             if draft.trimmedAddress.isEmpty {
                 intakeMessage = "Listing link added. Enter the property address, then save."
+            } else {
+                intakeStep = .strategy
             }
         } else {
             draft.propertyAddress = value
-            intakeMessage = "Address added. Add city, state, price, or notes if you have them, then save."
+            intakeStep = .strategy
+            intakeMessage = "Address added."
         }
     }
 
@@ -286,6 +317,7 @@ struct FindIQView: View {
 
     private func resetIntake() {
         quickStart = ""
+        intakeStep = .property
         draft = CreateDealDraft()
         listingText = ""
         intakeMessage = nil
@@ -404,6 +436,11 @@ private struct WorkflowCue: View {
         .padding(10)
         .background(.background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
+}
+
+private enum FindIQIntakeStep {
+    case property
+    case strategy
 }
 
 #Preview {

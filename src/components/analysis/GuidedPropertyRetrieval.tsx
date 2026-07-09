@@ -40,19 +40,18 @@ interface DraftFieldDef {
   key: keyof DraftPropertyData;
   label: string;
   type: "number" | "text";
-  placeholder: string;
   isAnalysisInput?: boolean; // true if this feeds directly into financial analysis
 }
 
 const DRAFT_FIELDS: DraftFieldDef[] = [
-  { key: "assessedValue", label: "Assessed Value", type: "number", placeholder: "0" },
-  { key: "annualPropertyTax", label: "Annual Property Tax", type: "number", placeholder: "0", isAnalysisInput: true },
-  { key: "yearBuilt", label: "Year Built", type: "number", placeholder: "e.g. 1985" },
-  { key: "lotSize", label: "Lot Size", type: "text", placeholder: "e.g. 0.25 acres" },
-  { key: "zoningType", label: "Zoning Type", type: "text", placeholder: "e.g. R-1" },
-  { key: "squareFootage", label: "Square Footage", type: "number", placeholder: "0" },
-  { key: "purchasePrice", label: "Purchase Price", type: "number", placeholder: "0", isAnalysisInput: true },
-  { key: "monthlyRent", label: "Monthly Rent", type: "number", placeholder: "0", isAnalysisInput: true },
+  { key: "assessedValue", label: "Assessed Value", type: "number" },
+  { key: "annualPropertyTax", label: "Annual Property Tax", type: "number", isAnalysisInput: true },
+  { key: "yearBuilt", label: "Year Built", type: "number" },
+  { key: "lotSize", label: "Lot Size", type: "text" },
+  { key: "zoningType", label: "Zoning Type", type: "text" },
+  { key: "squareFootage", label: "Square Footage", type: "number" },
+  { key: "purchasePrice", label: "Purchase Price", type: "number", isAnalysisInput: true },
+  { key: "monthlyRent", label: "Monthly Rent", type: "number", isAnalysisInput: true },
 ];
 
 // ── Props ──
@@ -174,7 +173,6 @@ export function GuidedPropertyRetrieval({ dealAddress, onAcceptDraft }: GuidedPr
                 <Input
                   value={addressInput}
                   onChange={e => setAddressInput(e.target.value)}
-                  placeholder={dealAddress.property_address ? `${dealAddress.property_address}, ${dealAddress.city}, ${dealAddress.state}` : "123 Main St, City, ST 12345"}
                   className="h-9"
                 />
               </div>
@@ -183,7 +181,6 @@ export function GuidedPropertyRetrieval({ dealAddress, onAcceptDraft }: GuidedPr
                 <Input
                   value={listingUrlInput}
                   onChange={e => setListingUrlInput(e.target.value)}
-                  placeholder="https://real-estate-listing-url.example/..."
                   className="h-9"
                 />
               </div>
@@ -299,7 +296,6 @@ export function GuidedPropertyRetrieval({ dealAddress, onAcceptDraft }: GuidedPr
                                   handleSetDraftField(field.key, val, activeSource.quality);
                                 }
                               }}
-                              placeholder={field.placeholder}
                               className={`h-8 text-sm flex-1 ${
                                 isAccepted ? "border-signal-positive/50" :
                                 isPending || isEdited ? "border-signal-warning/50" : ""

@@ -69,11 +69,11 @@ const initialSearch: SearchState = {
   propertyType: "",
   bedrooms: "",
   bathrooms: "",
-  strategy: "Owner Occupant",
+  strategy: "",
   excludedCounties: "",
   mustHaveKeywords: "",
   preferredKeywords: "",
-  renovationTolerance: "Light renovation okay",
+  renovationTolerance: "",
 };
 
 const initialManualListing: ManualListingState = {
@@ -94,7 +94,7 @@ const initialManualListing: ManualListingState = {
   annual_property_tax: "",
   insurance: "",
   estimated_arv: "",
-  strategy_primary: "Owner Occupant",
+  strategy_primary: "",
   listing_url: "",
   listing_source: "",
   listing_photo_urls: "",
@@ -112,6 +112,9 @@ export default function FindIQ() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [manualListing, setManualListing] = useState<ManualListingState>(initialManualListing);
   const [quickInput, setQuickInput] = useState("");
+  const [quickStrategy, setQuickStrategy] = useState("");
+  const [quickStage, setQuickStage] = useState<"property" | "strategy">("property");
+  const [quickPropertyAddress, setQuickPropertyAddress] = useState("");
   const [isQuickScanning, setIsQuickScanning] = useState(false);
 
   const activeProfile = useMemo(() => searchToProfile(search), [search]);
@@ -181,22 +184,24 @@ export default function FindIQ() {
 
     setIsQuickScanning(true);
     try {
+      const listingUrl = text.match(/https?:\/\/[^\s"'<>]+/i)?.[0];
       const { data, error } = await supabase.functions.invoke("extract-deal-from-text", {
-        body: { listing_text: text },
+        body: { listing_text: text, listing_url: listingUrl },
       });
       if (error) throw error;
 
       const extracted = (data as { extracted?: VisualExtraction })?.extracted;
       const deterministic = parseListingText(text);
       const aiFields = extracted ? visualToManualFields(extracted) : {};
-      const listingUrl = text.match(/https?:\/\/[^\s"'<>]+/i)?.[0] ?? deterministic.listing_url;
+      const warning = (data as { warning?: string })?.warning;
+      const resolvedListingUrl = listingUrl ?? deterministic.listing_url;
 
       openImportIntake({
         ...deterministic,
         ...aiFields,
         listingText: text,
-        listing_url: listingUrl,
-        listing_source: inferListingSource(listingUrl) || deterministic.listing_source,
+        listing_url: resolvedListingUrl,
+        listing_source: inferListingSource(resolvedListingUrl) || deterministic.listing_source,
         missing_questions: uniqueLines([
           ...splitLines(deterministic.missing_questions ?? ""),
           ...splitLines(aiFields.missing_questions ?? ""),
@@ -206,7 +211,11 @@ export default function FindIQ() {
           ...splitLines(aiFields.visible_or_stated_risks ?? ""),
         ]).join("\n"),
       });
-      toast.success("FindIQ extracted the deal facts it could. Review once, then save and rank.");
+      if (warning) {
+        toast.warning(warning);
+      } else {
+        toast.success("Fields extracted. Review before saving.");
+      }
     } catch {
       const fields = parseListingText(text);
       openImportIntake({
@@ -234,8 +243,27 @@ export default function FindIQ() {
       return;
     }
 
-    openImportIntake({ property_address: text });
-    toast.success("Address added. Add any known details, then save and rank.");
+    setQuickPropertyAddress(text);
+    setQuickStage("strategy");
+  };
+
+  const continueFromStrategy = (event?: FormEvent) => {
+    event?.preventDefault();
+    if (!quickPropertyAddress.trim()) {
+      setQuickStage("property");
+      return;
+    }
+
+    openImportIntake({
+      property_address: quickPropertyAddress,
+      strategy_primary: quickStrategy,
+    });
+  };
+
+  const resetQuickWorkflow = () => {
+    setQuickStage("property");
+    setQuickPropertyAddress("");
+    setQuickStrategy("");
   };
 
   const handleDroppedText = (text: string) => {
@@ -306,7 +334,7 @@ export default function FindIQ() {
         taxes: parseNumber(verified.annual_property_tax) ?? undefined,
         insurance: parseNumber(verified.insurance) ?? undefined,
         estimated_arv: parseNumber(verified.estimated_arv) ?? undefined,
-        strategy_primary: verified.strategy_primary.trim() || search.strategy || "Owner Occupant",
+        strategy_primary: verified.strategy_primary.trim() || search.strategy.trim() || undefined,
         listing_url: verified.listing_url.trim() || undefined,
         listing_source: verified.listing_source.trim() || inferListingSource(verified.listing_url),
         listing_remarks: verified.listingText.trim() || undefined,
@@ -316,11 +344,13 @@ export default function FindIQ() {
         missing_questions: verificationQuestions as Json,
         source_confidence: verified.source_confidence,
         photo_analysis_status: verified.photo_analysis_status,
-        asset_type: verified.strategy_primary.toLowerCase().includes("owner") || search.strategy.toLowerCase().includes("owner") ? "owner_occupied" : "investment",
+        asset_type: `${verified.strategy_primary} ${search.strategy}`.toLowerCase().includes("owner") ? "owner_occupied" : undefined,
         deal_status: "draft",
       });
 
       setManualListing(initialManualListing);
+      resetQuickWorkflow();
+      setQuickInput("");
       setIsAddOpen(false);
       toast.success(`${deal.property_address} added to FindIQ.`);
     } catch {
@@ -345,27 +375,58 @@ export default function FindIQ() {
       </PageHeader>
 
       <section>
-        <CardContainer className="relative overflow-hidden">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
+        <CardContainer className="relative overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-background to-emerald-500/10">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/80 to-transparent" />
           <div className="flex flex-col gap-5">
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Start property</p>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">Address or listing link</h2>
             </div>
 
-            <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]" onSubmit={startFromQuickInput}>
-              <Input
-                id="findiq-quick-input"
-                value={quickInput}
-                onChange={(event) => setQuickInput(event.target.value)}
-                placeholder="Address or listing URL"
-                className="h-12 text-base"
-              />
-              <Button type="submit" size="lg" disabled={isQuickScanning}>
-                {isQuickScanning ? "Reading..." : "Start Property"}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </form>
+            {quickStage === "property" ? (
+              <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]" onSubmit={startFromQuickInput}>
+                <div className="space-y-2">
+                  <Label htmlFor="findiq-quick-input">Address or listing link</Label>
+                  <Input
+                    id="findiq-quick-input"
+                    value={quickInput}
+                    onChange={(event) => setQuickInput(event.target.value)}
+                    className="h-12 text-base"
+                    aria-label="Address or listing link"
+                  />
+                </div>
+                <Button type="submit" size="lg" disabled={isQuickScanning} className="self-end">
+                  {isQuickScanning ? "Reading..." : "Next"}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </form>
+            ) : (
+              <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,320px)_auto]" onSubmit={continueFromStrategy}>
+                <div className="space-y-2">
+                  <Label>Property</Label>
+                  <Input value={quickPropertyAddress} readOnly className="h-12 bg-muted/40 text-base" aria-label="Selected property address" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="findiq-quick-strategy">Strategy to test</Label>
+                  <Input
+                    id="findiq-quick-strategy"
+                    value={quickStrategy}
+                    onChange={(event) => setQuickStrategy(event.target.value)}
+                    className="h-12 text-base"
+                    aria-label="Strategy to test"
+                  />
+                </div>
+                <div className="flex gap-2 self-end">
+                  <Button type="button" variant="outline" size="lg" onClick={resetQuickWorkflow}>
+                    Back
+                  </Button>
+                  <Button type="submit" size="lg">
+                    Continue
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </form>
+            )}
 
             <div className="grid w-full grid-cols-3 gap-2">
               <MiniMetric label="Deal files" value={String(dealFiles.length)} />
@@ -384,21 +445,21 @@ export default function FindIQ() {
               Buying criteria
             </summary>
             <div className="mt-3 grid gap-3">
-              <ManualField label="Strategy" value={search.strategy} onChange={(value) => updateSearch("strategy", value)} placeholder="Owner Occupant, Buy & Hold, BRRRR..." />
-              <ManualField label="Search geography" value={search.location} onChange={(value) => updateSearch("location", value)} placeholder="City, county, ZIP, state, or commute anchor" />
+              <ManualField label="Strategy" value={search.strategy} onChange={(value) => updateSearch("strategy", value)} />
+              <ManualField label="Search geography" value={search.location} onChange={(value) => updateSearch("location", value)} />
               <div className="grid gap-3 sm:grid-cols-2">
-                <ManualField label="Min budget" value={search.budgetMin} onChange={(value) => updateSearch("budgetMin", value)} placeholder="$" inputMode="numeric" />
-                <ManualField label="Max budget" value={search.budgetMax} onChange={(value) => updateSearch("budgetMax", value)} placeholder="$" inputMode="numeric" />
+                <ManualField label="Min budget" value={search.budgetMin} onChange={(value) => updateSearch("budgetMin", value)} inputMode="numeric" />
+                <ManualField label="Max budget" value={search.budgetMax} onChange={(value) => updateSearch("budgetMax", value)} inputMode="numeric" />
               </div>
-              <ManualField label="Property type" value={search.propertyType} onChange={(value) => updateSearch("propertyType", value)} placeholder="Single Family, Duplex, Land..." />
+              <ManualField label="Property type" value={search.propertyType} onChange={(value) => updateSearch("propertyType", value)} />
               <div className="grid gap-3 sm:grid-cols-2">
-                <ManualField label="Minimum bedrooms" value={search.bedrooms} onChange={(value) => updateSearch("bedrooms", value)} placeholder="4" inputMode="decimal" />
-                <ManualField label="Minimum bathrooms" value={search.bathrooms} onChange={(value) => updateSearch("bathrooms", value)} placeholder="2" inputMode="decimal" />
+                <ManualField label="Minimum bedrooms" value={search.bedrooms} onChange={(value) => updateSearch("bedrooms", value)} inputMode="decimal" />
+                <ManualField label="Minimum bathrooms" value={search.bathrooms} onChange={(value) => updateSearch("bathrooms", value)} inputMode="decimal" />
               </div>
-              <ManualField label="Excluded counties or areas" value={search.excludedCounties} onChange={(value) => updateSearch("excludedCounties", value)} placeholder="County, flood zone, busy road, HOA, school district..." />
-              <ManualField label="Must-have words" value={search.mustHaveKeywords} onChange={(value) => updateSearch("mustHaveKeywords", value)} placeholder="ranch, basement, garage, no HOA..." />
-              <ManualField label="Preferred words" value={search.preferredKeywords} onChange={(value) => updateSearch("preferredKeywords", value)} placeholder="light renovation, fenced yard, first-floor primary..." />
-              <ManualField label="Renovation tolerance" value={search.renovationTolerance} onChange={(value) => updateSearch("renovationTolerance", value)} placeholder="Light renovation okay" />
+              <ManualField label="Excluded counties or areas" value={search.excludedCounties} onChange={(value) => updateSearch("excludedCounties", value)} />
+              <ManualField label="Must-have words" value={search.mustHaveKeywords} onChange={(value) => updateSearch("mustHaveKeywords", value)} />
+              <ManualField label="Preferred words" value={search.preferredKeywords} onChange={(value) => updateSearch("preferredKeywords", value)} />
+              <ManualField label="Renovation tolerance" value={search.renovationTolerance} onChange={(value) => updateSearch("renovationTolerance", value)} />
             </div>
           </details>
 
@@ -527,7 +588,6 @@ export default function FindIQ() {
                 id="findiq-listing-text"
                 value={manualListing.listingText}
                 onChange={(event) => updateManualListing("listingText", event.target.value)}
-                placeholder="Paste the listing URL, MLS remarks, broker notes, tax details, rent notes, or property description..."
                 rows={5}
               />
               <Button type="button" variant="outline" onClick={applyListingText} disabled={!manualListing.listingText.trim()}>
@@ -536,25 +596,25 @@ export default function FindIQ() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <ManualField label="Property address" required value={manualListing.property_address} onChange={(value) => updateManualListing("property_address", value)} placeholder="123 Main St" />
-              <ManualField label="City" value={manualListing.city} onChange={(value) => updateManualListing("city", value)} placeholder="Sandwich" />
-              <ManualField label="State" value={manualListing.state} onChange={(value) => updateManualListing("state", value)} placeholder="IL" />
-              <ManualField label="County" value={manualListing.county} onChange={(value) => updateManualListing("county", value)} placeholder="DuPage, Kane, Kendall..." />
-              <ManualField label="ZIP code" value={manualListing.zip_code} onChange={(value) => updateManualListing("zip_code", value)} placeholder="60548" />
-              <ManualField label="Property type" value={manualListing.property_type} onChange={(value) => updateManualListing("property_type", value)} placeholder="Single Family" />
-              <ManualField label="Strategy to test first" value={manualListing.strategy_primary} onChange={(value) => updateManualListing("strategy_primary", value)} placeholder="Owner Occupant" />
-              <ManualField label="Beds" value={manualListing.beds} onChange={(value) => updateManualListing("beds", value)} placeholder="3" inputMode="decimal" />
-              <ManualField label="Baths" value={manualListing.baths} onChange={(value) => updateManualListing("baths", value)} placeholder="2" inputMode="decimal" />
-              <ManualField label="Square feet" value={manualListing.square_feet} onChange={(value) => updateManualListing("square_feet", value)} placeholder="1688" inputMode="numeric" />
-              <ManualField label="Year built" value={manualListing.year_built} onChange={(value) => updateManualListing("year_built", value)} placeholder="1978" inputMode="numeric" />
-              <ManualField label="Lot size" value={manualListing.lot_size} onChange={(value) => updateManualListing("lot_size", value)} placeholder="0.24 acres" />
-              <ManualField label="Purchase price" value={manualListing.purchase_price} onChange={(value) => updateManualListing("purchase_price", value)} placeholder="249900" inputMode="numeric" />
-              <ManualField label="Market or lease rent, monthly" value={manualListing.monthly_rent} onChange={(value) => updateManualListing("monthly_rent", value)} placeholder="2200" inputMode="numeric" />
-              <ManualField label="Property taxes, annual" value={manualListing.annual_property_tax} onChange={(value) => updateManualListing("annual_property_tax", value)} placeholder="5140" inputMode="numeric" />
-              <ManualField label="Insurance quote, annual" value={manualListing.insurance} onChange={(value) => updateManualListing("insurance", value)} placeholder="1800" inputMode="numeric" />
-              <ManualField label="Estimated ARV" value={manualListing.estimated_arv} onChange={(value) => updateManualListing("estimated_arv", value)} placeholder="295000" inputMode="numeric" />
-              <ManualField label="Listing URL" value={manualListing.listing_url} onChange={(value) => updateManualListing("listing_url", value)} placeholder="https://..." />
-              <ManualField label="Listing source" value={manualListing.listing_source} onChange={(value) => updateManualListing("listing_source", value)} placeholder="MLS, broker, county, public listing" />
+              <ManualField label="Property address" required value={manualListing.property_address} onChange={(value) => updateManualListing("property_address", value)} />
+              <ManualField label="City" value={manualListing.city} onChange={(value) => updateManualListing("city", value)} />
+              <ManualField label="State" value={manualListing.state} onChange={(value) => updateManualListing("state", value)} />
+              <ManualField label="County" value={manualListing.county} onChange={(value) => updateManualListing("county", value)} />
+              <ManualField label="ZIP code" value={manualListing.zip_code} onChange={(value) => updateManualListing("zip_code", value)} />
+              <ManualField label="Property type" value={manualListing.property_type} onChange={(value) => updateManualListing("property_type", value)} />
+              <ManualField label="Strategy to test first" value={manualListing.strategy_primary} onChange={(value) => updateManualListing("strategy_primary", value)} />
+              <ManualField label="Beds" value={manualListing.beds} onChange={(value) => updateManualListing("beds", value)} inputMode="decimal" />
+              <ManualField label="Baths" value={manualListing.baths} onChange={(value) => updateManualListing("baths", value)} inputMode="decimal" />
+              <ManualField label="Square feet" value={manualListing.square_feet} onChange={(value) => updateManualListing("square_feet", value)} inputMode="numeric" />
+              <ManualField label="Year built" value={manualListing.year_built} onChange={(value) => updateManualListing("year_built", value)} inputMode="numeric" />
+              <ManualField label="Lot size" value={manualListing.lot_size} onChange={(value) => updateManualListing("lot_size", value)} />
+              <ManualField label="Purchase price" value={manualListing.purchase_price} onChange={(value) => updateManualListing("purchase_price", value)} inputMode="numeric" />
+              <ManualField label="Market or lease rent, monthly" value={manualListing.monthly_rent} onChange={(value) => updateManualListing("monthly_rent", value)} inputMode="numeric" />
+              <ManualField label="Property taxes, annual" value={manualListing.annual_property_tax} onChange={(value) => updateManualListing("annual_property_tax", value)} inputMode="numeric" />
+              <ManualField label="Insurance quote, annual" value={manualListing.insurance} onChange={(value) => updateManualListing("insurance", value)} inputMode="numeric" />
+              <ManualField label="Estimated ARV" value={manualListing.estimated_arv} onChange={(value) => updateManualListing("estimated_arv", value)} inputMode="numeric" />
+              <ManualField label="Listing URL" value={manualListing.listing_url} onChange={(value) => updateManualListing("listing_url", value)} />
+              <ManualField label="Listing source" value={manualListing.listing_source} onChange={(value) => updateManualListing("listing_source", value)} />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -562,25 +622,21 @@ export default function FindIQ() {
                 label="Photo URLs"
                 value={manualListing.listing_photo_urls}
                 onChange={(value) => updateManualListing("listing_photo_urls", value)}
-                placeholder="One direct image URL per line. BRIX will analyze accessible photos only."
               />
               <TextReviewField
                 label="Condition notes from listing/photos"
                 value={manualListing.condition_notes}
                 onChange={(value) => updateManualListing("condition_notes", value)}
-                placeholder="Visible or stated condition notes..."
               />
               <TextReviewField
                 label="Visible or stated risks"
                 value={manualListing.visible_or_stated_risks}
                 onChange={(value) => updateManualListing("visible_or_stated_risks", value)}
-                placeholder="Roof age unknown, water staining, as-is language..."
               />
               <TextReviewField
                 label="Missing questions"
                 value={manualListing.missing_questions}
                 onChange={(value) => updateManualListing("missing_questions", value)}
-                placeholder="What still needs verification?"
               />
             </div>
 
@@ -944,6 +1000,7 @@ function parseListingText(text: string): Partial<ManualListingState> {
   const rent = joined.match(/(?:rent|lease)[^\d$]{0,20}\$?(\d[\d,]{2,})/i);
   const propertyType = joined.match(/\b(single family|duplex|triplex|fourplex|townhouse|condo|multi[- ]family|commercial|mixed use|land)\b/i);
   const listingUrl = joined.match(/https?:\/\/[^\s"'<>]+/i)?.[0] ?? "";
+  const urlParts = parseListingUrlParts(listingUrl);
   const photoUrls = extractPhotoUrls(cleaned);
   const beds = joined.match(/\b(\d+(?:\.\d+)?)\s*(?:bed|beds|bd|bedrooms)\b/i);
   const baths = joined.match(/\b(\d+(?:\.\d+)?)\s*(?:bath|baths|ba|bathrooms)\b/i);
@@ -963,11 +1020,11 @@ function parseListingText(text: string): Partial<ManualListingState> {
   });
 
   return {
-    property_address: addressLine ?? undefined,
-    city: cityStateZip?.[1]?.trim() ?? undefined,
+    property_address: addressLine ?? urlParts.property_address ?? undefined,
+    city: cityStateZip?.[1]?.trim() ?? urlParts.city ?? undefined,
     county: county ?? undefined,
-    state: cityStateZip?.[2]?.trim() ?? undefined,
-    zip_code: cityStateZip?.[3] ?? zip?.[0] ?? undefined,
+    state: cityStateZip?.[2]?.trim() ?? urlParts.state ?? undefined,
+    zip_code: cityStateZip?.[3] ?? zip?.[0] ?? urlParts.zip_code ?? undefined,
     purchase_price: price?.[1]?.replace(/,/g, "") ?? undefined,
     annual_property_tax: taxes?.[1]?.replace(/,/g, "") ?? undefined,
     monthly_rent: rent?.[1]?.replace(/,/g, "") ?? undefined,
@@ -985,6 +1042,42 @@ function parseListingText(text: string): Partial<ManualListingState> {
     missing_questions: missingQuestions.join("\n") || undefined,
     source_confidence: listingUrl || price || propertyType ? "medium" : "low",
   };
+}
+
+function parseListingUrlParts(url: string | undefined): Partial<ManualListingState> {
+  if (!url) return {};
+  try {
+    const parsed = new URL(url);
+    const homeDetailsMarker = "/homedetails/";
+    const path = decodeURIComponent(parsed.pathname);
+    const markerIndex = path.indexOf(homeDetailsMarker);
+    if (markerIndex === -1) return {};
+
+    const slug = path
+      .slice(markerIndex + homeDetailsMarker.length)
+      .split("/")[0]
+      .replace(/_zpid.*$/i, "")
+      .replace(/\d+_zpid.*$/i, "")
+      .replace(/[-_]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!slug) return {};
+    const parts = slug.split(" ");
+    const zip = /^\d{5}$/.test(parts.at(-1) ?? "") ? parts.at(-1) : "";
+    const state = zip ? parts.at(-2) ?? "" : "";
+    const city = zip ? parts.at(-3) ?? "" : "";
+    const addressParts = zip ? parts.slice(0, -3) : parts;
+
+    return {
+      property_address: addressParts.join(" ") || undefined,
+      city: city || undefined,
+      state: state || undefined,
+      zip_code: zip || undefined,
+    };
+  } catch {
+    return {};
+  }
 }
 
 async function enrichWithPhotoAnalysis(fields: Partial<ManualListingState>): Promise<Partial<ManualListingState>> {
@@ -1434,14 +1527,12 @@ function ManualField({
   label,
   value,
   onChange,
-  placeholder,
   required,
   inputMode,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  placeholder: string;
   required?: boolean;
   inputMode?: "numeric" | "decimal";
 }) {
@@ -1456,7 +1547,6 @@ function ManualField({
         id={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
         required={required}
         inputMode={inputMode}
       />
@@ -1468,12 +1558,10 @@ function TextReviewField({
   label,
   value,
   onChange,
-  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  placeholder: string;
 }) {
   const id = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   return (
@@ -1483,7 +1571,6 @@ function TextReviewField({
         id={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
         rows={4}
       />
     </div>
