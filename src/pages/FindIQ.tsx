@@ -107,6 +107,23 @@ const initialManualListing: ManualListingState = {
   photo_analysis_status: "not_requested",
 };
 
+const STRATEGY_OPTIONS = [
+  "Owner Occupant",
+  "Buy & Hold",
+  "House Hack",
+  "Long-Term Rental",
+  "Mid-Term Rental",
+  "Short-Term Rental",
+  "BRRRR",
+  "Fix & Flip",
+  "Seller Finance",
+  "Subject-To",
+  "Lease Option",
+  "ADU / Value-Add",
+  "Development",
+  "1031 Exchange",
+];
+
 export default function FindIQ() {
   const navigate = useNavigate();
   const { data: deals, isLoading } = useDeals();
@@ -290,8 +307,29 @@ export default function FindIQ() {
       return;
     }
 
-    const parsed = parseListingText(trimmedAddress);
-    let propertyAddress = parsed.property_address || trimmedAddress;
+    const listingUrl = trimmedAddress.match(/https?:\/\/[^\s"'<>]+/i)?.[0];
+    let parsed = parseListingText(trimmedAddress);
+    let extractedFields: Partial<ManualListingState> = {};
+
+    try {
+      const { data, error } = await supabase.functions.invoke("extract-deal-from-text", {
+        body: { listing_text: trimmedAddress, listing_url: listingUrl },
+      });
+      if (!error) {
+        const extracted = (data as { extracted?: VisualExtraction })?.extracted;
+        extractedFields = extracted ? visualToManualFields(extracted) : {};
+        parsed = {
+          ...parsed,
+          ...Object.fromEntries(
+            Object.entries(extractedFields).filter(([, value]) => typeof value === "string" && value.trim()),
+          ),
+        } as Partial<ManualListingState>;
+      }
+    } catch {
+      // Provider or AI extraction may be unavailable. Keep the workflow moving with parsed or blank fields.
+    }
+
+    let propertyAddress = parsed.property_address || (listingUrl ? "" : trimmedAddress);
     let city = parsed.city || "";
     let state = parsed.state || "";
     let zip = parsed.zip_code || "";
@@ -318,36 +356,36 @@ export default function FindIQ() {
         propertyAddress = parsed.property_address || result.formatted_address?.split(",")[0] || propertyAddress;
       }
     } catch {
-      // Fall back to parsed text and ask for only the missing location fields below.
-    }
-
-    if (!city || !state) {
-      openImportIntake({
-        property_address: propertyAddress,
-        city,
-        county,
-        state,
-        zip_code: zip,
-        strategy_primary: strategy,
-      });
-      toast.warning("BRIX needs city and state to create the deal file.");
-      return;
+      // Fall back to parsed text and leave unsupported fields blank.
     }
 
     try {
       const deal = await createDeal.mutateAsync({
-        property_address: propertyAddress,
-        city,
+        property_address: propertyAddress || trimmedAddress,
+        city: city || undefined,
         county: county || undefined,
-        state,
+        state: state || undefined,
         zip_code: zip || undefined,
         strategy_primary: strategy || undefined,
-        missing_questions: [] as Json,
-        condition_notes: [] as Json,
-        visible_or_stated_risks: [] as Json,
-        listing_photo_urls: [] as Json,
+        listing_url: listingUrl || parsed.listing_url || undefined,
+        listing_source: inferListingSource(listingUrl || parsed.listing_url),
+        listing_remarks: listingUrl ? trimmedAddress : undefined,
+        property_type: parsed.property_type || undefined,
+        beds: parseNumber(parsed.beds),
+        baths: parseNumber(parsed.baths),
+        square_feet: parseNumber(parsed.square_feet),
+        year_built: parseNumber(parsed.year_built),
+        purchase_price: parseNumber(parsed.purchase_price),
+        monthly_rent: parseNumber(parsed.monthly_rent),
+        annual_property_tax: parseNumber(parsed.annual_property_tax),
+        insurance: parseNumber(parsed.insurance),
+        estimated_arv: parseNumber(parsed.estimated_arv),
+        missing_questions: splitLines(parsed.missing_questions).length ? splitLines(parsed.missing_questions) as Json : [] as Json,
+        condition_notes: splitLines(parsed.condition_notes).length ? splitLines(parsed.condition_notes) as Json : [] as Json,
+        visible_or_stated_risks: splitLines(parsed.visible_or_stated_risks).length ? splitLines(parsed.visible_or_stated_risks) as Json : [] as Json,
+        listing_photo_urls: splitLines(parsed.listing_photo_urls).length ? splitLines(parsed.listing_photo_urls) as Json : [] as Json,
         source_confidence: "low",
-        photo_analysis_status: "not_requested",
+        photo_analysis_status: splitLines(parsed.listing_photo_urls).length ? "pending_review" : "not_requested",
         deal_status: "draft",
       });
 
@@ -527,25 +565,38 @@ export default function FindIQ() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="findiq-quick-input">Property address</Label>
+              <Label htmlFor="findiq-quick-input">Property address or listing link</Label>
               <Input
                 id="findiq-quick-input"
                 value={quickInput}
                 onChange={(event) => setQuickInput(event.target.value)}
                 className="h-12 text-base"
-                aria-label="Property address"
+                aria-label="Property address or listing link"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="findiq-quick-strategy">Strategy</Label>
-              <Input
-                id="findiq-quick-strategy"
-                value={quickStrategy}
-                onChange={(event) => setQuickStrategy(event.target.value)}
-                className="h-12 text-base"
-                aria-label="Strategy"
-              />
+              <Label>Strategy</Label>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {STRATEGY_OPTIONS.map((strategy) => {
+                  const selected = quickStrategy === strategy;
+                  return (
+                    <button
+                      key={strategy}
+                      type="button"
+                      onClick={() => setQuickStrategy(strategy)}
+                      className={`rounded-lg border px-3 py-3 text-left text-sm font-semibold transition-colors ${
+                        selected
+                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                          : "border-border bg-background hover:border-primary/50 hover:bg-primary/10"
+                      }`}
+                      aria-pressed={selected}
+                    >
+                      {strategy}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <Button type="submit" size="lg" className="w-full" disabled={createDeal.isPending}>

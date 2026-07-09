@@ -16,6 +16,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { CardContainer } from "@/components/ui/card-container";
@@ -26,8 +27,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { useDeals, useDeleteDeal } from "@/hooks/useDeals";
 import { supabase } from "@/integrations/supabase/client";
-import { analyzeDeal, type DealInput } from "@/lib/dealAnalysisEngine";
+import { analyzeDeal, type AnalysisResult, type DealInput } from "@/lib/dealAnalysisEngine";
 import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
+import { evaluateDealStrategies, type StrategyFitInput, type StrategyFitResults, type StrategyScore } from "@/lib/strategyFitEngine";
 import { cn } from "@/lib/utils";
 
 type Deal = NonNullable<ReturnType<typeof useDeals>["data"]>[number];
@@ -48,6 +50,80 @@ const money = (value: number | null | undefined) =>
 
 const pct = (value: number) => `${(value * 100).toFixed(1)}%`;
 const ratio = (value: number) => `${value.toFixed(2)}x`;
+type StrategyKey = keyof StrategyFitResults;
+
+const STRATEGY_LABELS: Record<StrategyKey, string> = {
+  ownerOccupant: "Owner Occupant",
+  buyAndHold: "Buy & Hold",
+  brrrr: "BRRRR",
+  hybridBrrrr: "Hybrid BRRRR",
+  longTermRental: "Long-Term Rental",
+  midTermRental: "Mid-Term Rental",
+  shortTermRental: "Short-Term Rental",
+  hybridRental: "Hybrid Rental",
+  houseHack: "House Hack",
+  fixFlip: "Fix & Flip",
+  valueAdd: "Value-Add",
+  appreciationHold: "Appreciation Hold",
+  refinance: "Refinance",
+  hold: "Hold",
+  sell: "Sell",
+  sellerFinance: "Seller Finance",
+  subjectTo: "Subject-To",
+  leaseOption: "Lease Option",
+  wrapMortgage: "Wrap Mortgage",
+  adu: "ADU / Value-Add",
+  lotSplit: "Lot Split",
+  mixedUseConversion: "Mixed-Use Conversion",
+  commercialRepositioning: "Commercial Repositioning",
+  development: "Development",
+  exchange1031: "1031 Exchange",
+};
+
+function normalizeStrategyKey(strategy: string | null | undefined): StrategyKey {
+  const normalized = (strategy ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (normalized.includes("owneroccup") || normalized.includes("livein") || normalized.includes("primary")) return "ownerOccupant";
+  if (normalized.includes("hybridbrrrr")) return "hybridBrrrr";
+  if (normalized.includes("brrrr")) return "brrrr";
+  if (normalized.includes("longterm")) return "longTermRental";
+  if (normalized.includes("midterm")) return "midTermRental";
+  if (normalized.includes("shortterm")) return "shortTermRental";
+  if (normalized.includes("hybridrental")) return "hybridRental";
+  if (normalized.includes("househack")) return "houseHack";
+  if (normalized.includes("flip")) return "fixFlip";
+  if (normalized.includes("valueadd")) return "valueAdd";
+  if (normalized.includes("appreciation")) return "appreciationHold";
+  if (normalized.includes("refinance")) return "refinance";
+  if (normalized === "hold") return "hold";
+  if (normalized === "sell") return "sell";
+  if (normalized.includes("sellerfinance")) return "sellerFinance";
+  if (normalized.includes("subjectto")) return "subjectTo";
+  if (normalized.includes("leaseoption")) return "leaseOption";
+  if (normalized.includes("wrap")) return "wrapMortgage";
+  if (normalized.includes("adu")) return "adu";
+  if (normalized.includes("lotsplit")) return "lotSplit";
+  if (normalized.includes("mixeduse")) return "mixedUseConversion";
+  if (normalized.includes("commercial")) return "commercialRepositioning";
+  if (normalized.includes("development")) return "development";
+  if (normalized.includes("1031")) return "exchange1031";
+  return "buyAndHold";
+}
+
+function toStrategyFitInput(input: DealInput, analysis: AnalysisResult): StrategyFitInput {
+  return {
+    purchasePrice: input.purchase_price,
+    rehabCost: input.rehab_cost + input.rehab_contingency,
+    arv: input.arv,
+    projectedRent: input.monthly_rent,
+    cashFlowMonthly: analysis.metrics.monthly_cashflow,
+    capRate: analysis.metrics.cap_rate,
+    cashOnCashReturn: analysis.metrics.cash_on_cash,
+    rentTrend: null,
+    priceTrend: null,
+    inventoryTrend: null,
+    crimeScore: null,
+  };
+}
 
 function toDealInput(deal: Deal): DealInput {
   return {
@@ -116,6 +192,9 @@ export function DealIQLanding() {
   const activeInput = activeDeal ? toDealInput(activeDeal) : null;
   const activeAnalysis = activeInput ? analyzeDeal(activeInput) : null;
   const activeIntelligence = activeAnalysis ? analyzeDealIntelligence(activeAnalysis) : null;
+  const activeStrategyFit = activeInput && activeAnalysis
+    ? evaluateDealStrategies(toStrategyFitInput(activeInput, activeAnalysis))
+    : null;
   const activeMissing = activeDeal ? missingInputs(activeDeal) : [];
   const { data: fieldEvidence } = useFieldEvidence(activeDeal?.id);
   const readyCount = liveDeals.filter((deal) => readiness(deal) >= 80).length;
@@ -252,7 +331,11 @@ export function DealIQLanding() {
               </div>
 
               <div className="px-4 pb-4">
-                <StrategyInstrument analysis={activeAnalysis} intelligence={activeIntelligence} />
+                <StrategyInstrument
+                  deal={activeDeal}
+                  analysis={activeAnalysis}
+                  strategyFit={activeStrategyFit}
+                />
               </div>
 
               <div className="px-4 pb-4">
@@ -352,6 +435,172 @@ function useFieldEvidence(dealId: string | undefined) {
   });
 }
 
+function MetricTile({ label, value, tone = "neutral" }: { label: string; value: string; tone?: "good" | "warn" | "bad" | "neutral" }) {
+  return (
+    <div className="rounded-xl border border-border/70 bg-background/50 p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={cn("mt-1 text-lg font-black", toneClass(tone))}>{value}</p>
+    </div>
+  );
+}
+
+function DealListItem({ deal, active, onOpen }: { deal: Deal; active: boolean; onOpen: () => void }) {
+  const score = readiness(deal);
+  const missing = missingInputs(deal).length;
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className={cn(
+        "block w-full p-4 text-left transition-colors hover:bg-muted/35",
+        active && "bg-primary/8",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-foreground">{deal.property_address || deal.deal_name || "Unnamed property"}</p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">{[deal.city, deal.state].filter(Boolean).join(", ") || "Location needed"}</p>
+        </div>
+        <span className={cn("text-sm font-black", scoreColor(score))}>{score}</span>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        <Badge variant="outline" className="rounded-full text-[10px]">{deal.strategy_primary || "Strategy needed"}</Badge>
+        {missing > 0 && <Badge className="rounded-full border border-signal-warning/25 bg-signal-warning/10 text-[10px] text-signal-warning">{missing} to verify</Badge>}
+      </div>
+    </button>
+  );
+}
+
+function InstrumentPanel({ title, action, children }: { title: string; action?: string; children: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-background/45 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        {action && <span className="text-xs font-semibold text-muted-foreground">{action}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function ValueLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-border/60 py-2 first:border-t-0 first:pt-0 last:pb-0">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-right text-sm font-semibold text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function strategyTone(score: number): "good" | "warn" | "bad" {
+  if (score >= 80) return "good";
+  if (score >= 60) return "warn";
+  return "bad";
+}
+
+function StrategyInstrument({
+  deal,
+  analysis,
+  strategyFit,
+}: {
+  deal: Deal;
+  analysis: AnalysisResult | null;
+  strategyFit: StrategyFitResults | null;
+}) {
+  if (!analysis || !strategyFit) {
+    return (
+      <InstrumentPanel title="Strategy Fit" action="Needs numbers">
+        <p className="text-sm leading-6 text-muted-foreground">Enter price, rent, taxes, insurance, and financing assumptions to compare strategy fit.</p>
+      </InstrumentPanel>
+    );
+  }
+
+  const selectedKey = normalizeStrategyKey(deal.strategy_primary);
+  const selected = strategyFit[selectedKey];
+  const ranked = (Object.entries(strategyFit) as Array<[StrategyKey, StrategyScore]>)
+    .sort((a, b) => b[1].score - a[1].score);
+  const alternatives = ranked.filter(([key]) => key !== selectedKey).slice(0, 4);
+  const betterAlternatives = ranked.filter(([key, score]) => key !== selectedKey && score.score > selected.score).slice(0, 3);
+
+  return (
+    <InstrumentPanel title="Strategy Fit" action={`${selected.score}/100`}>
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="rounded-2xl border border-border/70 bg-card/60 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Selected strategy</p>
+              <h3 className="mt-1 text-lg font-bold text-foreground">{STRATEGY_LABELS[selectedKey]}</h3>
+            </div>
+            <div className="text-right">
+              <p className={cn("text-3xl font-black", toneClass(strategyTone(selected.score)))}>{selected.score}</p>
+              <Badge variant="outline" className="rounded-full">{selected.fitLevel} fit</Badge>
+            </div>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">{selected.explanation}</p>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <StrategyChecklist title="What must be true" items={selected.whatMustBeTrue} />
+            <StrategyChecklist title="Proof needed" items={selected.requiredInputs} />
+            <StrategyChecklist title="Failure points" items={selected.failureScenarios} tone="warn" />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="rounded-2xl border border-border/70 bg-card/60 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Best fit ranking</p>
+            <div className="mt-3 space-y-2">
+              {ranked.slice(0, 5).map(([key, score]) => (
+                <div key={key} className="flex items-center justify-between gap-3 rounded-xl bg-background/55 px-3 py-2">
+                  <span className="truncate text-sm font-semibold text-foreground">{STRATEGY_LABELS[key]}</span>
+                  <span className={cn("text-sm font-black", toneClass(strategyTone(score.score)))}>{score.score}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {betterAlternatives.length > 0 && (
+            <div className="rounded-2xl border border-primary/25 bg-primary/8 p-4">
+              <p className="text-sm font-semibold text-foreground">Consider comparing</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                This property currently scores higher for {betterAlternatives.map(([key]) => STRATEGY_LABELS[key]).join(", ")}.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        {alternatives.map(([key, score]) => (
+          <div key={key} className="rounded-xl border border-border/70 bg-background/45 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="truncate text-sm font-semibold text-foreground">{STRATEGY_LABELS[key]}</p>
+              <span className={cn("text-sm font-black", toneClass(strategyTone(score.score)))}>{score.score}</span>
+            </div>
+            <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">{score.explanation}</p>
+          </div>
+        ))}
+      </div>
+    </InstrumentPanel>
+  );
+}
+
+function StrategyChecklist({ title, items, tone = "neutral" }: { title: string; items: string[]; tone?: "warn" | "neutral" }) {
+  return (
+    <div className="rounded-xl border border-border/70 bg-background/45 p-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
+      <ul className="mt-2 space-y-1.5">
+        {items.slice(0, 4).map((item) => (
+          <li key={item} className="flex gap-2 text-xs leading-5 text-muted-foreground">
+            <span className={cn("mt-1 h-1.5 w-1.5 shrink-0 rounded-full", tone === "warn" ? "bg-signal-warning" : "bg-primary")} />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function FieldEvidencePanel({ evidence }: { evidence: Array<{ id: string; ai_findings: unknown; confidence_score: number | null; severity: string | null; verification_recommendation: string | null }> }) {
   const findings = evidence.flatMap((item) => {
     const raw = Array.isArray(item.ai_findings) ? item.ai_findings : [];
@@ -362,7 +611,7 @@ function FieldEvidencePanel({ evidence }: { evidence: Array<{ id: string; ai_fin
     <InstrumentPanel title="Field Evidence" action={findings.length ? `${findings.length} finding${findings.length === 1 ? "" : "s"}` : "None yet"}>
       {findings.length === 0 ? (
         <p className="text-sm leading-6 text-muted-foreground">
-          No mobile photo findings yet. Capture photos from the iOS app to attach evidence to this deal and run visual review when AI is configured.
+          Upload property photos to attach visual evidence, surface visible concerns, and keep condition notes with this deal.
         </p>
       ) : (
         <div className="space-y-2">

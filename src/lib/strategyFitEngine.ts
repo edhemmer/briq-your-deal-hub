@@ -24,6 +24,7 @@ export interface StrategyScore {
 }
 
 export interface StrategyFitResults {
+  ownerOccupant: StrategyScore;
   buyAndHold: StrategyScore;
   brrrr: StrategyScore;
   hybridBrrrr: StrategyScore;
@@ -96,6 +97,14 @@ function safeNum(v: number | null | undefined): number {
 }
 
 const STRATEGY_METADATA: Record<StrategyKey, StrategyMetadata> = {
+  ownerOccupant: {
+    requiredInputs: ["Purchase price", "Annual taxes", "Annual insurance", "Financing terms", "Commute or location fit", "Condition", "Resale support", "Renovation tolerance"],
+    assumptions: ["The monthly payment fits the buyer's household budget", "Location and daily-use constraints are acceptable", "Property condition is manageable", "Resale demand exists if plans change"],
+    verificationQuestions: ["What is the full monthly payment including taxes and insurance?", "Does the location fit daily life and commute needs?", "Are taxes verified from county records?", "Does the condition fit the buyer's renovation tolerance?", "Would resale demand remain broad if the buyer needed to sell?"],
+    successCriteria: ["Affordable total monthly housing cost", "Acceptable life fit", "Verified taxes and insurance", "Condition risk is understood", "Reasonable resale liquidity"],
+    whatMustBeTrue: ["The buyer can comfortably carry the property", "Location friction must be acceptable", "Renovation scope must not exceed time, cash, or stress tolerance", "The property must remain marketable"],
+    failureScenarios: ["Payment is affordable only under optimistic assumptions", "Location creates daily friction", "Taxes or insurance are materially higher than expected", "Condition issues exceed renovation tolerance", "Resale pool is narrow"],
+  },
   buyAndHold: {
     requiredInputs: ["Purchase price", "Rent", "Taxes", "Insurance", "Financing terms", "Vacancy", "Maintenance", "Exit assumptions"],
     assumptions: ["Income is durable", "Operating expenses are complete", "Debt terms remain serviceable", "Hold period is long enough for compounding"],
@@ -492,6 +501,13 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
   };
 
   const buyAndHoldScore = Math.round(ltrScore * 0.55 + ahScore * 0.25 + vaScore * 0.2);
+  const ownerOccupantScore = Math.round(
+    normalize(pp > 0 ? rent * 12 / pp : 0, 0.035, 0.12) * 0.2 +
+    normalize(cf, -800, 200) * 0.15 +
+    ahScore * 0.25 +
+    vaScore * 0.15 +
+    crimeAdjust * 0.25
+  );
   const hybridBrrrrScore = Math.round(brrrrScore * 0.7 + vaScore * 0.3);
   const hybridRentalScore = Math.round(Math.max(ltrScore, mtrScore, strScore) * 0.55 + (ltrScore + mtrScore + strScore) / 3 * 0.45);
   const houseHackScore = Math.round(ltrScore * 0.65 + normalize(cf, -500, 300) * 0.2 + crimeAdjust * 0.15);
@@ -529,6 +545,16 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
   }
 
   return {
+    ownerOccupant: standardScore(
+      "ownerOccupant",
+      ownerOccupantScore,
+      ownerOccupantScore >= 80
+        ? "Strong live-in fit if the full payment, location, condition, and resale checks verify."
+        : ownerOccupantScore >= 60
+          ? "Moderate live-in fit; affordability, location friction, and renovation tolerance need confirmation."
+          : "Weak live-in fit until affordability, condition, or resale support improves.",
+      pickDisqualifiers(["Elevated crime signal", "Soft price trend", "High rehab burden"]),
+    ),
     buyAndHold: standardScore(
       "buyAndHold",
       buyAndHoldScore,
