@@ -23,13 +23,13 @@ struct DigitalTwinView: View {
             VStack(spacing: 16) {
                 if appState.authState.isSignedIn == false {
                     SignInRequiredCard(
-                        title: "FindIQ uses your BRIX deal records",
-                        message: "Sign in to search, rank, and open your saved properties across BRIX."
+                        title: "Sign in to use FindIQ",
+                        message: "Search, rank, and open your saved properties."
                     )
                 } else {
                     BrixCard {
                         VStack(alignment: .leading, spacing: 12) {
-                            SectionHeader(title: "FindIQ", subtitle: "Create, search, and rank real BRIX deal files.", symbol: "magnifyingglass")
+                            SectionHeader(title: "FindIQ", subtitle: "Create, search, and rank properties.", symbol: "magnifyingglass")
                             TextField("Search address, city, ZIP, or property type", text: $searchText)
                                 .textFieldStyle(.roundedBorder)
 
@@ -56,7 +56,7 @@ struct DigitalTwinView: View {
                     if filteredDeals.isEmpty {
                         EmptyOperatingState(
                             title: "No properties found",
-                            message: "Add or import listings in BRIX, then refresh. FindIQ will only show real records from your account.",
+                            message: "Add the first property to begin ranking, comparison, and analysis.",
                             symbol: "house"
                         )
                     } else {

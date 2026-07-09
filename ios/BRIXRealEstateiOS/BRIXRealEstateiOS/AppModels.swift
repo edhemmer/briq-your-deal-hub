@@ -514,7 +514,6 @@ enum AppTab: String, CaseIterable, Identifiable {
     case deal = "DealIQ"
     case pipeline = "PipelineIQ"
     case offer = "OfferIQ"
-    case field = "Field"
     case portfolio = "PortfolioIQ"
     case account = "Account"
 
@@ -527,7 +526,6 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .deal: return "chart.bar.xaxis"
         case .pipeline: return "rectangle.stack.badge.play"
         case .offer: return "doc.text"
-        case .field: return "camera.viewfinder"
         case .portfolio: return "chart.pie"
         case .account: return "person.crop.circle"
         }

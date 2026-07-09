@@ -19,7 +19,7 @@ struct AccountView: View {
             VStack(spacing: 16) {
                 BrixCard {
                     VStack(alignment: .leading, spacing: 14) {
-                        SectionHeader(title: "Account", subtitle: "Authentication, privacy, and data controls.", symbol: "person.crop.circle")
+                        SectionHeader(title: "Account", subtitle: "Sign in, privacy, and support.", symbol: "person.crop.circle")
 
                         if appState.authState.isSignedIn {
                             VStack(alignment: .leading, spacing: 6) {
@@ -104,7 +104,7 @@ struct AccountView: View {
                             .signInWithAppleButtonStyle(.black)
                             .frame(height: 48)
 
-                            Text("Use the same BRIX account on web, iPhone, and iPad for saved deals, field uploads, portfolio data, and account deletion controls.")
+                            Text("Use the same account on web, iPhone, and iPad.")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
@@ -119,12 +119,9 @@ struct AccountView: View {
 
                 BrixCard {
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(title: "Privacy", subtitle: "Data collection is visible, purposeful, and not used for tracking.", symbol: "hand.raised")
-                        PrivacyDisclosureRow(title: "No cross-app tracking", detail: "BRIX does not track you across other companies' apps or websites and does not use advertising identifiers.")
-                        PrivacyDisclosureRow(title: "Photos and videos", detail: "Used to attach evidence to a Property Digital Twin and generate preliminary visual findings.")
-                        PrivacyDisclosureRow(title: "Location", detail: "Optional. Used to tag field captures to a property visit when you allow access.")
-                        PrivacyDisclosureRow(title: "Microphone", detail: "Optional. Used only when you record a property voice note.")
-                        PrivacyDisclosureRow(title: "Property and deal content", detail: "Used to save listing details, notes, documents, inspections, bids, leases, and due diligence records.")
+                        SectionHeader(title: "Privacy", subtitle: "Review app policies and data controls.", symbol: "hand.raised")
+                        PrivacyDisclosureRow(title: "Photos and documents", detail: "Used only for the deals you add to BRIX.")
+                        PrivacyDisclosureRow(title: "Location and microphone", detail: "Used only when you choose those capture tools.")
 
                         Link(destination: BRIXAppConfig.privacyPolicyURL) {
                             Label("Open Privacy Policy", systemImage: "safari")
@@ -143,7 +140,7 @@ struct AccountView: View {
                 BrixCard {
                     VStack(alignment: .leading, spacing: 12) {
                         SectionHeader(title: "Delete Account", subtitle: "Permanently remove your BRIX account and personal data.", symbol: "trash")
-                        Text("Deletion removes your BRIX account and associated personal data, except information BRIX is legally required to retain. This is not temporary deactivation. Active Apple subscriptions, if any, must be managed through your Apple account.")
+                        Text("Deletion is permanent. Any active Apple subscription must be managed through your Apple account.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
@@ -190,7 +187,7 @@ struct AccountView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This starts deletion of the full account record and associated personal data. This is not temporary deactivation.")
+            Text("This permanently removes your BRIX account and personal data, except records BRIX is legally required to retain.")
         }
     }
 
@@ -267,7 +264,7 @@ struct AccountView: View {
         do {
             try await apiClient.requestAccountDeletion(reason: deletionReason.isEmpty ? nil : deletionReason, session: appState.session)
             await appState.signOut()
-            deletionStatus = "Account deletion was started. BRIX will remove your account and associated personal data except records legally required to retain. You have been signed out."
+            deletionStatus = "Account deletion started. You have been signed out."
         } catch {
             deletionStatus = "Could not submit deletion request. Try again or contact support."
         }

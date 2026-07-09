@@ -27,6 +27,9 @@ struct FindIQView: View {
                 } else {
                     searchPanel
                     queuePanel
+                    if appState.selectedDeal != nil {
+                        PropertyCapturePanel()
+                    }
                 }
 
                 if let error = appState.lastError {
@@ -169,7 +172,7 @@ private struct AddPropertySheet: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Paste a listing")
                             .font(.headline)
-                        Text("Paste a real estate listing URL, listing description, agent notes, or copied property facts. BRIX will prefill the deal file, then you verify before saving.")
+                        Text("Paste a real estate listing URL, listing description, agent notes, or copied property facts. Review the fields before saving.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
 
@@ -247,7 +250,7 @@ private struct AddPropertySheet: View {
                 }
 
                 Section {
-                    Text("BRIX saves this as \(draft.sourceConfidence.replacingOccurrences(of: "_", with: " ")) until source-backed records, rent support, insurance, taxes, and condition evidence are verified. Insurance should be entered as an annual quote.")
+                    Text("Review every number before relying on the analysis. Enter insurance as an annual quote.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -298,7 +301,7 @@ private struct FindIQEmptyQueue: View {
         VStack(spacing: 18) {
             EmptyOperatingState(
                 title: "Start with one property",
-                message: "Paste a listing, type the address and facts, or add notes from a showing. BRIX turns that first record into a ranked opportunity and opens it in DealIQ when you are ready.",
+                message: "Paste a listing, type the address and facts, or add notes from a showing. Then rank the opportunity and open it in DealIQ.",
                 symbol: "house.and.flag"
             )
 

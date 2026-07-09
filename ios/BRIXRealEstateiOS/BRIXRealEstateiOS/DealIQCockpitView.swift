@@ -151,7 +151,7 @@ struct DealIQCockpitView: View {
     private func strategies(_ deal: DealSummary) -> some View {
         BrixCard {
             VStack(alignment: .leading, spacing: 12) {
-                SectionHeader(title: "Strategy Fit", subtitle: "BRIX should compare the strategy selected with credible alternatives.", symbol: "arrow.triangle.branch")
+                SectionHeader(title: "Strategy Fit", subtitle: "Compare the selected strategy with credible alternatives.", symbol: "arrow.triangle.branch")
                 StrategyFitRow(name: deal.strategyPrimary ?? "Buy & Hold", detail: "Primary strategy for this deal file.", status: "Selected")
                 StrategyFitRow(name: "Long-Term Rental", detail: "Requires verified rent, taxes, insurance, vacancy, and repairs.", status: "Needs inputs")
                 StrategyFitRow(name: "BRRRR", detail: "Requires ARV, rehab scope, refinance terms, and seasoning assumptions.", status: "Check fit")
@@ -163,10 +163,10 @@ struct DealIQCockpitView: View {
     private func risk(_ deal: DealSummary) -> some View {
         BrixCard {
             VStack(alignment: .leading, spacing: 12) {
-                SectionHeader(title: "Risk Inspector", subtitle: "No recommendation should outrun the evidence.", symbol: "exclamationmark.shield")
-                ActionLine(title: "Rent support must be verified with comps, lease data, or market evidence.", severity: deal.monthlyRent == nil ? .caution : .info)
-                ActionLine(title: "Insurance should be entered as an annual quote.", severity: deal.insurance == nil ? .caution : .info)
-                ActionLine(title: "Condition and rehab scope should be supported by photos, inspection, or contractor bid.", severity: .caution)
+                SectionHeader(title: "Risk Inspector", subtitle: "Keep the decision tied to evidence.", symbol: "exclamationmark.shield")
+                ActionLine(title: "Verify rent with comps, lease data, or market evidence.", severity: deal.monthlyRent == nil ? .caution : .info)
+                ActionLine(title: "Enter insurance as an annual quote.", severity: deal.insurance == nil ? .caution : .info)
+                ActionLine(title: "Support condition and rehab scope with photos, inspection, or contractor bid.", severity: .caution)
             }
         }
     }

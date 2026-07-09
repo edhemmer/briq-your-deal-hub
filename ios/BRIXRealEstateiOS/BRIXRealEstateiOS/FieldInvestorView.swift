@@ -3,6 +3,18 @@ import SwiftUI
 import UIKit
 
 struct FieldInvestorView: View {
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                PropertyCapturePanel()
+            }
+            .padding()
+        }
+        .brixScreenBackground()
+    }
+}
+
+struct PropertyCapturePanel: View {
     @Environment(BRIXAppState.self) private var appState
     @State private var selectedCapture = "Photo"
     @State private var note = ""
@@ -15,118 +27,107 @@ struct FieldInvestorView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                if appState.authState.isSignedIn == false {
-                    SignInRequiredCard(
-                        title: "Sign in to use Field Capture",
-                        message: "Attach photos, documents, and notes to the selected deal while you are at the property."
-                    )
-                } else {
-                    BrixCard {
-                        VStack(alignment: .leading, spacing: 14) {
-                            SectionHeader(title: "Field Capture", subtitle: "Capture evidence from the property and attach it to the selected deal.", symbol: "camera.viewfinder")
+        VStack(spacing: 16) {
+            BrixCard {
+                VStack(alignment: .leading, spacing: 14) {
+                    SectionHeader(title: "Capture", subtitle: "Add photos, notes, and documents to the selected property.", symbol: "camera.viewfinder")
 
-                            if let deal = appState.selectedDeal {
-                                Text("Selected: \(deal.title)")
-                                    .font(.subheadline.weight(.semibold))
-                            } else {
-                                Text("Select a deal in FindIQ before uploading field evidence.")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Picker("Capture type", selection: $selectedCapture) {
-                                ForEach(captureTypes, id: \.self) { type in
-                                    Text(type).tag(type)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-
-                            TextField("Optional note for this capture", text: $note, axis: .vertical)
-                                .textFieldStyle(.roundedBorder)
-
-                            HStack {
-                                Button {
-                                    isCameraPresented = true
-                                } label: {
-                                    Label("Use Camera", systemImage: "camera")
-                                        .frame(maxWidth: .infinity)
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .disabled(appState.selectedDeal == nil || cameraAvailable == false)
-
-                                PhotosPicker(selection: $photoPickerItem, matching: .images) {
-                                    Label("Upload Photo", systemImage: "photo")
-                                        .frame(maxWidth: .infinity)
-                                }
-                                .buttonStyle(.bordered)
-                                .disabled(appState.selectedDeal == nil)
-                            }
-
-                            Button {
-                                Task {
-                                    await appState.uploadFieldCapture(imageData: nil, captureType: selectedCapture, note: note.isEmpty ? nil : note)
-                                    note = ""
-                                }
-                            } label: {
-                                Label("Save Note", systemImage: "square.and.arrow.up")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(appState.selectedDeal == nil || note.isEmpty)
-                        }
+                    if let deal = appState.selectedDeal {
+                        Text(deal.title)
+                            .font(.subheadline.weight(.semibold))
+                    } else {
+                        Text("Select a property before adding photos or notes.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
 
-                    BrixCard {
-                        VStack(alignment: .leading, spacing: 12) {
-                            SectionHeader(title: "Capture Activity", subtitle: "Recent photos, documents, and notes for the selected deal.", symbol: "tray.and.arrow.up")
-                            if appState.queuedOfflineActions.isEmpty {
-                                Text("No captures added yet.")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                ForEach(appState.queuedOfflineActions) { action in
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 3) {
-                                            Text(action.title).font(.subheadline.weight(.semibold))
-                                            Text(action.detail).font(.caption).foregroundStyle(.secondary)
-                                        }
-                                        Spacer()
-                                        SeverityBadge(text: action.uploadState.rawValue, severity: action.uploadState == .uploaded ? .positive : action.uploadState == .failed ? .risk : .caution)
-                                    }
-                                    .padding(12)
-                                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
-                                }
-                            }
+                    Picker("Capture type", selection: $selectedCapture) {
+                        ForEach(captureTypes, id: \.self) { type in
+                            Text(type).tag(type)
                         }
                     }
+                    .pickerStyle(.segmented)
 
-                    BrixCard {
-                        VStack(alignment: .leading, spacing: 12) {
-                            SectionHeader(title: "Visual Findings", subtitle: "Photo observations returned by BRIX. Verify before relying on them.", symbol: "wrench.and.screwdriver")
-                            if appState.fieldCaptureAnalyses.flatMap(\.aiFindings).isEmpty {
-                                Text("No visual findings yet. Upload a property photo to attach it to the deal and begin visual review.")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                ForEach(appState.fieldCaptureAnalyses) { analysis in
-                                    ForEach(Array(analysis.aiFindings.enumerated()), id: \.offset) { _, finding in
-                                        VisualFindingRow(analysis: analysis, finding: finding)
-                                    }
-                                }
-                            }
+                    TextField("Optional note", text: $note, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+
+                    HStack {
+                        Button {
+                            isCameraPresented = true
+                        } label: {
+                            Label("Camera", systemImage: "camera")
+                                .frame(maxWidth: .infinity)
                         }
-                    }
-                }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(appState.selectedDeal == nil || cameraAvailable == false)
 
-                if let error = appState.lastError {
-                    ErrorCard(message: error)
+                        PhotosPicker(selection: $photoPickerItem, matching: .images) {
+                            Label("Photo Library", systemImage: "photo")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(appState.selectedDeal == nil)
+                    }
+
+                    Button {
+                        Task {
+                            await appState.uploadFieldCapture(imageData: nil, captureType: selectedCapture, note: note.isEmpty ? nil : note)
+                            note = ""
+                        }
+                    } label: {
+                        Label("Save Note", systemImage: "square.and.arrow.up")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(appState.selectedDeal == nil || note.isEmpty)
                 }
             }
-            .padding()
+
+            BrixCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    SectionHeader(title: "Capture Activity", subtitle: "Recent photos, documents, and notes for this property.", symbol: "tray.and.arrow.up")
+                    if appState.queuedOfflineActions.isEmpty {
+                        Text("No captures added yet.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(appState.queuedOfflineActions) { action in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(action.title).font(.subheadline.weight(.semibold))
+                                    Text(action.detail).font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                SeverityBadge(text: action.uploadState.rawValue, severity: action.uploadState == .uploaded ? .positive : action.uploadState == .failed ? .risk : .caution)
+                            }
+                            .padding(12)
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                }
+            }
+
+            BrixCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    SectionHeader(title: "Visual Findings", subtitle: "Photo observations for review.", symbol: "wrench.and.screwdriver")
+                    if appState.fieldCaptureAnalyses.flatMap(\.aiFindings).isEmpty {
+                        Text("No visual findings yet. Add a property photo to begin review.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(appState.fieldCaptureAnalyses) { analysis in
+                            ForEach(Array(analysis.aiFindings.enumerated()), id: \.offset) { _, finding in
+                                VisualFindingRow(analysis: analysis, finding: finding)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let error = appState.lastError {
+                ErrorCard(message: error)
+            }
         }
-        .brixScreenBackground()
         .sheet(isPresented: $isCameraPresented) {
             CameraCaptureSheet { imageData in
                 Task {

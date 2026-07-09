@@ -17,7 +17,7 @@ struct OfferIQView: View {
                             SectionHeader(title: "OfferIQ", subtitle: "How to pursue this opportunity.", symbol: "doc.text")
                             Text(deal.title)
                                 .font(.title3.bold())
-                            Text("Offer terms should remain provisional until DealIQ has verified rent support, insurance, taxes, condition, financing, and exit assumptions.")
+                            Text("Keep terms provisional until rent support, insurance, taxes, condition, financing, and exit assumptions are verified.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }

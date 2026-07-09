@@ -51,8 +51,6 @@ struct AppView: View {
             PipelineIQView()
         case .offer:
             OfferIQView()
-        case .field:
-            FieldInvestorView()
         case .portfolio:
             PortfolioOSView()
         case .account:

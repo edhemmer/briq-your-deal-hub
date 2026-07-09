@@ -53,7 +53,7 @@ struct TodayDecisionView: View {
                 } else {
                     EmptyOperatingState(
                         title: "Build your first deal file",
-                        message: "Start in FindIQ. Add a listing, property facts, or showing notes, then BRIX will organize the deal for analysis and comparison.",
+                        message: "Start in FindIQ. Add a listing, property facts, or showing notes, then review the deal in DealIQ.",
                         symbol: "house.and.flag"
                     )
                 }
