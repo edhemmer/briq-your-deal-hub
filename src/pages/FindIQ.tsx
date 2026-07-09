@@ -1,6 +1,6 @@
 import { useMemo, useState, type DragEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, ArrowRight, Bell, CheckCircle2, ClipboardPaste, FileSearch, FileSpreadsheet, Home, Link2, Plus, ShieldAlert, SlidersHorizontal, Target, Upload, XCircle, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bell, CheckCircle2, ClipboardPaste, FileSpreadsheet, Home, Plus, ShieldAlert, SlidersHorizontal, Target, Upload, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
@@ -220,6 +220,24 @@ export default function FindIQ() {
     }
   };
 
+  const startFromQuickInput = (event?: FormEvent) => {
+    event?.preventDefault();
+    const text = quickInput.trim();
+    if (!text) {
+      toast.error("Enter an address or paste a listing link first.");
+      return;
+    }
+
+    const looksLikeListing = /https?:\/\//i.test(text) || text.length > 80 || text.includes("\n");
+    if (looksLikeListing) {
+      void scanQuickInput();
+      return;
+    }
+
+    openImportIntake({ property_address: text });
+    toast.success("Address added. Add any known details, then save and rank.");
+  };
+
   const handleDroppedText = (text: string) => {
     if (!text.trim()) return;
     const fields = {
@@ -259,8 +277,8 @@ export default function FindIQ() {
   const saveManualListing = async (event: FormEvent) => {
     event.preventDefault();
 
-    if (!manualListing.property_address.trim() || !manualListing.city.trim() || !manualListing.state.trim()) {
-      toast.error("Address, city, and state are required.");
+    if (!manualListing.property_address.trim()) {
+      toast.error("Enter at least the property address. City, state, pricing, photos, and notes can be added as you verify the deal.");
       return;
     }
 
@@ -314,7 +332,7 @@ export default function FindIQ() {
     <SectionContainer>
       <PageHeader
         title="FindIQ"
-        description="Paste, import, or enter a property. BRIX turns it into a ranked opportunity queue and tells you what to verify before you spend time on it."
+        description="Add properties and rank what deserves attention."
       >
         <Button variant="outline">
           <Bell className="mr-2 h-4 w-4" />
@@ -326,82 +344,46 @@ export default function FindIQ() {
         </Button>
       </PageHeader>
 
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section>
         <CardContainer className="relative overflow-hidden">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-5">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Find faster</p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">Drop in a property. Let BRIX decide if it is worth your time.</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-                Paste a listing URL, listing text, broker email, spreadsheet row, or field notes. FindIQ extracts what it can, labels what is missing, and ranks the property before deeper underwriting.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Badge variant="outline">Paste URL or text</Badge>
-                <Badge variant="outline">Upload CSV / XLS</Badge>
-                <Badge variant="outline">Upload photos</Badge>
-                <Badge variant="outline">Rank saved deals</Badge>
-              </div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Start property</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">Address or listing link</h2>
             </div>
-            <div className="grid w-full grid-cols-3 gap-2 lg:w-[280px] lg:shrink-0">
+
+            <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]" onSubmit={startFromQuickInput}>
+              <Input
+                id="findiq-quick-input"
+                value={quickInput}
+                onChange={(event) => setQuickInput(event.target.value)}
+                placeholder="Address or listing URL"
+                className="h-12 text-base"
+              />
+              <Button type="submit" size="lg" disabled={isQuickScanning}>
+                {isQuickScanning ? "Reading..." : "Start Property"}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </form>
+
+            <div className="grid w-full grid-cols-3 gap-2">
               <MiniMetric label="Deal files" value={String(dealFiles.length)} />
               <MiniMetric label="Imported" value={String(importedDeals.length)} />
               <MiniMetric label="Ready" value={String(readyForDealIQ)} />
             </div>
           </div>
         </CardContainer>
-
-        <CardContainer>
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <Target className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">Active buying profile</h3>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Choose the strategy and constraints for this search. BRIX ranks only against the criteria you enter here.
-              </p>
-            </div>
-          </div>
-        </CardContainer>
       </section>
-
-      <CardContainer className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-            <Home className="h-4 w-4" />
-            Buying Profile
-          </div>
-          <h2 className="mt-2 text-lg font-semibold text-foreground">Define what a good property means</h2>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            This is not hard-coded to one market. Enter your location, budget, must-haves, exclusions, and strategy before ranking properties.
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <ProfileList title="Must have" items={profileMustHaves.length > 0 ? profileMustHaves : ["Add budget, location, beds, baths, exclusions, and must-have words."]} icon="must" />
-          <ProfileList title="Preferred" items={profilePreferences.length > 0 ? profilePreferences : ["Add preference words like ranch, basement, garage, light renovation, ADU."]} icon="prefer" />
-        </div>
-      </CardContainer>
 
       <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[390px_minmax(0,1fr)]">
         <CardContainer className="space-y-5">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-              <FileSearch className="h-4 w-4" />
-              Property Intake
-            </div>
-            <h2 className="mt-2 text-xl font-semibold text-foreground">Add the first property</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Start with a profile, then add whatever property information you have. FindIQ will prefill the deal file and ask for the facts it still needs.
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-border bg-muted/10 p-3">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+          <details className="rounded-xl border border-border bg-muted/10 p-3">
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-foreground">
               <Target className="h-4 w-4 text-primary" />
-              Buying profile
-            </div>
-            <div className="grid gap-3">
+              Buying criteria
+            </summary>
+            <div className="mt-3 grid gap-3">
               <ManualField label="Strategy" value={search.strategy} onChange={(value) => updateSearch("strategy", value)} placeholder="Owner Occupant, Buy & Hold, BRRRR..." />
               <ManualField label="Search geography" value={search.location} onChange={(value) => updateSearch("location", value)} placeholder="City, county, ZIP, state, or commute anchor" />
               <div className="grid gap-3 sm:grid-cols-2">
@@ -418,28 +400,11 @@ export default function FindIQ() {
               <ManualField label="Preferred words" value={search.preferredKeywords} onChange={(value) => updateSearch("preferredKeywords", value)} placeholder="light renovation, fenced yard, first-floor primary..." />
               <ManualField label="Renovation tolerance" value={search.renovationTolerance} onChange={(value) => updateSearch("renovationTolerance", value)} placeholder="Light renovation okay" />
             </div>
-          </div>
+          </details>
 
-          <div className="rounded-xl border border-primary/25 bg-primary/5 p-3">
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-              <ClipboardPaste className="h-4 w-4 text-primary" />
-              Paste anything
-            </div>
-            <Textarea
-              id="findiq-quick-input"
-              value={quickInput}
-              onChange={(event) => setQuickInput(event.target.value)}
-              placeholder="Paste a listing URL, listing text, email from an agent, property notes, tax notes, rent notes, or anything you know about the deal..."
-              rows={7}
-              className="min-h-[148px] resize-none"
-            />
-            <Button className="mt-3 w-full" onClick={scanQuickInput} disabled={isQuickScanning}>
-              {isQuickScanning ? "Reading property..." : "Extract Deal Facts"}
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              BRIX will not invent missing numbers. Anything uncertain becomes a verification item.
-            </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ProfileList title="Must have" items={profileMustHaves.length > 0 ? profileMustHaves : ["No criteria set"]} icon="must" />
+            <ProfileList title="Preferred" items={profilePreferences.length > 0 ? profilePreferences : ["No preferences set"]} icon="prefer" />
           </div>
 
           <div
@@ -456,9 +421,6 @@ export default function FindIQ() {
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-foreground">Drag, upload, or use your camera</h3>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Import spreadsheets, screenshots, property photos, or listing notes. Mobile camera uploads work here too.
-                </p>
                 <div className="mt-3 flex flex-wrap gap-4">
                   <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-primary hover:text-primary/80">
                     <FileSpreadsheet className="h-3.5 w-3.5" />
@@ -498,21 +460,6 @@ export default function FindIQ() {
             Enter Property Manually
             <Plus className="ml-2 h-4 w-4" />
           </Button>
-
-          <div className="rounded-xl border border-border bg-muted/10 p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-              <FileSearch className="h-4 w-4 text-primary" />
-              Owner-direct sourcing
-            </div>
-            <p className="text-xs leading-5 text-muted-foreground">
-              Paste links or text from owner posts, classifieds, smaller posting sites, agent emails, or public listings. BRIX will save and rank what you add. Automated marketplace search is disabled until compliant provider adapters are connected.
-            </p>
-            <div className="mt-3 grid gap-2">
-              <StartMethod icon={Link2} title="Paste owner post" text="Use any public listing URL or copied post text you can legally access." />
-              <StartMethod icon={FileSpreadsheet} title="Import a lead list" text="Drop CSV/XLS files from your own sourcing workflow." />
-              <StartMethod icon={Upload} title="Upload screenshots/photos" text="Capture mobile screenshots or property photos and turn them into deal evidence." />
-            </div>
-          </div>
         </CardContainer>
 
         <div className="space-y-4">
@@ -526,9 +473,6 @@ export default function FindIQ() {
                 <h2 className="mt-2 text-lg font-semibold text-foreground">
                   {rankedOpportunities.length > 0 ? "Ranked property results" : "Opportunity queue"}
                 </h2>
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Saved properties appear here automatically. Each result shows score, missing data, risks, and the path into DealIQ.
-                </p>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center lg:w-[260px] lg:shrink-0">
                 <MiniMetric label="Found" value={String(rankedOpportunities.length)} />
@@ -555,33 +499,14 @@ export default function FindIQ() {
               <div className="flex min-h-[360px] flex-col items-center justify-center text-center">
                 <Home className="h-10 w-10 text-muted-foreground" />
                 <h3 className="mt-4 text-xl font-semibold text-foreground">No properties yet</h3>
-                <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                  Paste a listing, upload a file/photo, or enter the property manually. FindIQ will create a real deal file, score it, and show what to verify before you visit.
-                </p>
                 <div className="mt-5 flex flex-wrap justify-center gap-3">
                   <Button onClick={() => document.getElementById("findiq-quick-input")?.focus()}>
                     Paste Listing
                     <ClipboardPaste className="ml-2 h-4 w-4" />
                   </Button>
-                  <Button variant="outline" onClick={openAddProperty}>
-                    Enter Manually
-                    <Plus className="ml-2 h-4 w-4" />
-                  </Button>
                 </div>
               </div>
             )}
-          </CardContainer>
-
-          <CardContainer>
-            <div className="flex items-start gap-3">
-              <Link2 className="mt-1 h-5 w-5 shrink-0 text-primary" />
-              <div>
-                <h3 className="font-semibold text-foreground">Decision-ready intake</h3>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  Every imported property becomes a deal file with known facts, missing data, source confidence, photo findings, and verification questions.
-                </p>
-              </div>
-            </div>
           </CardContainer>
         </div>
       </div>
@@ -612,8 +537,8 @@ export default function FindIQ() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <ManualField label="Property address" required value={manualListing.property_address} onChange={(value) => updateManualListing("property_address", value)} placeholder="123 Main St" />
-              <ManualField label="City" required value={manualListing.city} onChange={(value) => updateManualListing("city", value)} placeholder="Sandwich" />
-              <ManualField label="State" required value={manualListing.state} onChange={(value) => updateManualListing("state", value)} placeholder="IL" />
+              <ManualField label="City" value={manualListing.city} onChange={(value) => updateManualListing("city", value)} placeholder="Sandwich" />
+              <ManualField label="State" value={manualListing.state} onChange={(value) => updateManualListing("state", value)} placeholder="IL" />
               <ManualField label="County" value={manualListing.county} onChange={(value) => updateManualListing("county", value)} placeholder="DuPage, Kane, Kendall..." />
               <ManualField label="ZIP code" value={manualListing.zip_code} onChange={(value) => updateManualListing("zip_code", value)} placeholder="60548" />
               <ManualField label="Property type" value={manualListing.property_type} onChange={(value) => updateManualListing("property_type", value)} placeholder="Single Family" />
@@ -1561,20 +1486,6 @@ function TextReviewField({
         placeholder={placeholder}
         rows={4}
       />
-    </div>
-  );
-}
-
-function StartMethod({ icon: Icon, title, text }: { icon: LucideIcon; title: string; text: string }) {
-  return (
-    <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-        <Icon className="h-4 w-4" />
-      </div>
-      <div>
-        <p className="text-sm font-semibold text-foreground">{title}</p>
-        <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{text}</p>
-      </div>
     </div>
   );
 }
