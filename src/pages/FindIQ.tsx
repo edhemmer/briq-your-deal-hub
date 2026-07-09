@@ -1,6 +1,6 @@
 import { useMemo, useState, type DragEvent, type FormEvent } from "react";
-import { Link } from "react-router-dom";
-import { AlertTriangle, ArrowRight, Bell, CheckCircle2, ClipboardPaste, FileSpreadsheet, Home, Plus, ShieldAlert, SlidersHorizontal, Target, Upload, XCircle } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { AlertTriangle, ArrowRight, Bell, Camera, CheckCircle2, ClipboardPaste, ExternalLink, FileSpreadsheet, Home, Image as ImageIcon, Plus, ShieldAlert, SlidersHorizontal, Target, Upload, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useCreateDeal, useDeals } from "@/hooks/useDeals";
 import { supabase } from "@/integrations/supabase/client";
 import { rankOpportunity, type AcquisitionProfile, type FindIQOpportunity, type RankedOpportunity } from "@/lib/findIQArchitecture";
+import { openPropertyRecord } from "@/lib/property/propertyIntelligenceEngine";
+import { resolveCountyPropertyUrl } from "@/lib/property/countyPropertyResolver";
 import type { Json, Tables } from "@/integrations/supabase/types";
 
 type DealRow = Tables<"deals">;
@@ -106,6 +108,7 @@ const initialManualListing: ManualListingState = {
 };
 
 export default function FindIQ() {
+  const navigate = useNavigate();
   const { data: deals, isLoading } = useDeals();
   const createDeal = useCreateDeal();
   const [search, setSearch] = useState<SearchState>(initialSearch);
@@ -169,10 +172,43 @@ export default function FindIQ() {
     setIsAddOpen(true);
   };
 
+  const mergeManualFields = (fields: Partial<ManualListingState>) => {
+    const scalarFields = Object.fromEntries(
+      Object.entries(fields).filter(([, value]) => value !== undefined && value !== ""),
+    ) as Partial<ManualListingState>;
+
+    setManualListing((current) => ({
+      ...current,
+      ...scalarFields,
+      listingText: uniqueLines([
+        current.listingText,
+        fields.listingText ?? "",
+      ]).join("\n"),
+      listing_photo_urls: uniqueLines([
+        ...splitLines(current.listing_photo_urls),
+        ...splitLines(fields.listing_photo_urls ?? ""),
+      ]).join("\n"),
+      condition_notes: uniqueLines([
+        ...splitLines(current.condition_notes),
+        ...splitLines(fields.condition_notes ?? ""),
+      ]).join("\n"),
+      visible_or_stated_risks: uniqueLines([
+        ...splitLines(current.visible_or_stated_risks),
+        ...splitLines(fields.visible_or_stated_risks ?? ""),
+      ]).join("\n"),
+      missing_questions: uniqueLines([
+        ...splitLines(current.missing_questions),
+        ...splitLines(fields.missing_questions ?? ""),
+      ]).join("\n"),
+      photo_analysis_status: fields.photo_analysis_status || current.photo_analysis_status,
+      source_confidence: fields.source_confidence || current.source_confidence,
+    }));
+  };
+
   const applyListingText = () => {
     const parsed = parseListingText(manualListing.listingText);
-    setManualListing((current) => ({ ...current, ...parsed }));
-    toast.success("Listing text scanned. Review the fields before saving.");
+    mergeManualFields(parsed);
+    toast.success("Listing facts scanned into this property.");
   };
 
   const scanQuickInput = async () => {
@@ -247,17 +283,86 @@ export default function FindIQ() {
     setQuickStage("strategy");
   };
 
-  const continueFromStrategy = (event?: FormEvent) => {
-    event?.preventDefault();
-    if (!quickPropertyAddress.trim()) {
-      setQuickStage("property");
+  const createDealFromAddressStrategy = async (address: string, strategy: string) => {
+    const trimmedAddress = address.trim();
+    if (!trimmedAddress) {
+      toast.error("Enter the property address first.");
       return;
     }
 
-    openImportIntake({
-      property_address: quickPropertyAddress,
-      strategy_primary: quickStrategy,
-    });
+    const parsed = parseListingText(trimmedAddress);
+    let propertyAddress = parsed.property_address || trimmedAddress;
+    let city = parsed.city || "";
+    let state = parsed.state || "";
+    let zip = parsed.zip_code || "";
+    let county = parsed.county || "";
+
+    try {
+      const { data } = await supabase.functions.invoke("geocode-address", {
+        body: { address: trimmedAddress },
+      });
+      const result = data as {
+        found?: boolean;
+        formatted_address?: string | null;
+        city?: string | null;
+        county?: string | null;
+        state?: string | null;
+        zip?: string | null;
+      } | null;
+
+      if (result?.found) {
+        city = result.city || city;
+        county = result.county || county;
+        state = result.state || state;
+        zip = result.zip || zip;
+        propertyAddress = parsed.property_address || result.formatted_address?.split(",")[0] || propertyAddress;
+      }
+    } catch {
+      // Fall back to parsed text and ask for only the missing location fields below.
+    }
+
+    if (!city || !state) {
+      openImportIntake({
+        property_address: propertyAddress,
+        city,
+        county,
+        state,
+        zip_code: zip,
+        strategy_primary: strategy,
+      });
+      toast.warning("BRIX needs city and state to create the deal file.");
+      return;
+    }
+
+    try {
+      const deal = await createDeal.mutateAsync({
+        property_address: propertyAddress,
+        city,
+        county: county || undefined,
+        state,
+        zip_code: zip || undefined,
+        strategy_primary: strategy || undefined,
+        missing_questions: [] as Json,
+        condition_notes: [] as Json,
+        visible_or_stated_risks: [] as Json,
+        listing_photo_urls: [] as Json,
+        source_confidence: "low",
+        photo_analysis_status: "not_requested",
+        deal_status: "draft",
+      });
+
+      resetQuickWorkflow();
+      setQuickInput("");
+      toast.success(`${deal.property_address} created. Add evidence when ready.`);
+      navigate(`/dealiq/${deal.id}`);
+    } catch {
+      toast.error("BRIX could not create the deal file. Try again or add the property manually.");
+    }
+  };
+
+  const continueFromStrategy = async (event?: FormEvent) => {
+    event?.preventDefault();
+    await createDealFromAddressStrategy(quickPropertyAddress, quickStrategy);
   };
 
   const resetQuickWorkflow = () => {
@@ -287,6 +392,45 @@ export default function FindIQ() {
     } catch {
       toast.error("Could not read that file. Try CSV, XLS, XLSX, TXT, or paste the listing text.");
     }
+  };
+
+  const handleEvidenceFiles = async (files: FileList | null) => {
+    const selected = Array.from(files ?? []);
+    if (selected.length === 0) return;
+
+    let imported = 0;
+    for (const file of selected) {
+      try {
+        const fields = await enrichWithPhotoAnalysis(await parseImportFile(file));
+        mergeManualFields(fields);
+        imported += 1;
+      } catch {
+        toast.error(`${file.name} could not be scanned.`);
+      }
+    }
+
+    if (imported > 0) {
+      toast.success(`${imported} file${imported === 1 ? "" : "s"} added to this property.`);
+    }
+  };
+
+  const openCountyTaxRecords = () => {
+    const address = manualListing.property_address.trim();
+    const city = manualListing.city.trim();
+    const state = manualListing.state.trim();
+    if (!address || !city || !state) {
+      toast.error("Add property address, city, and state first.");
+      return;
+    }
+
+    const result = resolveCountyPropertyUrl({
+      property_address: address,
+      city,
+      state,
+      zip_code: manualListing.zip_code || undefined,
+      county: manualListing.county || undefined,
+    });
+    openPropertyRecord(result.url);
   };
 
   const handleImportDrop = async (event: DragEvent<HTMLDivElement>) => {
@@ -362,17 +506,58 @@ export default function FindIQ() {
     <SectionContainer>
       <PageHeader
         title="FindIQ"
-        description="Add properties and rank what deserves attention."
-      >
-        <Button variant="outline">
-          <Bell className="mr-2 h-4 w-4" />
-          Alerts
-        </Button>
-        <Button onClick={() => document.getElementById("findiq-quick-input")?.focus()}>
-          <ClipboardPaste className="mr-2 h-4 w-4" />
-          Paste Property
-        </Button>
-      </PageHeader>
+        description="Start a deal file with an address and the strategy you want to test."
+      />
+
+      <section className="mx-auto max-w-3xl">
+        <CardContainer className="relative overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-background to-emerald-500/10 p-6 md:p-8">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/80 to-transparent" />
+          <form
+            className="space-y-5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void createDealFromAddressStrategy(quickInput, quickStrategy);
+            }}
+          >
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">Start a property</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                BRIX creates the deal file first. Add photos, tax history, missing facts, and source documents inside DealIQ.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="findiq-quick-input">Property address</Label>
+              <Input
+                id="findiq-quick-input"
+                value={quickInput}
+                onChange={(event) => setQuickInput(event.target.value)}
+                className="h-12 text-base"
+                aria-label="Property address"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="findiq-quick-strategy">Strategy</Label>
+              <Input
+                id="findiq-quick-strategy"
+                value={quickStrategy}
+                onChange={(event) => setQuickStrategy(event.target.value)}
+                className="h-12 text-base"
+                aria-label="Strategy"
+              />
+            </div>
+
+            <Button type="submit" size="lg" className="w-full" disabled={createDeal.isPending}>
+              {createDeal.isPending ? "Creating deal..." : "Create deal file"}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </form>
+        </CardContainer>
+      </section>
+
+      {false && (
+        <>
 
       <section>
         <CardContainer className="relative overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-background to-emerald-500/10">
@@ -577,22 +762,72 @@ export default function FindIQ() {
           <DialogHeader>
             <DialogTitle>Add a property to FindIQ</DialogTitle>
             <DialogDescription>
-              Paste a listing URL, copied listing text, spreadsheet row, or enter the facts you know. BRIX saves this as a real DealIQ record and labels missing items for verification.
+              Add the property once. BRIX will scan what it can, keep unsupported fields blank, and carry the record into DealIQ.
             </DialogDescription>
           </DialogHeader>
 
           <form className="space-y-5" onSubmit={saveManualListing}>
-            <div className="space-y-2">
-              <Label htmlFor="findiq-listing-text">Listing URL, remarks, or copied listing text</Label>
-              <Textarea
-                id="findiq-listing-text"
-                value={manualListing.listingText}
-                onChange={(event) => updateManualListing("listingText", event.target.value)}
-                rows={5}
-              />
-              <Button type="button" variant="outline" onClick={applyListingText} disabled={!manualListing.listingText.trim()}>
-                Scan Text Into Fields
-              </Button>
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+              <div className="space-y-2">
+                <Label htmlFor="findiq-listing-text">Address, listing link, copied facts, or notes</Label>
+                <Textarea
+                  id="findiq-listing-text"
+                  value={manualListing.listingText}
+                  onChange={(event) => updateManualListing("listingText", event.target.value)}
+                  rows={5}
+                />
+                <Button type="button" variant="outline" onClick={applyListingText} disabled={!manualListing.listingText.trim()}>
+                  Scan into property
+                </Button>
+              </div>
+
+              <div className="rounded-xl border border-border bg-muted/20 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <ImageIcon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Photos & evidence</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Add listing screenshots, drive-by photos, inspection photos, or spreadsheets.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2">
+                  <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+                    <Upload className="h-4 w-4" />
+                    Upload files/photos
+                    <input
+                      type="file"
+                      className="sr-only"
+                      multiple
+                      accept=".csv,.txt,.xls,.xlsx,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/*"
+                      onChange={(event) => {
+                        void handleEvidenceFiles(event.target.files);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                  <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted/50">
+                    <Camera className="h-4 w-4" />
+                    Use camera
+                    <input
+                      type="file"
+                      className="sr-only"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(event) => {
+                        void handleEvidenceFiles(event.target.files);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                  <Button type="button" variant="outline" className="justify-center gap-2" onClick={openCountyTaxRecords}>
+                    <ExternalLink className="h-4 w-4" />
+                    Open county tax record
+                  </Button>
+                </div>
+              </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -618,25 +853,19 @@ export default function FindIQ() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <TextReviewField
-                label="Photo URLs"
-                value={manualListing.listing_photo_urls}
-                onChange={(value) => updateManualListing("listing_photo_urls", value)}
+              <EvidenceList
+                title="Photos captured"
+                empty="No photos attached yet."
+                items={splitLines(manualListing.listing_photo_urls)}
+                image
               />
-              <TextReviewField
-                label="Condition notes from listing/photos"
-                value={manualListing.condition_notes}
-                onChange={(value) => updateManualListing("condition_notes", value)}
-              />
-              <TextReviewField
-                label="Visible or stated risks"
-                value={manualListing.visible_or_stated_risks}
-                onChange={(value) => updateManualListing("visible_or_stated_risks", value)}
-              />
-              <TextReviewField
-                label="Missing questions"
-                value={manualListing.missing_questions}
-                onChange={(value) => updateManualListing("missing_questions", value)}
+              <EvidenceList
+                title="BRIX findings"
+                empty="No photo or listing findings yet."
+                items={[
+                  ...splitLines(manualListing.condition_notes),
+                  ...splitLines(manualListing.visible_or_stated_risks),
+                ]}
               />
             </div>
 
@@ -651,6 +880,8 @@ export default function FindIQ() {
           </form>
         </DialogContent>
       </Dialog>
+        </>
+      )}
     </SectionContainer>
   );
 }
@@ -1143,6 +1374,7 @@ type VisualExtraction = {
   condition_notes?: string[];
   visible_or_stated_risks?: string[];
   missing_questions?: string[];
+  photo_urls?: string[];
 };
 
 async function parseImportFile(file: File): Promise<Partial<ManualListingState>> {
@@ -1156,7 +1388,10 @@ async function parseImportFile(file: File): Promise<Partial<ManualListingState>>
     if (error) throw error;
     const extracted = (data as { extracted?: VisualExtraction })?.extracted;
     if (!extracted) throw new Error("No image extraction returned");
-    return visualToManualFields(extracted, file.name);
+    return {
+      ...visualToManualFields(extracted, file.name),
+      listing_photo_urls: imageBase64,
+    };
   }
 
   if (extension === "xlsx" || extension === "xls") {
@@ -1282,6 +1517,7 @@ function visualToManualFields(extracted: VisualExtraction, sourceName?: string):
     condition_notes: extracted.condition_notes?.join("\n") || undefined,
     visible_or_stated_risks: extracted.visible_or_stated_risks?.join("\n") || undefined,
     missing_questions: extracted.missing_questions?.join("\n") || undefined,
+    listing_photo_urls: extracted.photo_urls?.join("\n") || undefined,
     source_confidence: extracted.source_confidence ?? "medium",
     photo_analysis_status: "analyzed",
   };
@@ -1554,25 +1790,39 @@ function ManualField({
   );
 }
 
-function TextReviewField({
-  label,
-  value,
-  onChange,
+function EvidenceList({
+  title,
+  empty,
+  items,
+  image = false,
 }: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
+  title: string;
+  empty: string;
+  items: string[];
+  image?: boolean;
 }) {
-  const id = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <Textarea
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        rows={4}
-      />
+    <div className="rounded-xl border border-border bg-muted/10 p-4">
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      {items.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">{empty}</p>
+      ) : image ? (
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {items.slice(0, 6).map((item, index) => (
+            <div key={`${item}-${index}`} className="aspect-square overflow-hidden rounded-lg border border-border bg-background">
+              <img src={item} alt="" className="h-full w-full object-cover" loading="lazy" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-3 space-y-2">
+          {items.slice(0, 6).map((item) => (
+            <div key={item} className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
+              {item}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

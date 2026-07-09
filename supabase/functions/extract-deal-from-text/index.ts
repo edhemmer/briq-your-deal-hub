@@ -26,6 +26,11 @@ const firstURL = (text: string) => text.match(/https?:\/\/[^\s"'<>]+/i)?.[0] ?? 
 
 const hasAny = (text: string, patterns: RegExp[]) => patterns.some((pattern) => pattern.test(text));
 
+function extractPhotoUrls(text: string) {
+  const urls = text.match(/https?:\/\/[^\s"'<>]+?\.(?:jpg|jpeg|png|webp|avif)(?:\?[^\s"'<>]*)?/gi) ?? [];
+  return Array.from(new Set(urls)).slice(0, 12);
+}
+
 function parseListingURL(urlString: string | null): {
   property_address?: string | null;
   city?: string | null;
@@ -160,6 +165,9 @@ function htmlToReadableListingText(html: string) {
   const meta = [...html.matchAll(/<meta\s+[^>]*(?:property|name)=["'](?:og:title|og:description|description|twitter:title|twitter:description)["'][^>]*content=["']([^"']+)["'][^>]*>/gi)]
     .map((match) => match[1])
     .join("\n");
+  const imageMeta = [...html.matchAll(/<meta\s+[^>]*(?:property|name)=["'](?:og:image|twitter:image|image)["'][^>]*content=["']([^"']+)["'][^>]*>/gi)]
+    .map((match) => match[1])
+    .join("\n");
   const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "";
   const body = html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -172,7 +180,7 @@ function htmlToReadableListingText(html: string) {
     .replace(/\s+/g, " ")
     .trim();
 
-  return [title, meta, jsonLd, body]
+  return [title, meta, imageMeta, jsonLd, body]
     .join("\n")
     .replace(/\s+/g, " ")
     .trim()
@@ -248,6 +256,7 @@ function deterministicListingExtract(listingText: string) {
     year_built: toNumber(firstMatch(text, [/(?:built|year built)[^\d]{0,12}(\d{4})/i])),
     condition_notes: conditionNotes,
     visible_or_stated_risks: risks,
+    photo_urls: extractPhotoUrls(text),
     missing_questions: [
       "Verify rent comps with a reliable source.",
       "Verify taxes from official records.",
@@ -332,6 +341,7 @@ serve(async (req) => {
   "year_built": number | null,
   "condition_notes": string[],
   "visible_or_stated_risks": string[],
+  "photo_urls": string[],
   "missing_questions": string[],
   "strategy_primary": string | null (one of: "Buy & Hold", "Fix & Flip", "Wholesale", "BRRRR", "Development", "Owner Occupant"),
   "source_confidence": "low" | "medium" | "high"
