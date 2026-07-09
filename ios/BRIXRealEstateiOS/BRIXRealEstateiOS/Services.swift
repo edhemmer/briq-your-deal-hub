@@ -13,7 +13,7 @@ enum BRIXAPIError: LocalizedError {
         case .invalidResponse:
             return "BRIX returned an invalid response."
         case .backend(let status, let message):
-            return "BRIX backend error \(status): \(message)"
+            return "BRIX request failed \(status): \(message)"
         case .missingAppleIdentityToken:
             return "Apple did not return an identity token."
         }

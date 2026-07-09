@@ -254,7 +254,7 @@ func brixAuthMessage(_ error: Error) -> String {
         return "Too many attempts. Wait a few minutes before trying again."
     }
     if message.localizedCaseInsensitiveContains("network") || message.localizedCaseInsensitiveContains("offline") || message.localizedCaseInsensitiveContains("internet") {
-        return "Network connection failed. Check internet access and try again."
+        return "BRIX could not complete the request. Check internet access and try again."
     }
     return message
 }

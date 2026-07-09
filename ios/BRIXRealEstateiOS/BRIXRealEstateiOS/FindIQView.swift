@@ -22,7 +22,7 @@ struct FindIQView: View {
                 if appState.authState.isSignedIn == false {
                     SignInRequiredCard(
                         title: "Sign in to use FindIQ",
-                        message: "FindIQ searches and ranks properties saved to your BRIX account. Live listing feeds can plug into the same queue when paid provider access is connected."
+                        message: "FindIQ ranks properties saved to your BRIX account so you know which opportunities deserve attention first."
                     )
                 } else {
                     searchPanel
@@ -35,7 +35,7 @@ struct FindIQView: View {
             }
             .padding()
         }
-        .background(Color.brixSurface)
+        .brixScreenBackground()
         .refreshable { await appState.refresh() }
         .sheet(isPresented: $isShowingAddProperty) {
             AddPropertySheet(draft: $draft) {
@@ -53,7 +53,7 @@ struct FindIQView: View {
             VStack(alignment: .leading, spacing: 14) {
                 SectionHeader(
                     title: "FindIQ",
-                    subtitle: "Add a property, paste a listing URL, or search the properties already in BRIX.",
+                    subtitle: "Paste a listing, enter property facts, or search the properties already in BRIX.",
                     symbol: "magnifyingglass"
                 )
 
@@ -71,17 +71,13 @@ struct FindIQView: View {
                     .buttonStyle(.borderedProminent)
 
                     Button {
-                        Task { await appState.refresh() }
+                        query = ""
                     } label: {
-                        Label("Sync", systemImage: "arrow.clockwise")
+                        Label("Clear Search", systemImage: "xmark.circle")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                 }
-
-                Text("Live provider search is intentionally separated from manual entry. Until a paid listing provider is connected, only properties you add or import appear here.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -96,11 +92,9 @@ struct FindIQView: View {
                 )
 
                 if filteredDeals.isEmpty {
-                    EmptyOperatingState(
-                        title: "No properties in the queue",
-                        message: "Enter the first property from a showing, listing URL, spreadsheet, or notes. BRIX will carry it into DealIQ without duplicate entry.",
-                        symbol: "tray"
-                    )
+                    FindIQEmptyQueue {
+                        isShowingAddProperty = true
+                    }
                 } else {
                     ForEach(filteredDeals) { deal in
                         OpportunityRow(deal: deal)
@@ -292,8 +286,65 @@ private struct AddPropertySheet: View {
         } catch {
             let fallback = ListingTextParser.localExtract(from: text)
             draft.apply(fallback, originalText: text)
-            extractionMessage = "BRIX used on-device parsing because live extraction was unavailable. Review every field before saving."
+            extractionMessage = "BRIX filled the fields it could read. Review every field before saving."
         }
+    }
+}
+
+private struct FindIQEmptyQueue: View {
+    let onAddProperty: () -> Void
+
+    var body: some View {
+        VStack(spacing: 18) {
+            EmptyOperatingState(
+                title: "Start with one property",
+                message: "Paste a listing, type the address and facts, or add notes from a showing. BRIX turns that first record into a ranked opportunity and opens it in DealIQ when you are ready.",
+                symbol: "house.and.flag"
+            )
+
+            VStack(spacing: 10) {
+                Button(action: onAddProperty) {
+                    Label("Add Property", systemImage: "plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                HStack(spacing: 10) {
+                    WorkflowCue(symbol: "link", title: "Paste", detail: "URL or listing text")
+                    WorkflowCue(symbol: "square.and.pencil", title: "Enter", detail: "Facts and notes")
+                    WorkflowCue(symbol: "chart.line.uptrend.xyaxis", title: "Rank", detail: "Compare candidates")
+                }
+            }
+        }
+        .padding(18)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.brixBlue.opacity(0.18), lineWidth: 1)
+        }
+    }
+}
+
+private struct WorkflowCue: View {
+    let symbol: String
+    let title: String
+    let detail: String
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: symbol)
+                .font(.headline)
+                .foregroundStyle(Color.brixBlue)
+            Text(title)
+                .font(.caption.weight(.bold))
+            Text(detail)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(10)
+        .background(.background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

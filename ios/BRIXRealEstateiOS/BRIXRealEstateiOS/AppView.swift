@@ -20,11 +20,6 @@ struct AppView: View {
                             content(for: tab)
                                 .navigationTitle(tab.rawValue)
                                 .toolbarTitleDisplayMode(.inline)
-                                .toolbar {
-                                    ToolbarItem(placement: .topBarTrailing) {
-                                        ConnectionChip()
-                                    }
-                                }
                         }
                         .tabItem {
                             Label(tab.rawValue, systemImage: tab.symbol)
@@ -190,7 +185,7 @@ private struct AuthGateView: View {
             }
             .padding()
         }
-        .background(Color.brixSurface)
+        .brixScreenBackground()
     }
 
     private func signIn() async {
@@ -263,24 +258,6 @@ private struct AuthNoticeCard: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(color.opacity(0.25), lineWidth: 1)
         )
-    }
-}
-
-private struct ConnectionChip: View {
-    @Environment(BRIXAppState.self) private var appState
-
-    var body: some View {
-        HStack(spacing: 5) {
-            Circle()
-                .fill(appState.lastError == nil ? Color.green : Color.orange)
-                .frame(width: 7, height: 7)
-            Text(appState.lastError == nil ? "Synced" : "Review")
-                .font(.caption.weight(.semibold))
-        }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 5)
-        .background(.thinMaterial, in: Capsule())
-        .accessibilityLabel(appState.lastError == nil ? "BRIX is synced" : "BRIX connection needs attention")
     }
 }
 

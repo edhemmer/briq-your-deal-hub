@@ -24,7 +24,7 @@ struct DigitalTwinView: View {
                 if appState.authState.isSignedIn == false {
                     SignInRequiredCard(
                         title: "FindIQ uses your BRIX deal records",
-                        message: "Sign in to search, rank, and open properties from the same backend used by the web app."
+                        message: "Sign in to search, rank, and open your saved properties across BRIX."
                     )
                 } else {
                     BrixCard {
@@ -75,7 +75,7 @@ struct DigitalTwinView: View {
         .refreshable {
             await appState.refresh()
         }
-        .background(Color.brixSurface)
+        .brixScreenBackground()
         .sheet(isPresented: $isAddingDeal) {
             AddDealSheet(draft: $draft) {
                 let saved = await appState.createDeal(draft)

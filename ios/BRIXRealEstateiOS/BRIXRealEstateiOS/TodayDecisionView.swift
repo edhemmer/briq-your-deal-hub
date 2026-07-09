@@ -11,10 +11,10 @@ struct TodayDecisionView: View {
                 if appState.authState.isSignedIn == false {
                     SignInRequiredCard(
                         title: "Sign in to run BRIX on iPhone or iPad",
-                        message: "Your mobile app connects to the same BRIX backend as the web app. Deals, field captures, decisions, and portfolio records stay tied to your account."
+                        message: "Use the same BRIX account on iPhone, iPad, and web so your deals, field captures, decisions, and portfolio records stay together."
                     )
                 } else if appState.isLoading {
-                    ProgressView("Loading BRIX deal files")
+                    ProgressView("Loading deal files")
                         .frame(maxWidth: .infinity)
                         .padding(32)
                 } else if let deal = appState.selectedDeal {
@@ -52,9 +52,9 @@ struct TodayDecisionView: View {
                     DealListCard()
                 } else {
                     EmptyOperatingState(
-                        title: "No deal files yet",
-                        message: "Open FindIQ to add the first property from your phone or iPad. BRIX will save it to the same backend used by the web app.",
-                        symbol: "tray"
+                        title: "Build your first deal file",
+                        message: "Start in FindIQ. Add a listing, property facts, or showing notes, then BRIX will organize the deal for analysis and comparison.",
+                        symbol: "house.and.flag"
                     )
                 }
 
@@ -67,7 +67,7 @@ struct TodayDecisionView: View {
         .refreshable {
             await appState.refresh()
         }
-        .background(Color.brixSurface)
+        .brixScreenBackground()
     }
 }
 
@@ -78,7 +78,7 @@ private struct DecisionBoard: View {
     var body: some View {
         BrixCard {
             VStack(alignment: .leading, spacing: 14) {
-                SectionHeader(title: "Deal Dashboard", subtitle: "Current mobile decision view.", symbol: "target")
+                SectionHeader(title: "Deal Dashboard", subtitle: "Current property, risks, and next actions.", symbol: "target")
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(deal.title)
@@ -98,7 +98,7 @@ private struct DecisionBoard: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 } else {
-                    Text("No backend recommendation has been generated for this deal yet.")
+                    Text("Add the missing facts to generate a recommendation.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }

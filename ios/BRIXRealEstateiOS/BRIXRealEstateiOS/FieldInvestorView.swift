@@ -19,8 +19,8 @@ struct FieldInvestorView: View {
             VStack(spacing: 16) {
                 if appState.authState.isSignedIn == false {
                     SignInRequiredCard(
-                        title: "Field capture sync requires sign-in",
-                        message: "Photos, documents, and notes attach to your BRIX deal files and upload to the backend when available."
+                        title: "Sign in to use Field Capture",
+                        message: "Attach photos, documents, and notes to the selected deal while you are at the property."
                     )
                 } else {
                     BrixCard {
@@ -80,9 +80,9 @@ struct FieldInvestorView: View {
 
                     BrixCard {
                         VStack(alignment: .leading, spacing: 12) {
-                            SectionHeader(title: "Upload Queue", subtitle: "Captures sync to BRIX and remain visible if an upload needs retry.", symbol: "icloud.and.arrow.up")
+                            SectionHeader(title: "Capture Activity", subtitle: "Recent photos, documents, and notes for the selected deal.", symbol: "tray.and.arrow.up")
                             if appState.queuedOfflineActions.isEmpty {
-                                Text("No queued captures.")
+                                Text("No captures added yet.")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             } else {
@@ -106,7 +106,7 @@ struct FieldInvestorView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             SectionHeader(title: "Visual Findings", subtitle: "Photo observations returned by BRIX. Verify before relying on them.", symbol: "wrench.and.screwdriver")
                             if appState.fieldCaptureAnalyses.flatMap(\.aiFindings).isEmpty {
-                                Text("No visual findings yet. Upload a property photo to attach it to the deal and run visual review when AI is configured.")
+                                Text("No visual findings yet. Upload a property photo to attach it to the deal and begin visual review.")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             } else {
@@ -126,7 +126,7 @@ struct FieldInvestorView: View {
             }
             .padding()
         }
-        .background(Color.brixSurface)
+        .brixScreenBackground()
         .sheet(isPresented: $isCameraPresented) {
             CameraCaptureSheet { imageData in
                 Task {

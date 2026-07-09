@@ -28,11 +28,11 @@ struct AccountView: View {
                                 Text(appState.authState.displayEmail)
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
-                                Text("\(appState.deals.count) deal file\(appState.deals.count == 1 ? "" : "s") synced.")
+                                Text("\(appState.deals.count) deal file\(appState.deals.count == 1 ? "" : "s") available.")
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.green)
                                 if let lastSyncDate = appState.lastSyncDate {
-                                    Text("Last sync \(lastSyncDate.formatted(date: .abbreviated, time: .shortened))")
+                                    Text("Last updated \(lastSyncDate.formatted(date: .abbreviated, time: .shortened))")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -104,7 +104,7 @@ struct AccountView: View {
                             .signInWithAppleButtonStyle(.black)
                             .frame(height: 48)
 
-                            Text("Use the same BRIX account as web to sync saved deals, field uploads, portfolio data, and account deletion controls.")
+                            Text("Use the same BRIX account on web, iPhone, and iPad for saved deals, field uploads, portfolio data, and account deletion controls.")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
@@ -169,7 +169,7 @@ struct AccountView: View {
 
                 BrixCard {
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(title: "Support", subtitle: "Apple Review and users need a clear contact path.", symbol: "questionmark.circle")
+                        SectionHeader(title: "Support", subtitle: "Get help with account access, data, or app questions.", symbol: "questionmark.circle")
                         Text("Use support for account access, deletion questions, data export requests, or production issues.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -183,7 +183,7 @@ struct AccountView: View {
             }
             .padding()
         }
-        .background(Color.brixSurface)
+        .brixScreenBackground()
         .confirmationDialog("Delete BRIX account?", isPresented: $isShowingDeleteConfirmation, titleVisibility: .visible) {
             Button("Delete Account", role: .destructive) {
                 Task { await requestDeletion() }

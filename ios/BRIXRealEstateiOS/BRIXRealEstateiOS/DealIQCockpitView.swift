@@ -10,7 +10,7 @@ struct DealIQCockpitView: View {
                 if appState.authState.isSignedIn == false {
                     SignInRequiredCard(
                         title: "Sign in to open DealIQ",
-                        message: "DealIQ uses the same BRIX backend as web: property facts, assumptions, recommendations, and verification status stay connected."
+                        message: "Open your BRIX deal files, review assumptions, compare strategies, and keep verification visible before making a decision."
                     )
                 } else if let deal = appState.selectedDeal {
                     cockpitHeader(deal)
@@ -30,7 +30,7 @@ struct DealIQCockpitView: View {
             }
             .padding()
         }
-        .background(Color.brixSurface)
+        .brixScreenBackground()
         .refreshable { await appState.refresh() }
     }
 
@@ -99,7 +99,7 @@ struct DealIQCockpitView: View {
 
             BrixCard {
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionHeader(title: "Quick Math", subtitle: "Directional math from entered facts. Final recommendations come from BRIX backend analysis.", symbol: "function")
+                    SectionHeader(title: "Quick Math", subtitle: "Directional math from entered facts. Verify source quality before relying on the result.", symbol: "function")
                     let math = DealQuickMath(deal: deal)
                     MetricLine(label: "Annual gross rent", value: money(math.annualGrossRent))
                     MetricLine(label: "Gross rent ratio", value: math.grossRentRatio.map { "\(($0 * 100).formatted(.number.precision(.fractionLength(2))))%" } ?? "Missing")
@@ -164,7 +164,7 @@ struct DealIQCockpitView: View {
         BrixCard {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader(title: "Risk Inspector", subtitle: "No recommendation should outrun the evidence.", symbol: "exclamationmark.shield")
-                ActionLine(title: "Rent support must be verified with comps, lease data, or market provider data.", severity: deal.monthlyRent == nil ? .caution : .info)
+                ActionLine(title: "Rent support must be verified with comps, lease data, or market evidence.", severity: deal.monthlyRent == nil ? .caution : .info)
                 ActionLine(title: "Insurance should be entered as an annual quote.", severity: deal.insurance == nil ? .caution : .info)
                 ActionLine(title: "Condition and rehab scope should be supported by photos, inspection, or contractor bid.", severity: .caution)
             }

@@ -9,7 +9,7 @@ struct ProjectOSView: View {
                 if appState.projectTasks.isEmpty {
                     EmptyOperatingState(
                         title: "No execution tasks",
-                        message: "Due diligence, offer, inspection, financing, and closing tasks should come from PipelineIQ and Project OS backend services.",
+                        message: "Track due diligence, offer, inspection, financing, and closing tasks from the selected deal.",
                         symbol: "checklist"
                     )
                 } else {
@@ -31,6 +31,6 @@ struct ProjectOSView: View {
             }
             .padding()
         }
-        .background(Color.brixSurface)
+        .brixScreenBackground()
     }
 }

@@ -34,7 +34,7 @@ struct PipelineIQView: View {
             }
             .padding()
         }
-        .background(Color.brixSurface)
+        .brixScreenBackground()
         .refreshable { await appState.refresh() }
     }
 }
