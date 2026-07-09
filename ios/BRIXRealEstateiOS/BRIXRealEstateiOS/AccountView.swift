@@ -28,7 +28,7 @@ struct AccountView: View {
                                 Text(appState.authState.displayEmail)
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
-                                Text("BRIX Cloud connected - \(appState.deals.count) deal file\(appState.deals.count == 1 ? "" : "s") synced.")
+                                Text("\(appState.deals.count) deal file\(appState.deals.count == 1 ? "" : "s") synced.")
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.green)
                                 if let lastSyncDate = appState.lastSyncDate {
@@ -81,7 +81,7 @@ struct AccountView: View {
                                 Button {
                                     Task { await sendPasswordReset() }
                                 } label: {
-                                    Text("Forgot password?")
+                                    Text("Send password reset")
                                         .frame(maxWidth: .infinity)
                                 }
                                 .buttonStyle(.plain)
@@ -203,9 +203,9 @@ struct AccountView: View {
             let session = try await apiClient.signInWithEmail(email: email, password: password)
             await appState.signIn(with: session)
             password = ""
-            authStatus = "Signed in. BRIX is connected to your account."
+            authStatus = "Signed in. Your deal files are ready."
         } catch {
-            authStatus = "Sign in failed: \(friendlyAuthMessage(error))"
+            authStatus = "Sign in failed: \(brixAuthMessage(error))"
         }
     }
 
@@ -215,12 +215,15 @@ struct AccountView: View {
         defer { isAuthWorking = false }
 
         do {
-            let session = try await apiClient.signUpWithEmail(email: email, password: password)
-            await appState.signIn(with: session)
+            if let session = try await apiClient.signUpWithEmail(email: email, password: password) {
+                await appState.signIn(with: session)
+                authStatus = "Account created. Your deal files are ready."
+            } else {
+                authStatus = "Account created. Check your email to confirm it, then sign in."
+            }
             password = ""
-            authStatus = "Account created. BRIX is connected to your account."
         } catch {
-            authStatus = "Account creation failed: \(friendlyAuthMessage(error))"
+            authStatus = "Account creation failed: \(brixAuthMessage(error))"
         }
     }
 
@@ -231,21 +234,10 @@ struct AccountView: View {
 
         do {
             try await apiClient.sendPasswordReset(email: email)
-            authStatus = "Password reset sent. Check your email and continue through the secure BRIX reset page."
+            authStatus = "Password reset sent. Check your email, then return to sign in."
         } catch {
-            authStatus = "Password reset failed: \(friendlyAuthMessage(error))"
+            authStatus = "Password reset failed: \(brixAuthMessage(error))"
         }
-    }
-
-    private func friendlyAuthMessage(_ error: Error) -> String {
-        let message = error.localizedDescription
-        if message.localizedCaseInsensitiveContains("invalid") || message.localizedCaseInsensitiveContains("credentials") {
-            return "The email or password was not accepted by Supabase."
-        }
-        if message.localizedCaseInsensitiveContains("network") || message.localizedCaseInsensitiveContains("offline") {
-            return "Network connection failed. Check internet access and try again."
-        }
-        return message
     }
 
     private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
@@ -263,11 +255,11 @@ struct AccountView: View {
                     await appState.signIn(with: session)
                     authStatus = "Signed in securely with Apple."
                 } catch {
-                    authStatus = "Sign in failed: \(error.localizedDescription)"
+                    authStatus = "Sign in failed: \(brixAuthMessage(error))"
                 }
             }
         case .failure(let error):
-            authStatus = "Sign in failed: \(error.localizedDescription)"
+            authStatus = "Sign in failed: \(brixAuthMessage(error))"
         }
     }
 

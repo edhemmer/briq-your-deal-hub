@@ -139,13 +139,13 @@ struct BRIXAPIClient {
         return try decode(AuthSession.self, from: data)
     }
 
-    func signUpWithEmail(email: String, password: String) async throws -> AuthSession {
+    func signUpWithEmail(email: String, password: String) async throws -> AuthSession? {
         let body = [
             "email": email.trimmingCharacters(in: .whitespacesAndNewlines),
             "password": password
         ]
         let data = try await send(path: "/auth/v1/signup", method: "POST", body: body, session: nil)
-        return try decode(AuthSession.self, from: data)
+        return try? decode(AuthSession.self, from: data)
     }
 
     func sendPasswordReset(email: String) async throws {

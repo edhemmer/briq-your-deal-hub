@@ -9,6 +9,7 @@ import { CardContainer } from "@/components/ui/card-container";
 import BrixIcon from "@/components/BrixIcon";
 import SEO from "@/components/SEO";
 import { toast } from "@/hooks/use-toast";
+import { getAuthMessage } from "@/lib/authMessages";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -27,9 +28,9 @@ export default function Register() {
     });
     setLoading(false);
     if (error) {
-      toast({ title: "Registration failed", description: error.message, variant: "destructive" });
+      toast({ title: "Account creation failed", description: getAuthMessage(error), variant: "destructive" });
     } else {
-      toast({ title: "Check your email", description: "We sent you a confirmation link." });
+      toast({ title: "Check your email", description: "Confirm the account, then sign in." });
       navigate("/login");
     }
   };
@@ -40,7 +41,7 @@ export default function Register() {
       options: { redirectTo: window.location.origin },
     });
     if (error) {
-      toast({ title: "Google sign-in failed", description: error.message, variant: "destructive" });
+      toast({ title: "Google sign-in failed", description: getAuthMessage(error), variant: "destructive" });
     }
   };
 
@@ -61,7 +62,7 @@ export default function Register() {
             </span>
           </div>
           <h1 className="text-xl font-semibold tracking-tight text-foreground">Create your account</h1>
-          <p className="text-sm text-muted-foreground">Start analyzing real estate opportunities</p>
+          <p className="text-sm text-muted-foreground">Create one account for web and iOS</p>
         </div>
 
         <CardContainer className="p-6">

@@ -9,6 +9,7 @@ import { CardContainer } from "@/components/ui/card-container";
 import BrixIcon from "@/components/BrixIcon";
 import SEO from "@/components/SEO";
 import { toast } from "@/hooks/use-toast";
+import { getAuthMessage } from "@/lib/authMessages";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -23,7 +24,7 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
-      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      toast({ title: "Sign in failed", description: getAuthMessage(error), variant: "destructive" });
     } else {
       navigate("/");
     }
@@ -35,7 +36,7 @@ export default function Login() {
       options: { redirectTo: window.location.origin },
     });
     if (error) {
-      toast({ title: "Google sign-in failed", description: error.message, variant: "destructive" });
+      toast({ title: "Google sign-in failed", description: getAuthMessage(error), variant: "destructive" });
     }
   };
 
@@ -52,7 +53,7 @@ export default function Login() {
             </span>
           </div>
           <h1 className="text-xl font-semibold tracking-tight text-foreground">Sign in</h1>
-          <p className="text-sm text-muted-foreground">Real estate acquisition intelligence</p>
+          <p className="text-sm text-muted-foreground">Continue to your acquisition workspace</p>
         </div>
 
         <CardContainer className="p-6">

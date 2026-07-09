@@ -19,6 +19,7 @@ final class BRIXAppState {
     var didRestoreSession = true
     var isLoading = false
     var lastError: String?
+    var lastNotice: String?
     var lastSyncDate: Date?
 
     private let apiClient = BRIXAPIClient()
@@ -120,6 +121,7 @@ final class BRIXAppState {
     func signInWithEmail(email: String, password: String) async -> Bool {
         isLoading = true
         lastError = nil
+        lastNotice = nil
         defer { isLoading = false }
 
         do {
@@ -127,7 +129,7 @@ final class BRIXAppState {
             await signIn(with: session)
             return true
         } catch {
-            lastError = friendlyConnectionMessage(error)
+            lastError = brixAuthMessage(error)
             return false
         }
     }
@@ -135,14 +137,18 @@ final class BRIXAppState {
     func createAccountWithEmail(email: String, password: String) async -> Bool {
         isLoading = true
         lastError = nil
+        lastNotice = nil
         defer { isLoading = false }
 
         do {
-            let session = try await apiClient.signUpWithEmail(email: email, password: password)
-            await signIn(with: session)
+            if let session = try await apiClient.signUpWithEmail(email: email, password: password) {
+                await signIn(with: session)
+            } else {
+                lastNotice = "Account created. Check your email to confirm it, then sign in."
+            }
             return true
         } catch {
-            lastError = friendlyConnectionMessage(error)
+            lastError = brixAuthMessage(error)
             return false
         }
     }
@@ -215,13 +221,37 @@ final class BRIXAppState {
     }
 }
 
-private func friendlyConnectionMessage(_ error: Error) -> String {
+func brixAuthMessage(_ error: Error) -> String {
+    if let apiError = error as? BRIXAPIError {
+        switch apiError {
+        case .backend(let status, let backendMessage):
+            let lower = backendMessage.lowercased()
+            if status == 429 || lower.contains("rate") || lower.contains("too many") {
+                return "Too many attempts. Wait a few minutes before trying again."
+            }
+            if lower.contains("invalid") || lower.contains("credentials") {
+                return "The email or password was not accepted. Check the password or use password reset."
+            }
+            if lower.contains("email not confirmed") || lower.contains("confirm") {
+                return "Confirm your email address, then sign in again."
+            }
+            if lower.contains("already") || lower.contains("registered") || lower.contains("exists") {
+                return "That email already has a BRIX account. Sign in or use password reset."
+            }
+        default:
+            break
+        }
+    }
+
     let message = error.localizedDescription
     if message.localizedCaseInsensitiveContains("invalid") || message.localizedCaseInsensitiveContains("credentials") {
-        return "The email or password was not accepted by BRIX Cloud."
+        return "The email or password was not accepted. Check the password or use password reset."
     }
     if message.localizedCaseInsensitiveContains("email not confirmed") {
         return "Confirm your email address, then sign in again."
+    }
+    if message.localizedCaseInsensitiveContains("429") || message.localizedCaseInsensitiveContains("rate") || message.localizedCaseInsensitiveContains("too many") {
+        return "Too many attempts. Wait a few minutes before trying again."
     }
     if message.localizedCaseInsensitiveContains("network") || message.localizedCaseInsensitiveContains("offline") || message.localizedCaseInsensitiveContains("internet") {
         return "Network connection failed. Check internet access and try again."

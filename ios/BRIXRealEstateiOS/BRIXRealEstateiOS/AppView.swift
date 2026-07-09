@@ -76,7 +76,7 @@ private struct NativeLaunchView: View {
                     .foregroundStyle(Color.brixBlue)
                 Text("BRIX Real Estate")
                     .font(.title2.weight(.black))
-                ProgressView("Connecting to BRIX Cloud")
+                ProgressView("Preparing BRIX")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -98,20 +98,24 @@ private struct AuthGateView: View {
             VStack(spacing: 18) {
                 VStack(spacing: 10) {
                     Image(systemName: "square.grid.3x3.fill")
-                        .font(.system(size: 42, weight: .bold))
+                        .font(.system(size: 38, weight: .bold))
                         .foregroundStyle(Color.brixBlue)
                     Text("BRIX Real Estate")
                         .font(.largeTitle.weight(.black))
-                    Text("Sign in to connect your iPhone or iPad to the same deal files, field photos, and acquisition work you use on the web.")
+                    Text("Run deals, capture field notes, and keep your acquisition work with you.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
-                .padding(.top, 28)
+                .padding(.top, 22)
 
                 BrixCard {
                     VStack(alignment: .leading, spacing: 14) {
-                        SectionHeader(title: "Connect BRIX Cloud", subtitle: "Use your BRIX account to sync deals across devices.", symbol: "lock.shield")
+                        Text("Sign in")
+                            .font(.title3.weight(.bold))
+                        Text("Use your BRIX account to continue.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
 
                         TextField("Email", text: $email)
                             .textContentType(.username)
@@ -127,7 +131,7 @@ private struct AuthGateView: View {
                         Button {
                             Task { await signIn() }
                         } label: {
-                            Label(appState.isLoading ? "Connecting..." : "Sign In", systemImage: "person.fill.checkmark")
+                            Text(appState.isLoading ? "Signing in..." : "Sign In")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
@@ -136,7 +140,7 @@ private struct AuthGateView: View {
                         Button {
                             Task { await createAccount() }
                         } label: {
-                            Text(isCreatingAccount ? "Creating..." : "Create BRIX Account")
+                            Text(isCreatingAccount ? "Creating..." : "Create Account")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
@@ -145,7 +149,7 @@ private struct AuthGateView: View {
                         Button {
                             Task { await sendPasswordReset() }
                         } label: {
-                            Text("Forgot password?")
+                            Text("Send password reset")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.plain)
@@ -168,24 +172,16 @@ private struct AuthGateView: View {
                         .frame(height: 48)
                         .disabled(isAppleWorking)
 
+                        if let notice = appState.lastNotice {
+                            AuthNoticeCard(message: notice, systemImage: "checkmark.seal.fill", color: .green)
+                        }
+
                         if let authMessage {
                             Text(authMessage)
                                 .font(.footnote.weight(.medium))
                                 .foregroundStyle(.secondary)
                         }
                     }
-                }
-
-                BrixCard {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Label("Live backend", systemImage: "checkmark.seal.fill")
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(.green)
-                        Text("BRIX saves real deal files to Supabase, restores your session from Keychain, and keeps mobile work available on the web.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if let error = appState.lastError {
@@ -198,12 +194,14 @@ private struct AuthGateView: View {
     }
 
     private func signIn() async {
+        authMessage = nil
         _ = await appState.signInWithEmail(email: email, password: password)
         password = ""
     }
 
     private func createAccount() async {
         isCreatingAccount = true
+        authMessage = nil
         defer { isCreatingAccount = false }
         _ = await appState.createAccountWithEmail(email: email, password: password)
         password = ""
@@ -213,9 +211,9 @@ private struct AuthGateView: View {
         authMessage = "Sending password reset..."
         do {
             try await apiClient.sendPasswordReset(email: email)
-            authMessage = "Password reset sent. Check your email and continue through the secure BRIX reset page."
+            authMessage = "Password reset sent. Check your email, then return to sign in."
         } catch {
-            authMessage = "Password reset failed: \(error.localizedDescription)"
+            authMessage = brixAuthMessage(error)
         }
     }
 
@@ -235,12 +233,36 @@ private struct AuthGateView: View {
                     let session = try await apiClient.signInWithApple(identityToken: identityToken)
                     await appState.signIn(with: session)
                 } catch {
-                    appState.lastError = error.localizedDescription
+                    appState.lastError = brixAuthMessage(error)
                 }
             }
         case .failure(let error):
-            appState.lastError = error.localizedDescription
+            appState.lastError = brixAuthMessage(error)
         }
+    }
+}
+
+private struct AuthNoticeCard: View {
+    let message: String
+    let systemImage: String
+    let color: Color
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: systemImage)
+                .foregroundStyle(color)
+            Text(message)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(color.opacity(0.25), lineWidth: 1)
+        )
     }
 }
 
@@ -252,13 +274,13 @@ private struct ConnectionChip: View {
             Circle()
                 .fill(appState.lastError == nil ? Color.green : Color.orange)
                 .frame(width: 7, height: 7)
-            Text(appState.lastError == nil ? "Live" : "Check")
+            Text(appState.lastError == nil ? "Synced" : "Review")
                 .font(.caption.weight(.semibold))
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 5)
         .background(.thinMaterial, in: Capsule())
-        .accessibilityLabel(appState.lastError == nil ? "BRIX Cloud connected" : "BRIX Cloud connection needs attention")
+        .accessibilityLabel(appState.lastError == nil ? "BRIX is synced" : "BRIX connection needs attention")
     }
 }
 

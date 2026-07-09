@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { CardContainer } from "@/components/ui/card-container";
 import BrixIcon from "@/components/BrixIcon";
 import { toast } from "@/hooks/use-toast";
+import { getAuthMessage } from "@/lib/authMessages";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -34,7 +35,7 @@ export default function ResetPassword() {
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
-          toast({ title: "Reset link expired", description: error.message, variant: "destructive" });
+          toast({ title: "Reset link expired", description: getAuthMessage(error), variant: "destructive" });
           navigate("/forgot-password", { replace: true });
           return;
         }
@@ -74,7 +75,7 @@ export default function ResetPassword() {
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
     if (error) {
-      toast({ title: "Password update failed", description: error.message, variant: "destructive" });
+      toast({ title: "Password update failed", description: getAuthMessage(error), variant: "destructive" });
     } else {
       toast({ title: "Password updated", description: "You can now continue in BRIX." });
       navigate("/dashboard", { replace: true });

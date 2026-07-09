@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { CardContainer } from "@/components/ui/card-container";
 import BrixIcon from "@/components/BrixIcon";
 import { toast } from "@/hooks/use-toast";
+import { getAuthMessage } from "@/lib/authMessages";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -20,9 +21,9 @@ export default function ForgotPassword() {
     });
     setLoading(false);
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Reset email not sent", description: getAuthMessage(error), variant: "destructive" });
     } else {
-      toast({ title: "Check your email", description: "We sent a password reset link." });
+      toast({ title: "Check your email", description: "We sent a password reset link if this account exists." });
     }
   };
 
@@ -36,6 +37,7 @@ export default function ForgotPassword() {
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-none">Real Estate</span>
           </div>
           <h1 className="text-xl font-semibold tracking-tight text-foreground">Reset password</h1>
+          <p className="text-center text-sm text-muted-foreground">Enter the email on your BRIX account.</p>
         </div>
         <CardContainer className="p-6">
           <form onSubmit={handleReset} className="space-y-4">
