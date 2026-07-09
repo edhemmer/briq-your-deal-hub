@@ -314,10 +314,19 @@ struct CreateDealDraft {
     var notes = ""
     var sourceConfidence = "user_entered"
 
+    var trimmedAddress: String {
+        propertyAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var isReadyToSave: Bool {
-        propertyAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false &&
-        city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false &&
-        state.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        trimmedAddress.count >= 3
+    }
+
+    var saveReadinessMessage: String? {
+        guard isReadyToSave else {
+            return "Enter at least a property address. City, state, ZIP, pricing, photos, and notes can be added as you verify the deal."
+        }
+        return nil
     }
 
     mutating func apply(_ extracted: ExtractedListingDeal, originalText: String) {

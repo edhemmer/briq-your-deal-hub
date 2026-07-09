@@ -42,11 +42,11 @@ struct FindIQView: View {
         .refreshable { await appState.refresh() }
         .sheet(isPresented: $isShowingAddProperty) {
             AddPropertySheet(draft: $draft) {
-                let saved = await appState.createDeal(draft)
+                let saved = await appState.createDeal(draft, openInDealIQ: false)
                 if saved {
                     draft = CreateDealDraft()
-                    isShowingAddProperty = false
                 }
+                return saved
             }
         }
     }
@@ -156,13 +156,14 @@ private struct OpportunityRow: View {
 
 private struct AddPropertySheet: View {
     @Binding var draft: CreateDealDraft
-    let onSave: () async -> Void
+    let onSave: () async -> Bool
     @Environment(BRIXAppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @State private var isSaving = false
     @State private var listingText = ""
     @State private var isExtracting = false
     @State private var extractionMessage: String?
+    @State private var saveMessage: String?
     private let apiClient = BRIXAPIClient()
 
     var body: some View {
@@ -253,6 +254,27 @@ private struct AddPropertySheet: View {
                     Text("Review every number before relying on the analysis. Enter insurance as an annual quote.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+
+                    if let readinessMessage = draft.saveReadinessMessage {
+                        Text(readinessMessage)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if let saveMessage {
+                        Text(saveMessage)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.orange)
+                    }
+
+                    Button {
+                        Task { await saveProperty() }
+                    } label: {
+                        Label(isSaving ? "Saving Property..." : "Save Property", systemImage: "checkmark.circle.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isSaving || draft.isReadyToSave == false)
                 }
             }
             .navigationTitle("Enter Property")
@@ -262,15 +284,29 @@ private struct AddPropertySheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isSaving ? "Saving..." : "Save") {
-                        Task {
-                            isSaving = true
-                            await onSave()
-                            isSaving = false
-                        }
+                        Task { await saveProperty() }
                     }
                     .disabled(isSaving || draft.isReadyToSave == false)
                 }
             }
+        }
+    }
+
+    private func saveProperty() async {
+        if let message = draft.saveReadinessMessage {
+            saveMessage = message
+            return
+        }
+
+        isSaving = true
+        saveMessage = nil
+        let saved = await onSave()
+        isSaving = false
+
+        if saved {
+            dismiss()
+        } else {
+            saveMessage = appState.lastError ?? "BRIX could not save this property. Check your connection and try again."
         }
     }
 

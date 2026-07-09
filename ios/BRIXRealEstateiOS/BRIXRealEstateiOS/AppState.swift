@@ -190,7 +190,7 @@ final class BRIXAppState {
         }
     }
 
-    func createDeal(_ draft: CreateDealDraft) async -> Bool {
+    func createDeal(_ draft: CreateDealDraft, openInDealIQ: Bool = true) async -> Bool {
         guard authState.isSignedIn else {
             lastError = "Sign in before creating a BRIX deal file."
             return false
@@ -204,7 +204,9 @@ final class BRIXAppState {
             let createdDeal = try await apiClient.createDeal(draft, session: session)
             deals.insert(createdDeal, at: 0)
             selectedDealID = createdDeal.id
-            selectedTab = .deal
+            if openInDealIQ {
+                selectedTab = .deal
+            }
             lastSyncDate = Date()
             await loadSelectedDecision()
             return true

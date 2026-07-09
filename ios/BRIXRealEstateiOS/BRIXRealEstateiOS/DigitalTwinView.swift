@@ -37,7 +37,7 @@ struct DigitalTwinView: View {
                                 Button {
                                     isAddingDeal = true
                                 } label: {
-                                    Label("Add Deal", systemImage: "plus")
+                                    Label("Enter Property", systemImage: "plus")
                                         .frame(maxWidth: .infinity)
                                 }
                                 .buttonStyle(.borderedProminent)
@@ -97,7 +97,7 @@ private struct AddDealSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Required") {
+                Section("Property") {
                     TextField("Property address", text: $draft.propertyAddress)
                         .textContentType(.streetAddressLine1)
                     TextField("City", text: $draft.city)
@@ -132,12 +132,17 @@ private struct AddDealSheet: View {
                 }
 
                 Section {
-                    Text("BRIX labels this as user-entered until verified. Missing rent, taxes, insurance, or condition data lowers confidence.")
+                    if let readinessMessage = draft.saveReadinessMessage {
+                        Text(readinessMessage)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Text("Save the property as soon as you have an address. Add rent, taxes, annual insurance, photos, and notes as you verify the deal.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("Add Deal")
+            .navigationTitle("Enter Property")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
