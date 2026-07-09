@@ -24,6 +24,8 @@ const firstMatch = (text: string, patterns: RegExp[]) => {
 
 const firstURL = (text: string) => text.match(/https?:\/\/[^\s"'<>]+/i)?.[0] ?? null;
 
+const hasAny = (text: string, patterns: RegExp[]) => patterns.some((pattern) => pattern.test(text));
+
 function parseListingURL(urlString: string | null): {
   property_address?: string | null;
   city?: string | null;
@@ -62,6 +64,63 @@ function parseListingURL(urlString: string | null): {
   } catch {
     return {};
   }
+}
+
+function applyExtractionGuardrails(
+  extracted: Record<string, unknown>,
+  deterministic: Record<string, unknown>,
+  extractionText: string,
+  userText: string,
+) {
+  const guarded = { ...extracted };
+
+  if (!hasAny(extractionText, [
+    /(?:monthly\s+rent|rent estimate|rental income|leased for|lease rent|market rent)[^\d$]{0,30}\$?\s*[\d,]{3,8}/i,
+  ])) {
+    guarded.monthly_rent = null;
+  }
+
+  if (!hasAny(extractionText, [
+    /(?:arv|after repair value)[^\d$]{0,30}\$?\s*[\d,]{5,9}/i,
+  ])) {
+    guarded.estimated_arv = null;
+  }
+
+  if (hasAny(userText, [
+    /(?:annual\s+insurance|yearly\s+insurance|homeowners?\s+insurance|hazard\s+insurance|insurance\s+quote|insurance\s+premium|premium)[^\d$]{0,30}\$?\s*[\d,]{3,8}/i,
+  ])) {
+    guarded.insurance = deterministic.insurance ?? guarded.insurance ?? null;
+  } else {
+    guarded.insurance = null;
+  }
+
+  if (!hasAny(extractionText, [
+    /owner[-\s]?occup|primary residence|live[-\s]?in|house hack|home search|flip|resale|brrrr|buy\s*&?\s*hold|rental strategy|development/i,
+  ])) {
+    guarded.strategy_primary = null;
+  }
+
+  const hasUserSuppliedOfficialTax = hasAny(userText, [
+    /(?:county|assessor|treasurer|tax bill|tax history|official record|property tax)[^\d$]{0,40}\$?\s*[\d,]{3,8}/i,
+  ]);
+  if (!hasUserSuppliedOfficialTax) {
+    guarded.annual_property_tax = null;
+    guarded.taxes = null;
+  } else if (typeof guarded.annual_property_tax === "number") {
+    guarded.taxes = guarded.annual_property_tax;
+  }
+
+  const questions = Array.isArray(guarded.missing_questions) ? [...guarded.missing_questions] : [];
+  const addQuestion = (question: string) => {
+    if (!questions.some((item) => String(item).toLowerCase() === question.toLowerCase())) questions.push(question);
+  };
+  if (!guarded.monthly_rent) addQuestion("Verify market rent with reliable rent comps.");
+  if (!guarded.insurance) addQuestion("Obtain an annual insurance quote.");
+  if (!guarded.estimated_arv) addQuestion("Verify resale value or ARV with relevant comps.");
+  if (!guarded.annual_property_tax) addQuestion("Open county tax records and enter the last three years of property taxes.");
+  guarded.missing_questions = questions;
+
+  return guarded;
 }
 
 async function fetchListingPage(urlString: string) {
@@ -277,7 +336,9 @@ serve(async (req) => {
   "strategy_primary": string | null (one of: "Buy & Hold", "Fix & Flip", "Wholesale", "BRRRR", "Development", "Owner Occupant"),
   "source_confidence": "low" | "medium" | "high"
 }
-Only extract facts actually present in the text. Do not invent rent, taxes, ARV, expenses, condition, or risk values. Put unknown diligence items in missing_questions.
+Only extract facts actually present in the text. Do not invent rent, taxes, ARV, expenses, condition, strategy, or risk values. Put unknown diligence items in missing_questions.
+Do not extract insurance from mortgage calculators, payment estimates, affordability widgets, or general listing estimates. Use null unless an actual insurance quote or premium is explicitly supplied by the user.
+Do not infer an investment strategy unless the text explicitly states one.
 Do not include any markdown formatting, code fences, or explanation. Only output the JSON object.`
           },
           {
@@ -323,8 +384,9 @@ Do not include any markdown formatting, code fences, or explanation. Only output
       ...deterministic,
       ...Object.fromEntries(Object.entries(parsed).filter(([, value]) => value !== null && value !== "" && value !== undefined)),
     };
+    const guarded = applyExtractionGuardrails(merged, deterministic, extractionText, inputText);
 
-    return new Response(JSON.stringify({ extracted: merged, warning: pageWarning || undefined }), {
+    return new Response(JSON.stringify({ extracted: guarded, warning: pageWarning || undefined }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
