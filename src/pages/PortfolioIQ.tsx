@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, BarChart3, Building2, CircleDollarSign, Landmark, LineChart, Plus, ShieldCheck } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowRight, BarChart3, Building2, CircleDollarSign, Landmark, LineChart, Plus, Save, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
 import { CardContainer } from "@/components/ui/card-container";
@@ -7,11 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useDeals } from "@/hooks/useDeals";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 type Deal = NonNullable<ReturnType<typeof useDeals>["data"]>[number];
 
 export default function PortfolioIQ() {
+  const { user } = useAuth();
   const { data: deals = [], isLoading } = useDeals();
+  const { data: snapshots = [], isLoading: snapshotsLoading } = usePortfolioSnapshots();
+  const saveSnapshot = useSavePortfolioSnapshot();
   const assets = deals.filter(isPortfolioAsset);
   const metrics = buildPortfolioMetrics(assets);
 
@@ -23,6 +31,14 @@ export default function PortfolioIQ() {
       >
         <Button variant="outline" asChild>
           <Link to="/pipelineiq">Review pipeline</Link>
+        </Button>
+        <Button
+          variant="outline"
+          disabled={!user || assets.length === 0 || saveSnapshot.isPending}
+          onClick={() => user && saveSnapshot.mutate({ userId: user.id, assets, metrics })}
+        >
+          <Save className="mr-2 h-4 w-4" />
+          {saveSnapshot.isPending ? "Saving" : "Save review"}
         </Button>
         <Button asChild>
           <Link to="/findiq">
@@ -88,6 +104,28 @@ export default function PortfolioIQ() {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
+            <div className="mt-5 border-t border-border pt-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Saved reviews</p>
+              <div className="mt-3 space-y-2">
+                {snapshotsLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading saved reviews.</p>
+                ) : snapshots.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No saved portfolio reviews yet.</p>
+                ) : (
+                  snapshots.slice(0, 4).map((snapshot) => (
+                    <div key={snapshot.id} className="rounded-lg border border-border bg-background/50 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-foreground">{new Date(snapshot.snapshot_date).toLocaleDateString()}</p>
+                        <span className="text-xs font-semibold text-primary">{snapshot.portfolio_score ?? 0}/100</span>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Equity {money(snapshot.total_equity ?? 0)} - Cash flow {money(snapshot.monthly_cash_flow ?? 0)}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </CardContainer>
         </div>
       )}
@@ -106,7 +144,7 @@ function AssetRow({ deal }: { deal: Deal }) {
         </div>
         <p className="mt-1 text-sm text-muted-foreground">{[deal.city, deal.state, deal.zip_code].filter(Boolean).join(", ")}</p>
         <p className="mt-2 text-xs text-muted-foreground">
-          {deal.property_type || "Property type needed"} · {deal.beds ?? "-"} bed · {deal.baths ?? "-"} bath
+          {deal.property_type || "Property type needed"} - {deal.beds ?? "-"} bed - {deal.baths ?? "-"} bath
         </p>
       </div>
       <AssetMetric label="Value" value={money(asset.value)} />
@@ -229,6 +267,94 @@ function buildPortfolioMetrics(assets: Deal[]) {
     averageHealth,
     averageDscr,
   };
+}
+
+type PortfolioMetrics = ReturnType<typeof buildPortfolioMetrics>;
+
+function usePortfolioSnapshots() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["portfolio-snapshots", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("brix_portfolio_snapshots")
+        .select("*")
+        .order("snapshot_date", { ascending: false })
+        .limit(12);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+function useSavePortfolioSnapshot() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, assets, metrics }: { userId: string; assets: Deal[]; metrics: PortfolioMetrics }) => {
+      const analyzed = assets.map((deal) => {
+        const asset = analyzeAsset(deal);
+        return {
+          deal_id: deal.id,
+          address: deal.property_address || deal.deal_name || "Unnamed asset",
+          strategy: deal.strategy_primary,
+          value: asset.value,
+          debt: asset.debt,
+          equity: asset.equity,
+          monthly_cash_flow: asset.monthlyCashFlow,
+          dscr: asset.dscr,
+          health: asset.health,
+        };
+      });
+      const concentration = analyzed.reduce<Record<string, number>>((acc, item) => {
+        const strategy = item.strategy || "Unspecified";
+        acc[strategy] = (acc[strategy] ?? 0) + 1;
+        return acc;
+      }, {});
+      const riskFlags = analyzed
+        .filter((item) => item.health < 60 || item.monthly_cash_flow < 0)
+        .map((item) => ({
+          deal_id: item.deal_id,
+          address: item.address,
+          reason: item.monthly_cash_flow < 0 ? "Negative monthly cash flow" : "Low asset health",
+        }));
+
+      const { data, error } = await supabase
+        .from("brix_portfolio_snapshots")
+        .insert({
+          user_id: userId,
+          snapshot_date: new Date().toISOString().slice(0, 10),
+          net_worth: metrics.totalEquity,
+          total_debt: metrics.totalDebt,
+          total_equity: metrics.totalEquity,
+          monthly_cash_flow: metrics.monthlyCashFlow,
+          portfolio_score: metrics.averageHealth,
+          concentration_analysis: concentration as Json,
+          risk_analysis: { risk_flags: riskFlags } as Json,
+          capital_allocation: { assets: analyzed } as Json,
+          liquidity: null,
+          opportunities: {
+            refinance_candidates: analyzed.filter((item) => item.dscr > 1.25 && item.equity > 50000).map((item) => item.deal_id),
+            review_candidates: riskFlags.map((item) => item.deal_id),
+          } as Json,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["portfolio-snapshots"] });
+      toast({ title: "Portfolio review saved" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Could not save portfolio review",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 }
 
 function positiveNumber(value: number | string | null | undefined) {

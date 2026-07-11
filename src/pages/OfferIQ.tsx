@@ -263,6 +263,7 @@ function useOffers() {
 }
 
 function useSaveOffer() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
       existingOffer,
@@ -307,6 +308,47 @@ function useSaveOffer() {
 
       const { error } = await query;
       if (error) throw error;
+
+      if (status === "ready" || status === "submitted") {
+        const marker = `OfferIQ:${deal.id}`;
+        const { data: existingTasks, error: taskReadError } = await supabase
+          .from("brix_project_tasks")
+          .select("title")
+          .eq("user_id", userId)
+          .eq("deal_id", deal.id)
+          .ilike("notes", `%${marker}%`);
+        if (taskReadError) throw taskReadError;
+
+        const existingTitles = new Set((existingTasks ?? []).map((task) => task.title.toLowerCase()));
+        const dueAt = new Date();
+        dueAt.setDate(dueAt.getDate() + Math.max(1, plan.dueDiligenceDays));
+        const taskTitles = [
+          ...plan.contingencies.map((item) => `Resolve offer contingency: ${item}`),
+          "Confirm walk-away price before final response",
+          "Prepare final offer communication package",
+        ];
+        const rows = taskTitles
+          .filter((title) => !existingTitles.has(title.toLowerCase()))
+          .map((title) => ({
+            user_id: userId,
+            deal_id: deal.id,
+            title,
+            task_type: "due_diligence",
+            status: "open",
+            priority: title.includes("walk-away") ? "critical" : "high",
+            due_at: dueAt.toISOString(),
+            verification_required: true,
+            notes: `${marker} | ${strategy.label}`,
+          }));
+
+        if (rows.length > 0) {
+          const { error: taskInsertError } = await supabase.from("brix_project_tasks").insert(rows);
+          if (taskInsertError) throw taskInsertError;
+        }
+      }
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["pipeline-tasks"] });
     },
   });
 }

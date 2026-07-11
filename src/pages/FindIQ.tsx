@@ -135,15 +135,24 @@ export default function FindIQ() {
       toast.error("Enter the property address first.");
       return;
     }
+    if (!strategy.trim()) {
+      toast.error("Choose the strategy to test first.");
+      return;
+    }
 
     const listingUrl = trimmedAddress.match(/https?:\/\/[^\s"'<>]+/i)?.[0];
     let parsed = parseListingText(trimmedAddress);
     let extractedFields: Partial<ManualListingState> = {};
+    const loadingToast = toast.loading("Creating deal file...");
+    setIsQuickScanning(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("extract-deal-from-text", {
-        body: { listing_text: trimmedAddress, listing_url: listingUrl },
-      });
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke("extract-deal-from-text", {
+          body: { listing_text: trimmedAddress, listing_url: listingUrl },
+        }),
+        9000,
+      );
       if (!error) {
         const extracted = normalizeExtractionResponse(data);
         extractedFields = extracted ? visualToManualFields(extracted) : {};
@@ -192,9 +201,12 @@ export default function FindIQ() {
     const geocodeTarget = [propertyAddress, city, state, zip].filter(Boolean).join(", ") || (listingUrl ? "" : trimmedAddress);
     if (geocodeTarget) {
       try {
-        const { data } = await supabase.functions.invoke("geocode-address", {
-          body: { address: geocodeTarget },
-        });
+        const { data } = await withTimeout(
+          supabase.functions.invoke("geocode-address", {
+            body: { address: geocodeTarget },
+          }),
+          6500,
+        );
         const result = data as {
           found?: boolean;
           formatted_address?: string | null;
@@ -253,6 +265,9 @@ export default function FindIQ() {
       navigate(`/dealiq/${deal.id}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "BRIX could not create the deal file.");
+    } finally {
+      toast.dismiss(loadingToast);
+      setIsQuickScanning(false);
     }
   };
 
@@ -333,8 +348,8 @@ export default function FindIQ() {
                   <Button type="button" variant="outline" size="lg" onClick={resetQuickWorkflow}>
                     Back
                   </Button>
-                  <Button type="submit" size="lg" disabled={!quickStrategy.trim()}>
-                    Create deal file
+                  <Button type="submit" size="lg" disabled={!quickStrategy.trim() || isQuickScanning || createDeal.isPending}>
+                    {isQuickScanning || createDeal.isPending ? "Creating..." : "Create deal file"}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
@@ -790,9 +805,12 @@ async function enrichWithPhotoAnalysis(fields: Partial<ManualListingState>): Pro
 
   for (const url of urls) {
     try {
-      const { data, error } = await supabase.functions.invoke("extract-deal-from-image", {
-        body: { image_url: url },
-      });
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke("extract-deal-from-image", {
+          body: { image_url: url },
+        }),
+        7000,
+      );
       if (error) throw error;
       const extracted = (data as { extracted?: VisualExtraction })?.extracted;
       if (!extracted) throw new Error("No visual extraction returned");
@@ -870,6 +888,18 @@ function visualToManualFields(extracted: VisualExtraction, sourceName?: string):
     source_confidence: extracted.source_confidence ?? "medium",
     photo_analysis_status: "analyzed",
   };
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error("Request timed out"));
+    }, timeoutMs);
+    promise
+      .then((value) => resolve(value))
+      .catch((error) => reject(error))
+      .finally(() => window.clearTimeout(timeout));
+  });
 }
 
 function normalizeExtractionResponse(data: unknown): VisualExtraction | undefined {

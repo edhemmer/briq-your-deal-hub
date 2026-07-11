@@ -42,6 +42,8 @@ This pass reviewed the live web routing surface, FindIQ intake path, stale/publi
 | 11 | Client-facing source language | Some source review labels still used provider/connector wording that felt like backend architecture. | Changed visible source review copy to investor-facing "Source Checks", "source needed", and "official lookup" language. | Fixed in source |
 | 12 | ContractIQ to PipelineIQ handoff | Contract deadlines could be reviewed/exported but did not become saved execution tasks. | Added a ContractAnalysis action that saves dated/active contract deadlines into `brix_project_tasks` for the linked DealIQ record; PipelineIQ now shows due dates on those tasks. | Code-fixed, live verification required |
 | 13 | Report history | Reports route pointed back to DealIQ exports but did not persist report snapshots. | Added `brix_reports` table migration, typed Supabase shape, saved deal snapshot action, ContractIQ export snapshots, and saved snapshot history panel. | Code-fixed, migration/live verification required |
+| 14 | Portfolio review history | PortfolioIQ calculated from closed deals but did not save portfolio review records. | Wired PortfolioIQ to save and display `brix_portfolio_snapshots` with equity, debt, cash flow, score, concentration, risk flags, and asset-level payload. | Code-fixed, live verification required |
+| 15 | OfferIQ to PipelineIQ handoff | Offer diligence items were visible in OfferIQ but did not become tracked tasks. | Saving an offer plan as ready/submitted now creates dated PipelineIQ diligence tasks from contingencies, walk-away confirmation, and communication prep. | Code-fixed, live verification required |
 
 ### Remaining Release Risks
 
@@ -58,9 +60,9 @@ This pass reviewed the live web routing surface, FindIQ intake path, stale/publi
 | FindIQ URL/listing intake | Code-fixed, live verification required | Shared extraction now calls Supabase first, normalizes extraction shapes, preserves extracted fields, uses extracted address for geocoding, safely handles missing numeric fields, and attempts listing-photo analysis when URLs are available. | Live-test against multiple listing URLs and provider-blocked cases; unsupported fields must remain blank with verification status. |
 | Official tax records | Code-fixed, live verification required | Listing tax clues are not official tax history. County lookup exists, tax history/status fields exist, and cross-module readiness now requires verified tax status/history instead of accepting any tax number. | Live-test county lookup path, manual verified entry, and saved tax status across web/iOS. |
 | Deal creation cap | Fixed this pass | Free users need a hard lifetime cap that cannot be bypassed by deleting records. | Added `deal_file_usage` ledger and DB trigger; paid/admin/comped users remain unlimited. Free-user deal deletion is blocked by DB policy. |
-| PortfolioIQ | Partial/live | Route now reads closed/acquired deals and estimates portfolio value, debt, equity, cash flow, DSCR, and asset health. | Add durable asset records, loan schedules, document vault, and refinance/disposition automations. |
-| Reports | Code-fixed, migration/live verification required | Route now reads live deal files, shows report readiness/missing inputs, and can save point-in-time report snapshots to `brix_reports`. | Push the report-history migration to Supabase and verify saved snapshots across refresh/login. |
-| OfferIQ | Code-fixed, live verification required | Reads deals, saves current offer plans to `brix_offers`, stores offer terms/strategy snapshot, and can move a deal to offer strategy/submitted. | Verify saved offer records in production, then add generated documents, counters, and communication packages. |
+| PortfolioIQ | Code-fixed, live verification required | Route reads closed/acquired deals, estimates portfolio value, debt, equity, cash flow, DSCR, asset health, and now saves portfolio review snapshots to `brix_portfolio_snapshots`. | Verify saved snapshots across refresh/login, then add durable asset records, loan schedules, document vault, and refinance/disposition automations. |
+| Reports | Code-fixed, live verification required | Route now reads live deal files, shows report readiness/missing inputs, and can save point-in-time report snapshots to `brix_reports`; migration was pushed to Supabase. | Verify saved snapshots across refresh/login. |
+| OfferIQ | Code-fixed, live verification required | Reads deals, saves current offer plans to `brix_offers`, stores offer terms/strategy snapshot, can move a deal to offer strategy/submitted, and creates dated PipelineIQ diligence tasks from offer contingencies. | Verify saved offer records and task handoff in production, then add generated documents, counters, and communication packages. |
 | PipelineIQ | Code-fixed, live verification required | Reads deals, updates status, creates missing-input verification tasks in `brix_project_tasks`, lets users complete tasks, and now displays ContractIQ deadline due dates when sent from contract review. | Verify task creation/completion and ContractIQ deadline handoff in production, then add activity history, assignments, and probability/health history. |
 | ContractIQ | Code-fixed, live verification required | Contract upload/extraction, contract table persistence, deterministic contract analysis, reports, and contract-deadline handoff into PipelineIQ exist in source. | Run end-to-end contract upload/text extraction smoke, send deadlines to PipelineIQ, and verify saved analysis. |
 | DealIQ strategy engine | Code-fixed, live verification required | Strategy fit engine includes broad strategy assumptions/questions/success criteria, and regression coverage now asserts every strategy exposes proof needs, assumptions, success criteria, what-must-be-true, and failure scenarios. | Live-test selected strategy plus better-alternative display in DealIQ with real deal files. |
@@ -113,12 +115,12 @@ Status: Code-fixed, live verification required
 - Reads live deals.
 - Saves a current offer plan to `brix_offers` with offer status, offer anchor, earnest money, due diligence window, closing timeline, contingencies, repair guidance, walk-away guardrail, and strategy snapshot.
 - Can move a deal to `offer_strategy`, `underwriting`, or `offer_submitted`.
+- Creates PipelineIQ tasks for offer contingencies when an offer plan is saved as ready/submitted.
 - Produces offer posture from readiness and missing inputs.
 - The submit action now persists the offer plan before moving the deal to submitted status.
 - Problems:
-  - Needs live verification that saved offer plans reopen correctly after refresh/login.
+  - Needs live verification that saved offer plans and generated diligence tasks reopen correctly after refresh/login.
   - Letters, counteroffers, communications, and document packages are not complete yet.
-  - Due diligence timeline is still basic and should push dated tasks into PipelineIQ.
 
 ### PipelineIQ
 
@@ -137,12 +139,14 @@ Status: Code-fixed, live verification required
 
 ### PortfolioIQ
 
-Status: Partial/live
+Status: Code-fixed, live verification required
 
 - Reads live closed/acquired deals.
 - Calculates portfolio-level value, debt, equity, monthly cash flow, average DSCR, and asset health from saved deal fields.
+- Saves portfolio review snapshots to `brix_portfolio_snapshots` and displays recent saved reviews.
 - Problems:
-  - Closed deals do not yet create durable asset records.
+  - Saved snapshots need live verification after refresh/login.
+  - Closed deals do not yet create durable asset records separate from the source deal file.
   - Loan amortization, document vault, refinance triggers, disposition logic, and maintenance/capital planning are not complete.
 
 ### ContractIQ
@@ -209,6 +213,8 @@ Status: Code-wired, Mac verification required
 - ContractIQ can now save linked contract deadlines into `brix_project_tasks`; PipelineIQ displays deadline due dates.
 - OfferIQ now persists offer plans through the new `brix_offers` table.
 - Reports can now save point-in-time deal snapshots through the new `brix_reports` table; ContractIQ exports now save `contract_snapshot` records to the same history.
+- PortfolioIQ can now save point-in-time portfolio reviews through `brix_portfolio_snapshots`.
+- OfferIQ now creates dated PipelineIQ diligence tasks when offer plans are saved as ready/submitted.
 - FindIQ client intake now normalizes edge-function extraction responses, no longer renders the older hidden criteria/import panel, and no longer carries the old modal state in the component workflow.
 - DealIQ workflow step routing now maps the Strategy step to a dedicated Strategy tab instead of overloading Market & Risk.
 - Free-plan lifetime deal cap is enforced in Supabase with `deal_file_usage`; deleting deals no longer resets the free allowance.
