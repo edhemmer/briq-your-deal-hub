@@ -1230,6 +1230,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ensure_current_profile: {
+        Args: Record<PropertyKey, never>
+        Returns: Database["public"]["Tables"]["profiles"]["Row"]
+      }
       has_admin_access: {
         Args: {
           _user_id: string

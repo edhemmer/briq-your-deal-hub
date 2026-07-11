@@ -385,6 +385,39 @@ struct CreateDealDraft {
     }
 }
 
+struct BRIXStrategyDefinition: Identifiable, Hashable {
+    let name: String
+    let detail: String
+    let requiredProof: String
+
+    var id: String { name }
+}
+
+let brixStrategyDefinitions: [BRIXStrategyDefinition] = [
+    BRIXStrategyDefinition(name: "Owner Occupant", detail: "Live-in purchase decision balancing affordability, usability, resale, commute, schools, taxes, condition, and life impact.", requiredProof: "Payment comfort, taxes, insurance, inspection, street context, commute, resale support."),
+    BRIXStrategyDefinition(name: "Buy & Hold", detail: "Own for long-term income and equity growth while controlling operating risk.", requiredProof: "Rent support, expense support, reserves, financing, market durability."),
+    BRIXStrategyDefinition(name: "House Hack", detail: "Live in part of the property while rent from other space offsets ownership cost.", requiredProof: "Layout fit, rent support, lending fit, privacy/usability, local rules."),
+    BRIXStrategyDefinition(name: "Long-Term Rental", detail: "Traditional lease strategy focused on stable rent, lower turnover, and predictable operations.", requiredProof: "Market rent comps, vacancy assumption, lease demand, management and maintenance costs."),
+    BRIXStrategyDefinition(name: "Mid-Term Rental", detail: "Furnished 30+ day rental strategy for travel, medical, corporate, or transition demand.", requiredProof: "Demand source, furnished setup cost, occupancy assumptions, local regulations."),
+    BRIXStrategyDefinition(name: "Short-Term Rental", detail: "Nightly or weekly rental strategy with higher revenue potential and higher regulation/operation risk.", requiredProof: "Legal permission, ADR, occupancy, cleaning, management, seasonality."),
+    BRIXStrategyDefinition(name: "BRRRR", detail: "Buy, renovate, rent, refinance, repeat. Depends on forced equity and refinance execution.", requiredProof: "ARV, rehab scope, refinance terms, seasoning, rent support, appraisal risk."),
+    BRIXStrategyDefinition(name: "Hybrid BRRRR", detail: "Modified BRRRR with phased renovation, delayed refinance, or mixed capital recovery timing.", requiredProof: "Phase budget, cash runway, refinance timing, rent stabilization."),
+    BRIXStrategyDefinition(name: "Fix & Flip", detail: "Renovate and resell for profit. Execution speed and resale support matter more than rent yield.", requiredProof: "ARV comps, rehab bid, timeline, selling costs, holding costs, buyer demand."),
+    BRIXStrategyDefinition(name: "Refinance", detail: "Improve debt terms, extract equity, or reposition capital after value or rate changes.", requiredProof: "Loan balance, value support, rate/terms, DSCR, closing costs."),
+    BRIXStrategyDefinition(name: "Hold", detail: "Keep the property when current ownership beats selling, refinancing, or redeploying capital.", requiredProof: "Current cash flow, equity, opportunity cost, risk trend, life impact."),
+    BRIXStrategyDefinition(name: "Sell", detail: "Exit when risk, opportunity cost, market timing, or portfolio fit favors disposition.", requiredProof: "Resale value, selling costs, tax impact, redeployment plan."),
+    BRIXStrategyDefinition(name: "Seller Finance", detail: "Acquire with seller-provided financing. Terms and legal review drive viability.", requiredProof: "Seller terms, payment schedule, default remedies, title/legal review."),
+    BRIXStrategyDefinition(name: "Subject-To", detail: "Acquire subject to existing debt. High legal, lender, and due-on-sale risk.", requiredProof: "Loan terms, legal review, insurance, servicing plan, seller disclosures."),
+    BRIXStrategyDefinition(name: "Lease Option", detail: "Control property with lease plus purchase option. Option terms and exit timing matter.", requiredProof: "Option price, rent credits, term length, legal review, financing exit."),
+    BRIXStrategyDefinition(name: "Wrap Mortgage", detail: "Seller-financed structure wrapped around existing debt with elevated legal and servicing risk.", requiredProof: "Existing loan terms, wrap terms, legal review, payment controls."),
+    BRIXStrategyDefinition(name: "ADU / Value-Add", detail: "Create value through layout, additional unit, rent lift, or functional improvement.", requiredProof: "Zoning, permits, cost, rent/value lift, timeline."),
+    BRIXStrategyDefinition(name: "Lot Split", detail: "Create value by subdividing land or creating separate buildable parcels.", requiredProof: "Zoning, survey, utility access, entitlement cost, resale demand."),
+    BRIXStrategyDefinition(name: "Mixed Use Conversion", detail: "Reposition use mix to improve income, value, or tenant demand.", requiredProof: "Zoning, code, tenant demand, buildout cost, financing fit."),
+    BRIXStrategyDefinition(name: "Commercial Repositioning", detail: "Improve commercial income/value through tenant, use, lease, or physical repositioning.", requiredProof: "NOI, leases, vacancy, tenant demand, capex, exit cap support."),
+    BRIXStrategyDefinition(name: "Development", detail: "Create value through construction or redevelopment. Highest verification and execution burden.", requiredProof: "Entitlements, budget, schedule, financing, exit demand, professional review."),
+    BRIXStrategyDefinition(name: "1031 Exchange", detail: "Tax-deferred exchange strategy for redeploying equity into replacement property.", requiredProof: "CPA/QI review, deadlines, basis, replacement fit, debt/equity rules.")
+]
+
 struct CreateDealRequest: Encodable {
     let userID: String
     let propertyAddress: String

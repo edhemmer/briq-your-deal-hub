@@ -88,9 +88,9 @@ export default function PipelineIQ() {
           <Link to="/findiq">Find properties</Link>
         </Button>
         <Button asChild>
-          <Link to="/dealiq/new">
+          <Link to="/findiq">
             <Plus className="mr-2 h-4 w-4" />
-            Add deal
+            Start property
           </Link>
         </Button>
       </PageHeader>
@@ -376,7 +376,7 @@ function EmptyPipeline({ title, body }: { title: string; body: string }) {
           <Link to="/findiq">Start in FindIQ</Link>
         </Button>
         <Button variant="outline" asChild>
-          <Link to="/dealiq/new">Add deal</Link>
+          <Link to="/findiq">Start property</Link>
         </Button>
       </div>
     </div>

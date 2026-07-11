@@ -5,6 +5,64 @@ import { toast } from "@/hooks/use-toast";
 import { evaluateBillingAccess, type BillingProfile } from "@/lib/billingAccess";
 import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
+const DEVELOPER_ACCESS_EMAILS = new Set(["edhemmer@gmail.com"]);
+
+function applyDeveloperAccess(profile: BillingProfile | null, email?: string | null): BillingProfile | null {
+  if (!email || !DEVELOPER_ACCESS_EMAILS.has(email.toLowerCase())) return profile;
+
+  return {
+    subscription_status: profile?.subscription_status ?? "admin_override",
+    free_deal_used: profile?.free_deal_used ?? false,
+    admin_override: true,
+    manual_premium_override: true,
+    stripe_customer_id: profile?.stripe_customer_id ?? null,
+    stripe_subscription_id: profile?.stripe_subscription_id ?? null,
+  };
+}
+
+async function loadBillingProfile(userId: string, email?: string | null): Promise<BillingProfile | null> {
+  const selectedFields = "subscription_status, free_deal_used, admin_override, manual_premium_override, stripe_customer_id, stripe_subscription_id";
+  const { error: ensureProfileError } = await supabase.rpc("ensure_current_profile");
+  if (ensureProfileError) {
+    throw new Error(`Unable to prepare your account profile: ${ensureProfileError.message}`);
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select(selectedFields)
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileError) throw profileError;
+
+  if (profile) return applyDeveloperAccess(profile as BillingProfile, email);
+
+  const isDeveloper = !!email && DEVELOPER_ACCESS_EMAILS.has(email.toLowerCase());
+  const fallbackProfile: BillingProfile = {
+    subscription_status: isDeveloper ? "admin_override" : "free",
+    free_deal_used: false,
+    admin_override: isDeveloper,
+    manual_premium_override: isDeveloper,
+    stripe_customer_id: null,
+    stripe_subscription_id: null,
+  };
+
+  const { data: createdProfile } = await supabase
+    .from("profiles")
+    .upsert({
+      id: userId,
+      account_status: "active",
+      subscription_status: fallbackProfile.subscription_status,
+      free_deal_used: false,
+      admin_override: fallbackProfile.admin_override,
+      manual_premium_override: fallbackProfile.manual_premium_override,
+    }, { onConflict: "id" })
+    .select(selectedFields)
+    .maybeSingle();
+
+  return applyDeveloperAccess((createdProfile as BillingProfile | null) ?? fallbackProfile, email);
+}
+
 export function useDeals() {
   const { user } = useAuth();
 
@@ -46,18 +104,13 @@ export function useCreateDeal() {
     mutationFn: async (deal: Omit<TablesInsert<"deals">, "user_id">) => {
       if (!user) throw new Error("Not authenticated");
 
-      const { count: lifetimeDealCount } = await supabase
+      const { count: lifetimeDealCount, error: usageError } = await supabase
         .from("deal_file_usage")
         .select("*", { count: "exact", head: true });
+      if (usageError) throw new Error(`Unable to verify deal file limit: ${usageError.message}`);
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("subscription_status, free_deal_used, admin_override, manual_premium_override, stripe_customer_id, stripe_subscription_id")
-        .eq("id", user.id)
-        .single();
-      if (profileError) throw profileError;
-
-      const access = evaluateBillingAccess(profile as BillingProfile, lifetimeDealCount ?? 0);
+      const profile = await loadBillingProfile(user.id, user.email);
+      const access = evaluateBillingAccess(profile, lifetimeDealCount ?? 0);
       if (!access.canCreateDeal) {
         throw new Error(access.reason);
       }

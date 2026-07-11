@@ -101,7 +101,7 @@ export default function Index() {
                 <Link to="/findiq">Find an address</Link>
               </Button>
               <Button size="sm" variant="outline" asChild>
-                <Link to="/dealiq/new">Build deal file</Link>
+                <Link to="/findiq">Start property</Link>
               </Button>
               <Button size="sm" variant="outline" asChild>
                 <Link to="/dealiq/compare">Compare active deals</Link>
@@ -180,7 +180,7 @@ export default function Index() {
                   <Link to="/dealiq/compare">Compare active deals</Link>
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link to="/dealiq/new">Build deal file</Link>
+                  <Link to="/findiq">Start property</Link>
                 </Button>
               </div>
             </CardContainer>
@@ -267,9 +267,9 @@ function EmptyDealDashboard() {
           />
           <StartAction
             title="2. Build the file"
-            body="Use DealIQ when you already have a listing URL, screenshots, listing text, or known property facts."
-            to="/dealiq/new"
-            action="Start DealIQ"
+            body="Choose a strategy in FindIQ, then BRIX opens the DealIQ file for numbers, photos, evidence, and analysis."
+            to="/findiq"
+            action="Start Property"
           />
         </div>
       </CardContainer>

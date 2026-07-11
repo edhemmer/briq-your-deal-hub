@@ -390,7 +390,7 @@ export function DealIQLanding() {
                   <Link to="/dealiq/compare"><GitCompareArrows className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Compare</span></Link>
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link to="/dealiq/new"><Plus className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Add</span></Link>
+                  <Link to="/findiq"><Plus className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Start</span></Link>
                 </Button>
                 <Button variant="outline"><Upload className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Import</span></Button>
                 <Button asChild>
@@ -651,7 +651,7 @@ function EmptyDealCockpit() {
             <PrimaryButton>Start in FindIQ</PrimaryButton>
           </Link>
           <Button variant="outline" asChild>
-            <Link to="/dealiq/new">Add deal</Link>
+            <Link to="/findiq">Start property</Link>
           </Button>
         </div>
       </div>

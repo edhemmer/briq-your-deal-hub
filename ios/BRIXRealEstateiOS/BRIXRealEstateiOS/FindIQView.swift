@@ -11,22 +11,7 @@ struct FindIQView: View {
     @State private var isSaving = false
     @State private var intakeMessage: String?
 
-    private let strategyOptions = [
-        "Owner Occupant",
-        "Buy & Hold",
-        "House Hack",
-        "Long-Term Rental",
-        "Mid-Term Rental",
-        "Short-Term Rental",
-        "BRRRR",
-        "Fix & Flip",
-        "Seller Finance",
-        "Subject-To",
-        "Lease Option",
-        "ADU / Value-Add",
-        "Development",
-        "1031 Exchange"
-    ]
+    private let strategyOptions = brixStrategyDefinitions
 
     private var filteredDeals: [DealSummary] {
         let trimmed = queueSearch.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -90,16 +75,16 @@ struct FindIQView: View {
                     Text("Strategy")
                         .font(.subheadline.weight(.bold))
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 142), spacing: 8)], spacing: 8) {
-                        ForEach(strategyOptions, id: \.self) { strategy in
+                        ForEach(strategyOptions) { strategy in
                             Button {
-                                draft.strategy = strategy
+                                draft.strategy = strategy.name
                             } label: {
                                 HStack {
-                                    Text(strategy)
+                                    Text(strategy.name)
                                         .font(.caption.weight(.bold))
                                         .lineLimit(1)
                                     Spacer(minLength: 4)
-                                    if draft.strategy == strategy {
+                                    if draft.strategy == strategy.name {
                                         Image(systemName: "checkmark.circle.fill")
                                     }
                                 }
@@ -108,8 +93,8 @@ struct FindIQView: View {
                                 .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.plain)
-                            .foregroundStyle(draft.strategy == strategy ? Color.white : Color.brixInk)
-                            .background(draft.strategy == strategy ? Color.brixBlue : Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .foregroundStyle(draft.strategy == strategy.name ? Color.white : Color.brixInk)
+                            .background(draft.strategy == strategy.name ? Color.brixBlue : Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                         }
                     }
                 }

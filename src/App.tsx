@@ -16,7 +16,6 @@ import { OnboardingWalkthrough } from "@/components/help/OnboardingWalkthrough";
 const Index = lazy(() => import("./pages/Index"));
 const Landing = lazy(() => import("./pages/Landing"));
 const FindIQ = lazy(() => import("./pages/FindIQ"));
-const NewDeal = lazy(() => import("./pages/NewDeal"));
 const DealCompare = lazy(() => import("./pages/DealCompare"));
 const Analysis = lazy(() => import("./pages/Analysis"));
 const OfferIQ = lazy(() => import("./pages/OfferIQ"));
@@ -112,7 +111,7 @@ const App = () => (
             />
             <Route
               path="/dealiq/new"
-              element={<ProtectedAppPage routeName="dealiq-new"><NewDeal /></ProtectedAppPage>}
+              element={<Navigate to="/findiq" replace />}
             />
             <Route
               path="/dealiq/:dealId?"
@@ -140,7 +139,7 @@ const App = () => (
             />
             {/* Legacy redirects: /deals -> /dealiq */}
             <Route path="/deals" element={<Navigate to="/dealiq" replace />} />
-            <Route path="/deals/new" element={<Navigate to="/dealiq/new" replace />} />
+            <Route path="/deals/new" element={<Navigate to="/findiq" replace />} />
             {/* Legacy redirect: /analysis -> /dealiq */}
             <Route
               path="/analysis"

@@ -149,15 +149,48 @@ struct DealIQCockpitView: View {
     }
 
     private func strategies(_ deal: DealSummary) -> some View {
+        let selectedName = deal.strategyPrimary ?? "Buy & Hold"
+        let rankedStrategies = rankedStrategyDefinitions(for: deal, selectedName: selectedName)
+
         BrixCard {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader(title: "Strategy Fit", subtitle: "Compare the selected strategy with credible alternatives.", symbol: "arrow.triangle.branch")
-                StrategyFitRow(name: deal.strategyPrimary ?? "Buy & Hold", detail: "Primary strategy for this deal file.", status: "Selected")
-                StrategyFitRow(name: "Long-Term Rental", detail: "Requires verified rent, taxes, insurance, vacancy, and repairs.", status: "Needs inputs")
-                StrategyFitRow(name: "BRRRR", detail: "Requires ARV, rehab scope, refinance terms, and seasoning assumptions.", status: "Check fit")
-                StrategyFitRow(name: "Flip", detail: "Requires resale comps, rehab timeline, selling costs, and holding costs.", status: "Check fit")
+                ForEach(rankedStrategies) { strategy in
+                    StrategyFitRow(
+                        name: strategy.name,
+                        detail: strategy.detail,
+                        proof: strategy.requiredProof,
+                        status: strategy.name == selectedName ? "Selected" : "Compare"
+                    )
+                }
             }
         }
+    }
+
+    private func rankedStrategyDefinitions(for deal: DealSummary, selectedName: String) -> [BRIXStrategyDefinition] {
+        let normalizedSelected = selectedName.lowercased()
+        var scored = brixStrategyDefinitions.map { strategy in
+            (strategy, scoreStrategy(strategy, deal: deal, selectedName: normalizedSelected))
+        }
+        scored.sort { lhs, rhs in
+            if lhs.0.name == selectedName { return true }
+            if rhs.0.name == selectedName { return false }
+            return lhs.1 > rhs.1
+        }
+        return scored.map { $0.0 }
+    }
+
+    private func scoreStrategy(_ strategy: BRIXStrategyDefinition, deal: DealSummary, selectedName: String) -> Int {
+        let key = strategy.name.lowercased()
+        var score = key == selectedName ? 30 : 0
+        if deal.purchasePrice != nil { score += 8 }
+        if deal.monthlyRent != nil, key.contains("rental") || key.contains("hold") || key.contains("hack") || key.contains("brrrr") { score += 14 }
+        if deal.estimatedARV != nil, key.contains("flip") || key.contains("brrrr") || key.contains("value") || key.contains("refinance") { score += 14 }
+        if deal.annualTaxesForDisplay != nil { score += 6 }
+        if deal.insurance != nil { score += 6 }
+        if deal.beds != nil, deal.baths != nil, key.contains("occupant") || key.contains("rental") || key.contains("hack") { score += 8 }
+        if key.contains("development") || key.contains("lot split") || key.contains("commercial") || key.contains("subject-to") || key.contains("wrap") { score -= 4 }
+        return score
     }
 
     private func risk(_ deal: DealSummary) -> some View {
@@ -229,6 +262,7 @@ struct ActionLine: View {
 private struct StrategyFitRow: View {
     let name: String
     let detail: String
+    let proof: String
     let status: String
 
     var body: some View {
@@ -241,6 +275,9 @@ private struct StrategyFitRow: View {
             }
             Text(detail)
                 .font(.caption)
+                .foregroundStyle(.secondary)
+            Text("Proof: \(proof)")
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
         }
         .padding(12)

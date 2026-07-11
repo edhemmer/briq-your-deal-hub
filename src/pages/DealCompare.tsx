@@ -149,9 +149,9 @@ export default function DealCompare() {
         description="Compare opportunities side by side by decision score, downside risk, capital required, and missing verification."
       >
         <div className="flex gap-2">
-          <Link to="/dealiq/new">
+          <Link to="/findiq">
             <Button>
-              New Deal
+              Start Property
             </Button>
           </Link>
           <Link to="/dealiq">
@@ -176,8 +176,8 @@ export default function DealCompare() {
             description="BRIX needs multiple opportunities before it can compare tradeoffs and opportunity cost."
           />
           <div className="mt-4 flex justify-center">
-            <Link to="/dealiq/new">
-              <Button>New Deal</Button>
+            <Link to="/findiq">
+              <Button>Start Property</Button>
             </Link>
           </div>
         </CardContainer>

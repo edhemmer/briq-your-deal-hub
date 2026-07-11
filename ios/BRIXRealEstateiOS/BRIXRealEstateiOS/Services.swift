@@ -73,6 +73,8 @@ struct BRIXAPIClient {
             throw BRIXAPIError.missingConfiguration
         }
 
+        try await ensureCurrentProfile(session: session)
+
         let request = CreateDealRequest(
             userID: session.userID,
             propertyAddress: draft.propertyAddress.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -107,6 +109,10 @@ struct BRIXAPIClient {
             throw BRIXAPIError.invalidResponse
         }
         return createdDeal
+    }
+
+    func ensureCurrentProfile(session: AuthSession?) async throws {
+        _ = try await send(path: "/rest/v1/rpc/ensure_current_profile", method: "POST", body: EmptyRPCBody(), session: session)
     }
 
     func extractListing(from text: String, session: AuthSession?) async throws -> ExtractListingResponse {
@@ -320,6 +326,8 @@ private struct AnyEncodable: Encodable {
         try encodeHandler(encoder)
     }
 }
+
+private struct EmptyRPCBody: Encodable {}
 
 extension JSONDecoder {
     static var brix: JSONDecoder {
