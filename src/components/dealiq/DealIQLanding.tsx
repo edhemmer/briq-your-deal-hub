@@ -29,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { analyzeDeal, type AnalysisResult, type DealInput } from "@/lib/dealAnalysisEngine";
 import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
 import { evaluateDealStrategies, type StrategyFitInput, type StrategyFitResults, type StrategyScore } from "@/lib/strategyFitEngine";
+import { dealReadinessScore, hasVerifiedTax, missingDealInputs, positiveNumber } from "@/lib/dealReadiness";
 import { cn } from "@/lib/utils";
 
 type Deal = NonNullable<ReturnType<typeof useDeals>["data"]>[number];
@@ -146,33 +147,21 @@ function toDealInput(deal: Deal): DealInput {
 }
 
 function readiness(deal: Deal) {
-  const checks = [
-    deal.property_address,
-    deal.city,
-    deal.state,
-    positive(deal.purchase_price),
-    positive(deal.monthly_rent),
-    positive(deal.insurance),
-    positive(deal.annual_property_tax ?? deal.taxes),
-    deal.property_type,
-    deal.strategy_primary,
-    deal.listing_url || deal.listing_remarks || deal.property_record_url,
-  ];
-  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  return dealReadinessScore(deal, { requireLocation: true, requireSource: true });
 }
 
 function missingInputs(deal: Deal) {
-  const missing: string[] = [];
-  if (!deal.property_address) missing.push("Property address");
-  if (!deal.city || !deal.state) missing.push("City and state");
-  if (!positive(deal.purchase_price)) missing.push("Purchase price");
-  if (!positive(deal.monthly_rent)) missing.push("Monthly rent support");
-  if (!positive(deal.insurance)) missing.push("Annual insurance quote");
-  if (!positive(deal.annual_property_tax ?? deal.taxes)) missing.push("Annual property taxes");
-  if (!deal.property_type) missing.push("Property type");
-  if (!deal.strategy_primary) missing.push("Investment strategy");
-  if (!deal.listing_url && !deal.listing_remarks && !deal.property_record_url) missing.push("Listing or source notes");
-  return missing;
+  return missingDealInputs(deal, { requireLocation: true, requireSource: true })
+    .map((item) => {
+      if (item === "city" || item === "state") return "City and state";
+      if (item === "rent support") return "Monthly rent support";
+      if (item === "verified annual taxes") return "Verified annual taxes";
+      if (item === "annual insurance quote") return "Annual insurance quote";
+      if (item === "strategy") return "Investment strategy";
+      if (item === "source listing or notes") return "Listing or source notes";
+      return item.charAt(0).toUpperCase() + item.slice(1);
+    })
+    .filter((item, index, array) => array.indexOf(item) === index);
 }
 
 function scoreColor(score: number) {
@@ -322,7 +311,7 @@ export function DealIQLanding() {
                 <InstrumentPanel title="Income & Expenses" action="Edit">
                   <ValueLine label="Monthly rent" value={money(activeDeal.monthly_rent)} />
                   <ValueLine label="Other income" value={money(activeDeal.other_income)} />
-                  <ValueLine label="Annual taxes" value={money(activeDeal.annual_property_tax ?? activeDeal.taxes)} />
+                  <ValueLine label="Annual taxes" value={money(activeDeal.annual_property_tax ?? activeDeal.taxes)} status={hasVerifiedTax(activeDeal) ? "Verified" : "Needs source"} />
                   <ValueLine label="Annual insurance" value={money(activeDeal.insurance)} />
                   <ValueLine label="Vacancy reserve" value={activeInput ? pct(activeInput.vacancy_percent) : "Needed"} />
                 </InstrumentPanel>
@@ -394,7 +383,7 @@ export function DealIQLanding() {
             <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-2">
               <div className="hidden min-w-0 sm:block">
                 <p className="truncate text-sm font-semibold text-foreground">{activeDeal.property_address || "Active deal"}</p>
-                <p className="text-xs text-muted-foreground">Score {readiness(activeDeal)} · {activeMissing.length} verification item{activeMissing.length === 1 ? "" : "s"}</p>
+                <p className="text-xs text-muted-foreground">Score {readiness(activeDeal)} - {activeMissing.length} verification item{activeMissing.length === 1 ? "" : "s"}</p>
               </div>
               <div className="grid w-full grid-cols-4 gap-2 sm:w-auto sm:flex">
                 <Button variant="outline" asChild>
@@ -482,11 +471,14 @@ function InstrumentPanel({ title, action, children }: { title: string; action?: 
   );
 }
 
-function ValueLine({ label, value }: { label: string; value: string }) {
+function ValueLine({ label, value, status }: { label: string; value: string; status?: string }) {
   return (
     <div className="flex items-center justify-between gap-3 border-t border-border/60 py-2 first:border-t-0 first:pt-0 last:pb-0">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-right text-sm font-semibold text-foreground">{value}</span>
+      <span className="text-right text-sm font-semibold text-foreground">
+        {value}
+        {status ? <span className="ml-2 text-[10px] font-medium text-muted-foreground">{status}</span> : null}
+      </span>
     </div>
   );
 }
@@ -710,6 +702,4 @@ function toneClass(tone: "good" | "warn" | "bad" | "neutral") {
   return "text-foreground";
 }
 
-function positive(value: number | null | undefined) {
-  return Number(value) > 0;
-}
+const positive = positiveNumber;

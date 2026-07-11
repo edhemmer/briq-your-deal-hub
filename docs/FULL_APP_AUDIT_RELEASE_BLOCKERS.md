@@ -36,7 +36,12 @@ This pass reviewed the live web routing surface, FindIQ intake path, stale/publi
 | 5 | Public wording / internal labels | Prior scans found wording that made the app feel like a demo/prototype or exposed internal language. | Re-ran scans for stale UI phrases, internal labels, bad encoding, and demo/prototype/MVP wording across web/iOS source; no matching public-facing hits remain. | Fixed in source |
 | 6 | Regression fixture naming | Test-only architecture fixtures were exported as `sample...`, which creates future leakage risk. | Renamed pipeline and offer fixtures to `regression...` and updated regression tests. | Fixed |
 | 7 | Build health | Production build needed to be rechecked after intake and fixture changes. | `vite build` passes. Vendor/document chunks remain large and are tracked as performance debt. | Passed with warning |
-| 8 | Regression health | Route, billing, engine, and OS regression tests needed to be rechecked after changes. | `vitest run --environment jsdom` passes: 15/15 tests. | Passed |
+| 8 | Regression health | Route, billing, engine, and OS regression tests needed to be rechecked after changes. | `vitest run --environment jsdom` passes: 16/16 tests. | Passed |
+| 9 | Cross-module readiness | Dashboard, DealIQ, PipelineIQ, OfferIQ, Reports, and the global operating strip could disagree on whether annual taxes were complete. | Added shared readiness helpers so tax values only count as ready when backed by verified tax history/status. | Fixed and tested |
+| 10 | Strategy expertise coverage | Strategy tests proved directional scoring for a few examples but did not assert every strategy included assumptions, required inputs, proof questions, success criteria, and failure scenarios. | Added all-strategy regression coverage so label-only strategy outputs cannot ship silently. | Fixed and tested |
+| 11 | Client-facing source language | Some source review labels still used provider/connector wording that felt like backend architecture. | Changed visible source review copy to investor-facing "Source Checks", "source needed", and "official lookup" language. | Fixed in source |
+| 12 | ContractIQ to PipelineIQ handoff | Contract deadlines could be reviewed/exported but did not become saved execution tasks. | Added a ContractAnalysis action that saves dated/active contract deadlines into `brix_project_tasks` for the linked DealIQ record; PipelineIQ now shows due dates on those tasks. | Code-fixed, live verification required |
+| 13 | Report history | Reports route pointed back to DealIQ exports but did not persist report snapshots. | Added `brix_reports` table migration, typed Supabase shape, saved deal snapshot action, ContractIQ export snapshots, and saved snapshot history panel. | Code-fixed, migration/live verification required |
 
 ### Remaining Release Risks
 
@@ -51,14 +56,14 @@ This pass reviewed the live web routing surface, FindIQ intake path, stale/publi
 | Area | Status | Finding | Required Fix |
 | --- | --- | --- | --- |
 | FindIQ URL/listing intake | Code-fixed, live verification required | Shared extraction now calls Supabase first, normalizes extraction shapes, preserves extracted fields, uses extracted address for geocoding, safely handles missing numeric fields, and attempts listing-photo analysis when URLs are available. | Live-test against multiple listing URLs and provider-blocked cases; unsupported fields must remain blank with verification status. |
-| Official tax records | In progress | Listing tax clues are not official tax history. County lookup exists, but tax history is not retrieved automatically. | Add tax history/status fields, official lookup URL, and tax verification state across DealIQ/FindIQ/iOS. |
+| Official tax records | Code-fixed, live verification required | Listing tax clues are not official tax history. County lookup exists, tax history/status fields exist, and cross-module readiness now requires verified tax status/history instead of accepting any tax number. | Live-test county lookup path, manual verified entry, and saved tax status across web/iOS. |
 | Deal creation cap | Fixed this pass | Free users need a hard lifetime cap that cannot be bypassed by deleting records. | Added `deal_file_usage` ledger and DB trigger; paid/admin/comped users remain unlimited. Free-user deal deletion is blocked by DB policy. |
 | PortfolioIQ | Partial/live | Route now reads closed/acquired deals and estimates portfolio value, debt, equity, cash flow, DSCR, and asset health. | Add durable asset records, loan schedules, document vault, and refinance/disposition automations. |
-| Reports | Partial/live | Route now reads live deal files and shows report readiness/missing inputs. | Add saved report history and generated report records. |
+| Reports | Code-fixed, migration/live verification required | Route now reads live deal files, shows report readiness/missing inputs, and can save point-in-time report snapshots to `brix_reports`. | Push the report-history migration to Supabase and verify saved snapshots across refresh/login. |
 | OfferIQ | Code-fixed, live verification required | Reads deals, saves current offer plans to `brix_offers`, stores offer terms/strategy snapshot, and can move a deal to offer strategy/submitted. | Verify saved offer records in production, then add generated documents, counters, and communication packages. |
-| PipelineIQ | Code-fixed, live verification required | Reads deals, updates status, creates missing-input verification tasks in `brix_project_tasks`, and lets users complete tasks. | Verify task creation/completion in production, then add deadlines, activity history, assignments, and probability/health history. |
-| ContractIQ | Partial/stronger | Contract upload/extraction, contract table persistence, and contract analysis exist. Needs route and extraction verification. | Run end-to-end contract upload/text extraction smoke and verify saved analysis. |
-| DealIQ strategy engine | Partial/stronger | Strategy fit engine includes broad strategy assumptions/questions/success criteria, but analysis page must be tested for every strategy path and missing-data behavior. | Add strategy regression tests and ensure UI shows selected strategy plus better alternatives. |
+| PipelineIQ | Code-fixed, live verification required | Reads deals, updates status, creates missing-input verification tasks in `brix_project_tasks`, lets users complete tasks, and now displays ContractIQ deadline due dates when sent from contract review. | Verify task creation/completion and ContractIQ deadline handoff in production, then add activity history, assignments, and probability/health history. |
+| ContractIQ | Code-fixed, live verification required | Contract upload/extraction, contract table persistence, deterministic contract analysis, reports, and contract-deadline handoff into PipelineIQ exist in source. | Run end-to-end contract upload/text extraction smoke, send deadlines to PipelineIQ, and verify saved analysis. |
+| DealIQ strategy engine | Code-fixed, live verification required | Strategy fit engine includes broad strategy assumptions/questions/success criteria, and regression coverage now asserts every strategy exposes proof needs, assumptions, success criteria, what-must-be-true, and failure scenarios. | Live-test selected strategy plus better-alternative display in DealIQ with real deal files. |
 | Auth/password reset | Needs verification | Web/iOS auth are wired to Supabase. User reported reset failures/rate limits. | Verify reset redirect, Supabase email settings, and iOS password reset flow. |
 | Admin console | Needs verification | Admin APIs and KPIs exist, including users, paid/free/comped, deletion requests, password reset, and overrides. | Live-test admin-console function with superadmin account and verify Stripe KPI assumptions. |
 | iOS app | Code-fixed, Mac verification required | Native files are present and wired to Supabase REST/functions. iOS signup decoding and deal-create payload enrichment were corrected, but Windows cannot compile/run Xcode. | Run Xcode build, simulator login, create deal from listing URL, field photo upload, and refresh on web. |
@@ -72,7 +77,7 @@ Status: Partial
 
 - Reads live `deals` through `useDeals`.
 - Shows active deal readiness and next actions.
-- Problem: still depends on readiness checks that treat any positive tax as usable. This needs to respect tax verification status once the new fields are wired.
+- Fixed in source: dashboard readiness now uses the shared verified-tax rule instead of treating any positive tax number as usable.
 - Problem: content and flow need tablet/small-laptop review for density and clarity.
 
 ### FindIQ
@@ -96,8 +101,8 @@ Status: Partial/strong core
 - Live connections: `deals`, `market_conditions`, report export, field captures.
 - Core math exists through canonical engines: deal analysis, strategy fit, stress tests, returns, pro forma, financing, hidden risk, confidence.
 - Problems:
-  - Official tax verification is not yet part of every readiness/trust calculation.
-  - Every strategy needs regression coverage to ensure correct assumptions, questions, formulas, and alternative recommendations are visible.
+  - Official tax verification is now part of shared readiness scoring, but the full DealIQ recommendation/trust calculation still needs live scenario review with real records.
+  - Every strategy now has regression coverage for assumptions, proof needs, and failure logic; UI behavior still needs live strategy-path smoke testing.
   - Workflow step click-back routing was corrected so Strategy, Stress, Reports, and earlier checked steps route to valid tabs.
   - Property/data enrichment still expects user-entered official values; county retrieval is not automatic.
 
@@ -122,11 +127,12 @@ Status: Code-fixed, live verification required
 - Reads live deals.
 - Updates `deal_status`.
 - Creates persistent verification tasks in `brix_project_tasks` from missing deal inputs.
+- Receives ContractIQ deadline tasks for linked deals and displays due dates.
 - Shows active/ready/open-task/outcome counts.
 - Lets users open deal files and mark verification tasks complete.
 - Problems:
   - Needs live verification that task creation does not duplicate under normal use.
-  - Deadline scheduling, activity timeline, assignment model, probability scoring, and automation are still incomplete.
+  - Activity timeline, assignment model, probability scoring, and automation are still incomplete.
   - Closed deals do not automatically create PortfolioIQ assets.
 
 ### PortfolioIQ
@@ -141,24 +147,26 @@ Status: Partial/live
 
 ### ContractIQ
 
-Status: Partial/stronger
+Status: Code-fixed, live verification required
 
 - Reads/writes `contracts`.
 - Uses `extract-contract-from-document`.
 - Runs deterministic `contractIQEngine`.
+- Can send contract deadlines into PipelineIQ as dated tasks when the contract is linked to a DealIQ record.
 - Problems:
   - Needs end-to-end upload/text extraction verification.
-  - "Module" badge and internal labels need review.
-  - ContractIQ does not yet push obligations/deadlines into PipelineIQ.
+  - Deadline handoff needs production verification against a linked contract/deal.
 
 ### Reports
 
-Status: Partial/live
+Status: Code-fixed, migration/live verification required
 
 - Reads live deals and shows report readiness, missing inputs, and links into DealIQ exports.
+- Saves report snapshots to `brix_reports` and displays saved snapshot history.
 - Problems:
-  - Report records/history are not persisted.
-  - ContractIQ report exports are not yet shown in this route.
+  - Report-history migration must be pushed to Supabase.
+  - Saved snapshots need live verification after refresh/login.
+- ContractIQ report exports save as `contract_snapshot` records and appear in saved snapshot history after the report-history migration is applied.
 
 ### Admin
 
@@ -194,10 +202,13 @@ Status: Code-wired, Mac verification required
 ## Verification Evidence So Far
 
 - Production web build passed after current patches.
-- Routing/BRIX/billing regression tests passed after current patches: 15/15 tests.
+- Routing/BRIX/billing/strategy regression tests passed after current patches: 16/16 tests.
+- Shared readiness scoring now requires verified annual tax support across Deal Dashboard, DealIQ, PipelineIQ, OfferIQ, Reports, and the global operating strip.
 - OfferIQ persistence migration `20260710153000_add_brix_offers.sql` was pushed to Supabase.
 - PipelineIQ now persists verification tasks through the existing `brix_project_tasks` table.
+- ContractIQ can now save linked contract deadlines into `brix_project_tasks`; PipelineIQ displays deadline due dates.
 - OfferIQ now persists offer plans through the new `brix_offers` table.
+- Reports can now save point-in-time deal snapshots through the new `brix_reports` table; ContractIQ exports now save `contract_snapshot` records to the same history.
 - FindIQ client intake now normalizes edge-function extraction responses, no longer renders the older hidden criteria/import panel, and no longer carries the old modal state in the component workflow.
 - DealIQ workflow step routing now maps the Strategy step to a dedicated Strategy tab instead of overloading Market & Risk.
 - Free-plan lifetime deal cap is enforced in Supabase with `deal_file_usage`; deleting deals no longer resets the free allowance.

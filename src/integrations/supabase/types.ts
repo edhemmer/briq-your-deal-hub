@@ -436,6 +436,53 @@ export type Database = {
           },
         ]
       }
+      brix_reports: {
+        Row: {
+          created_at: string
+          deal_id: string | null
+          id: string
+          payload: Json
+          report_status: string
+          report_type: string
+          summary: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deal_id?: string | null
+          id?: string
+          payload?: Json
+          report_status?: string
+          report_type?: string
+          summary?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string | null
+          id?: string
+          payload?: Json
+          report_status?: string
+          report_type?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brix_reports_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brix_offers: {
         Row: {
           closing_timeline_days: number | null

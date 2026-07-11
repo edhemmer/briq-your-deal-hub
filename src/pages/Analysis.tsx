@@ -182,7 +182,7 @@ function taxStatusLabel(status: string) {
     case "official_verified": return "Official tax history verified";
     case "user_verified": return "Tax history entered from official source";
     case "lookup_available": return "Official lookup available";
-    case "provider_required": return "Official connector not available";
+    case "provider_required": return "Official lookup not available";
     case "unsupported": return "Unsupported county source";
     default: return "Tax history missing";
   }

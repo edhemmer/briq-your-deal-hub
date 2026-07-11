@@ -69,7 +69,7 @@ export function resolveTaxRecord(
     status: "provider_required",
     recordUrl: existing?.taxRecordUrl ?? countyLookup.url,
     county: countyLookup.county,
-    message: "No direct county tax connector is available for this location yet. Use the official lookup path or connect a property data provider.",
+      message: "No direct county tax lookup is available for this location yet. Use the official lookup path or enter verified tax history.",
     history,
     annualTax: null,
   };

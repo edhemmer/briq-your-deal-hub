@@ -21,6 +21,7 @@ import { CardContainer } from "@/components/ui/card-container";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDeals } from "@/hooks/useDeals";
+import { dealReadinessScore, missingDealInputs, positiveNumber, taxStatusText } from "@/lib/dealReadiness";
 import { cn } from "@/lib/utils";
 
 type Deal = NonNullable<ReturnType<typeof useDeals>["data"]>[number];
@@ -35,33 +36,12 @@ const money = (value: number | null | undefined) =>
         maximumFractionDigits: 0,
       }).format(value);
 
-const numberOrNull = (value: number | null | undefined) =>
-  value != null && Number.isFinite(value) && value > 0 ? value : null;
-
 function readinessScore(deal: Deal) {
-  const checks = [
-    deal.property_address,
-    deal.city,
-    deal.state,
-    numberOrNull(deal.purchase_price),
-    numberOrNull(deal.monthly_rent),
-    numberOrNull(deal.annual_property_tax ?? deal.taxes),
-    numberOrNull(deal.insurance),
-    deal.property_type,
-    deal.strategy_primary,
-  ];
-  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  return dealReadinessScore(deal, { requireLocation: true });
 }
 
 function missingItems(deal: Deal) {
-  const missing: string[] = [];
-  if (!numberOrNull(deal.purchase_price)) missing.push("purchase price");
-  if (!numberOrNull(deal.monthly_rent)) missing.push("rent support");
-  if (!numberOrNull(deal.annual_property_tax ?? deal.taxes)) missing.push("tax history");
-  if (!numberOrNull(deal.insurance)) missing.push("insurance quote");
-  if (!deal.property_type) missing.push("property type");
-  if (!deal.strategy_primary) missing.push("strategy");
-  return missing;
+  return missingDealInputs(deal, { requireLocation: true });
 }
 
 function riskTone(score: number): Tone {
@@ -181,10 +161,11 @@ export default function Index() {
                 </div>
               )}
 
-              <div className="grid gap-3 sm:grid-cols-3">
-                <FactTile label="Purchase price" value={money(primaryDeal?.purchase_price)} verified={!!numberOrNull(primaryDeal?.purchase_price)} />
-                <FactTile label="Monthly rent" value={numberOrNull(primaryDeal?.monthly_rent) ? money(primaryDeal?.monthly_rent) : "Missing"} verified={!!numberOrNull(primaryDeal?.monthly_rent)} />
-                <FactTile label="Annual insurance" value={numberOrNull(primaryDeal?.insurance) ? money(primaryDeal?.insurance) : "Missing"} verified={!!numberOrNull(primaryDeal?.insurance)} />
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <FactTile label="Purchase price" value={money(primaryDeal?.purchase_price)} verified={positiveNumber(primaryDeal?.purchase_price)} />
+                <FactTile label="Monthly rent" value={positiveNumber(primaryDeal?.monthly_rent) ? money(primaryDeal?.monthly_rent) : "Missing"} verified={positiveNumber(primaryDeal?.monthly_rent)} />
+                <FactTile label="Annual taxes" value={positiveNumber(primaryDeal?.annual_property_tax ?? primaryDeal?.taxes) ? money(primaryDeal?.annual_property_tax ?? primaryDeal?.taxes) : "Missing"} verified={taxStatusText(primaryDeal ?? {}) === "Verified"} status={taxStatusText(primaryDeal ?? {})} />
+                <FactTile label="Annual insurance" value={positiveNumber(primaryDeal?.insurance) ? money(primaryDeal?.insurance) : "Missing"} verified={positiveNumber(primaryDeal?.insurance)} />
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -381,7 +362,7 @@ function DealStackCard({ deal, rank }: { deal: Deal; rank: number }) {
 
         <div className="grid grid-cols-3 gap-2 lg:w-[310px] xl:w-[330px]">
           <MiniSignal label="Readiness" value={String(score)} tone={tone} />
-          <MiniSignal label="Price" value={money(deal.purchase_price)} tone={numberOrNull(deal.purchase_price) ? "positive" : "caution"} />
+          <MiniSignal label="Price" value={money(deal.purchase_price)} tone={positiveNumber(deal.purchase_price) ? "positive" : "caution"} />
           <MiniSignal label="Missing" value={String(missing.length)} tone={missing.length > 0 ? "caution" : "positive"} />
         </div>
       </div>
@@ -431,13 +412,13 @@ function ExecutiveMetric({ label, value, tone }: { label: string; value: string;
   );
 }
 
-function FactTile({ label, value, verified }: { label: string; value: string; verified: boolean }) {
+function FactTile({ label, value, verified, status }: { label: string; value: string; verified: boolean; status?: string }) {
   return (
     <div className="ios-control p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
         <Badge className={`shrink-0 border text-[10px] ${verified ? toneClass("positive") : toneClass("caution")}`}>
-          {verified ? "Entered" : "Missing"}
+          {status ?? (verified ? "Entered" : "Missing")}
         </Badge>
       </div>
       <p className="mt-2 text-sm font-semibold text-foreground">{value}</p>

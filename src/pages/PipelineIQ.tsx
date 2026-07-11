@@ -20,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDeals, useUpdateDeal } from "@/hooks/useDeals";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { dealReadinessScore, missingDealInputs, positiveNumber } from "@/lib/dealReadiness";
 import { cn } from "@/lib/utils";
 
 type Deal = NonNullable<ReturnType<typeof useDeals>["data"]>[number];
@@ -161,6 +162,11 @@ export default function PipelineIQ() {
                     <div>
                       <p className="font-semibold text-foreground">{deal?.property_address || deal?.deal_name || "Unnamed deal"}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{task.title}</p>
+                      {task.due_at && (
+                        <p className="mt-1 text-[11px] font-medium text-amber-300">
+                          Due {new Date(task.due_at).toLocaleDateString()}
+                        </p>
+                      )}
                     </div>
                     <Badge variant="outline" className="border-amber-500/35 bg-amber-500/10 text-amber-300">
                       Verify
@@ -272,7 +278,14 @@ function PipelineDealRow({
               )}
             >
               <CheckCircle2 className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", task.status === "complete" ? "text-emerald-300" : "text-amber-300")} />
-              <span>{task.title}</span>
+              <span>
+                {task.title}
+                {task.due_at && (
+                  <span className="ml-1 text-muted-foreground">
+                    Due {new Date(task.due_at).toLocaleDateString()}
+                  </span>
+                )}
+              </span>
             </button>
           ))}
         </div>
@@ -394,30 +407,11 @@ function Chip({ children }: { children: ReactNode }) {
 }
 
 function readinessScore(deal: Deal) {
-  const checks = [
-    positiveNumber(deal.purchase_price),
-    positiveNumber(deal.monthly_rent),
-    positiveNumber(deal.annual_property_tax ?? deal.taxes),
-    positiveNumber(deal.insurance),
-    Boolean(deal.property_address),
-    Boolean(deal.strategy_primary),
-    Boolean(deal.property_type),
-    Boolean(deal.listing_url || deal.property_record_url || deal.listing_remarks),
-  ];
-  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  return dealReadinessScore(deal, { requireLocation: true, requireSource: true });
 }
 
 function missingInputs(deal: Deal) {
-  const missing: string[] = [];
-  if (!deal.property_address) missing.push("Add the property address.");
-  if (!deal.property_type) missing.push("Select a property type.");
-  if (!deal.strategy_primary) missing.push("Choose the primary strategy.");
-  if (!positiveNumber(deal.purchase_price)) missing.push("Enter or verify purchase price.");
-  if (!positiveNumber(deal.monthly_rent)) missing.push("Verify monthly rent support.");
-  if (!positiveNumber(deal.annual_property_tax ?? deal.taxes)) missing.push("Verify annual property taxes.");
-  if (!positiveNumber(deal.insurance)) missing.push("Get an annual insurance quote.");
-  if (!deal.listing_url && !deal.property_record_url && !deal.listing_remarks) missing.push("Attach the source listing, document, or notes.");
-  return missing;
+  return missingDealInputs(deal, { requireLocation: true, requireSource: true }).map(taskLabel);
 }
 
 function nextAction(deal: Deal) {
@@ -450,6 +444,18 @@ function formatCurrency(value: number | null | undefined) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(value));
 }
 
-function positiveNumber(value: number | string | null | undefined) {
-  return Number(value) > 0;
+function taskLabel(item: string) {
+  switch (item) {
+    case "property address": return "Add the property address.";
+    case "city": return "Add the city.";
+    case "state": return "Add the state.";
+    case "property type": return "Select a property type.";
+    case "strategy": return "Choose the primary strategy.";
+    case "purchase price": return "Enter or verify purchase price.";
+    case "rent support": return "Verify monthly rent support.";
+    case "verified annual taxes": return "Verify annual property taxes from an official source.";
+    case "annual insurance quote": return "Get an annual insurance quote.";
+    case "source listing or notes": return "Attach the source listing, document, or notes.";
+    default: return item;
+  }
 }

@@ -139,7 +139,7 @@ export function evaluateTrustGate(input: {
 export interface PublicSourceConnector {
   name: string;
   category: "property" | "rent" | "market" | "risk" | "financing" | "news";
-  status: "connected" | "requires_key" | "manual_verified" | "planned";
+  status: "connected" | "source_needed" | "manual_verified" | "not_added";
   trustUse: string;
 }
 
@@ -171,19 +171,19 @@ export const PUBLIC_SOURCE_CONNECTORS: PublicSourceConnector[] = [
   {
     name: "FEMA National Risk Index",
     category: "risk",
-    status: "planned",
+    status: "not_added",
     trustUse: "Natural-hazard risk context for insurance and downside diligence.",
   },
   {
-    name: "Rent/comps provider",
+    name: "Rent and sales comp source",
     category: "rent",
-    status: "requires_key",
-    trustUse: "Rent estimates, sale comps, and property facts from a licensed data provider such as RentCast, ATTOM, HouseCanary, or similar.",
+    status: "source_needed",
+    trustUse: "Rent estimates, sale comps, and property facts should be supported by an authorized market data source or verified comps.",
   },
   {
-    name: "Property news/search provider",
+    name: "Address and local-risk search",
     category: "news",
-    status: "requires_key",
+    status: "source_needed",
     trustUse: "Searches address/entity mentions for lawsuits, nuisance, zoning, environmental, and local article risk.",
   },
 ];

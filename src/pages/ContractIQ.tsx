@@ -200,10 +200,9 @@ const ContractIQ = () => {
             <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">
               ContractIQ
             </h1>
-            <Badge variant="outline" className="text-[10px]">Module</Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Analyze contracts from the buyer's or seller's perspective — risk, leverage, timeline, negotiation.
+            Analyze contracts from the buyer's or seller's perspective: risk, leverage, timeline, and negotiation.
           </p>
         </div>
 
@@ -261,7 +260,7 @@ const ContractIQ = () => {
             {!extraction ? (
               <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-center">
                 <p className="text-xs text-muted-foreground">
-                  Upload a contract or paste email text above. ContractIQ will extract the key terms automatically — you'll only be asked for fields it can't find.
+                  Upload a contract or paste email text above. ContractIQ will extract the key terms automatically; you'll only be asked for fields it can't find.
                 </p>
                 <button
                   type="button"
@@ -342,7 +341,7 @@ const ContractIQ = () => {
                     {c.contract_name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {c.property_address ?? "No address"} · {c.perspective} perspective
+                    {c.property_address ?? "No address"} - {c.perspective} perspective
                   </p>
                 </button>
                 <div className="flex items-center gap-2 shrink-0">
@@ -456,8 +455,8 @@ const ExtractedSummary = ({
             conf === "high"
               ? "Verified in document"
               : conf === "medium"
-              ? "Partial match — please verify"
-              : "Not found in source — please verify";
+              ? "Partial match - please verify"
+              : "Not found in source - please verify";
           return (
             <div key={f.key} className="flex items-start justify-between gap-2 text-xs">
               <span className="flex items-center gap-1.5 text-muted-foreground">

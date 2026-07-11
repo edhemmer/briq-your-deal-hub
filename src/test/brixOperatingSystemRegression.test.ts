@@ -148,6 +148,35 @@ describe("BRIX operating system regression", () => {
     expect(strategyFit.fixFlip.score).toBeGreaterThan(50);
   });
 
+  it("requires every strategy to expose expert assumptions, proof needs, and failure logic", () => {
+    const analysis = analyzeDeal(baseDeal);
+    const strategyFit = evaluateDealStrategies({
+      purchasePrice: baseDeal.purchase_price,
+      rehabCost: baseDeal.rehab_cost,
+      arv: baseDeal.arv,
+      projectedRent: baseDeal.monthly_rent,
+      cashFlowMonthly: analysis.metrics.monthly_cashflow,
+      capRate: analysis.metrics.cap_rate,
+      cashOnCashReturn: analysis.metrics.cash_on_cash,
+      rentTrend: 4,
+      priceTrend: 5,
+      inventoryTrend: 3.5,
+      crimeScore: 3,
+    });
+
+    for (const [strategy, score] of Object.entries(strategyFit)) {
+      expect(score.score, `${strategy} score`).toBeGreaterThanOrEqual(0);
+      expect(score.score, `${strategy} score`).toBeLessThanOrEqual(100);
+      expect(score.explanation, `${strategy} explanation`).toMatch(/\w+/);
+      expect(score.requiredInputs.length, `${strategy} required inputs`).toBeGreaterThanOrEqual(4);
+      expect(score.assumptions.length, `${strategy} assumptions`).toBeGreaterThanOrEqual(3);
+      expect(score.verificationQuestions.length, `${strategy} questions`).toBeGreaterThanOrEqual(3);
+      expect(score.successCriteria.length, `${strategy} success criteria`).toBeGreaterThanOrEqual(3);
+      expect(score.whatMustBeTrue.length, `${strategy} what must be true`).toBeGreaterThanOrEqual(3);
+      expect(score.failureScenarios.length, `${strategy} failure scenarios`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it("flags weak strategies and fragile scenarios when assumptions deteriorate", () => {
     const weakDeal: DealInput = {
       ...baseDeal,

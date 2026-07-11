@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { BarChart3, FileText, ShieldAlert } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BarChart3, FileText, Save, ShieldAlert } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
 import { CardContainer } from "@/components/ui/card-container";
@@ -7,11 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useDeals } from "@/hooks/useDeals";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { dealReadinessScore, missingDealInputs } from "@/lib/dealReadiness";
 
 type Deal = NonNullable<ReturnType<typeof useDeals>["data"]>[number];
 
 export default function Reports() {
+  const { user } = useAuth();
   const { data: deals = [], isLoading } = useDeals();
+  const { data: reports = [], isLoading: reportsLoading } = useSavedReports();
+  const saveReport = useSaveReportSnapshot();
   const sortedDeals = [...deals].sort((a, b) => readiness(b) - readiness(a));
 
   return (
@@ -21,40 +29,83 @@ export default function Reports() {
         description="Open deal files that are ready for investor summaries, underwriting exports, and source-backed review."
       />
 
-      {isLoading ? (
-        <CardContainer className="min-h-[320px]">
-          <EmptyReports title="Loading reports" body="BRIX is checking your deal files." />
-        </CardContainer>
-      ) : sortedDeals.length === 0 ? (
-        <CardContainer className="min-h-[360px]">
-          <EmptyReports
-            title="No report-ready deals"
-            body="Create a deal file first. Reports are generated from DealIQ once the property, assumptions, risks, and verification status are available."
-          />
-        </CardContainer>
-      ) : (
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+        {isLoading ? (
+          <CardContainer className="min-h-[320px]">
+            <EmptyReports title="Loading reports" body="BRIX is checking your deal files." />
+          </CardContainer>
+        ) : sortedDeals.length === 0 ? (
+          <CardContainer className="min-h-[360px]">
+            <EmptyReports
+              title="No report-ready deals"
+              body="Create a deal file first. Reports are generated from DealIQ once the property, assumptions, risks, and verification status are available."
+            />
+          </CardContainer>
+        ) : (
+          <CardContainer className="p-0">
+            <div className="border-b border-border p-5">
+              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <FileText className="h-4 w-4 text-primary" />
+                Deal Reports
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Save a point-in-time snapshot before exporting or sharing a deal review.
+              </p>
+            </div>
+            <div className="divide-y divide-border">
+              {sortedDeals.map((deal) => (
+                <ReportRow
+                  key={deal.id}
+                  deal={deal}
+                  saving={saveReport.isPending}
+                  onSave={() => user && saveReport.mutate({ deal, userId: user.id })}
+                />
+              ))}
+            </div>
+          </CardContainer>
+        )}
+
         <CardContainer className="p-0">
           <div className="border-b border-border p-5">
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <FileText className="h-4 w-4 text-primary" />
-              Deal Reports
+              <Save className="h-4 w-4 text-primary" />
+              Saved Snapshots
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Reports are generated inside each DealIQ file so the output always uses the latest numbers and verification status.
+              A record of report snapshots you saved for review.
             </p>
           </div>
           <div className="divide-y divide-border">
-            {sortedDeals.map((deal) => (
-              <ReportRow key={deal.id} deal={deal} />
-            ))}
+            {reportsLoading ? (
+              <p className="p-5 text-sm text-muted-foreground">Loading saved snapshots.</p>
+            ) : reports.length === 0 ? (
+              <p className="p-5 text-sm text-muted-foreground">No saved report snapshots yet.</p>
+            ) : (
+              reports.slice(0, 8).map((report) => (
+                <div key={report.id} className="p-5">
+                  <p className="font-semibold text-foreground">{report.title}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {new Date(report.created_at).toLocaleString()} - {report.report_status}
+                  </p>
+                  {report.summary && (
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{report.summary}</p>
+                  )}
+                  {report.deal_id && (
+                    <Button className="mt-4" size="sm" variant="outline" asChild>
+                      <Link to={`/dealiq/${report.deal_id}`}>Open deal file</Link>
+                    </Button>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </CardContainer>
-      )}
+      </div>
     </SectionContainer>
   );
 }
 
-function ReportRow({ deal }: { deal: Deal }) {
+function ReportRow({ deal, saving, onSave }: { deal: Deal; saving: boolean; onSave: () => void }) {
   const score = readiness(deal);
   const gaps = missingInputs(deal);
   return (
@@ -80,6 +131,10 @@ function ReportRow({ deal }: { deal: Deal }) {
         <Progress value={score} className="h-2" />
       </div>
       <div className="flex flex-wrap gap-2 lg:justify-end">
+        <Button variant="secondary" onClick={onSave} disabled={saving}>
+          <Save className="mr-2 h-4 w-4" />
+          {saving ? "Saving" : "Save snapshot"}
+        </Button>
         <Button asChild>
           <Link to={`/dealiq/${deal.id}`}>Open report tools</Link>
         </Button>
@@ -110,29 +165,83 @@ function EmptyReports({ title, body }: { title: string; body: string }) {
 }
 
 function readiness(deal: Deal) {
-  const checks = [
-    positive(deal.purchase_price),
-    positive(deal.monthly_rent),
-    positive(deal.annual_property_tax ?? deal.taxes),
-    positive(deal.insurance),
-    Boolean(deal.property_address),
-    Boolean(deal.strategy_primary),
-    Boolean(deal.property_type),
-    Boolean(deal.listing_url || deal.property_record_url || deal.listing_remarks),
-  ];
-  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  return dealReadinessScore(deal, { requireLocation: true, requireSource: true });
 }
 
 function missingInputs(deal: Deal) {
-  const missing: string[] = [];
-  if (!positive(deal.purchase_price)) missing.push("Purchase price needs support.");
-  if (!positive(deal.monthly_rent)) missing.push("Rent support is missing.");
-  if (!positive(deal.annual_property_tax ?? deal.taxes)) missing.push("Tax history is missing.");
-  if (!positive(deal.insurance)) missing.push("Annual insurance quote is missing.");
-  if (!deal.strategy_primary) missing.push("Strategy is missing.");
-  return missing;
+  return missingDealInputs(deal, { requireLocation: true, requireSource: true }).map((item) => {
+    switch (item) {
+      case "purchase price": return "Purchase price needs support.";
+      case "rent support": return "Rent support is missing.";
+      case "verified annual taxes": return "Verified annual taxes are missing.";
+      case "annual insurance quote": return "Annual insurance quote is missing.";
+      case "strategy": return "Strategy is missing.";
+      case "source listing or notes": return "Source listing or notes are missing.";
+      default: return `${item.charAt(0).toUpperCase()}${item.slice(1)} is missing.`;
+    }
+  });
 }
 
-function positive(value: number | string | null | undefined) {
-  return Number(value) > 0;
+function useSavedReports() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["brix-reports", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("brix_reports")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+function useSaveReportSnapshot() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ deal, userId }: { deal: Deal; userId: string }) => {
+      const score = readiness(deal);
+      const gaps = missingInputs(deal);
+      const title = deal.property_address || deal.deal_name || "Deal report";
+      const { data, error } = await supabase
+        .from("brix_reports")
+        .insert({
+          user_id: userId,
+          deal_id: deal.id,
+          report_type: "deal_snapshot",
+          report_status: "saved",
+          title,
+          summary: `${score}/100 readiness. ${gaps[0] ?? "Core report inputs are present."}`,
+          payload: {
+            deal_id: deal.id,
+            title,
+            readiness: score,
+            missing_inputs: gaps,
+            strategy: deal.strategy_primary,
+            purchase_price: deal.purchase_price,
+            monthly_rent: deal.monthly_rent,
+            annual_taxes: deal.property_taxes,
+            annual_insurance: deal.insurance,
+            saved_at: new Date().toISOString(),
+          },
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["brix-reports"] });
+      toast({ title: "Report snapshot saved" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Could not save report snapshot",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 }

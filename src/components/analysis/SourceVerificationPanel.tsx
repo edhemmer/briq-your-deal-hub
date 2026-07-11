@@ -18,8 +18,17 @@ function statusVariant(status: TrustGateResult["status"]): "default" | "secondar
 function connectorVariant(status: PublicSourceConnector["status"]): "default" | "secondary" | "outline" | "destructive" {
   if (status === "connected") return "default";
   if (status === "manual_verified") return "secondary";
-  if (status === "requires_key") return "outline";
+  if (status === "source_needed") return "outline";
   return "destructive";
+}
+
+function connectorLabel(status: PublicSourceConnector["status"]) {
+  switch (status) {
+    case "connected": return "connected";
+    case "manual_verified": return "manual check";
+    case "source_needed": return "source needed";
+    case "not_added": return "not added";
+  }
 }
 
 export function SourceVerificationPanel({ trustGate, tax, connectors }: SourceVerificationPanelProps) {
@@ -93,7 +102,7 @@ export function SourceVerificationPanel({ trustGate, tax, connectors }: SourceVe
       <CardContainer className="p-4">
         <div className="mb-3 flex items-center gap-2">
           <Database className="h-4 w-4 text-muted-foreground" />
-          <p className="text-sm font-semibold text-foreground">Public Source Connectors</p>
+          <p className="text-sm font-semibold text-foreground">Source Checks</p>
         </div>
         <div className="grid gap-2 md:grid-cols-2">
           {connectors.map((connector) => (
@@ -101,7 +110,7 @@ export function SourceVerificationPanel({ trustGate, tax, connectors }: SourceVe
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-foreground">{connector.name}</p>
                 <Badge variant={connectorVariant(connector.status)} className="text-[10px]">
-                  {connector.status.replace("_", " ")}
+                  {connectorLabel(connector.status)}
                 </Badge>
               </div>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{connector.trustUse}</p>

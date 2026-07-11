@@ -31,6 +31,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 import { useContract } from "@/hooks/useContracts";
 import {
   analyzeContract,
@@ -130,9 +131,10 @@ const ContractAnalysisPage = () => {
     return analyzeContract(input);
   }, [contract, activePerspective]);
 
-  // ── DealIQ ↔ ContractIQ Bridge ───────────────────────────────────
+  // DealIQ and ContractIQ bridge
   const [linkedDeal, setLinkedDeal] = useState<DealLite | null>(null);
   const [dealLoading, setDealLoading] = useState(false);
+  const [syncingDeadlines, setSyncingDeadlines] = useState(false);
   useEffect(() => {
     let cancelled = false;
     const dealId = contract?.deal_id;
@@ -212,6 +214,125 @@ const ContractAnalysisPage = () => {
     else if (kind === "highlight") generateHighlightBriefPDF(ctx);
     else if (kind === "attorney") generateAttorneyQuestionsPDF(ctx);
     else generateBrokerQuestionsPDF(ctx);
+    await saveContractReportSnapshot(kind);
+  };
+
+  const saveContractReportSnapshot = async (kind: "full" | "highlight" | "attorney" | "broker") => {
+    if (!contract || !analysis || !user) return;
+    const label =
+      kind === "full"
+        ? "Contract Review"
+        : kind === "highlight"
+        ? "Contract Highlights"
+        : kind === "attorney"
+        ? "Attorney Questions"
+        : "Broker Questions";
+    const { error } = await supabase.from("brix_reports").insert({
+      user_id: user.id,
+      deal_id: contract.deal_id,
+      report_type: "contract_snapshot",
+      report_status: "exported",
+      title: `${label}: ${contract.contract_name}`,
+      summary: `${recoLabel(analysis.recommendation)}. Risk ${analysis.riskScore}/100. ${analysis.missingInputs[0] ? `Missing: ${analysis.missingInputs[0]}.` : "Core contract inputs are present."}`,
+      payload: {
+        contract_id: contract.id,
+        contract_name: contract.contract_name,
+        property_address: contract.property_address,
+        report_kind: kind,
+        recommendation: analysis.recommendation,
+        risk_score: analysis.riskScore,
+        leverage_score: analysis.leverageScore,
+        deadline_count: analysis.deadlines.length,
+        missing_inputs: analysis.missingInputs,
+        exported_at: new Date().toISOString(),
+      },
+    });
+    if (error) {
+      toast({
+        title: "Report exported, but snapshot was not saved",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({ title: "Report exported and saved" });
+  };
+
+  const sendDeadlinesToPipeline = async () => {
+    if (!contract || !analysis || !user) return;
+    if (!contract.deal_id) {
+      toast({
+        title: "Link a deal first",
+        description: "Deadlines can be sent to PipelineIQ after this contract is attached to a DealIQ record.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const actionableDeadlines = analysis.deadlines.filter((deadline) => deadline.status !== "missing");
+    if (actionableDeadlines.length === 0) {
+      toast({
+        title: "No deadlines to send",
+        description: "Add the missing contract dates first, then send the deadline tasks to PipelineIQ.",
+      });
+      return;
+    }
+
+    setSyncingDeadlines(true);
+    try {
+      const marker = `ContractIQ:${contract.id}`;
+      const { data: existing, error: existingError } = await supabase
+        .from("brix_project_tasks")
+        .select("title,due_at,notes")
+        .eq("user_id", user.id)
+        .eq("deal_id", contract.deal_id)
+        .ilike("notes", `%${marker}%`);
+
+      if (existingError) throw existingError;
+
+      const existingKeys = new Set(
+        (existing ?? []).map((task) => `${task.title}|${task.due_at ?? ""}`),
+      );
+      const rows = actionableDeadlines
+        .map((deadline) => {
+          const dueAt = deadline.date ? new Date(`${deadline.date}T17:00:00`).toISOString() : null;
+          return {
+            user_id: user.id,
+            deal_id: contract.deal_id,
+            title: `Contract deadline: ${deadline.label}`,
+            task_type: "due_diligence",
+            status: "open",
+            priority: deadline.status === "past" || deadline.status === "tight" ? "critical" : "high",
+            due_at: dueAt,
+            verification_required: true,
+            notes: `${marker} | ${contract.contract_name}`,
+          };
+        })
+        .filter((row) => !existingKeys.has(`${row.title}|${row.due_at ?? ""}`));
+
+      if (rows.length === 0) {
+        toast({
+          title: "PipelineIQ is current",
+          description: "These contract deadlines are already saved as tasks.",
+        });
+        return;
+      }
+
+      const { error } = await supabase.from("brix_project_tasks").insert(rows);
+      if (error) throw error;
+      toast({
+        title: "Deadlines sent to PipelineIQ",
+        description: `${rows.length} task${rows.length === 1 ? "" : "s"} added to the linked deal.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Could not save deadline tasks",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingDeadlines(false);
+    }
   };
 
   if (isLoading) {
@@ -229,7 +350,7 @@ const ContractAnalysisPage = () => {
       <SectionContainer>
         <p className="text-sm text-muted-foreground">Contract not found.</p>
         <Link to="/contractiq" className="text-sm text-primary hover:underline mt-2 inline-block">
-          ← Back to ContractIQ
+          Back to ContractIQ
         </Link>
       </SectionContainer>
     );
@@ -324,7 +445,7 @@ const ContractAnalysisPage = () => {
         </TabsList>
 
         <TabsContent value="decision" className="mt-0">
-      {/* ════════════ DECISION TAB ════════════ */}
+        {/* Decision tab */}
       <CardContainer className="p-6 mb-5 border-primary/15 bg-gradient-to-br from-primary/[0.03] to-card">
         <div className="flex items-start gap-3">
           <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" />
@@ -415,7 +536,7 @@ const ContractAnalysisPage = () => {
       )}
         </TabsContent>
 
-        {/* ════════════ CLAUSES TAB ════════════ */}
+        {/* Clauses tab */}
         <TabsContent value="clauses" className="mt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
             <CardContainer className="p-5">
@@ -514,7 +635,7 @@ const ContractAnalysisPage = () => {
           </CardContainer>
         </TabsContent>
 
-        {/* ════════════ DEADLINES TAB ════════════ */}
+        {/* Deadlines tab */}
         <TabsContent value="deadlines" className="mt-0">
           <CardContainer className="p-5 mb-5">
             <div className="flex items-center gap-2 mb-3">
@@ -527,6 +648,15 @@ const ContractAnalysisPage = () => {
                     <Badge variant="outline" className="text-[10px]">{datedCount} dated</Badge>
                     <Button
                       size="sm"
+                      variant="secondary"
+                      disabled={syncingDeadlines || analysis.deadlines.length === 0}
+                      onClick={sendDeadlinesToPipeline}
+                    >
+                      <ListChecks className="h-3.5 w-3.5 mr-1.5" />
+                      {syncingDeadlines ? "Saving..." : "Send to PipelineIQ"}
+                    </Button>
+                    <Button
+                      size="sm"
                       variant="outline"
                       disabled={datedCount === 0}
                       onClick={() => {
@@ -535,7 +665,7 @@ const ContractAnalysisPage = () => {
                           .map((d) => deadlineToIcsEvent(d, title))
                           .filter((e): e is NonNullable<typeof e> => e !== null);
                         if (events.length === 0) return;
-                        const ics = buildIcs(`${title} — Deadlines`, events);
+                        const ics = buildIcs(`${title} - Deadlines`, events);
                         const safe = title.replace(/[^a-z0-9-_]+/gi, "_").slice(0, 60);
                         downloadIcs(`${safe}_deadlines.ics`, ics);
                       }}
@@ -574,7 +704,7 @@ const ContractAnalysisPage = () => {
                               ? new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })
                               : d.daysFromEffective != null
                               ? `+${d.daysFromEffective}d`
-                              : "—"}
+                              : "-"}
                           </span>
                         </li>
                       ))}
@@ -602,10 +732,10 @@ const ContractAnalysisPage = () => {
                     {d.status === "missing"
                       ? "Not set"
                       : d.date
-                      ? `${new Date(d.date).toLocaleDateString()}${d.daysFromNow != null ? ` · ${d.daysFromNow >= 0 ? `in ${d.daysFromNow}d` : `${Math.abs(d.daysFromNow)}d ago`}` : ""}`
+                      ? `${new Date(d.date).toLocaleDateString()}${d.daysFromNow != null ? ` - ${d.daysFromNow >= 0 ? `in ${d.daysFromNow}d` : `${Math.abs(d.daysFromNow)}d ago`}` : ""}`
                       : d.daysFromEffective != null
                       ? `${d.daysFromEffective} days from effective`
-                      : "—"}
+                      : "-"}
                   </span>
                 </div>
               ))}
@@ -640,12 +770,12 @@ const ContractAnalysisPage = () => {
                       <tr key={r.id} className="border-b border-border/50 align-top">
                         <td className="py-2 pr-3 text-foreground/80">{r.category}</td>
                         <td className="py-2 pr-3 font-medium text-foreground">{r.item}</td>
-                        <td className="py-2 pr-3 text-center">{r.buyer ? "✓" : "—"}</td>
-                        <td className="py-2 pr-3 text-center">{r.seller ? "✓" : "—"}</td>
+                        <td className="py-2 pr-3 text-center">{r.buyer ? "Yes" : "-"}</td>
+                        <td className="py-2 pr-3 text-center">{r.seller ? "Yes" : "-"}</td>
                         <td className="py-2 pr-3 text-right tabular-nums text-foreground">
                           {r.estimatedAmount != null
                             ? r.estimatedAmount.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })
-                            : "—"}
+                            : "-"}
                         </td>
                         <td className="py-2 text-muted-foreground leading-relaxed">{r.notes}</td>
                       </tr>
@@ -679,8 +809,8 @@ const ContractAnalysisPage = () => {
                     {analysis.whoPaysWhat.map((r) => (
                       <tr key={r.id} className="border-b border-border/50 align-top">
                         <td className="py-2 pr-3 font-medium text-foreground">{r.item}</td>
-                        <td className="py-2 pr-3 text-center">{r.buyer ? "✓" : "—"}</td>
-                        <td className="py-2 pr-3 text-center">{r.seller ? "✓" : "—"}</td>
+                        <td className="py-2 pr-3 text-center">{r.buyer ? "Yes" : "-"}</td>
+                        <td className="py-2 pr-3 text-center">{r.seller ? "Yes" : "-"}</td>
                         <td className="py-2 text-muted-foreground leading-relaxed">{r.notes}</td>
                       </tr>
                     ))}
@@ -691,7 +821,7 @@ const ContractAnalysisPage = () => {
           )}
         </TabsContent>
 
-        {/* ════════════ RISK TAB ════════════ */}
+        {/* Risk tab */}
         <TabsContent value="risk" className="mt-0">
           {analysis.riskMatrix.length > 0 && (
             <CardContainer className="p-5 mb-5">
@@ -783,7 +913,7 @@ const ContractAnalysisPage = () => {
           </div>
         </TabsContent>
 
-        {/* ════════════ NEGOTIATION TAB ════════════ */}
+        {/* Negotiation tab */}
         <TabsContent value="negotiation" className="mt-0">
           {analysis.negotiation.length > 0 ? (
             <CardContainer className="p-5 mb-5">
@@ -832,7 +962,7 @@ const ContractAnalysisPage = () => {
           )}
         </TabsContent>
 
-        {/* ════════════ BRIDGE TAB ════════════ */}
+        {/* Bridge tab */}
         <TabsContent value="bridge" className="mt-0">
           {!bridge || dealLoading ? (
             <CardContainer className="p-5 mb-5">
@@ -865,7 +995,7 @@ const ContractAnalysisPage = () => {
                   <GitCompareArrows className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                   <div className="flex-1">
                     <h2 className="text-sm font-semibold text-foreground mb-1">
-                      Contract ↔ DealIQ Bridge
+                      Contract and DealIQ Bridge
                     </h2>
                     <p className="text-sm text-foreground/90 leading-relaxed">
                       Deterministic cross-check between the signed/draft contract and your underwriting in DealIQ. Variances are scored from the {activePerspective}'s perspective.
@@ -888,7 +1018,7 @@ const ContractAnalysisPage = () => {
                       <TrendingDown className="h-3 w-3" /> Downside vs model
                     </div>
                     <div className="text-sm font-semibold tabular-nums text-destructive mt-0.5">
-                      {bridge.totalDownside > 0 ? formatBridgeMoney(bridge.totalDownside) : "—"}
+                      {bridge.totalDownside > 0 ? formatBridgeMoney(bridge.totalDownside) : "-"}
                     </div>
                   </div>
                   <div className="rounded-md border border-emerald-200 bg-emerald-50/60 dark:bg-emerald-900/10 dark:border-emerald-800 px-3 py-2">
@@ -896,7 +1026,7 @@ const ContractAnalysisPage = () => {
                       <TrendingUp className="h-3 w-3" /> Upside vs model
                     </div>
                     <div className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-300 mt-0.5">
-                      {bridge.totalUpside > 0 ? formatBridgeMoney(bridge.totalUpside) : "—"}
+                      {bridge.totalUpside > 0 ? formatBridgeMoney(bridge.totalUpside) : "-"}
                     </div>
                   </div>
                 </div>
@@ -965,11 +1095,11 @@ const ContractAnalysisPage = () => {
                             <div className="grid grid-cols-2 gap-2 mt-2 text-[11px]">
                               <div className="rounded border border-border bg-background/60 px-2 py-1">
                                 <div className="text-muted-foreground uppercase tracking-wide text-[9px]">Contract</div>
-                                <div className="font-medium text-foreground tabular-nums truncate">{f.contractValue ?? "—"}</div>
+                                <div className="font-medium text-foreground tabular-nums truncate">{f.contractValue ?? "-"}</div>
                               </div>
                               <div className="rounded border border-border bg-background/60 px-2 py-1">
                                 <div className="text-muted-foreground uppercase tracking-wide text-[9px]">DealIQ</div>
-                                <div className="font-medium text-foreground tabular-nums truncate">{f.dealValue ?? "—"}</div>
+                                <div className="font-medium text-foreground tabular-nums truncate">{f.dealValue ?? "-"}</div>
                               </div>
                             </div>
                           )}
@@ -981,14 +1111,14 @@ const ContractAnalysisPage = () => {
               </CardContainer>
 
               <p className="text-[11px] text-muted-foreground">
-                Bridge logic is fully deterministic — no AI. Severities and dollar deltas come from explicit rules over the linked deal's purchase price, ARV, rehab, closing costs, and strategy.
+                Bridge logic is deterministic. Severities and dollar deltas come from explicit rules over the linked deal's purchase price, ARV, rehab, closing costs, and strategy.
               </p>
             </>
           )}
         </TabsContent>
 
 
-        {/* ════════════ REPORTS TAB ════════════ */}
+        {/* Reports tab */}
         <TabsContent value="reports" className="mt-0">
           <CardContainer className="p-5 mb-5">
             <div className="flex items-center gap-2 mb-3">
@@ -1010,7 +1140,7 @@ const ContractAnalysisPage = () => {
               </Button>
             </div>
             <p className="text-[11px] text-muted-foreground mt-2">
-              Prepared for {user?.email ?? "you"} · {new Date().toLocaleDateString()} · BRIX ContractIQ — Confidential
+              Prepared for {user?.email ?? "you"} - {new Date().toLocaleDateString()} - BRIX ContractIQ Confidential
             </p>
           </CardContainer>
         </TabsContent>

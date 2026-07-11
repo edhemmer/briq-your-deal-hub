@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ArrowRight, CheckCircle2, CircleAlert, FilePlus2, Workflow } from "lucide-react";
+import { dealReadinessScore, missingDealInputs } from "@/lib/dealReadiness";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -49,7 +50,7 @@ function DealOperatingStrip() {
             <Workflow className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Active module</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current view</p>
             <h2 className="truncate text-sm font-semibold leading-5 text-foreground">
               {activeModule.title}
               <span className="hidden font-medium text-muted-foreground sm:inline"> / {activeModule.question}</span>
@@ -91,7 +92,7 @@ function DealOperatingStrip() {
             </div>
           ) : (
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">Start with an address or listing link, choose a strategy, then BRIX opens the deal workspace.</p>
+              <p className="text-sm text-muted-foreground">Start with an address or listing link, choose a strategy, then BRIX opens the deal file.</p>
             </div>
           )}
         </div>
@@ -115,36 +116,11 @@ function DealOperatingStrip() {
 type LayoutDeal = NonNullable<ReturnType<typeof useDeals>["data"]>[number];
 
 function readinessScore(deal: LayoutDeal) {
-  const checks = [
-    deal.property_address,
-    deal.city,
-    deal.state,
-    positiveNumber(deal.purchase_price),
-    positiveNumber(deal.monthly_rent),
-    positiveNumber(deal.annual_property_tax ?? deal.taxes),
-    positiveNumber(deal.insurance),
-    deal.property_type,
-    deal.strategy_primary,
-  ];
-  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  return dealReadinessScore(deal, { requireLocation: true });
 }
 
 function missingInputs(deal: LayoutDeal) {
-  const missing: string[] = [];
-  if (!deal.property_address) missing.push("property address");
-  if (!deal.city) missing.push("city");
-  if (!deal.state) missing.push("state");
-  if (!positiveNumber(deal.purchase_price)) missing.push("purchase price");
-  if (!positiveNumber(deal.monthly_rent)) missing.push("monthly rent");
-  if (!positiveNumber(deal.annual_property_tax ?? deal.taxes)) missing.push("annual taxes");
-  if (!positiveNumber(deal.insurance)) missing.push("annual insurance");
-  if (!deal.property_type) missing.push("property type");
-  if (!deal.strategy_primary) missing.push("strategy");
-  return missing;
-}
-
-function positiveNumber(value: number | null | undefined) {
-  return value != null && Number.isFinite(Number(value)) && Number(value) > 0;
+  return missingDealInputs(deal, { requireLocation: true });
 }
 
 function ModuleRail() {

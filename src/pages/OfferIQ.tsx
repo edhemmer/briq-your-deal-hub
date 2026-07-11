@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDeals, useUpdateDeal } from "@/hooks/useDeals";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json, Tables } from "@/integrations/supabase/types";
+import { dealReadinessScore, hasVerifiedTax, missingDealInputs, positiveNumber } from "@/lib/dealReadiness";
 import { cn } from "@/lib/utils";
 
 type Deal = NonNullable<ReturnType<typeof useDeals>["data"]>[number];
@@ -135,7 +136,7 @@ export default function OfferIQ() {
                   <OfferFact label="Purchase price" value={formatCurrency(deal.purchase_price) || "Needed"} />
                   <OfferFact label="Strategy" value={deal.strategy_primary || "Needed"} />
                   <OfferFact label="Annual insurance" value={formatCurrency(deal.insurance) || "Needed"} />
-                  <OfferFact label="Annual taxes" value={formatCurrency(deal.annual_property_tax ?? deal.taxes) || "Needed"} />
+                  <OfferFact label="Annual taxes" value={formatCurrency(deal.annual_property_tax ?? deal.taxes) || "Needed"} subtext={hasVerifiedTax(deal) ? "Verified" : "Needs source"} />
                 </div>
                 {latestOffer && (
                   <div className="mt-4 rounded-lg border border-primary/25 bg-primary/10 p-3 text-sm text-primary">
@@ -328,11 +329,12 @@ function EmptyOffer({ title, body }: { title: string; body: string }) {
   );
 }
 
-function OfferFact({ label, value }: { label: string; value: string }) {
+function OfferFact({ label, value, subtext }: { label: string; value: string; subtext?: string }) {
   return (
     <div className="rounded-lg border border-border bg-background/45 p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
+      {subtext ? <p className="mt-1 text-[10px] font-medium text-muted-foreground">{subtext}</p> : null}
     </div>
   );
 }
@@ -444,30 +446,25 @@ function offerStatusLabel(status: string) {
 }
 
 function readinessScore(deal: Deal) {
-  const checks = [
-    positiveNumber(deal.purchase_price),
-    positiveNumber(deal.monthly_rent),
-    positiveNumber(deal.annual_property_tax ?? deal.taxes),
-    positiveNumber(deal.insurance),
-    Boolean(deal.property_address),
-    Boolean(deal.strategy_primary),
-    Boolean(deal.property_type),
-    Boolean(deal.listing_url || deal.property_record_url || deal.listing_remarks),
-  ];
-  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  return dealReadinessScore(deal, { requireLocation: true, requireSource: true });
 }
 
 function missingInputs(deal: Deal) {
-  const missing: string[] = [];
-  if (!deal.property_address) missing.push("Add the property address.");
-  if (!deal.property_type) missing.push("Select a property type.");
-  if (!deal.strategy_primary) missing.push("Choose the primary strategy.");
-  if (!positiveNumber(deal.purchase_price)) missing.push("Enter or verify purchase price.");
-  if (!positiveNumber(deal.monthly_rent)) missing.push("Verify monthly rent support.");
-  if (!positiveNumber(deal.annual_property_tax ?? deal.taxes)) missing.push("Verify annual property taxes.");
-  if (!positiveNumber(deal.insurance)) missing.push("Get an annual insurance quote.");
-  if (!deal.listing_url && !deal.property_record_url && !deal.listing_remarks) missing.push("Attach the source listing, document, or notes.");
-  return missing;
+  return missingDealInputs(deal, { requireLocation: true, requireSource: true }).map((item) => {
+    switch (item) {
+      case "property address": return "Add the property address.";
+      case "city": return "Add the city.";
+      case "state": return "Add the state.";
+      case "property type": return "Select a property type.";
+      case "strategy": return "Choose the primary strategy.";
+      case "purchase price": return "Enter or verify purchase price.";
+      case "rent support": return "Verify monthly rent support.";
+      case "verified annual taxes": return "Verify annual property taxes from an official source.";
+      case "annual insurance quote": return "Get an annual insurance quote.";
+      case "source listing or notes": return "Attach the source listing, document, or notes.";
+      default: return item;
+    }
+  });
 }
 
 function strategyBadge(tone: "green" | "amber" | "red") {
@@ -484,8 +481,4 @@ function locationLine(deal: Deal) {
 function formatCurrency(value: number | null | undefined) {
   if (!positiveNumber(value)) return "";
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(value));
-}
-
-function positiveNumber(value: number | string | null | undefined) {
-  return Number(value) > 0;
 }
