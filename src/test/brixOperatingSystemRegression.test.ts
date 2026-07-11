@@ -3,8 +3,8 @@ import { analyzeDeal, type DealInput } from "@/lib/dealAnalysisEngine";
 import { runStressTests } from "@/lib/stressTestingEngine";
 import { evaluateDealStrategies } from "@/lib/strategyFitEngine";
 import { defaultAcquisitionProfile, opportunityToDealInsert, rankOpportunities, type FindIQOpportunity } from "@/lib/findIQArchitecture";
-import { sampleOfferStructures } from "@/lib/offerIQArchitecture";
-import { healthTone, samplePipelineOpportunities } from "@/lib/pipelineIQArchitecture";
+import { regressionOfferStructures } from "@/lib/offerIQArchitecture";
+import { healthTone, regressionPipelineOpportunities } from "@/lib/pipelineIQArchitecture";
 import { buildPortfolioSummary, equity, monthlyCashFlow, portfolioAssets } from "@/lib/portfolioIQArchitecture";
 import { buildExplainableRecommendation } from "@/lib/aiIntelligenceLayer";
 import { dataCategories, providerIndependenceRules } from "@/lib/providerDataArchitecture";
@@ -183,12 +183,12 @@ describe("BRIX operating system regression", () => {
   });
 
   it("compares OfferIQ structures and preserves PipelineIQ execution health signals", () => {
-    expect(sampleOfferStructures).toHaveLength(3);
-    expect(sampleOfferStructures.map((offer) => offer.financing)).toContain("Cash");
-    expect(sampleOfferStructures.find((offer) => offer.label.includes("Protected"))?.strengths[0])
+    expect(regressionOfferStructures).toHaveLength(3);
+    expect(regressionOfferStructures.map((offer) => offer.financing)).toContain("Cash");
+    expect(regressionOfferStructures.find((offer) => offer.label.includes("Protected"))?.strengths[0])
       .toMatch(/Protects downside/i);
 
-    const dueDiligence = samplePipelineOpportunities.find((item) => item.stage === "Due Diligence");
+    const dueDiligence = regressionPipelineOpportunities.find((item) => item.stage === "Due Diligence");
     expect(dueDiligence?.tasks.filter((task) => task.status !== "Done").length).toBeGreaterThan(0);
     expect(healthTone(dueDiligence?.healthScore ?? 0)).toBe("At Risk");
   });

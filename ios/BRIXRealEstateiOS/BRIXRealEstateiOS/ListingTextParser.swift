@@ -32,6 +32,7 @@ enum ListingTextParser {
                 "Check map/street context for road noise, access friction, parking, and nearby traffic corridors before visiting.",
                 "Verify condition with photos, inspection, or contractor review."
             ],
+            photoURLs: photoURLs(in: text),
             strategyPrimary: strategy(in: text),
             sourceConfidence: urlParts != nil || firstAddress(in: text) != nil ? "medium" : "low"
         )
@@ -43,29 +44,69 @@ enum ListingTextParser {
     }
 
     private static func parseListingURL(_ urlString: String) -> (address: String?, city: String?, state: String?, zip: String?)? {
-        guard let url = URL(string: urlString),
-              let range = url.path.range(of: "/homedetails/") else { return nil }
+        guard let url = URL(string: urlString) else { return nil }
 
-        let slug = String(url.path[range.upperBound...])
+        let genericWords = #"\b(?:home|homes|details|property|real-estate|for-sale|listing|listings|house|houses)\b"#
+        let segments = url.path
+            .removingPercentEncoding?
             .split(separator: "/")
-            .first?
-            .replacingOccurrences(of: "_zpid", with: "") ?? ""
+            .map(String.init) ?? []
 
-        let cleaned = slug
-            .replacingOccurrences(of: "-", with: " ")
-            .replacingOccurrences(of: "_", with: " ")
-            .replacingOccurrences(of: #" \d+ zpid"#, with: "", options: .regularExpression)
+        let candidates = segments
+            .map { segment in
+                segment
+                    .replacingOccurrences(of: #"_zpid.*$"#, with: "", options: .regularExpression)
+                    .replacingOccurrences(of: #"\d+_zpid.*$"#, with: "", options: .regularExpression)
+                    .replacingOccurrences(of: genericWords, with: " ", options: [.regularExpression, .caseInsensitive])
+                    .replacingOccurrences(of: #"[-_]+"#, with: " ", options: .regularExpression)
+                    .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            .filter { candidate in
+                candidate.range(of: #"\d{1,6}\s+\S+"#, options: .regularExpression) != nil ||
+                candidate.range(of: #"\b[A-Z]{2}\s+\d{5}\b"#, options: [.regularExpression, .caseInsensitive]) != nil
+            }
+
+        guard var slug = candidates.first(where: { $0.range(of: #"\d{1,6}\s+\S+"#, options: .regularExpression) != nil }) ?? candidates.last else {
+            return nil
+        }
+
+        slug = slug
+            .replacingOccurrences(of: #"\b(?:zpid|mls|pid)\b.*$"#, with: "", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard cleaned.isEmpty == false else { return nil }
-        let tokens = cleaned.split(separator: " ").map(String.init)
-        guard tokens.count >= 5 else { return (cleaned, nil, nil, nil) }
+        guard slug.isEmpty == false else { return nil }
+        let tokens = slug.split(separator: " ").map(String.init)
+        let zipIndex = tokens.lastIndex { $0.range(of: #"^\d{5}$"#, options: .regularExpression) != nil }
+        let zip = zipIndex.map { tokens[$0] }
+        let stateCandidate = zipIndex.flatMap { $0 > 0 ? tokens[$0 - 1].uppercased() : nil }
+        let state = stateCandidate.flatMap { stateCodes.contains($0) ? $0 : nil }
+        let city = (zipIndex != nil && state != nil && zipIndex! > 1) ? tokens[zipIndex! - 2] : nil
+        let addressTokens = (zipIndex != nil && state != nil) ? Array(tokens.prefix(max(0, zipIndex! - 2))) : tokens
 
-        let zip = tokens.last.flatMap { $0.range(of: #"^\d{5}$"#, options: .regularExpression) == nil ? nil : $0 }
-        let state = zip == nil ? nil : tokens.dropLast().last
-        let city = zip == nil ? nil : tokens.dropLast(2).last
-        let addressTokens = zip == nil ? tokens : Array(tokens.dropLast(3))
-        return (addressTokens.joined(separator: " "), city, state, zip)
+        return (titleCase(addressTokens.joined(separator: " ")), titleCase(city), state, zip)
+    }
+
+    private static let stateCodes: Set<String> = [
+        "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA",
+        "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK",
+        "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC"
+    ]
+
+    private static func titleCase(_ value: String?) -> String? {
+        guard let value, value.isEmpty == false else { return nil }
+        return value
+            .lowercased()
+            .split(separator: " ")
+            .map { part in
+                let text = String(part)
+                if text.count <= 2, stateCodes.contains(text.uppercased()) {
+                    return text.uppercased()
+                }
+                return text.prefix(1).uppercased() + String(text.dropFirst())
+            }
+            .joined(separator: " ")
     }
 
     private static func firstAddress(in text: String) -> String? {
@@ -139,6 +180,20 @@ enum ListingTextParser {
             notes.append("Access/parking constraint mentioned. Verify daily usability, tenant demand, and resale impact.")
         }
         return notes
+    }
+
+    private static func photoURLs(in text: String) -> [String] {
+        guard let regex = try? NSRegularExpression(pattern: #"https?://[^\s"'<>]+?\.(?:jpg|jpeg|png|webp|avif)(?:\?[^\s"'<>]*)?"#, options: [.caseInsensitive]) else {
+            return []
+        }
+        let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+        var seen = Set<String>()
+        return matches.compactMap { match in
+            guard let range = Range(match.range, in: text) else { return nil }
+            let value = String(text[range])
+            guard seen.insert(value).inserted else { return nil }
+            return value
+        }
     }
 
     private static func firstMoney(in text: String, labels: [String]) -> Double? {

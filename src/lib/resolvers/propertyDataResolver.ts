@@ -11,6 +11,7 @@
 import type { SourcedValue } from "../dataSourceLayer";
 import { userValue, countyValue, unavailableValue } from "../dataSourceLayer";
 import { resolveCountyPropertyUrl } from "../property/countyPropertyResolver";
+import { resolveTaxRecord, type TaxRecordResolution } from "../property/taxRecordResolver";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -30,6 +31,7 @@ export interface ResolvedPropertyData {
   lotSize: SourcedValue<string | null>;
   assessedValue: SourcedValue<number | null>;
   annualPropertyTax: SourcedValue<number | null>;
+  taxRecord: TaxRecordResolution;
   zoningType: SourcedValue<string | null>;
   propertyRecordUrl: SourcedValue<string | null>;
   source: "county_record" | "user_input" | "unavailable";
@@ -62,6 +64,9 @@ export function getPropertyData(
     lotSize?: string | null;
     assessedValue?: number | null;
     annualPropertyTax?: number | null;
+    taxHistory?: unknown;
+    taxRecordUrl?: string | null;
+    taxVerificationStatus?: string | null;
     zoningType?: string | null;
     propertyRecordUrl?: string | null;
   }
@@ -84,6 +89,22 @@ export function getPropertyData(
       ? countyValue(countyResult.url)
       : unavailableValue<string | null>(null);
 
+  const taxRecord = resolveTaxRecord(
+    {
+      property_address: input.address,
+      city: input.city,
+      state: input.state,
+      zip_code: input.zipCode,
+      county: input.county,
+    },
+    {
+      taxHistory: existingUserData?.taxHistory,
+      annualPropertyTax: existingUserData?.annualPropertyTax,
+      taxRecordUrl: existingUserData?.taxRecordUrl,
+      taxVerificationStatus: existingUserData?.taxVerificationStatus,
+    }
+  );
+
   // Normalize all property fields with source provenance
   return {
     address: userValue(input.address),
@@ -92,7 +113,10 @@ export function getPropertyData(
     squareFootage: normalizeOptionalNumber(existingUserData?.squareFootage),
     lotSize: normalizeOptional(existingUserData?.lotSize),
     assessedValue: normalizeOptionalNumber(existingUserData?.assessedValue),
-    annualPropertyTax: normalizeOptionalNumber(existingUserData?.annualPropertyTax),
+    annualPropertyTax: taxRecord.annualTax != null
+      ? countyValue(taxRecord.annualTax)
+      : normalizeOptionalNumber(existingUserData?.annualPropertyTax),
+    taxRecord,
     zoningType: normalizeOptional(existingUserData?.zoningType),
     propertyRecordUrl: recordUrl,
     source: existingUserData ? "user_input" : countyResult.source === "registry" ? "county_record" : "unavailable",

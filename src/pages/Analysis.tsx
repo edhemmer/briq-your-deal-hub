@@ -34,7 +34,6 @@ import type { ScenarioResult, ScenarioCategory, ResilienceLevel, StressTestResul
 import { STRESS_SCENARIOS } from "@/lib/stressTestingEngine";
 import type { DealReliabilityResult, BreakStatus, FragilityLevel } from "@/lib/dealReliabilityEngine";
 import { generateDealInterpretation, type DealInterpretation } from "@/lib/dealInterpretationEngine";
-import { assembleDealReport, generateInvestorPDF, generateCSVExport } from "@/lib/reportEngine";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { HelpTooltip } from "@/components/help/HelpTooltip";
@@ -69,6 +68,7 @@ import { buildDueDiligenceQuestions, evaluateResidentialDecision, type HoldPerio
 import type { Tables, TablesUpdate } from "@/integrations/supabase/types";
 import { calculateVerifiedAnnualTax, evaluateTrustGate, PUBLIC_SOURCE_CONNECTORS } from "@/lib/sourceVerificationEngine";
 import { SourceVerificationPanel } from "@/components/analysis/SourceVerificationPanel";
+import { normalizeTaxHistory, type TaxHistoryEntry } from "@/lib/property/taxRecordResolver";
 
 type DealRow = Tables<"deals">;
 type DealUpdate = TablesUpdate<"deals"> & { id: string };
@@ -92,7 +92,7 @@ const FINANCIAL_FIELDS: { key: keyof DealInput; label: string; isPercent?: boole
   { key: "capex_percent", label: "CapEx %", isPercent: true, group: "Expenses" },
 ];
 
-const WORKFLOW_STEP_TO_TAB = ["property", "inputs", "overview", "market", "market", "sensitivity", "reports"] as const;
+const WORKFLOW_STEP_TO_TAB = ["property", "inputs", "overview", "market", "strategy", "sensitivity", "reports"] as const;
 const TAB_TO_WORKFLOW_STEP: Record<string, number> = {
   property: 0,
   inputs: 1,
@@ -100,8 +100,9 @@ const TAB_TO_WORKFLOW_STEP: Record<string, number> = {
   proforma: 2,
   returns: 2,
   market: 3,
-  financing: 4,
-  capital: 4,
+  strategy: 4,
+  financing: 3,
+  capital: 3,
   sensitivity: 5,
   reports: 6,
 };
@@ -159,6 +160,33 @@ function metricBadge(value: number, thresholds: [number, number]): "default" | "
 const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const fmtPct = (n: number) => (n * 100).toFixed(2) + "%";
 const fmtX = (n: number) => n.toFixed(2) + "x";
+
+function buildVerifiedTaxHistory(values: { year1: string; year2: string; year3: string }): TaxHistoryEntry[] {
+  const currentYear = new Date().getFullYear();
+  return [values.year1, values.year2, values.year3]
+    .map((raw, index) => {
+      const amount = parseFloat(raw || "0");
+      if (!Number.isFinite(amount) || amount <= 0) return null;
+      return {
+        year: currentYear - index,
+        amount,
+        source: "user_verified" as const,
+        status: "verified" as const,
+      };
+    })
+    .filter((item): item is TaxHistoryEntry => Boolean(item));
+}
+
+function taxStatusLabel(status: string) {
+  switch (status) {
+    case "official_verified": return "Official tax history verified";
+    case "user_verified": return "Tax history entered from official source";
+    case "lookup_available": return "Official lookup available";
+    case "provider_required": return "Official connector not available";
+    case "unsupported": return "Unsupported county source";
+    default: return "Tax history missing";
+  }
+}
 
 const EMPTY_DEAL_INPUT: DealInput = {
   purchase_price: 0,
@@ -283,7 +311,7 @@ const Analysis = () => {
   const [decisionMode, setDecisionMode] = useState<"investment" | "live-in">("investment");
   const [holdPeriod, setHoldPeriod] = useState<HoldPeriod>(10);
   const [taxHistory, setTaxHistory] = useState({ year1: "", year2: "", year3: "" });
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState("overview");
+  const [activeDealTab, setActiveDealTab] = useState("overview");
 
   const sourceQualityInput = useMemo<SourceQualityInput | null>(() => {
     if (Object.keys(sourceQualityMap).length === 0) return null;
@@ -341,6 +369,15 @@ const Analysis = () => {
         lot_size: typedDeal.lot_size ?? "",
         zoning_type: typedDeal.zoning_type ?? "",
       });
+      const storedTaxHistory = normalizeTaxHistory(typedDeal.tax_history);
+      if (storedTaxHistory.length > 0) {
+        const newest = storedTaxHistory.slice(0, 3);
+        setTaxHistory({
+          year1: newest[0]?.amount ? String(newest[0].amount) : "",
+          year2: newest[1]?.amount ? String(newest[1].amount) : "",
+          year3: newest[2]?.amount ? String(newest[2].amount) : "",
+        });
+      }
       setInitialized(true);
     }
   }, [deal, initialized]);
@@ -494,11 +531,11 @@ const Analysis = () => {
     );
   }, [dealInput, marketFields]);
 
-  const activeWorkflowStep = TAB_TO_WORKFLOW_STEP[activeWorkspaceTab] ?? 2;
+  const activeWorkflowStep = TAB_TO_WORKFLOW_STEP[activeDealTab] ?? 2;
   const maxAccessibleWorkflowStep = inputSufficiency.canAnalyze ? 6 : 2;
   const selectWorkflowStep = useCallback((step: number) => {
     const nextTab = WORKFLOW_STEP_TO_TAB[step] ?? "overview";
-    setActiveWorkspaceTab(nextTab);
+    setActiveDealTab(nextTab);
   }, []);
 
   const propertyIntelligence = useMemo(() => {
@@ -508,6 +545,9 @@ const Analysis = () => {
       {
         assessed_value: parseFloat(enrichmentFields.assessed_value || "0") || 0,
         annual_property_tax: parseFloat(enrichmentFields.annual_property_tax || "0") || 0,
+        tax_history: deal.tax_history,
+        tax_record_url: deal.tax_record_url,
+        tax_verification_status: deal.tax_verification_status,
         year_built: parseFloat(enrichmentFields.year_built || "0") || 0,
         lot_size: enrichmentFields.lot_size || "",
         zoning_type: enrichmentFields.zoning_type || "",
@@ -556,6 +596,10 @@ const Analysis = () => {
   const handleEnrichmentBlur = useCallback(() => {
     if (!dealId) return;
     const verifiedAnnualTax = verifiedTax.annualTax ?? (parseFloat(enrichmentFields.annual_property_tax || "0") || 0);
+    const taxHistoryRows = buildVerifiedTaxHistory(taxHistory);
+    const taxStatus = taxHistoryRows.length > 0
+      ? "user_verified"
+      : propertyIntelligence?.taxRecord.status ?? "missing";
     if (verifiedAnnualTax > 0) {
       setField("taxes", String(verifiedAnnualTax));
     }
@@ -564,12 +608,15 @@ const Analysis = () => {
       assessed_value: parseFloat(enrichmentFields.assessed_value || "0") || 0,
       annual_property_tax: verifiedAnnualTax,
       taxes: verifiedAnnualTax,
+      tax_history: taxHistoryRows as unknown as DealUpdate["tax_history"],
+      tax_record_url: propertyIntelligence?.taxRecord.recordUrl ?? propertyIntelligence?.countyLookup.url ?? null,
+      tax_verification_status: taxStatus,
       year_built: parseFloat(enrichmentFields.year_built || "0") || 0,
       lot_size: enrichmentFields.lot_size || null,
       zoning_type: enrichmentFields.zoning_type || null,
       property_record_url: propertyIntelligence?.countyLookup.url ?? null,
     } satisfies DealUpdate);
-  }, [dealId, enrichmentFields, propertyIntelligence, setField, updateDeal, verifiedTax]);
+  }, [dealId, enrichmentFields, propertyIntelligence, setField, taxHistory, updateDeal, verifiedTax]);
 
   const handleMarketBlur = useCallback(() => {
     if (!dealId || !deal) return;
@@ -599,8 +646,9 @@ const Analysis = () => {
   }, [dealId, deal, marketFields, marketConditionsRow, upsertMarket, marketIntelligence]);
 
   // Report generation helper
-  const buildReport = useCallback(() => {
+  const buildReport = useCallback(async () => {
     if (!deal) return null;
+    const { assembleDealReport } = await import("@/lib/reportEngine");
     return assembleDealReport(
       {
         address: deal.property_address,
@@ -622,6 +670,20 @@ const Analysis = () => {
       verifiedTax,
     );
   }, [deal, dealInput, analysis, intelligence, strategyFit, marketIntelligence, stressResults, residentialDecision, holdPeriod, dueDiligenceQuestions, trustGate, verifiedTax]);
+
+  const downloadInvestorPdf = useCallback(async () => {
+    const report = await buildReport();
+    if (!report) return;
+    const { generateInvestorPDF } = await import("@/lib/reportEngine");
+    generateInvestorPDF(report);
+  }, [buildReport]);
+
+  const downloadCsvExport = useCallback(async () => {
+    const report = await buildReport();
+    if (!report) return;
+    const { generateCSVExport } = await import("@/lib/reportEngine");
+    generateCSVExport(report);
+  }, [buildReport]);
 
   // ── Empty / Loading States ──
   if (!dealId) {
@@ -708,10 +770,10 @@ const Analysis = () => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => { const r = buildReport(); if (r) generateInvestorPDF(r); }}>
+        <DropdownMenuItem onClick={() => { void downloadInvestorPdf(); }}>
           <FileText className="h-4 w-4 mr-2" /> Investor PDF
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => { const r = buildReport(); if (r) generateCSVExport(r); }}>
+        <DropdownMenuItem onClick={() => { void downloadCsvExport(); }}>
           <Download className="h-4 w-4 mr-2" /> CSV Export
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -781,8 +843,8 @@ const Analysis = () => {
         </Alert>
       )}
 
-      {/* ─── Tabbed Workspace ─── */}
-      <Tabs value={activeWorkspaceTab} onValueChange={setActiveWorkspaceTab} className="w-full">
+      {/* ─── Deal Review Tabs ─── */}
+      <Tabs value={activeDealTab} onValueChange={setActiveDealTab} className="w-full">
         <TabsList className="w-full justify-start overflow-x-auto flex-nowrap h-auto p-1">
           <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
           <TabsTrigger value="property" className="text-xs sm:text-sm">Property</TabsTrigger>
@@ -793,6 +855,7 @@ const Analysis = () => {
           <TabsTrigger value="capital" className="text-xs sm:text-sm">Capital Stack</TabsTrigger>
           <TabsTrigger value="financing" className="text-xs sm:text-sm">Financing</TabsTrigger>
           <TabsTrigger value="market" className="text-xs sm:text-sm">Market & Risk</TabsTrigger>
+          <TabsTrigger value="strategy" className="text-xs sm:text-sm">Strategy</TabsTrigger>
           <TabsTrigger value="reports" className="text-xs sm:text-sm">Reports</TabsTrigger>
         </TabsList>
 
@@ -813,8 +876,7 @@ const Analysis = () => {
               residential={residentialDecision}
               questions={dueDiligenceQuestions}
               onExportPdf={() => {
-                const r = buildReport();
-                if (r) generateInvestorPDF(r);
+                void downloadInvestorPdf();
               }}
             />
           )}
@@ -963,6 +1025,9 @@ const Analysis = () => {
                   <div className="space-y-1">
                     <h3 className="text-sm font-semibold text-foreground">County Property Record</h3>
                     <p className="text-xs text-muted-foreground">
+                      {taxStatusLabel(propertyIntelligence.taxRecord.status)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
                       {propertyIntelligence.countyLookup.county} County • {propertyIntelligence.countyLookup.source === "registry" ? "Direct link" : "Google search fallback"}
                     </p>
                   </div>
@@ -974,6 +1039,9 @@ const Analysis = () => {
                 <div className="border-t border-border pt-5">
                   <h3 className="text-sm font-semibold text-foreground mb-4">Property Data Enrichment</h3>
                   <p className="text-xs text-muted-foreground mb-4">Enter only values verified from public records, leases, lender quotes, or source documents. Taxes use the 3-year average when all three years are provided.</p>
+                  <div className="mb-4 rounded-lg border border-border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
+                    {propertyIntelligence.taxRecord.message}
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                     {[
                       { key: "year1", label: "Tax Year 1" },
@@ -1302,10 +1370,6 @@ const Analysis = () => {
             </div>
           </div>
 
-          {inputSufficiency.canAnalyze && (
-            <StrategyFitSection strategyFit={strategyFit} />
-          )}
-
           {inputSufficiency.canAnalyze && canonicalOutput?.dealReliability && (
             <DealReliabilitySection reliability={canonicalOutput.dealReliability} />
           )}
@@ -1321,6 +1385,20 @@ const Analysis = () => {
         </TabsContent>
 
         {/* ── REPORTS ── */}
+        <TabsContent value="strategy" className="space-y-6 mt-4">
+          {inputSufficiency.canAnalyze ? (
+            <StrategyFitSection strategyFit={strategyFit} />
+          ) : (
+            <CardContainer className="p-6">
+              <EmptyStateContainer
+                icon={<Target className="h-10 w-10" />}
+                title="Strategy comparison needs deal data"
+                description="Enter purchase price, rent, taxes, insurance, and ARV so BRIX can compare strategies against the same property."
+              />
+            </CardContainer>
+          )}
+        </TabsContent>
+
         <TabsContent value="reports" className="space-y-6 mt-4">
           <CardContainer className="p-6 space-y-4">
             <div className="flex items-center gap-2">
@@ -1331,11 +1409,11 @@ const Analysis = () => {
               Export a full underwriting summary including deal intelligence, financial metrics, market analysis, strategy fit, and stress test results.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => { const r = buildReport(); if (r) generateInvestorPDF(r); }} className="gap-2">
+              <Button onClick={() => { void downloadInvestorPdf(); }} className="gap-2">
                 <FileText className="h-4 w-4" />
                 Investor PDF
               </Button>
-              <Button variant="outline" onClick={() => { const r = buildReport(); if (r) generateCSVExport(r); }} className="gap-2">
+              <Button variant="outline" onClick={() => { void downloadCsvExport(); }} className="gap-2">
                 <Download className="h-4 w-4" />
                 CSV Data Export
               </Button>

@@ -11,6 +11,23 @@ struct FindIQView: View {
     @State private var isSaving = false
     @State private var intakeMessage: String?
 
+    private let strategyOptions = [
+        "Owner Occupant",
+        "Buy & Hold",
+        "House Hack",
+        "Long-Term Rental",
+        "Mid-Term Rental",
+        "Short-Term Rental",
+        "BRRRR",
+        "Fix & Flip",
+        "Seller Finance",
+        "Subject-To",
+        "Lease Option",
+        "ADU / Value-Add",
+        "Development",
+        "1031 Exchange"
+    ]
+
     private var filteredDeals: [DealSummary] {
         let trimmed = queueSearch.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard trimmed.isEmpty == false else { return appState.deals }
@@ -52,148 +69,53 @@ struct FindIQView: View {
             VStack(alignment: .leading, spacing: 16) {
                 SectionHeader(
                     title: "FindIQ",
-                    subtitle: "Add a property, review the queue, open DealIQ.",
+                    subtitle: "Enter a listing link or property address, choose the strategy, and create the deal file.",
                     symbol: "magnifyingglass"
                 )
 
-                if intakeStep == .property {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Address or listing link")
-                            .font(.subheadline.weight(.bold))
-                        TextField("", text: $quickStart)
-                            .textInputAutocapitalization(.words)
-                            .autocorrectionDisabled()
-                            .textFieldStyle(.roundedBorder)
-                            .accessibilityLabel("Address or listing URL")
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Property source")
+                        .font(.subheadline.weight(.bold))
+                    TextField("", text: $quickStart, axis: .vertical)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                        .lineLimit(2...4)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityLabel("Listing link or property address")
 
-                        Button {
-                            Task { await startQuickProperty() }
-                        } label: {
-                            Label(isExtracting ? "Reading Property..." : "Next", systemImage: "arrow.right.circle.fill")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(isExtracting || quickStart.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                } else {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Strategy to test")
-                            .font(.subheadline.weight(.bold))
-                        TextField("", text: $draft.strategy)
-                            .textFieldStyle(.roundedBorder)
-                            .accessibilityLabel("Strategy to test")
-                        HStack(spacing: 10) {
-                            Button {
-                                intakeStep = .property
-                            } label: {
-                                Label("Back", systemImage: "chevron.left")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.bordered)
-
-                            Button {
-                                intakeMessage = "Add any known details, then save the property."
-                            } label: {
-                                Label("Continue", systemImage: "arrow.right")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                    }
+                    sourceModeStrip
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Property")
+                    Text("Strategy")
                         .font(.subheadline.weight(.bold))
-
-                    TextField("", text: $draft.propertyAddress)
-                        .textContentType(.streetAddressLine1)
-                        .textFieldStyle(.roundedBorder)
-
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                        TextField("", text: $draft.city)
-                            .textContentType(.addressCity)
-                            .textFieldStyle(.roundedBorder)
-                        TextField("", text: $draft.state)
-                            .textInputAutocapitalization(.characters)
-                            .textFieldStyle(.roundedBorder)
-                        TextField("", text: $draft.zipCode)
-                            .keyboardType(.numbersAndPunctuation)
-                            .textContentType(.postalCode)
-                            .textFieldStyle(.roundedBorder)
-                        TextField("", text: $draft.county)
-                            .textFieldStyle(.roundedBorder)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 142), spacing: 8)], spacing: 8) {
+                        ForEach(strategyOptions, id: \.self) { strategy in
+                            Button {
+                                draft.strategy = strategy
+                            } label: {
+                                HStack {
+                                    Text(strategy)
+                                        .font(.caption.weight(.bold))
+                                        .lineLimit(1)
+                                    Spacer(minLength: 4)
+                                    if draft.strategy == strategy {
+                                        Image(systemName: "checkmark.circle.fill")
+                                    }
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 9)
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(draft.strategy == strategy ? Color.white : Color.brixInk)
+                            .background(draft.strategy == strategy ? Color.brixBlue : Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
                     }
                 }
 
-                DisclosureGroup {
-                    VStack(alignment: .leading, spacing: 10) {
-                        TextEditor(text: $listingText)
-                            .frame(minHeight: 112)
-                            .padding(10)
-                            .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .stroke(Color.brixBlue.opacity(0.18), lineWidth: 1)
-                            }
-                            .accessibilityLabel("Listing text or property notes")
-
-                        Button {
-                            Task { await extractListing() }
-                        } label: {
-                            Label(isExtracting ? "Reading Property..." : "Read Pasted Details", systemImage: "sparkle.magnifyingglass")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(isExtracting || listingText.trimmingCharacters(in: .whitespacesAndNewlines).count < 8)
-                    }
-                    .padding(.bottom, 10)
-
-                    VStack(spacing: 10) {
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                            TextField("", text: $draft.propertyType)
-                                .textFieldStyle(.roundedBorder)
-                            TextField("", text: $draft.strategy)
-                                .textFieldStyle(.roundedBorder)
-                            TextField("", text: $draft.purchasePrice)
-                                .keyboardType(.decimalPad)
-                                .textFieldStyle(.roundedBorder)
-                            TextField("", text: $draft.monthlyRent)
-                                .keyboardType(.decimalPad)
-                                .textFieldStyle(.roundedBorder)
-                            TextField("", text: $draft.annualTaxes)
-                                .keyboardType(.decimalPad)
-                                .textFieldStyle(.roundedBorder)
-                            TextField("", text: $draft.annualInsurance)
-                                .keyboardType(.decimalPad)
-                                .textFieldStyle(.roundedBorder)
-                            TextField("", text: $draft.beds)
-                                .keyboardType(.decimalPad)
-                                .textFieldStyle(.roundedBorder)
-                            TextField("", text: $draft.baths)
-                                .keyboardType(.decimalPad)
-                                .textFieldStyle(.roundedBorder)
-                            TextField("", text: $draft.squareFeet)
-                                .keyboardType(.decimalPad)
-                                .textFieldStyle(.roundedBorder)
-                            TextField("", text: $draft.yearBuilt)
-                                .keyboardType(.numberPad)
-                                .textFieldStyle(.roundedBorder)
-                        }
-
-                        TextField("", text: $draft.listingURL)
-                            .keyboardType(.URL)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .textFieldStyle(.roundedBorder)
-                        TextField("", text: $draft.notes, axis: .vertical)
-                            .lineLimit(3...8)
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    .padding(.top, 8)
-                } label: {
-                    Label("Add details, notes, or deal facts", systemImage: "slider.horizontal.3")
-                        .font(.subheadline.weight(.bold))
+                if draft.trimmedAddress.isEmpty == false {
+                    extractedPreview
                 }
 
                 if let readinessMessage = draft.saveReadinessMessage {
@@ -210,13 +132,13 @@ struct FindIQView: View {
 
                 HStack(spacing: 10) {
                     Button {
-                        Task { await saveProperty() }
+                        Task { await createQuickDeal() }
                     } label: {
-                        Label(isSaving ? "Saving..." : "Save Property", systemImage: "checkmark.circle.fill")
+                        Label(primaryActionTitle, systemImage: "arrow.right.circle.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(isSaving || draft.isReadyToSave == false)
+                    .disabled(isSaving || isExtracting || quickStart.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draft.strategy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                     Button {
                         resetIntake()
@@ -227,6 +149,53 @@ struct FindIQView: View {
                     .disabled(isSaving || (draft.trimmedAddress.isEmpty && listingText.isEmpty))
                 }
             }
+        }
+    }
+
+    private var primaryActionTitle: String {
+        if isExtracting { return "Reading Property..." }
+        if isSaving { return "Creating..." }
+        return "Create Deal File"
+    }
+
+    private var sourceModeStrip: some View {
+        HStack(spacing: 8) {
+            SourceModePill(symbol: "link", text: "Link")
+            SourceModePill(symbol: "house", text: "Address")
+            SourceModePill(symbol: "doc.text", text: "Listing text")
+        }
+    }
+
+    private var extractedPreview: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Image(systemName: "checkmark.seal.fill")
+                    .foregroundStyle(.green)
+                Text("Deal packet ready")
+                    .font(.subheadline.weight(.bold))
+                Spacer()
+            }
+            Text(draft.propertyAddress)
+                .font(.headline.weight(.bold))
+            HStack {
+                if draft.city.isEmpty == false || draft.state.isEmpty == false {
+                    Text([draft.city, draft.state].filter { $0.isEmpty == false }.joined(separator: ", "))
+                }
+                if draft.purchasePrice.isEmpty == false {
+                    Text("$\(draft.purchasePrice)")
+                }
+                if draft.beds.isEmpty == false || draft.baths.isEmpty == false {
+                    Text("\(draft.beds) bed / \(draft.baths) bath")
+                }
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .background(Color.brixBlue.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.brixBlue.opacity(0.20), lineWidth: 1)
         }
     }
 
@@ -296,7 +265,37 @@ struct FindIQView: View {
         }
     }
 
-    private func saveProperty() async {
+    private func createQuickDeal() async {
+        let value = quickStart.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard value.isEmpty == false else { return }
+        guard draft.strategy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+            intakeMessage = "Choose a strategy before creating the deal file."
+            return
+        }
+
+        intakeMessage = nil
+        if let url = ListingTextParser.firstURL(in: value) {
+            draft.listingURL = url
+            listingText = value
+            await extractListing()
+        } else if draft.trimmedAddress.isEmpty {
+            draft.propertyAddress = value
+        }
+
+        if draft.trimmedAddress.isEmpty {
+            let fallback = ListingTextParser.localExtract(from: value)
+            draft.apply(fallback, originalText: value)
+        }
+
+        if draft.trimmedAddress.isEmpty {
+            intakeMessage = "BRIX could not find a property address in that source."
+            return
+        }
+
+        await saveProperty(openInDealIQ: true)
+    }
+
+    private func saveProperty(openInDealIQ: Bool = false) async {
         if let message = draft.saveReadinessMessage {
             intakeMessage = message
             return
@@ -304,12 +303,12 @@ struct FindIQView: View {
 
         isSaving = true
         intakeMessage = nil
-        let saved = await appState.createDeal(draft, openInDealIQ: false)
+        let saved = await appState.createDeal(draft, openInDealIQ: openInDealIQ)
         isSaving = false
 
         if saved {
             resetIntake()
-            intakeMessage = "Property saved. Select it below to open DealIQ or add photos."
+            intakeMessage = "Deal file created."
         } else {
             intakeMessage = appState.lastError ?? "BRIX could not save this property. Check your connection and try again."
         }
@@ -321,6 +320,23 @@ struct FindIQView: View {
         draft = CreateDealDraft()
         listingText = ""
         intakeMessage = nil
+    }
+}
+
+private struct SourceModePill: View {
+    let symbol: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: symbol)
+            Text(text)
+        }
+        .font(.caption.weight(.bold))
+        .foregroundStyle(Color.brixBlue)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background(Color.brixBlue.opacity(0.10), in: Capsule())
     }
 }
 

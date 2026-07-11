@@ -1,11 +1,14 @@
+import { useEffect, useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
+  CheckCircle2,
   KanbanSquare,
   ListChecks,
   Plus,
   ShieldCheck,
 } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
 import { CardContainer } from "@/components/ui/card-container";
@@ -13,10 +16,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
 import { useDeals, useUpdateDeal } from "@/hooks/useDeals";
+import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 
 type Deal = NonNullable<ReturnType<typeof useDeals>["data"]>[number];
+type Task = Tables<"brix_project_tasks">;
 
 const PIPELINE_STAGES = [
   { id: "draft", label: "Intake", action: "Complete the property file" },
@@ -33,18 +40,41 @@ const PIPELINE_STAGES = [
 const ACTIVE_STAGES = new Set(["draft", "reviewing", "underwriting", "offer_strategy", "offer_submitted", "negotiating", "under_contract"]);
 
 export default function PipelineIQ() {
+  const { user } = useAuth();
   const { data: deals = [], isLoading } = useDeals();
+  const { data: tasks = [] } = usePipelineTasks();
   const updateDeal = useUpdateDeal();
+  const queryClient = useQueryClient();
+  const upsertTasks = useEnsurePipelineTasks();
+  const updateTask = useUpdatePipelineTask();
 
-  const sortedDeals = [...deals].sort((a, b) => readinessScore(b) - readinessScore(a));
-  const activeDeals = deals.filter((deal) => ACTIVE_STAGES.has(normalizeStage(deal)));
-  const readyDeals = deals.filter((deal) => readinessScore(deal) >= 85);
-  const blockedDeals = activeDeals.filter((deal) => missingInputs(deal).length > 0);
-  const closedDeals = deals.filter((deal) => normalizeStage(deal) === "closed");
-  const passedDeals = deals.filter((deal) => normalizeStage(deal) === "passed");
+  const sortedDeals = useMemo(() => [...deals].sort((a, b) => readinessScore(b) - readinessScore(a)), [deals]);
+  const activeDeals = useMemo(() => deals.filter((deal) => ACTIVE_STAGES.has(normalizeStage(deal))), [deals]);
+  const readyDeals = useMemo(() => deals.filter((deal) => readinessScore(deal) >= 85), [deals]);
+  const closedDeals = useMemo(() => deals.filter((deal) => normalizeStage(deal) === "closed"), [deals]);
+  const passedDeals = useMemo(() => deals.filter((deal) => normalizeStage(deal) === "passed"), [deals]);
+  const tasksByDeal = useMemo(() => groupTasksByDeal(tasks), [tasks]);
+  const openTasks = tasks.filter((task) => task.status !== "complete" && task.status !== "cancelled");
+
+  useEffect(() => {
+    if (!user || activeDeals.length === 0) return;
+    const missingTaskInputs = activeDeals.flatMap((deal) => {
+      const existingTitles = new Set((tasksByDeal.get(deal.id) ?? []).map((task) => task.title.toLowerCase()));
+      return missingInputs(deal)
+        .filter((title) => !existingTitles.has(title.toLowerCase()))
+        .map((title) => ({ deal, title }));
+    });
+
+    if (missingTaskInputs.length === 0 || upsertTasks.isPending) return;
+    upsertTasks.mutate(missingTaskInputs.slice(0, 20));
+  }, [activeDeals, tasksByDeal, upsertTasks, upsertTasks.isPending, user]);
 
   function moveDeal(deal: Deal, nextStage: string) {
-    updateDeal.mutate({ id: deal.id, deal_status: nextStage });
+    updateDeal.mutate({ id: deal.id, deal_status: nextStage }, {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: ["pipeline-tasks"] });
+      },
+    });
   }
 
   return (
@@ -67,7 +97,7 @@ export default function PipelineIQ() {
       <div className="grid gap-3 md:grid-cols-4">
         <PipelineMetric label="Active" value={activeDeals.length} tone="blue" />
         <PipelineMetric label="Ready to pursue" value={readyDeals.length} tone="green" />
-        <PipelineMetric label="Needs proof" value={blockedDeals.length} tone="amber" />
+        <PipelineMetric label="Open tasks" value={openTasks.length} tone="amber" />
         <PipelineMetric label="Outcomes" value={closedDeals.length + passedDeals.length} tone="neutral" />
       </div>
 
@@ -79,12 +109,12 @@ export default function PipelineIQ() {
               Deal Flow
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              These are real BRIX records from your workspace. A deal stays visible until it has a win, loss, pass, or close outcome.
+                  Every property stays visible until it has a win, loss, pass, or close outcome. Verification tasks are saved with the deal file.
             </p>
           </div>
 
           {isLoading ? (
-            <EmptyPipeline title="Loading your pipeline" body="BRIX is checking your deal workspace." />
+            <EmptyPipeline title="Loading your pipeline" body="BRIX is checking your active deal files." />
           ) : sortedDeals.length === 0 ? (
             <EmptyPipeline
               title="No active deal files yet"
@@ -93,7 +123,16 @@ export default function PipelineIQ() {
           ) : (
             <div className="divide-y divide-border">
               {sortedDeals.map((deal) => (
-                <PipelineDealRow key={deal.id} deal={deal} onStageChange={(stage) => moveDeal(deal, stage)} />
+                <PipelineDealRow
+                  key={deal.id}
+                  deal={deal}
+                  tasks={tasksByDeal.get(deal.id) ?? []}
+                  onStageChange={(stage) => moveDeal(deal, stage)}
+                  onTaskToggle={(task) => updateTask.mutate({
+                    id: task.id,
+                    status: task.status === "complete" ? "open" : "complete",
+                  })}
+                />
               ))}
             </div>
           )}
@@ -109,27 +148,37 @@ export default function PipelineIQ() {
           </p>
 
           <div className="mt-5 space-y-3">
-            {blockedDeals.length === 0 ? (
+            {openTasks.length === 0 ? (
               <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 p-4 text-sm text-emerald-300">
-                No active verification blockers are showing right now.
+                No open verification tasks are showing right now.
               </div>
             ) : (
-              blockedDeals.slice(0, 4).map((deal) => (
-                <div key={deal.id} className="rounded-lg border border-border bg-background/50 p-4">
+              openTasks.slice(0, 6).map((task) => {
+                const deal = deals.find((item) => item.id === task.deal_id);
+                return (
+                <div key={task.id} className="rounded-lg border border-border bg-background/50 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold text-foreground">{deal.property_address || deal.deal_name || "Unnamed deal"}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{missingInputs(deal)[0]}</p>
+                      <p className="font-semibold text-foreground">{deal?.property_address || deal?.deal_name || "Unnamed deal"}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{task.title}</p>
                     </div>
                     <Badge variant="outline" className="border-amber-500/35 bg-amber-500/10 text-amber-300">
                       Verify
                     </Badge>
                   </div>
-                  <Button size="sm" variant="outline" className="mt-3 w-full" asChild>
-                    <Link to={`/analysis/${deal.id}`}>Open deal file</Link>
-                  </Button>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {deal && (
+                      <Button size="sm" variant="outline" asChild>
+                        <Link to={`/dealiq/${deal.id}`}>Open deal file</Link>
+                      </Button>
+                    )}
+                    <Button size="sm" onClick={() => updateTask.mutate({ id: task.id, status: "complete" })}>
+                      Mark complete
+                    </Button>
+                  </div>
                 </div>
-              ))
+              );
+              })
             )}
           </div>
         </CardContainer>
@@ -138,7 +187,17 @@ export default function PipelineIQ() {
   );
 }
 
-function PipelineDealRow({ deal, onStageChange }: { deal: Deal; onStageChange: (stage: string) => void }) {
+function PipelineDealRow({
+  deal,
+  tasks,
+  onStageChange,
+  onTaskToggle,
+}: {
+  deal: Deal;
+  tasks: Task[];
+  onStageChange: (stage: string) => void;
+  onTaskToggle: (task: Task) => void;
+}) {
   const score = readinessScore(deal);
   const stage = normalizeStage(deal);
   const gaps = missingInputs(deal);
@@ -167,7 +226,7 @@ function PipelineDealRow({ deal, onStageChange }: { deal: Deal; onStageChange: (
           <span className={cn("font-bold", score >= 85 ? "text-emerald-400" : score >= 65 ? "text-amber-300" : "text-red-300")}>{score}</span>
         </div>
         <Progress value={score} className="h-2" />
-        <p className="mt-2 text-xs text-muted-foreground">{gaps.length ? `${gaps.length} item${gaps.length === 1 ? "" : "s"} to verify` : "Core inputs present"}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{openDealTasks(tasks).length ? `${openDealTasks(tasks).length} open task${openDealTasks(tasks).length === 1 ? "" : "s"}` : "Core tasks clear"}</p>
       </div>
 
       <div>
@@ -188,7 +247,7 @@ function PipelineDealRow({ deal, onStageChange }: { deal: Deal; onStageChange: (
 
       <div className="flex flex-wrap gap-2 lg:justify-end">
         <Button variant="outline" size="sm" asChild>
-          <Link to={`/analysis/${deal.id}`}>DealIQ</Link>
+          <Link to={`/dealiq/${deal.id}`}>DealIQ</Link>
         </Button>
         <Button size="sm" asChild>
           <Link to="/offeriq">
@@ -197,8 +256,100 @@ function PipelineDealRow({ deal, onStageChange }: { deal: Deal; onStageChange: (
           </Link>
         </Button>
       </div>
+
+      {tasks.length > 0 && (
+        <div className="lg:col-span-4 grid gap-2 rounded-lg border border-border bg-background/35 p-3 md:grid-cols-2 xl:grid-cols-3">
+          {tasks.slice(0, 6).map((task) => (
+            <button
+              key={task.id}
+              type="button"
+              onClick={() => onTaskToggle(task)}
+              className={cn(
+                "flex items-start gap-2 rounded-md border px-3 py-2 text-left text-xs transition-colors",
+                task.status === "complete"
+                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
+                  : "border-amber-500/25 bg-amber-500/10 text-foreground hover:border-primary/40",
+              )}
+            >
+              <CheckCircle2 className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", task.status === "complete" ? "text-emerald-300" : "text-amber-300")} />
+              <span>{task.title}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
+}
+
+function usePipelineTasks() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["pipeline-tasks", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("brix_project_tasks")
+        .select("*")
+        .eq("user_id", user!.id)
+        .not("deal_id", "is", null)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+function useEnsurePipelineTasks() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (items: Array<{ deal: Deal; title: string }>) => {
+      if (!user || items.length === 0) return;
+      const rows = items.map(({ deal, title }) => ({
+        user_id: user.id,
+        deal_id: deal.id,
+        title,
+        task_type: "due_diligence",
+        status: "open",
+        priority: title.toLowerCase().includes("insurance") || title.toLowerCase().includes("tax")
+          ? "critical"
+          : "important",
+        verification_required: true,
+        notes: "Created from missing deal inputs.",
+      }));
+      const { error } = await supabase.from("brix_project_tasks").insert(rows);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["pipeline-tasks"] }),
+  });
+}
+
+function useUpdatePipelineTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase
+        .from("brix_project_tasks")
+        .update({ status })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["pipeline-tasks"] }),
+  });
+}
+
+function groupTasksByDeal(tasks: Task[]) {
+  const map = new Map<string, Task[]>();
+  for (const task of tasks) {
+    if (!task.deal_id) continue;
+    map.set(task.deal_id, [...(map.get(task.deal_id) ?? []), task]);
+  }
+  return map;
+}
+
+function openDealTasks(tasks: Task[]) {
+  return tasks.filter((task) => task.status !== "complete" && task.status !== "cancelled");
 }
 
 function EmptyPipeline({ title, body }: { title: string; body: string }) {
@@ -212,7 +363,7 @@ function EmptyPipeline({ title, body }: { title: string; body: string }) {
           <Link to="/findiq">Start in FindIQ</Link>
         </Button>
         <Button variant="outline" asChild>
-          <Link to="/dealiq/new">Add deal manually</Link>
+          <Link to="/dealiq/new">Add deal</Link>
         </Button>
       </div>
     </div>
@@ -238,7 +389,7 @@ function PipelineMetric({ label, value, tone }: { label: string; value: number; 
   );
 }
 
-function Chip({ children }: { children: React.ReactNode }) {
+function Chip({ children }: { children: ReactNode }) {
   return <span className="rounded-full border border-border bg-background/50 px-2.5 py-1 text-xs font-medium text-muted-foreground">{children}</span>;
 }
 

@@ -436,6 +436,74 @@ export type Database = {
           },
         ]
       }
+      brix_offers: {
+        Row: {
+          closing_timeline_days: number | null
+          contingencies: Json
+          created_at: string
+          deal_id: string | null
+          due_diligence_days: number | null
+          earnest_money: number | null
+          generated_summary: string | null
+          id: string
+          offer_status: string
+          offer_type: string
+          purchase_price: number | null
+          repair_requests: string | null
+          seller_concessions: number | null
+          strategy_snapshot: Json
+          updated_at: string
+          user_id: string
+          walkaway_price: number | null
+        }
+        Insert: {
+          closing_timeline_days?: number | null
+          contingencies?: Json
+          created_at?: string
+          deal_id?: string | null
+          due_diligence_days?: number | null
+          earnest_money?: number | null
+          generated_summary?: string | null
+          id?: string
+          offer_status?: string
+          offer_type?: string
+          purchase_price?: number | null
+          repair_requests?: string | null
+          seller_concessions?: number | null
+          strategy_snapshot?: Json
+          updated_at?: string
+          user_id: string
+          walkaway_price?: number | null
+        }
+        Update: {
+          closing_timeline_days?: number | null
+          contingencies?: Json
+          created_at?: string
+          deal_id?: string | null
+          due_diligence_days?: number | null
+          earnest_money?: number | null
+          generated_summary?: string | null
+          id?: string
+          offer_status?: string
+          offer_type?: string
+          purchase_price?: number | null
+          repair_requests?: string | null
+          seller_concessions?: number | null
+          strategy_snapshot?: Json
+          updated_at?: string
+          user_id?: string
+          walkaway_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brix_offers_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brix_visual_scope_items: {
         Row: {
           budget_confidence: number | null
@@ -662,6 +730,9 @@ export type Database = {
           strategy_primary: string | null
           source_confidence: string
           square_feet: number | null
+          tax_history: Json
+          tax_record_url: string | null
+          tax_verification_status: string
           taxes: number
           updated_at: string
           user_id: string
@@ -717,6 +788,9 @@ export type Database = {
           strategy_primary?: string | null
           source_confidence?: string
           square_feet?: number | null
+          tax_history?: Json
+          tax_record_url?: string | null
+          tax_verification_status?: string
           taxes?: number
           updated_at?: string
           user_id: string
@@ -772,6 +846,9 @@ export type Database = {
           strategy_primary?: string | null
           source_confidence?: string
           square_feet?: number | null
+          tax_history?: Json
+          tax_record_url?: string | null
+          tax_verification_status?: string
           taxes?: number
           updated_at?: string
           user_id?: string
@@ -782,6 +859,35 @@ export type Database = {
           zoning_type?: string | null
         }
         Relationships: []
+      }
+      deal_file_usage: {
+        Row: {
+          created_at: string
+          deal_id: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deal_id?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_file_usage_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       market_conditions: {
         Row: {

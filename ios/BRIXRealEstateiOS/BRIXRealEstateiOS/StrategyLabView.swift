@@ -49,7 +49,7 @@ struct StrategyLabView: View {
                     if let snapshot = appState.selectedDecisionSnapshot {
                         BrixCard {
                             VStack(alignment: .leading, spacing: 12) {
-                                SectionHeader(title: "Backend Recommendation", subtitle: "Decision support from BRIX services.", symbol: "brain")
+                                SectionHeader(title: "Recommendation", subtitle: "Decision support for this property.", symbol: "brain")
                                 Text(snapshot.recommendation)
                                     .font(.title3.bold())
                                 Text(snapshot.nextAction)

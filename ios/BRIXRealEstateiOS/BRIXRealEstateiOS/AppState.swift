@@ -211,7 +211,7 @@ final class BRIXAppState {
             await loadSelectedDecision()
             return true
         } catch {
-            lastError = error.localizedDescription
+            lastError = brixAppMessage(error)
             return false
         }
     }
@@ -221,6 +221,32 @@ final class BRIXAppState {
               let index = queuedOfflineActions.firstIndex(where: { $0.id == uuid }) else { return }
         queuedOfflineActions[index].uploadState = state
     }
+}
+
+func brixAppMessage(_ error: Error) -> String {
+    if let apiError = error as? BRIXAPIError {
+        switch apiError {
+        case .backend(_, let backendMessage):
+            let lower = backendMessage.lowercased()
+            if lower.contains("free plan includes 15 deal files") {
+                return "Free plan includes 15 deal files. Upgrade to create more deal files."
+            }
+            if lower.contains("permission") || lower.contains("not authorized") {
+                return "BRIX could not complete that action for this account."
+            }
+        default:
+            break
+        }
+    }
+
+    let message = error.localizedDescription
+    if message.localizedCaseInsensitiveContains("free plan includes 15 deal files") {
+        return "Free plan includes 15 deal files. Upgrade to create more deal files."
+    }
+    if message.localizedCaseInsensitiveContains("network") || message.localizedCaseInsensitiveContains("offline") || message.localizedCaseInsensitiveContains("internet") {
+        return "BRIX could not complete the request. Check internet access and try again."
+    }
+    return message
 }
 
 func brixAuthMessage(_ error: Error) -> String {

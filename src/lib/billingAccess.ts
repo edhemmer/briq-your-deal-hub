@@ -32,10 +32,14 @@ export interface BillingAccessResult {
   isStripeConfigured: boolean;
   isFreeUser: boolean;
   hasUsedFreeDeal: boolean;
+  dealCount: number;
+  freeDealLimit: number;
+  dealsRemaining: number | null;
 }
 
 const STRIPE_PRODUCT_ID = import.meta.env.VITE_STRIPE_PRODUCT_ID ?? "";
 const STRIPE_PRICE_ID = import.meta.env.VITE_STRIPE_PRICE_ID ?? "";
+export const FREE_DEAL_LIMIT = 15;
 
 export function isStripeConfigured(): boolean {
   return !!(STRIPE_PRODUCT_ID && STRIPE_PRICE_ID);
@@ -75,6 +79,7 @@ export function evaluateBillingAccess(
   const stripeReady = isStripeConfigured();
   const hasUsedFreeDeal = profile?.free_deal_used ?? false;
   const isFreeUser = subscriptionState === "free";
+  const freeDealsRemaining = Math.max(FREE_DEAL_LIMIT - dealCount, 0);
 
   // 1. Manual premium override: full access
   if (subscriptionState === "manual_override" || subscriptionState === "admin_override") {
@@ -87,6 +92,9 @@ export function evaluateBillingAccess(
       isStripeConfigured: stripeReady,
       isFreeUser: false,
       hasUsedFreeDeal,
+      dealCount,
+      freeDealLimit: FREE_DEAL_LIMIT,
+      dealsRemaining: null,
     };
   }
 
@@ -101,25 +109,33 @@ export function evaluateBillingAccess(
       isStripeConfigured: stripeReady,
       isFreeUser: false,
       hasUsedFreeDeal,
+      dealCount,
+      freeDealLimit: FREE_DEAL_LIMIT,
+      dealsRemaining: null,
     };
   }
 
-  // 3. Free user: first deal free
-  if (isFreeUser && !hasUsedFreeDeal) {
+  // 3. Free user: 15 lifetime deal files, then upgrade.
+  if (isFreeUser && dealCount < FREE_DEAL_LIMIT) {
     return {
       canCreateDeal: true,
       canExport: true,
-      reason: "First free deal available",
+      reason: `${freeDealsRemaining} free deal files remaining`,
       subscriptionState,
       accessSource: "free_tier",
       isStripeConfigured: stripeReady,
       isFreeUser: true,
-      hasUsedFreeDeal: false,
+      hasUsedFreeDeal,
+      dealCount,
+      freeDealLimit: FREE_DEAL_LIMIT,
+      dealsRemaining: freeDealsRemaining,
     };
   }
 
   // 4. Locked state
-  const reason = !stripeReady
+  const reason = isFreeUser && dealCount >= FREE_DEAL_LIMIT
+    ? "Free plan includes 15 deal files. Upgrade to create more deal files."
+    : !stripeReady
     ? "Subscription billing will be enabled once platform configuration is completed."
     : "Subscription required to create additional deals.";
 
@@ -127,16 +143,22 @@ export function evaluateBillingAccess(
     canCreateDeal: false,
     canExport: false,
     reason,
-    subscriptionState: !stripeReady ? "billing_not_configured" : subscriptionState,
+    subscriptionState: !stripeReady && !isFreeUser ? "billing_not_configured" : subscriptionState,
     accessSource: "locked",
     isStripeConfigured: stripeReady,
     isFreeUser,
     hasUsedFreeDeal,
+    dealCount,
+    freeDealLimit: FREE_DEAL_LIMIT,
+    dealsRemaining: isFreeUser ? freeDealsRemaining : null,
   };
 }
 
 export function getUpgradeMessage(access: BillingAccessResult): string {
   if (access.canCreateDeal) return "";
+  if (access.isFreeUser && access.dealCount >= access.freeDealLimit) {
+    return "Free plan includes 15 deal files. Upgrade to create more deal files.";
+  }
   if (!access.isStripeConfigured) {
     return "Subscription billing will be enabled once platform configuration is completed.";
   }

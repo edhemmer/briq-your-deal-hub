@@ -110,7 +110,7 @@ function New-AppStoreScreenshot($Dest, [int]$Width, [int]$Height, [string]$Mode)
     default { 'Move every deal forward' }
   }
   $Subhead = switch ($Mode) {
-    'find' { 'Start with a location, add a listing, import a file, or connect future listing feeds.' }
+    'find' { 'Start with a location, add a listing, import a file, or upload property details.' }
     'deal' { 'See required inputs, assumptions, risks, and next actions before committing capital.' }
     default { 'Track active opportunities, offers, due diligence, closing tasks, and portfolio handoff.' }
   }
@@ -125,7 +125,7 @@ function New-AppStoreScreenshot($Dest, [int]$Width, [int]$Height, [string]$Mode)
     default { @('Review what needs attention now', 'Move from analysis to offer and due diligence', 'Keep notes, tasks, documents, and status together', 'Send closed assets into PortfolioIQ') }
   }
   $Footer = switch ($Mode) {
-    'find' { 'Provider-ready architecture: manual today, live feeds when connected.' }
+    'find' { 'Add property details once, then rank, compare, and underwrite from the same record.' }
     'deal' { 'Clear output: recommendation, evidence, risks, confidence, and next actions.' }
     default { 'One property record follows the deal from discovery to ownership.' }
   }

@@ -196,6 +196,9 @@ export function buildNormalizedDealState(
     arv: number;
     assessed_value: number | null;
     annual_property_tax: number | null;
+    tax_history?: unknown;
+    tax_record_url?: string | null;
+    tax_verification_status?: string | null;
     year_built: number | null;
     lot_size: string | null;
     zoning_type: string | null;
@@ -213,6 +216,9 @@ export function buildNormalizedDealState(
       lotSize: deal.lot_size,
       assessedValue: deal.assessed_value,
       annualPropertyTax: deal.annual_property_tax,
+      taxHistory: deal.tax_history,
+      taxRecordUrl: deal.tax_record_url,
+      taxVerificationStatus: deal.tax_verification_status,
       zoningType: deal.zoning_type,
       propertyRecordUrl: deal.property_record_url,
     }

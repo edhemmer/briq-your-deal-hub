@@ -52,7 +52,7 @@ function DealOperatingStrip() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Active module</p>
             <h2 className="truncate text-sm font-semibold leading-5 text-foreground">
               {activeModule.title}
-              <span className="hidden font-medium text-muted-foreground sm:inline"> · {activeModule.question}</span>
+              <span className="hidden font-medium text-muted-foreground sm:inline"> / {activeModule.question}</span>
             </h2>
           </div>
         </div>
@@ -82,7 +82,7 @@ function DealOperatingStrip() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-foreground">{activeDeal.property_address || "Unnamed property"}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {[activeDeal.city, activeDeal.state, activeDeal.zip_code].filter(Boolean).join(", ") || "Location missing"} · {activeDeal.strategy_primary || "Strategy not selected"}
+                  {[activeDeal.city, activeDeal.state, activeDeal.zip_code].filter(Boolean).join(", ") || "Location missing"} / {activeDeal.strategy_primary || "Strategy not selected"}
                 </p>
               </div>
               <Badge className={cn("w-fit rounded-full border px-2.5 py-1 text-[11px]", score >= 80 ? "border-signal-positive/25 bg-signal-positive/10 text-signal-positive" : "border-signal-warning/25 bg-signal-warning/10 text-signal-warning")}>
@@ -91,8 +91,7 @@ function DealOperatingStrip() {
             </div>
           ) : (
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">Start by adding a property, importing a listing, or searching saved deal files.</p>
-              <Badge variant="outline" className="w-fit">Live account</Badge>
+              <p className="text-sm text-muted-foreground">Start with an address or listing link, choose a strategy, then BRIX opens the deal workspace.</p>
             </div>
           )}
         </div>

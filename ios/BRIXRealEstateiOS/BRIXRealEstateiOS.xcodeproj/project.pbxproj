@@ -346,7 +346,7 @@
 				INFOPLIST_KEY_CFBundleShortVersionString = 1.0;
 				INFOPLIST_KEY_CFBundleVersion = 2;
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "BRIX uses the camera to capture property photos, videos, and documents for the Property Digital Twin and field due diligence.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "BRIX uses the camera to capture property photos, videos, and documents for deal files and field due diligence.";
 				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "BRIX imports documents you select for inspection, bid, lease, and due diligence analysis.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "BRIX uses location only with permission to tag field captures to a property visit and improve property organization.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "BRIX uses the microphone only when you record voice notes for property walkthroughs.";
@@ -388,7 +388,7 @@
 				INFOPLIST_KEY_CFBundleShortVersionString = 1.0;
 				INFOPLIST_KEY_CFBundleVersion = 2;
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "BRIX uses the camera to capture property photos, videos, and documents for the Property Digital Twin and field due diligence.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "BRIX uses the camera to capture property photos, videos, and documents for deal files and field due diligence.";
 				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "BRIX imports documents you select for inspection, bid, lease, and due diligence analysis.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "BRIX uses location only with permission to tag field captures to a property visit and improve property organization.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "BRIX uses the microphone only when you record voice notes for property walkthroughs.";

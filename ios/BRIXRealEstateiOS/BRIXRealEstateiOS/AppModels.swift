@@ -76,6 +76,10 @@ struct AuthSession: Codable, Equatable {
     }
 }
 
+struct SignUpResponse: Codable {
+    let session: AuthSession?
+}
+
 struct DealSummary: Identifiable, Codable, Hashable {
     let id: String
     var propertyAddress: String?
@@ -302,6 +306,7 @@ struct CreateDealDraft {
     var zipCode = ""
     var propertyType = ""
     var purchasePrice = ""
+    var estimatedARV = ""
     var monthlyRent = ""
     var annualTaxes = ""
     var annualInsurance = ""
@@ -311,6 +316,10 @@ struct CreateDealDraft {
     var yearBuilt = ""
     var strategy = ""
     var listingURL = ""
+    var listingPhotoURLs: [String] = []
+    var conditionNotes: [String] = []
+    var visibleOrStatedRisks: [String] = []
+    var missingQuestions: [String] = []
     var notes = ""
     var sourceConfidence = "user_entered"
 
@@ -337,6 +346,7 @@ struct CreateDealDraft {
         zipCode = extracted.zipCode ?? zipCode
         propertyType = extracted.propertyType ?? propertyType
         purchasePrice = extracted.purchasePrice.map { String(format: "%.0f", $0) } ?? purchasePrice
+        estimatedARV = extracted.estimatedARV.map { String(format: "%.0f", $0) } ?? estimatedARV
         monthlyRent = extracted.monthlyRent.map { String(format: "%.0f", $0) } ?? monthlyRent
         annualTaxes = (extracted.annualPropertyTax ?? extracted.taxes).map { String(format: "%.0f", $0) } ?? annualTaxes
         annualInsurance = extracted.insurance.map { String(format: "%.0f", $0) } ?? annualInsurance
@@ -344,8 +354,14 @@ struct CreateDealDraft {
         baths = extracted.baths.map { String(format: "%.1f", $0).replacingOccurrences(of: ".0", with: "") } ?? baths
         squareFeet = extracted.squareFeet.map { String(format: "%.0f", $0) } ?? squareFeet
         yearBuilt = extracted.yearBuilt.map { String(format: "%.0f", $0) } ?? yearBuilt
-        strategy = extracted.strategyPrimary ?? strategy
+        if strategy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            strategy = extracted.strategyPrimary ?? strategy
+        }
         sourceConfidence = extracted.sourceConfidence ?? sourceConfidence
+        listingPhotoURLs = uniqueStrings(listingPhotoURLs + (extracted.photoURLs ?? []))
+        conditionNotes = uniqueStrings(conditionNotes + (extracted.conditionNotes ?? []))
+        visibleOrStatedRisks = uniqueStrings(visibleOrStatedRisks + (extracted.visibleOrStatedRisks ?? []))
+        missingQuestions = uniqueStrings(missingQuestions + (extracted.missingQuestions ?? []))
         if let url = ListingTextParser.firstURL(in: originalText) {
             listingURL = url
         }
@@ -354,6 +370,17 @@ struct CreateDealDraft {
             notes = ([notes, notesToAppend].filter { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false }).joined(separator: "\n\n")
         } else if notes.isEmpty {
             notes = originalText
+        }
+    }
+
+    private func uniqueStrings(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        return values.compactMap { value in
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.isEmpty == false else { return nil }
+            let key = trimmed.lowercased()
+            guard seen.insert(key).inserted else { return nil }
+            return trimmed
         }
     }
 }
@@ -367,6 +394,7 @@ struct CreateDealRequest: Encodable {
     let zipCode: String?
     let propertyType: String?
     let purchasePrice: Double?
+    let estimatedARV: Double?
     let monthlyRent: Double?
     let annualPropertyTax: Double?
     let taxes: Double?
@@ -377,6 +405,10 @@ struct CreateDealRequest: Encodable {
     let yearBuilt: Double?
     let strategyPrimary: String?
     let listingURL: String?
+    let listingPhotoURLs: [String]?
+    let conditionNotes: [String]?
+    let visibleOrStatedRisks: [String]?
+    let missingQuestions: [String]?
     let listingRemarks: String?
     let sourceConfidence: String
     let assetType = "investment"
@@ -391,6 +423,7 @@ struct CreateDealRequest: Encodable {
         case zipCode = "zip_code"
         case propertyType = "property_type"
         case purchasePrice = "purchase_price"
+        case estimatedARV = "estimated_arv"
         case monthlyRent = "monthly_rent"
         case annualPropertyTax = "annual_property_tax"
         case taxes
@@ -401,6 +434,10 @@ struct CreateDealRequest: Encodable {
         case yearBuilt = "year_built"
         case strategyPrimary = "strategy_primary"
         case listingURL = "listing_url"
+        case listingPhotoURLs = "listing_photo_urls"
+        case conditionNotes = "condition_notes"
+        case visibleOrStatedRisks = "visible_or_stated_risks"
+        case missingQuestions = "missing_questions"
         case listingRemarks = "listing_remarks"
         case assetType = "asset_type"
         case dealStatus = "deal_status"
@@ -453,6 +490,7 @@ struct ExtractedListingDeal: Decodable, Hashable {
     let conditionNotes: [String]?
     let visibleOrStatedRisks: [String]?
     let missingQuestions: [String]?
+    let photoURLs: [String]?
     let strategyPrimary: String?
     let sourceConfidence: String?
 
@@ -476,6 +514,7 @@ struct ExtractedListingDeal: Decodable, Hashable {
         case conditionNotes = "condition_notes"
         case visibleOrStatedRisks = "visible_or_stated_risks"
         case missingQuestions = "missing_questions"
+        case photoURLs = "photo_urls"
         case strategyPrimary = "strategy_primary"
         case sourceConfidence = "source_confidence"
     }

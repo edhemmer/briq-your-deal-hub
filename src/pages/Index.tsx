@@ -138,7 +138,7 @@ export default function Index() {
       </section>
 
       {activeDeals.length === 0 ? (
-        <EmptyWorkspace />
+        <EmptyDealDashboard />
       ) : (
         <>
           <DealJourney activeDeals={activeDeals.length} readyCount={readyCount} needsVerification={needsVerification} />
@@ -268,7 +268,7 @@ export default function Index() {
   );
 }
 
-function EmptyWorkspace() {
+function EmptyDealDashboard() {
   return (
     <section className="grid gap-4 lg:grid-cols-[1fr_0.85fr]">
       <CardContainer className="space-y-5">

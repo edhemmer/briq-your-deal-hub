@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Building2, Home, Lock } from "lucide-react";
-import { useCreateDeal, useDeals } from "@/hooks/useDeals";
+import { useCreateDeal, useDealFileUsage } from "@/hooks/useDeals";
 import { useProfile } from "@/hooks/useProfile";
 import { evaluateBillingAccess, getUpgradeMessage } from "@/lib/billingAccess";
 import { HelpTooltip } from "@/components/help/HelpTooltip";
@@ -23,7 +23,7 @@ export default function NewDeal() {
   const navigate = useNavigate();
   const createDeal = useCreateDeal();
   const { data: profile } = useProfile();
-  const { data: deals } = useDeals();
+  const { data: lifetimeDealCount } = useDealFileUsage();
   const billingAccess = evaluateBillingAccess(profile ? {
     subscription_status: profile.subscription_status,
     free_deal_used: profile.free_deal_used,
@@ -31,7 +31,7 @@ export default function NewDeal() {
     manual_premium_override: profile.manual_premium_override ?? false,
     stripe_customer_id: profile.stripe_customer_id,
     stripe_subscription_id: profile.stripe_subscription_id,
-  } : null, deals?.length ?? 0);
+  } : null, lifetimeDealCount ?? 0);
 
   const [form, setForm] = useState({
     property_address: "",

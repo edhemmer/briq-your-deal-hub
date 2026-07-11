@@ -53,7 +53,7 @@ export default function Login() {
             </span>
           </div>
           <h1 className="text-xl font-semibold tracking-tight text-foreground">Sign in</h1>
-          <p className="text-sm text-muted-foreground">Continue to your acquisition workspace</p>
+          <p className="text-sm text-muted-foreground">Continue to your deal dashboard</p>
         </div>
 
         <CardContainer className="p-6">

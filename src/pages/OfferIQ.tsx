@@ -10,6 +10,7 @@ import {
   Target,
   Workflow,
 } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
 import { CardContainer } from "@/components/ui/card-container";
@@ -17,14 +18,22 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
 import { useDeals, useUpdateDeal } from "@/hooks/useDeals";
+import { supabase } from "@/integrations/supabase/client";
+import type { Json, Tables } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 
 type Deal = NonNullable<ReturnType<typeof useDeals>["data"]>[number];
+type Offer = Tables<"brix_offers">;
 
 export default function OfferIQ() {
+  const { user } = useAuth();
   const { data: deals = [], isLoading } = useDeals();
+  const { data: offers = [] } = useOffers();
   const updateDeal = useUpdateDeal();
+  const saveOffer = useSaveOffer();
+  const queryClient = useQueryClient();
   const [selectedDealId, setSelectedDealId] = useState<string | undefined>();
 
   const deal = useMemo(() => {
@@ -35,10 +44,36 @@ export default function OfferIQ() {
   const strategy = deal ? offerStrategy(deal) : undefined;
   const readiness = deal ? readinessScore(deal) : 0;
   const gaps = deal ? missingInputs(deal) : [];
+  const latestOffer = useMemo(() => {
+    if (!deal) return undefined;
+    return offers.find((offer) => offer.deal_id === deal.id);
+  }, [deal, offers]);
+  const offerPlan = deal && strategy ? buildOfferPlan(deal, strategy, latestOffer) : undefined;
 
   function markStage(stage: string) {
     if (!deal) return;
     updateDeal.mutate({ id: deal.id, deal_status: stage });
+  }
+
+  function persistOffer(status: "draft" | "ready" | "submitted") {
+    if (!user || !deal || !strategy || !offerPlan) return;
+    saveOffer.mutate({
+      existingOffer: latestOffer,
+      userId: user.id,
+      deal,
+      strategy,
+      plan: offerPlan,
+      status,
+    }, {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: ["offers"] });
+        if (status === "submitted") {
+          markStage("offer_submitted");
+        } else if (status === "ready") {
+          markStage("offer_strategy");
+        }
+      },
+    });
   }
 
   return (
@@ -60,7 +95,7 @@ export default function OfferIQ() {
 
       {isLoading ? (
         <CardContainer className="min-h-[340px]">
-          <EmptyOffer title="Loading offer workspace" body="BRIX is checking your active deal records." />
+          <EmptyOffer title="Loading OfferIQ" body="BRIX is checking your active deal files." />
         </CardContainer>
       ) : !deal ? (
         <CardContainer className="min-h-[420px]">
@@ -102,6 +137,12 @@ export default function OfferIQ() {
                   <OfferFact label="Annual insurance" value={formatCurrency(deal.insurance) || "Needed"} />
                   <OfferFact label="Annual taxes" value={formatCurrency(deal.annual_property_tax ?? deal.taxes) || "Needed"} />
                 </div>
+                {latestOffer && (
+                  <div className="mt-4 rounded-lg border border-primary/25 bg-primary/10 p-3 text-sm text-primary">
+                    Saved offer plan: {offerStatusLabel(latestOffer.offer_status)}
+                    {latestOffer.purchase_price ? ` at ${formatCurrency(latestOffer.purchase_price)}` : ""}
+                  </div>
+                )}
               </div>
 
               <div className="grid gap-4 p-5 lg:grid-cols-[260px_minmax(0,1fr)]">
@@ -127,8 +168,17 @@ export default function OfferIQ() {
                   </div>
                   <h3 className="mt-3 text-xl font-semibold text-foreground">{strategy.title}</h3>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">{strategy.summary}</p>
+                  {offerPlan && (
+                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                      <OfferFact label="Offer anchor" value={formatCurrency(offerPlan.purchasePrice) || "Pending"} />
+                      <OfferFact label="Due diligence" value={`${offerPlan.dueDiligenceDays} days`} />
+                      <OfferFact label="Walk-away guardrail" value={formatCurrency(offerPlan.walkawayPrice) || "Pending"} />
+                    </div>
+                  )}
                   <div className="mt-4 flex flex-wrap gap-3">
-                    <Button onClick={() => markStage("offer_strategy")}>Prepare offer strategy</Button>
+                    <Button onClick={() => persistOffer("ready")} disabled={saveOffer.isPending}>
+                      Save offer plan
+                    </Button>
                     <Button variant="outline" onClick={() => markStage("underwriting")}>Send back to verification</Button>
                   </div>
                 </div>
@@ -179,12 +229,12 @@ export default function OfferIQ() {
             </div>
 
             <div className="mt-5 grid gap-2">
-              <Button disabled={gaps.length > 0} onClick={() => markStage("offer_submitted")}>
-                Mark offer submitted
+              <Button variant="outline" disabled={gaps.length > 0 || saveOffer.isPending} onClick={() => persistOffer("submitted")}>
+                Save and submit offer
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
               <Button variant="outline" asChild>
-                <Link to={`/analysis/${deal.id}`}>Open DealIQ file</Link>
+                <Link to={`/dealiq/${deal.id}`}>Open DealIQ file</Link>
               </Button>
             </div>
           </CardContainer>
@@ -192,6 +242,72 @@ export default function OfferIQ() {
       )}
     </SectionContainer>
   );
+}
+
+function useOffers() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["offers", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("brix_offers")
+        .select("*")
+        .eq("user_id", user!.id)
+        .order("updated_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+function useSaveOffer() {
+  return useMutation({
+    mutationFn: async ({
+      existingOffer,
+      userId,
+      deal,
+      strategy,
+      plan,
+      status,
+    }: {
+      existingOffer: Offer | undefined;
+      userId: string;
+      deal: Deal;
+      strategy: ReturnType<typeof offerStrategy>;
+      plan: ReturnType<typeof buildOfferPlan>;
+      status: string;
+    }) => {
+      const payload = {
+        user_id: userId,
+        deal_id: deal.id,
+        offer_status: status,
+        offer_type: "standard",
+        purchase_price: plan.purchasePrice || null,
+        earnest_money: plan.earnestMoney || null,
+        due_diligence_days: plan.dueDiligenceDays,
+        closing_timeline_days: plan.closingTimelineDays,
+        contingencies: plan.contingencies as Json,
+        repair_requests: plan.repairRequests,
+        walkaway_price: plan.walkawayPrice || null,
+        strategy_snapshot: {
+          label: strategy.label,
+          confidence: strategy.confidence,
+          summary: strategy.summary,
+          readiness: readinessScore(deal),
+          missing_inputs: missingInputs(deal),
+        } as Json,
+        generated_summary: plan.summary,
+      };
+
+      const query = existingOffer
+        ? supabase.from("brix_offers").update(payload).eq("id", existingOffer.id)
+        : supabase.from("brix_offers").insert(payload);
+
+      const { error } = await query;
+      if (error) throw error;
+    },
+  });
 }
 
 function EmptyOffer({ title, body }: { title: string; body: string }) {
@@ -205,7 +321,7 @@ function EmptyOffer({ title, body }: { title: string; body: string }) {
           <Link to="/findiq">Start in FindIQ</Link>
         </Button>
         <Button variant="outline" asChild>
-          <Link to="/dealiq/new">Add deal manually</Link>
+          <Link to="/dealiq/new">Add deal</Link>
         </Button>
       </div>
     </div>
@@ -277,6 +393,54 @@ function offerStrategy(deal: Deal) {
     summary: "Core inputs are present. OfferIQ can move from verification to pursuit while still keeping legal, financing, title, insurance, and inspection review visible.",
     priceGuidance: anchor ? `Offer anchor can be modeled near ${formatCurrency(anchor)} before final human review.` : "Model offer terms from verified economics and strategy fit.",
   };
+}
+
+function buildOfferPlan(deal: Deal, strategy: ReturnType<typeof offerStrategy>, existingOffer?: Offer) {
+  const price = Number(deal.purchase_price || 0);
+  const rehab = Number(deal.rehab_cost || 0);
+  const readiness = readinessScore(deal);
+  const anchor = existingOffer?.purchase_price ?? suggestedOfferPrice(price, rehab, readiness);
+  const walkawayPrice = existingOffer?.walkaway_price ?? suggestedWalkawayPrice(price, rehab, readiness);
+  const dueDiligenceDays = existingOffer?.due_diligence_days ?? (readiness < 85 ? 14 : 10);
+  const closingTimelineDays = existingOffer?.closing_timeline_days ?? 30;
+  const earnestMoney = existingOffer?.earnest_money ?? (anchor ? Math.max(1000, Math.round(anchor * 0.01)) : null);
+  const contingencies = Array.isArray(existingOffer?.contingencies)
+    ? existingOffer.contingencies
+    : [
+        "Inspection review",
+        "Financing approval",
+        "Insurance quote",
+        "Title review",
+        "Final rent and tax verification",
+      ];
+
+  return {
+    purchasePrice: Number(anchor || 0),
+    earnestMoney: Number(earnestMoney || 0),
+    dueDiligenceDays,
+    closingTimelineDays,
+    contingencies,
+    repairRequests: existingOffer?.repair_requests ?? "Use inspection and verified scope before requesting repairs.",
+    walkawayPrice: Number(walkawayPrice || 0),
+    summary: `${strategy.title}. ${strategy.priceGuidance}`,
+  };
+}
+
+function suggestedOfferPrice(price: number, rehab: number, readiness: number) {
+  if (!price) return 0;
+  const verificationDiscount = readiness < 60 ? 0.9 : readiness < 85 ? 0.95 : 0.98;
+  return Math.max(0, Math.round((price * verificationDiscount - rehab * 0.5) / 100) * 100);
+}
+
+function suggestedWalkawayPrice(price: number, rehab: number, readiness: number) {
+  if (!price) return 0;
+  const buffer = readiness < 85 ? 0.98 : 1;
+  return Math.max(0, Math.round((price * buffer - rehab * 0.25) / 100) * 100);
+}
+
+function offerStatusLabel(status: string) {
+  const normalized = status.replace(/_/g, " ");
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
 function readinessScore(deal: Deal) {

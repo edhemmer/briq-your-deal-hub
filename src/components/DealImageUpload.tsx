@@ -58,6 +58,9 @@ const titleCase = (value: string) =>
     .replace(/\bSe\b/g, "SE")
     .replace(/\bSw\b/g, "SW");
 
+const firstUrl = (input: string) =>
+  input.match(/https?:\/\/[^\s"'<>]+/i)?.[0]?.replace(/[),.;]+$/, "") ?? null;
+
 const extractDealFromListingUrl = (input: string): ExtractedDeal | null => {
   let url: URL;
   try {
@@ -98,11 +101,10 @@ const extractDealFromListingUrl = (input: string): ExtractedDeal | null => {
     zip_code: tokens[zipIndex],
     source_confidence: "low",
     missing_questions: [
-      "Paste the full listing text or upload screenshots to verify price, property type, beds, baths, square footage, taxes, rent, and condition.",
-      "Confirm facts against official records or listing documents before relying on the analysis.",
+      "Confirm listing facts against official records or supporting documents before relying on the analysis.",
     ],
     visible_or_stated_risks: [
-      "Only the listing URL was provided, so BRIX has not verified property details beyond the address parsed from the URL.",
+      "Listing-link extraction returned address-level facts only; unsupported fields remain blank until BRIX reads more evidence.",
     ],
   };
 };
@@ -166,8 +168,8 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
         handleExtractionResponse(data as ExtractionResponse);
       } catch (err: unknown) {
         console.error("Extraction error:", err);
-        setExtractionWarning("Image extraction needs AI vision credits or OCR support. Paste listing text or a listing URL to continue with basic extraction.");
-        toast.error("Image extraction unavailable. Paste listing text or URL.");
+        setExtractionWarning("BRIX could not complete image extraction. The image remains useful evidence, but unsupported fields stay blank until they are read from another source.");
+        toast.error("Image extraction unavailable.");
       } finally {
         setIsExtracting(false);
       }
@@ -177,30 +179,33 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
 
   const processText = useCallback(async () => {
     const trimmedText = pastedText.trim();
-    const urlExtract = extractDealFromListingUrl(trimmedText);
-    if (urlExtract) {
-      onExtracted(urlExtract);
-      setExtractionWarning("Only the listing URL was parsed. Paste the listing text or upload screenshots to verify price, rent, taxes, condition, and risks.");
-      toast.success("Address extracted from listing URL. Add listing facts or screenshots to verify the deal.");
-      return;
-    }
-
     if (trimmedText.length < 10) {
-      toast.error("Please paste more listing text");
+      toast.error("Enter a listing link, address, or listing facts.");
       return;
     }
 
     setIsExtracting(true);
     try {
+      const listingUrl = firstUrl(trimmedText);
       const { data, error } = await supabase.functions.invoke("extract-deal-from-text", {
-        body: { listing_text: trimmedText },
+        body: {
+          listing_text: trimmedText,
+          ...(listingUrl ? { listing_url: listingUrl } : {}),
+        },
       });
       if (error) throw error;
       handleExtractionResponse(data as ExtractionResponse);
     } catch (err: unknown) {
       console.error("Text extraction error:", err);
+      const urlExtract = extractDealFromListingUrl(trimmedText);
+      if (urlExtract) {
+        onExtracted(urlExtract);
+        setExtractionWarning("BRIX filled the address from the listing link. Remaining facts stay blank until the listing can be read or evidence is uploaded.");
+        toast.warning("Address extracted. Listing facts need verification.");
+        return;
+      }
       const message = err instanceof Error ? err.message : "Failed to extract deal info from text";
-      setExtractionWarning("Text extraction did not complete. You can still enter deal facts manually, but BRIX will lower confidence until sources are verified.");
+      setExtractionWarning("BRIX could not read that source. Fields stay blank until the listing can be read or evidence is uploaded.");
       toast.error(message);
     } finally {
       setIsExtracting(false);

@@ -1,6 +1,6 @@
-import { useMemo, useState, type DragEvent, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertTriangle, ArrowRight, Bell, Camera, CheckCircle2, ClipboardPaste, ExternalLink, FileSpreadsheet, Home, Image as ImageIcon, Plus, ShieldAlert, SlidersHorizontal, Target, Upload, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardPaste, Home, ShieldAlert, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
@@ -10,13 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCreateDeal, useDeals } from "@/hooks/useDeals";
 import { supabase } from "@/integrations/supabase/client";
 import { rankOpportunity, type AcquisitionProfile, type FindIQOpportunity, type RankedOpportunity } from "@/lib/findIQArchitecture";
-import { openPropertyRecord } from "@/lib/property/propertyIntelligenceEngine";
-import { resolveCountyPropertyUrl } from "@/lib/property/countyPropertyResolver";
 import type { Json, Tables } from "@/integrations/supabase/types";
 
 type DealRow = Tables<"deals">;
@@ -78,35 +74,6 @@ const initialSearch: SearchState = {
   renovationTolerance: "",
 };
 
-const initialManualListing: ManualListingState = {
-  listingText: "",
-  property_address: "",
-  city: "",
-  county: "",
-  state: "",
-  zip_code: "",
-  property_type: "",
-  beds: "",
-  baths: "",
-  square_feet: "",
-  year_built: "",
-  lot_size: "",
-  purchase_price: "",
-  monthly_rent: "",
-  annual_property_tax: "",
-  insurance: "",
-  estimated_arv: "",
-  strategy_primary: "",
-  listing_url: "",
-  listing_source: "",
-  listing_photo_urls: "",
-  condition_notes: "",
-  visible_or_stated_risks: "",
-  missing_questions: "",
-  source_confidence: "low",
-  photo_analysis_status: "not_requested",
-};
-
 const STRATEGY_OPTIONS = [
   "Owner Occupant",
   "Buy & Hold",
@@ -128,9 +95,7 @@ export default function FindIQ() {
   const navigate = useNavigate();
   const { data: deals, isLoading } = useDeals();
   const createDeal = useCreateDeal();
-  const [search, setSearch] = useState<SearchState>(initialSearch);
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [manualListing, setManualListing] = useState<ManualListingState>(initialManualListing);
+  const [search] = useState<SearchState>(initialSearch);
   const [quickInput, setQuickInput] = useState("");
   const [quickStrategy, setQuickStrategy] = useState("");
   const [quickStage, setQuickStage] = useState<"property" | "strategy">("property");
@@ -138,8 +103,6 @@ export default function FindIQ() {
   const [isQuickScanning, setIsQuickScanning] = useState(false);
 
   const activeProfile = useMemo(() => searchToProfile(search), [search]);
-  const profileMustHaves = useMemo(() => buildProfileRequirements(search), [search]);
-  const profilePreferences = useMemo(() => splitProfileTerms(search.preferredKeywords), [search.preferredKeywords]);
 
   const rankedOpportunities = useMemo(() => {
     return (deals ?? [])
@@ -154,145 +117,11 @@ export default function FindIQ() {
   const importedDeals = dealFiles.filter((deal) => deal.listing_url || deal.listing_remarks || deal.listing_photo_urls);
   const readyForDealIQ = rankedOpportunities.filter((opportunity) => opportunity.score >= 75 && opportunity.missingData.length <= 2).length;
 
-  const updateManualListing = (key: keyof ManualListingState, value: string) => {
-    setManualListing((current) => ({ ...current, [key]: value }));
-  };
-
-  const updateSearch = (key: keyof SearchState, value: string) => {
-    setSearch((current) => ({ ...current, [key]: value }));
-  };
-
-  const openImportIntake = (fields: Partial<ManualListingState>) => {
-    const geography = parseSearchGeography(search.location);
-    setManualListing((current) => ({
-      ...current,
-      city: fields.city || current.city || geography.city,
-      county: fields.county || current.county,
-      state: fields.state || current.state || geography.state,
-      zip_code: fields.zip_code || current.zip_code || geography.zip_code,
-      property_type: fields.property_type || current.property_type || search.propertyType,
-      ...fields,
-    }));
-    setIsAddOpen(true);
-  };
-
-  const openAddProperty = () => {
-    const geography = parseSearchGeography(search.location);
-    setManualListing((current) => ({
-      ...current,
-      city: current.city || geography.city,
-      county: current.county,
-      state: current.state || geography.state,
-      zip_code: current.zip_code || geography.zip_code,
-      property_type: current.property_type || search.propertyType,
-    }));
-    setIsAddOpen(true);
-  };
-
-  const mergeManualFields = (fields: Partial<ManualListingState>) => {
-    const scalarFields = Object.fromEntries(
-      Object.entries(fields).filter(([, value]) => value !== undefined && value !== ""),
-    ) as Partial<ManualListingState>;
-
-    setManualListing((current) => ({
-      ...current,
-      ...scalarFields,
-      listingText: uniqueLines([
-        current.listingText,
-        fields.listingText ?? "",
-      ]).join("\n"),
-      listing_photo_urls: uniqueLines([
-        ...splitLines(current.listing_photo_urls),
-        ...splitLines(fields.listing_photo_urls ?? ""),
-      ]).join("\n"),
-      condition_notes: uniqueLines([
-        ...splitLines(current.condition_notes),
-        ...splitLines(fields.condition_notes ?? ""),
-      ]).join("\n"),
-      visible_or_stated_risks: uniqueLines([
-        ...splitLines(current.visible_or_stated_risks),
-        ...splitLines(fields.visible_or_stated_risks ?? ""),
-      ]).join("\n"),
-      missing_questions: uniqueLines([
-        ...splitLines(current.missing_questions),
-        ...splitLines(fields.missing_questions ?? ""),
-      ]).join("\n"),
-      photo_analysis_status: fields.photo_analysis_status || current.photo_analysis_status,
-      source_confidence: fields.source_confidence || current.source_confidence,
-    }));
-  };
-
-  const applyListingText = () => {
-    const parsed = parseListingText(manualListing.listingText);
-    mergeManualFields(parsed);
-    toast.success("Listing facts scanned into this property.");
-  };
-
-  const scanQuickInput = async () => {
-    const text = quickInput.trim();
-    if (!text) {
-      toast.error("Paste a listing URL, listing text, email, notes, or property facts first.");
-      return;
-    }
-
-    setIsQuickScanning(true);
-    try {
-      const listingUrl = text.match(/https?:\/\/[^\s"'<>]+/i)?.[0];
-      const { data, error } = await supabase.functions.invoke("extract-deal-from-text", {
-        body: { listing_text: text, listing_url: listingUrl },
-      });
-      if (error) throw error;
-
-      const extracted = (data as { extracted?: VisualExtraction })?.extracted;
-      const deterministic = parseListingText(text);
-      const aiFields = extracted ? visualToManualFields(extracted) : {};
-      const warning = (data as { warning?: string })?.warning;
-      const resolvedListingUrl = listingUrl ?? deterministic.listing_url;
-
-      openImportIntake({
-        ...deterministic,
-        ...aiFields,
-        listingText: text,
-        listing_url: resolvedListingUrl,
-        listing_source: inferListingSource(resolvedListingUrl) || deterministic.listing_source,
-        missing_questions: uniqueLines([
-          ...splitLines(deterministic.missing_questions ?? ""),
-          ...splitLines(aiFields.missing_questions ?? ""),
-        ]).join("\n"),
-        visible_or_stated_risks: uniqueLines([
-          ...splitLines(deterministic.visible_or_stated_risks ?? ""),
-          ...splitLines(aiFields.visible_or_stated_risks ?? ""),
-        ]).join("\n"),
-      });
-      if (warning) {
-        toast.warning(warning);
-      } else {
-        toast.success("Fields extracted. Review before saving.");
-      }
-    } catch {
-      const fields = parseListingText(text);
-      openImportIntake({
-        ...fields,
-        listingText: text,
-        listing_url: fields.listing_url || text.match(/https?:\/\/[^\s"'<>]+/i)?.[0],
-      });
-      toast.warning("AI extraction was unavailable. BRIX used deterministic parsing; review the fields carefully.");
-    } finally {
-      setIsQuickScanning(false);
-    }
-  };
-
   const startFromQuickInput = (event?: FormEvent) => {
     event?.preventDefault();
     const text = quickInput.trim();
     if (!text) {
       toast.error("Enter an address or paste a listing link first.");
-      return;
-    }
-
-    const looksLikeListing = /https?:\/\//i.test(text) || text.length > 80 || text.includes("\n");
-    if (looksLikeListing) {
-      void scanQuickInput();
       return;
     }
 
@@ -316,7 +145,7 @@ export default function FindIQ() {
         body: { listing_text: trimmedAddress, listing_url: listingUrl },
       });
       if (!error) {
-        const extracted = (data as { extracted?: VisualExtraction })?.extracted;
+        const extracted = normalizeExtractionResponse(data);
         extractedFields = extracted ? visualToManualFields(extracted) : {};
         parsed = {
           ...parsed,
@@ -329,42 +158,70 @@ export default function FindIQ() {
       // Provider or AI extraction may be unavailable. Keep the workflow moving with parsed or blank fields.
     }
 
-    let propertyAddress = parsed.property_address || (listingUrl ? "" : trimmedAddress);
+    if (splitLines(parsed.listing_photo_urls ?? "").length > 0) {
+      try {
+        parsed = {
+          ...parsed,
+          ...(await enrichWithPhotoAnalysis(parsed)),
+        };
+      } catch {
+        parsed = {
+          ...parsed,
+          photo_analysis_status: "blocked",
+          missing_questions: uniqueLines([
+            ...splitLines(parsed.missing_questions ?? ""),
+            "Listing photos could not be analyzed automatically. Upload listing screenshots or drive-by photos in DealIQ.",
+          ]).join("\n"),
+        };
+      }
+    }
+
+    const urlParts = parseListingUrlParts(listingUrl);
+    let propertyAddress = parsed.property_address || urlParts.property_address || (listingUrl ? "" : trimmedAddress);
     let city = parsed.city || "";
     let state = parsed.state || "";
     let zip = parsed.zip_code || "";
     let county = parsed.county || "";
 
-    try {
-      const { data } = await supabase.functions.invoke("geocode-address", {
-        body: { address: trimmedAddress },
-      });
-      const result = data as {
-        found?: boolean;
-        formatted_address?: string | null;
-        city?: string | null;
-        county?: string | null;
-        state?: string | null;
-        zip?: string | null;
-      } | null;
+    if (listingUrl) {
+      city ||= urlParts.city || "";
+      state ||= urlParts.state || "";
+      zip ||= urlParts.zip_code || "";
+    }
 
-      if (result?.found) {
-        city = result.city || city;
-        county = result.county || county;
-        state = result.state || state;
-        zip = result.zip || zip;
-        propertyAddress = parsed.property_address || result.formatted_address?.split(",")[0] || propertyAddress;
+    const geocodeTarget = [propertyAddress, city, state, zip].filter(Boolean).join(", ") || (listingUrl ? "" : trimmedAddress);
+    if (geocodeTarget) {
+      try {
+        const { data } = await supabase.functions.invoke("geocode-address", {
+          body: { address: geocodeTarget },
+        });
+        const result = data as {
+          found?: boolean;
+          formatted_address?: string | null;
+          city?: string | null;
+          county?: string | null;
+          state?: string | null;
+          zip?: string | null;
+        } | null;
+
+        if (result?.found) {
+          city = result.city || city;
+          county = result.county || county;
+          state = result.state || state;
+          zip = result.zip || zip;
+          propertyAddress = parsed.property_address || result.formatted_address?.split(",")[0] || propertyAddress;
+        }
+      } catch {
+        // Fall back to parsed text and leave unsupported fields blank.
       }
-    } catch {
-      // Fall back to parsed text and leave unsupported fields blank.
     }
 
     try {
       const deal = await createDeal.mutateAsync({
         property_address: propertyAddress || trimmedAddress,
-        city: city || undefined,
+        city: city || "",
         county: county || undefined,
-        state: state || undefined,
+        state: state || "",
         zip_code: zip || undefined,
         strategy_primary: strategy || undefined,
         listing_url: listingUrl || parsed.listing_url || undefined,
@@ -378,14 +235,15 @@ export default function FindIQ() {
         purchase_price: parseNumber(parsed.purchase_price),
         monthly_rent: parseNumber(parsed.monthly_rent),
         annual_property_tax: parseNumber(parsed.annual_property_tax),
+        taxes: parseNumber(parsed.annual_property_tax),
         insurance: parseNumber(parsed.insurance),
         estimated_arv: parseNumber(parsed.estimated_arv),
         missing_questions: splitLines(parsed.missing_questions).length ? splitLines(parsed.missing_questions) as Json : [] as Json,
         condition_notes: splitLines(parsed.condition_notes).length ? splitLines(parsed.condition_notes) as Json : [] as Json,
         visible_or_stated_risks: splitLines(parsed.visible_or_stated_risks).length ? splitLines(parsed.visible_or_stated_risks) as Json : [] as Json,
         listing_photo_urls: splitLines(parsed.listing_photo_urls).length ? splitLines(parsed.listing_photo_urls) as Json : [] as Json,
-        source_confidence: "low",
-        photo_analysis_status: splitLines(parsed.listing_photo_urls).length ? "pending_review" : "not_requested",
+        source_confidence: parsed.source_confidence || (listingUrl ? "medium" : "low"),
+        photo_analysis_status: parsed.photo_analysis_status || (splitLines(parsed.listing_photo_urls).length ? "listing_photos_found" : "not_requested"),
         deal_status: "draft",
       });
 
@@ -393,8 +251,8 @@ export default function FindIQ() {
       setQuickInput("");
       toast.success(`${deal.property_address} created. Add evidence when ready.`);
       navigate(`/dealiq/${deal.id}`);
-    } catch {
-      toast.error("BRIX could not create the deal file. Try again or add the property manually.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "BRIX could not create the deal file.");
     }
   };
 
@@ -409,206 +267,12 @@ export default function FindIQ() {
     setQuickStrategy("");
   };
 
-  const handleDroppedText = (text: string) => {
-    if (!text.trim()) return;
-    const fields = {
-      listingText: text.trim(),
-      ...parseListingText(text),
-    };
-    openImportIntake(fields);
-    toast.success("Listing text loaded. Review the fields before saving.");
-    void enrichWithPhotoAnalysis(fields).then((enriched) => {
-      if (enriched !== fields) openImportIntake(enriched);
-    });
-  };
-
-  const handleImportFile = async (file: File) => {
-    try {
-      const fields = await enrichWithPhotoAnalysis(await parseImportFile(file));
-      openImportIntake(fields);
-      toast.success(`${file.name} loaded. Review the fields before saving.`);
-    } catch {
-      toast.error("Could not read that file. Try CSV, XLS, XLSX, TXT, or paste the listing text.");
-    }
-  };
-
-  const handleEvidenceFiles = async (files: FileList | null) => {
-    const selected = Array.from(files ?? []);
-    if (selected.length === 0) return;
-
-    let imported = 0;
-    for (const file of selected) {
-      try {
-        const fields = await enrichWithPhotoAnalysis(await parseImportFile(file));
-        mergeManualFields(fields);
-        imported += 1;
-      } catch {
-        toast.error(`${file.name} could not be scanned.`);
-      }
-    }
-
-    if (imported > 0) {
-      toast.success(`${imported} file${imported === 1 ? "" : "s"} added to this property.`);
-    }
-  };
-
-  const openCountyTaxRecords = () => {
-    const address = manualListing.property_address.trim();
-    const city = manualListing.city.trim();
-    const state = manualListing.state.trim();
-    if (!address || !city || !state) {
-      toast.error("Add property address, city, and state first.");
-      return;
-    }
-
-    const result = resolveCountyPropertyUrl({
-      property_address: address,
-      city,
-      state,
-      zip_code: manualListing.zip_code || undefined,
-      county: manualListing.county || undefined,
-    });
-    openPropertyRecord(result.url);
-  };
-
-  const handleImportDrop = async (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const file = event.dataTransfer.files?.[0];
-    if (file) {
-      await handleImportFile(file);
-      return;
-    }
-
-    const uri = event.dataTransfer.getData("text/uri-list");
-    const text = event.dataTransfer.getData("text/plain");
-    handleDroppedText(uri || text);
-  };
-
-  const saveManualListing = async (event: FormEvent) => {
-    event.preventDefault();
-
-    if (!manualListing.property_address.trim()) {
-      toast.error("Enter at least the property address. City, state, pricing, photos, and notes can be added as you verify the deal.");
-      return;
-    }
-
-    try {
-      const verified = await verifyManualListingLocation(manualListing);
-      const verificationQuestions = splitLines(verified.missing_questions ?? manualListing.missing_questions);
-      const verificationRisks = splitLines(verified.visible_or_stated_risks ?? manualListing.visible_or_stated_risks);
-      const conditionNotes = splitLines(verified.condition_notes ?? manualListing.condition_notes);
-
-      const deal = await createDeal.mutateAsync({
-        property_address: verified.property_address.trim(),
-        city: verified.city.trim(),
-        county: verified.county.trim() || undefined,
-        state: verified.state.trim(),
-        zip_code: verified.zip_code.trim() || undefined,
-        property_type: verified.property_type.trim() || undefined,
-        beds: parseNumber(verified.beds) ?? undefined,
-        baths: parseNumber(verified.baths) ?? undefined,
-        square_feet: parseNumber(verified.square_feet) ?? undefined,
-        year_built: parseNumber(verified.year_built) ?? undefined,
-        lot_size: verified.lot_size.trim() || undefined,
-        purchase_price: parseNumber(verified.purchase_price) ?? undefined,
-        monthly_rent: parseNumber(verified.monthly_rent) ?? undefined,
-        annual_property_tax: parseNumber(verified.annual_property_tax) ?? undefined,
-        taxes: parseNumber(verified.annual_property_tax) ?? undefined,
-        insurance: parseNumber(verified.insurance) ?? undefined,
-        estimated_arv: parseNumber(verified.estimated_arv) ?? undefined,
-        strategy_primary: verified.strategy_primary.trim() || search.strategy.trim() || undefined,
-        listing_url: verified.listing_url.trim() || undefined,
-        listing_source: verified.listing_source.trim() || inferListingSource(verified.listing_url),
-        listing_remarks: verified.listingText.trim() || undefined,
-        listing_photo_urls: splitLines(manualListing.listing_photo_urls) as Json,
-        condition_notes: conditionNotes as Json,
-        visible_or_stated_risks: verificationRisks as Json,
-        missing_questions: verificationQuestions as Json,
-        source_confidence: verified.source_confidence,
-        photo_analysis_status: verified.photo_analysis_status,
-        asset_type: `${verified.strategy_primary} ${search.strategy}`.toLowerCase().includes("owner") ? "owner_occupied" : undefined,
-        deal_status: "draft",
-      });
-
-      setManualListing(initialManualListing);
-      resetQuickWorkflow();
-      setQuickInput("");
-      setIsAddOpen(false);
-      toast.success(`${deal.property_address} added to FindIQ.`);
-    } catch {
-      toast.error("Property was not saved. Check the required fields and try again.");
-    }
-  };
-
   return (
     <SectionContainer>
       <PageHeader
         title="FindIQ"
         description="Start a deal file with an address and the strategy you want to test."
       />
-
-      <section className="mx-auto max-w-3xl">
-        <CardContainer className="relative overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-background to-emerald-500/10 p-6 md:p-8">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/80 to-transparent" />
-          <form
-            className="space-y-5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void createDealFromAddressStrategy(quickInput, quickStrategy);
-            }}
-          >
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight text-foreground">Start a property</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                BRIX creates the deal file first. Add photos, tax history, missing facts, and source documents inside DealIQ.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="findiq-quick-input">Property address or listing link</Label>
-              <Input
-                id="findiq-quick-input"
-                value={quickInput}
-                onChange={(event) => setQuickInput(event.target.value)}
-                className="h-12 text-base"
-                aria-label="Property address or listing link"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Strategy</Label>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {STRATEGY_OPTIONS.map((strategy) => {
-                  const selected = quickStrategy === strategy;
-                  return (
-                    <button
-                      key={strategy}
-                      type="button"
-                      onClick={() => setQuickStrategy(strategy)}
-                      className={`rounded-lg border px-3 py-3 text-left text-sm font-semibold transition-colors ${
-                        selected
-                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                          : "border-border bg-background hover:border-primary/50 hover:bg-primary/10"
-                      }`}
-                      aria-pressed={selected}
-                    >
-                      {strategy}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <Button type="submit" size="lg" className="w-full" disabled={createDeal.isPending}>
-              {createDeal.isPending ? "Creating deal..." : "Create deal file"}
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </form>
-        </CardContainer>
-      </section>
-
-      {false && (
-        <>
 
       <section>
         <CardContainer className="relative overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-background to-emerald-500/10">
@@ -622,7 +286,7 @@ export default function FindIQ() {
             {quickStage === "property" ? (
               <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]" onSubmit={startFromQuickInput}>
                 <div className="space-y-2">
-                  <Label htmlFor="findiq-quick-input">Address or listing link</Label>
+                  <Label htmlFor="findiq-quick-input">Property address or listing link</Label>
                   <Input
                     id="findiq-quick-input"
                     value={quickInput}
@@ -637,27 +301,40 @@ export default function FindIQ() {
                 </Button>
               </form>
             ) : (
-              <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,320px)_auto]" onSubmit={continueFromStrategy}>
+              <form className="grid gap-4" onSubmit={continueFromStrategy}>
                 <div className="space-y-2">
                   <Label>Property</Label>
                   <Input value={quickPropertyAddress} readOnly className="h-12 bg-muted/40 text-base" aria-label="Selected property address" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="findiq-quick-strategy">Strategy to test</Label>
-                  <Input
-                    id="findiq-quick-strategy"
-                    value={quickStrategy}
-                    onChange={(event) => setQuickStrategy(event.target.value)}
-                    className="h-12 text-base"
-                    aria-label="Strategy to test"
-                  />
+                  <Label>Strategy to test</Label>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    {STRATEGY_OPTIONS.map((strategy) => {
+                      const selected = quickStrategy === strategy;
+                      return (
+                        <button
+                          key={strategy}
+                          type="button"
+                          onClick={() => setQuickStrategy(strategy)}
+                          className={`rounded-lg border px-3 py-3 text-left text-sm font-semibold transition-colors ${
+                            selected
+                              ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                              : "border-border bg-background hover:border-primary/50 hover:bg-primary/10"
+                          }`}
+                          aria-pressed={selected}
+                        >
+                          {strategy}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="flex gap-2 self-end">
+                <div className="flex flex-wrap gap-2">
                   <Button type="button" variant="outline" size="lg" onClick={resetQuickWorkflow}>
                     Back
                   </Button>
-                  <Button type="submit" size="lg">
-                    Continue
+                  <Button type="submit" size="lg" disabled={!quickStrategy.trim()}>
+                    Create deal file
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
@@ -673,92 +350,7 @@ export default function FindIQ() {
         </CardContainer>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[390px_minmax(0,1fr)]">
-        <CardContainer className="space-y-5">
-          <details className="rounded-xl border border-border bg-muted/10 p-3">
-            <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-foreground">
-              <Target className="h-4 w-4 text-primary" />
-              Buying criteria
-            </summary>
-            <div className="mt-3 grid gap-3">
-              <ManualField label="Strategy" value={search.strategy} onChange={(value) => updateSearch("strategy", value)} />
-              <ManualField label="Search geography" value={search.location} onChange={(value) => updateSearch("location", value)} />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <ManualField label="Min budget" value={search.budgetMin} onChange={(value) => updateSearch("budgetMin", value)} inputMode="numeric" />
-                <ManualField label="Max budget" value={search.budgetMax} onChange={(value) => updateSearch("budgetMax", value)} inputMode="numeric" />
-              </div>
-              <ManualField label="Property type" value={search.propertyType} onChange={(value) => updateSearch("propertyType", value)} />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <ManualField label="Minimum bedrooms" value={search.bedrooms} onChange={(value) => updateSearch("bedrooms", value)} inputMode="decimal" />
-                <ManualField label="Minimum bathrooms" value={search.bathrooms} onChange={(value) => updateSearch("bathrooms", value)} inputMode="decimal" />
-              </div>
-              <ManualField label="Excluded counties or areas" value={search.excludedCounties} onChange={(value) => updateSearch("excludedCounties", value)} />
-              <ManualField label="Must-have words" value={search.mustHaveKeywords} onChange={(value) => updateSearch("mustHaveKeywords", value)} />
-              <ManualField label="Preferred words" value={search.preferredKeywords} onChange={(value) => updateSearch("preferredKeywords", value)} />
-              <ManualField label="Renovation tolerance" value={search.renovationTolerance} onChange={(value) => updateSearch("renovationTolerance", value)} />
-            </div>
-          </details>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ProfileList title="Must have" items={profileMustHaves.length > 0 ? profileMustHaves : ["No criteria set"]} icon="must" />
-            <ProfileList title="Preferred" items={profilePreferences.length > 0 ? profilePreferences : ["No preferences set"]} icon="prefer" />
-          </div>
-
-          <div
-            className="rounded-lg border border-dashed border-primary/35 bg-muted/10 p-4 transition-colors hover:border-primary/60 hover:bg-primary/10"
-            onDragOver={(event) => {
-              event.preventDefault();
-              event.dataTransfer.dropEffect = "copy";
-            }}
-            onDrop={handleImportDrop}
-          >
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <Upload className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-foreground">Drag, upload, or use your camera</h3>
-                <div className="mt-3 flex flex-wrap gap-4">
-                  <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-primary hover:text-primary/80">
-                    <FileSpreadsheet className="h-3.5 w-3.5" />
-                    Choose file/photo
-                    <input
-                      type="file"
-                      className="sr-only"
-                      accept=".csv,.txt,.xls,.xlsx,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/*"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) void handleImportFile(file);
-                        event.currentTarget.value = "";
-                      }}
-                    />
-                  </label>
-                  <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-primary hover:text-primary/80">
-                    <Upload className="h-3.5 w-3.5" />
-                    Phone camera
-                    <input
-                      type="file"
-                      className="sr-only"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) void handleImportFile(file);
-                        event.currentTarget.value = "";
-                      }}
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <Button className="w-full" variant="outline" onClick={openAddProperty}>
-            Enter Property Manually
-            <Plus className="ml-2 h-4 w-4" />
-          </Button>
-        </CardContainer>
-
+      <div className="grid gap-4">
         <div className="space-y-4">
           <CardContainer>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -768,7 +360,7 @@ export default function FindIQ() {
                   Opportunity Queue
                 </div>
                 <h2 className="mt-2 text-lg font-semibold text-foreground">
-                  {rankedOpportunities.length > 0 ? "Ranked property results" : "Opportunity queue"}
+                  {rankedOpportunities.length > 0 ? "Ranked property results" : "Deal queue"}
                 </h2>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center lg:w-[260px] lg:shrink-0">
@@ -795,10 +387,10 @@ export default function FindIQ() {
             ) : (
               <div className="flex min-h-[360px] flex-col items-center justify-center text-center">
                 <Home className="h-10 w-10 text-muted-foreground" />
-                <h3 className="mt-4 text-xl font-semibold text-foreground">No properties yet</h3>
+                <h3 className="mt-4 text-xl font-semibold text-foreground">No deal files yet</h3>
                 <div className="mt-5 flex flex-wrap justify-center gap-3">
                   <Button onClick={() => document.getElementById("findiq-quick-input")?.focus()}>
-                    Paste Listing
+                    Start Property
                     <ClipboardPaste className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
@@ -808,131 +400,6 @@ export default function FindIQ() {
         </div>
       </div>
 
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add a property to FindIQ</DialogTitle>
-            <DialogDescription>
-              Add the property once. BRIX will scan what it can, keep unsupported fields blank, and carry the record into DealIQ.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-5" onSubmit={saveManualListing}>
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-              <div className="space-y-2">
-                <Label htmlFor="findiq-listing-text">Address, listing link, copied facts, or notes</Label>
-                <Textarea
-                  id="findiq-listing-text"
-                  value={manualListing.listingText}
-                  onChange={(event) => updateManualListing("listingText", event.target.value)}
-                  rows={5}
-                />
-                <Button type="button" variant="outline" onClick={applyListingText} disabled={!manualListing.listingText.trim()}>
-                  Scan into property
-                </Button>
-              </div>
-
-              <div className="rounded-xl border border-border bg-muted/20 p-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <ImageIcon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">Photos & evidence</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Add listing screenshots, drive-by photos, inspection photos, or spreadsheets.
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 grid gap-2">
-                  <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
-                    <Upload className="h-4 w-4" />
-                    Upload files/photos
-                    <input
-                      type="file"
-                      className="sr-only"
-                      multiple
-                      accept=".csv,.txt,.xls,.xlsx,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/*"
-                      onChange={(event) => {
-                        void handleEvidenceFiles(event.target.files);
-                        event.currentTarget.value = "";
-                      }}
-                    />
-                  </label>
-                  <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted/50">
-                    <Camera className="h-4 w-4" />
-                    Use camera
-                    <input
-                      type="file"
-                      className="sr-only"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={(event) => {
-                        void handleEvidenceFiles(event.target.files);
-                        event.currentTarget.value = "";
-                      }}
-                    />
-                  </label>
-                  <Button type="button" variant="outline" className="justify-center gap-2" onClick={openCountyTaxRecords}>
-                    <ExternalLink className="h-4 w-4" />
-                    Open county tax record
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <ManualField label="Property address" required value={manualListing.property_address} onChange={(value) => updateManualListing("property_address", value)} />
-              <ManualField label="City" value={manualListing.city} onChange={(value) => updateManualListing("city", value)} />
-              <ManualField label="State" value={manualListing.state} onChange={(value) => updateManualListing("state", value)} />
-              <ManualField label="County" value={manualListing.county} onChange={(value) => updateManualListing("county", value)} />
-              <ManualField label="ZIP code" value={manualListing.zip_code} onChange={(value) => updateManualListing("zip_code", value)} />
-              <ManualField label="Property type" value={manualListing.property_type} onChange={(value) => updateManualListing("property_type", value)} />
-              <ManualField label="Strategy to test first" value={manualListing.strategy_primary} onChange={(value) => updateManualListing("strategy_primary", value)} />
-              <ManualField label="Beds" value={manualListing.beds} onChange={(value) => updateManualListing("beds", value)} inputMode="decimal" />
-              <ManualField label="Baths" value={manualListing.baths} onChange={(value) => updateManualListing("baths", value)} inputMode="decimal" />
-              <ManualField label="Square feet" value={manualListing.square_feet} onChange={(value) => updateManualListing("square_feet", value)} inputMode="numeric" />
-              <ManualField label="Year built" value={manualListing.year_built} onChange={(value) => updateManualListing("year_built", value)} inputMode="numeric" />
-              <ManualField label="Lot size" value={manualListing.lot_size} onChange={(value) => updateManualListing("lot_size", value)} />
-              <ManualField label="Purchase price" value={manualListing.purchase_price} onChange={(value) => updateManualListing("purchase_price", value)} inputMode="numeric" />
-              <ManualField label="Market or lease rent, monthly" value={manualListing.monthly_rent} onChange={(value) => updateManualListing("monthly_rent", value)} inputMode="numeric" />
-              <ManualField label="Property taxes, annual" value={manualListing.annual_property_tax} onChange={(value) => updateManualListing("annual_property_tax", value)} inputMode="numeric" />
-              <ManualField label="Insurance quote, annual" value={manualListing.insurance} onChange={(value) => updateManualListing("insurance", value)} inputMode="numeric" />
-              <ManualField label="Estimated ARV" value={manualListing.estimated_arv} onChange={(value) => updateManualListing("estimated_arv", value)} inputMode="numeric" />
-              <ManualField label="Listing URL" value={manualListing.listing_url} onChange={(value) => updateManualListing("listing_url", value)} />
-              <ManualField label="Listing source" value={manualListing.listing_source} onChange={(value) => updateManualListing("listing_source", value)} />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <EvidenceList
-                title="Photos captured"
-                empty="No photos attached yet."
-                items={splitLines(manualListing.listing_photo_urls)}
-                image
-              />
-              <EvidenceList
-                title="BRIX findings"
-                empty="No photo or listing findings yet."
-                items={[
-                  ...splitLines(manualListing.condition_notes),
-                  ...splitLines(manualListing.visible_or_stated_risks),
-                ]}
-              />
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={createDeal.isPending}>
-                {createDeal.isPending ? "Saving..." : "Save and Rank"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-        </>
-      )}
     </SectionContainer>
   );
 }
@@ -958,68 +425,6 @@ function searchToProfile(search: SearchState): AcquisitionProfile {
     requiresFutureResalePotential: false,
     preferredValueAdd: splitProfileTerms(search.preferredKeywords),
   };
-}
-
-async function verifyManualListingLocation(listing: ManualListingState): Promise<ManualListingState> {
-  const address = [
-    listing.property_address,
-    listing.city,
-    listing.state,
-    listing.zip_code,
-  ].filter(Boolean).join(", ");
-
-  if (address.trim().length < 8) return listing;
-
-  try {
-    const { data, error } = await supabase.functions.invoke("geocode-address", {
-      body: { address },
-    });
-    if (error) throw error;
-
-    const result = data as {
-      found?: boolean;
-      source?: string;
-      source_quality?: string;
-      formatted_address?: string | null;
-      city?: string | null;
-      county?: string | null;
-      state?: string | null;
-      zip?: string | null;
-    };
-
-    if (!result.found) {
-      return {
-        ...listing,
-        missing_questions: uniqueLines([
-          ...splitLines(listing.missing_questions),
-          "Verify address and county from an official source; geocoder did not return a match.",
-        ]).join("\n"),
-      };
-    }
-
-    const notes = uniqueLines([
-      ...splitLines(listing.condition_notes),
-      `Address checked against ${result.source ?? "official geocoder"}${result.source_quality ? ` (${result.source_quality})` : ""}.`,
-    ]);
-
-    return {
-      ...listing,
-      city: listing.city || result.city || "",
-      county: listing.county || result.county?.replace(/\s+County$/i, "") || "",
-      state: listing.state || result.state || "",
-      zip_code: listing.zip_code || result.zip || "",
-      condition_notes: notes.join("\n"),
-      source_confidence: listing.source_confidence === "low" ? "medium" : listing.source_confidence,
-    };
-  } catch {
-    return {
-      ...listing,
-      missing_questions: uniqueLines([
-        ...splitLines(listing.missing_questions),
-        "Verify address/county manually; official geocoding was unavailable at save time.",
-      ]).join("\n"),
-    };
-  }
 }
 
 function dealToOpportunity(deal: DealRow): FindIQOpportunity {
@@ -1245,18 +650,6 @@ function applyActiveProfileFit(opportunity: RankedOpportunity, profile: Acquisit
   };
 }
 
-function buildProfileRequirements(search: SearchState) {
-  return uniqueLines([
-    search.location && `Location/geography: ${search.location}`,
-    search.budgetMax && `Max price: ${money(parseNumber(search.budgetMax) ?? 0)}`,
-    search.propertyType && `Property type: ${search.propertyType}`,
-    search.bedrooms && `Minimum bedrooms: ${search.bedrooms}`,
-    search.bathrooms && `Minimum bathrooms: ${search.bathrooms}`,
-    search.excludedCounties && `Exclude: ${search.excludedCounties}`,
-    ...splitProfileTerms(search.mustHaveKeywords),
-  ].filter(Boolean) as string[]);
-}
-
 function splitProfileTerms(value: string) {
   return uniqueLines(
     value
@@ -1330,36 +723,59 @@ function parseListingUrlParts(url: string | undefined): Partial<ManualListingSta
   if (!url) return {};
   try {
     const parsed = new URL(url);
-    const homeDetailsMarker = "/homedetails/";
-    const path = decodeURIComponent(parsed.pathname);
-    const markerIndex = path.indexOf(homeDetailsMarker);
-    if (markerIndex === -1) return {};
+    const slugCandidates = decodeURIComponent(parsed.pathname)
+      .split("/")
+      .filter(Boolean)
+      .map((segment) =>
+        segment
+          .replace(/_zpid.*$/i, "")
+          .replace(/\d+_zpid.*$/i, "")
+          .replace(/\b(?:home|homes|details|property|real-estate|for-sale|listing|listings|house|houses)\b/gi, " ")
+          .replace(/[-_]+/g, " ")
+          .replace(/\s+/g, " ")
+          .trim(),
+      )
+      .filter((segment) => /\d{1,6}\s+\S+/.test(segment) || /\b[A-Z]{2}\s+\d{5}\b/i.test(segment));
 
-    const slug = path
-      .slice(markerIndex + homeDetailsMarker.length)
-      .split("/")[0]
-      .replace(/_zpid.*$/i, "")
-      .replace(/\d+_zpid.*$/i, "")
-      .replace(/[-_]+/g, " ")
+    const slug = (slugCandidates.find((segment) => /\d{1,6}\s+\S+/.test(segment)) ?? slugCandidates.at(-1) ?? "")
+      .replace(/\b(?:zpid|mls|pid)\b.*$/i, "")
       .replace(/\s+/g, " ")
       .trim();
 
     if (!slug) return {};
-    const parts = slug.split(" ");
-    const zip = /^\d{5}$/.test(parts.at(-1) ?? "") ? parts.at(-1) : "";
-    const state = zip ? parts.at(-2) ?? "" : "";
-    const city = zip ? parts.at(-3) ?? "" : "";
-    const addressParts = zip ? parts.slice(0, -3) : parts;
+    const parts = slug.split(" ").filter(Boolean);
+    const zipIndex = parts.findLastIndex((part) => /^\d{5}$/.test(part));
+    const zip = zipIndex >= 0 ? parts[zipIndex] : "";
+    const stateCandidate = zipIndex > 0 ? parts[zipIndex - 1]?.toUpperCase() ?? "" : "";
+    const state = STATE_CODES.has(stateCandidate) ? stateCandidate : "";
+    const city = state && zipIndex > 1 ? parts[zipIndex - 2] ?? "" : "";
+    const addressParts = zip && state ? parts.slice(0, Math.max(0, zipIndex - 2)) : parts;
 
     return {
-      property_address: addressParts.join(" ") || undefined,
-      city: city || undefined,
+      property_address: toTitleCase(addressParts.join(" ")) || undefined,
+      city: toTitleCase(city) || undefined,
       state: state || undefined,
       zip_code: zip || undefined,
     };
   } catch {
     return {};
   }
+}
+
+const STATE_CODES = new Set([
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA",
+  "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK",
+  "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC",
+]);
+
+function toTitleCase(value: string | undefined) {
+  if (!value) return "";
+  return value
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => (part.length <= 2 && STATE_CODES.has(part.toUpperCase()) ? part.toUpperCase() : `${part[0].toUpperCase()}${part.slice(1)}`))
+    .join(" ");
 }
 
 async function enrichWithPhotoAnalysis(fields: Partial<ManualListingState>): Promise<Partial<ManualListingState>> {
@@ -1428,124 +844,6 @@ type VisualExtraction = {
   photo_urls?: string[];
 };
 
-async function parseImportFile(file: File): Promise<Partial<ManualListingState>> {
-  const extension = file.name.split(".").pop()?.toLowerCase();
-
-  if (file.type.startsWith("image/")) {
-    const imageBase64 = await readFileAsDataUrl(file);
-    const { data, error } = await supabase.functions.invoke("extract-deal-from-image", {
-      body: { image_base64: imageBase64 },
-    });
-    if (error) throw error;
-    const extracted = (data as { extracted?: VisualExtraction })?.extracted;
-    if (!extracted) throw new Error("No image extraction returned");
-    return {
-      ...visualToManualFields(extracted, file.name),
-      listing_photo_urls: imageBase64,
-    };
-  }
-
-  if (extension === "xlsx" || extension === "xls") {
-    const XLSX = await import("xlsx");
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "array" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-    const firstRow = rows[0];
-    if (!firstRow) throw new Error("Spreadsheet is empty");
-    return parseTabularRow(firstRow);
-  }
-
-  const text = await file.text();
-  if (extension === "csv") {
-    const [headerLine, valueLine] = text.split(/\r?\n/).filter(Boolean);
-    if (headerLine && valueLine) {
-      return parseTabularRow(parseCsvFirstRow(headerLine, valueLine));
-    }
-  }
-
-  return {
-    listingText: text,
-    ...parseListingText(text),
-  };
-}
-
-function parseTabularRow(row: Record<string, unknown>): Partial<ManualListingState> {
-  const normalized = Object.entries(row).reduce<Record<string, string>>((acc, [key, value]) => {
-    acc[normalizeHeader(key)] = String(value ?? "").trim();
-    return acc;
-  }, {});
-
-  const pick = (...keys: string[]) => keys.map((key) => normalized[normalizeHeader(key)]).find(Boolean) ?? "";
-  const joined = Object.values(normalized).filter(Boolean).join(" ");
-
-  return {
-    listingText: joined,
-    property_address: pick("address", "property address", "street address", "full address"),
-    city: pick("city", "municipality"),
-    county: pick("county", "county name"),
-    state: pick("state", "st"),
-    zip_code: pick("zip", "zipcode", "zip code", "postal code"),
-    property_type: normalizePropertyType(pick("property type", "type", "asset type")),
-    beds: pick("beds", "bedrooms", "bed"),
-    baths: pick("baths", "bathrooms", "bath"),
-    square_feet: pick("sqft", "square feet", "sq ft", "living area").replace(/[$,\s]/g, ""),
-    year_built: pick("year built", "built", "yr built"),
-    lot_size: pick("lot", "lot size", "acres", "acreage"),
-    purchase_price: pick("price", "list price", "asking price", "purchase price").replace(/[$,\s]/g, ""),
-    monthly_rent: pick("rent", "monthly rent", "market rent", "lease rent").replace(/[$,\s]/g, ""),
-    annual_property_tax: pick("taxes", "annual taxes", "property taxes", "tax").replace(/[$,\s]/g, ""),
-    insurance: pick("insurance", "annual insurance", "insurance quote").replace(/[$,\s]/g, ""),
-    estimated_arv: pick("arv", "estimated arv", "after repair value").replace(/[$,\s]/g, ""),
-    strategy_primary: pick("strategy", "investment strategy") || undefined,
-    listing_url: pick("listing url", "url", "source url") || undefined,
-    listing_source: pick("source", "listing source", "provider") || inferListingSource(pick("listing url", "url", "source url")) || undefined,
-    listing_photo_urls: splitPhotoCell(pick("photo urls", "photos", "image urls", "images")).join("\n") || undefined,
-    condition_notes: pick("condition", "condition notes", "remarks", "description") || undefined,
-    visible_or_stated_risks: pick("risks", "risk notes", "concerns") || undefined,
-    missing_questions: pick("questions", "missing questions", "verification") || undefined,
-    source_confidence: "medium",
-  };
-}
-
-function parseCsvFirstRow(headerLine: string, valueLine: string) {
-  const headers = parseCsvLine(headerLine);
-  const values = parseCsvLine(valueLine);
-  return headers.reduce<Record<string, string>>((acc, header, index) => {
-    acc[header] = values[index] ?? "";
-    return acc;
-  }, {});
-}
-
-function parseCsvLine(line: string) {
-  const values: string[] = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    const next = line[i + 1];
-    if (char === '"' && next === '"') {
-      current += '"';
-      i += 1;
-    } else if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === "," && !inQuotes) {
-      values.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-
-  values.push(current.trim());
-  return values;
-}
-
-function normalizeHeader(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-}
-
 function visualToManualFields(extracted: VisualExtraction, sourceName?: string): Partial<ManualListingState> {
   return {
     listingText: sourceName ? `Image upload: ${sourceName}` : "",
@@ -1574,13 +872,11 @@ function visualToManualFields(extracted: VisualExtraction, sourceName?: string):
   };
 }
 
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(reader.error ?? new Error("File read failed"));
-    reader.readAsDataURL(file);
-  });
+function normalizeExtractionResponse(data: unknown): VisualExtraction | undefined {
+  if (!data || typeof data !== "object") return undefined;
+  const payload = data as { extracted?: VisualExtraction };
+  if (payload.extracted && typeof payload.extracted === "object") return payload.extracted;
+  return data as VisualExtraction;
 }
 
 function extractPhotoUrls(text: string) {
@@ -1697,26 +993,9 @@ function uniqueLines(values: string[]) {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
 
-function parseSearchGeography(value: string) {
-  const trimmed = value.trim();
-  const zipMatch = trimmed.match(/\b\d{5}(?:-\d{4})?\b/);
-  const stateMatch = trimmed.match(/\b([A-Z]{2})\b/i);
-  const city = trimmed
-    .replace(/\b\d{5}(?:-\d{4})?\b/g, "")
-    .replace(/\b[A-Z]{2}\b/gi, "")
-    .replace(/,/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  return {
-    city,
-    state: stateMatch?.[1]?.toUpperCase() ?? "",
-    zip_code: zipMatch?.[0] ?? "",
-  };
-}
-
-function parseNumber(value: string) {
-  const parsed = Number(value.replace(/[$,\s]/g, ""));
+function parseNumber(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = typeof value === "number" ? value : Number(value.replace(/[$,\s]/g, ""));
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
@@ -1809,93 +1088,6 @@ const money = (value: number | null | undefined) =>
   value != null && Number.isFinite(Number(value)) && Number(value) > 0
     ? Number(value).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })
     : "Price missing";
-
-function ManualField({
-  label,
-  value,
-  onChange,
-  required,
-  inputMode,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  required?: boolean;
-  inputMode?: "numeric" | "decimal";
-}) {
-  const id = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>
-        {label}
-        {required ? " *" : ""}
-      </Label>
-      <Input
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        required={required}
-        inputMode={inputMode}
-      />
-    </div>
-  );
-}
-
-function EvidenceList({
-  title,
-  empty,
-  items,
-  image = false,
-}: {
-  title: string;
-  empty: string;
-  items: string[];
-  image?: boolean;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-muted/10 p-4">
-      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-      {items.length === 0 ? (
-        <p className="mt-3 text-sm text-muted-foreground">{empty}</p>
-      ) : image ? (
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {items.slice(0, 6).map((item, index) => (
-            <div key={`${item}-${index}`} className="aspect-square overflow-hidden rounded-lg border border-border bg-background">
-              <img src={item} alt="" className="h-full w-full object-cover" loading="lazy" />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="mt-3 space-y-2">
-          {items.slice(0, 6).map((item) => (
-            <div key={item} className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
-              {item}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ProfileList({ title, items, icon }: { title: string; items: string[]; icon: "must" | "prefer" }) {
-  const Icon = icon === "must" ? XCircle : CheckCircle2;
-  const tone = icon === "must" ? "text-signal-warning" : "text-signal-positive";
-
-  return (
-    <div className="rounded-xl border border-border bg-muted/15 p-4">
-      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-      <div className="mt-3 space-y-2">
-        {items.map((item) => (
-          <div key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
-            <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${tone}`} />
-            <span>{item}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function MiniMetric({ label, value }: { label: string; value: string }) {
   return (

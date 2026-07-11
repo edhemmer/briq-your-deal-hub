@@ -268,7 +268,7 @@ const ContractIQ = () => {
                   onClick={() => setShowManual((s) => !s)}
                   className="mt-2 text-[11px] text-primary hover:underline"
                 >
-                  {showManual ? "Hide manual entry" : "Or enter terms manually"}
+                  {showManual ? "Hide contract fields" : "Add contract fields"}
                 </button>
               </div>
             ) : (

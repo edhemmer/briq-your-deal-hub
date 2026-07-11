@@ -152,7 +152,7 @@ export function ContractIntakeUploader({ onExtracted }: ContractIntakeUploaderPr
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Extraction failed";
       setError(msg);
-      setExtractionWarning("Contract extraction did not complete. You can still enter terms manually, but ContractIQ confidence will depend on the fields you verify.");
+      setExtractionWarning("Contract extraction did not complete. Terms BRIX could not read remain blank and will lower confidence until verified.");
       toast({ title: "Extraction failed", description: msg, variant: "destructive" });
     } finally {
       setBusy(null);

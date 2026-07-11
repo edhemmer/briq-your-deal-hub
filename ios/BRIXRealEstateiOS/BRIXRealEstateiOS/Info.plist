@@ -31,7 +31,7 @@
 	<key>BRIX_SUPABASE_PUBLISHABLE_KEY</key>
 	<string>sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f</string>
 	<key>NSCameraUsageDescription</key>
-	<string>BRIX uses the camera to capture property photos, videos, and documents for the Property Digital Twin and field due diligence.</string>
+	<string>BRIX uses the camera to capture property photos, videos, and documents for deal files and field due diligence.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>BRIX uses the microphone only when you record voice notes for property walkthroughs.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

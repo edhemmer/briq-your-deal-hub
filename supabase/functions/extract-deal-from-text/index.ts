@@ -26,6 +26,24 @@ const firstURL = (text: string) => text.match(/https?:\/\/[^\s"'<>]+/i)?.[0] ?? 
 
 const hasAny = (text: string, patterns: RegExp[]) => patterns.some((pattern) => pattern.test(text));
 
+const isPlausibleAnnualPropertyTax = (value: number) => Number.isFinite(value) && value >= 500 && value <= 250000;
+
+const STATE_CODES = new Set([
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA",
+  "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK",
+  "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC",
+]);
+
+function titleCase(value: string | null | undefined) {
+  if (!value) return null;
+  return value
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.length <= 2 && STATE_CODES.has(part.toUpperCase()) ? part.toUpperCase() : part[0].toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function extractPhotoUrls(text: string) {
   const urls = text.match(/https?:\/\/[^\s"'<>]+?\.(?:jpg|jpeg|png|webp|avif)(?:\?[^\s"'<>]*)?/gi) ?? [];
   return Array.from(new Set(urls)).slice(0, 12);
@@ -40,13 +58,20 @@ function parseListingURL(urlString: string | null): {
   if (!urlString) return {};
   try {
     const url = new URL(urlString);
-    const marker = "/homedetails/";
-    const markerIndex = url.pathname.indexOf(marker);
-    if (markerIndex === -1) return {};
+    const slugCandidates = decodeURIComponent(url.pathname)
+      .split("/")
+      .filter(Boolean)
+      .map((segment) => segment
+        .replace(/_zpid.*$/i, "")
+        .replace(/\d+_zpid.*$/i, "")
+        .replace(/\b(?:home|homes|details|property|real-estate|for-sale|listing|listings|house|houses)\b/gi, " ")
+        .replace(/[-_]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim(),
+      )
+      .filter((segment) => /\d{1,6}\s+\S+/.test(segment) || /\b[A-Z]{2}\s+\d{5}\b/i.test(segment));
 
-    const slug = decodeURIComponent(url.pathname)
-      .slice(markerIndex + marker.length)
-      .split("/")[0]
+    const slug = (slugCandidates.find((segment) => /\d{1,6}\s+\S+/.test(segment)) ?? slugCandidates.at(-1) ?? "")
       .replace(/_zpid.*$/i, "")
       .replace(/\d+_zpid.*$/i, "")
       .replace(/[-_]+/g, " ")
@@ -54,21 +79,27 @@ function parseListingURL(urlString: string | null): {
       .trim();
 
     if (!slug) return {};
-    const parts = slug.split(" ");
-    const zip = /^\d{5}$/.test(parts.at(-1) ?? "") ? parts.at(-1) : null;
-    const state = zip ? parts.at(-2) ?? null : null;
-    const city = zip ? parts.at(-3) ?? null : null;
-    const addressParts = zip ? parts.slice(0, -3) : parts;
+    const parts = slug.split(" ").filter(Boolean);
+    const zipIndex = parts.findLastIndex((part) => /^\d{5}$/.test(part));
+    const zip = zipIndex >= 0 ? parts[zipIndex] : null;
+    const state = zipIndex > 0 && STATE_CODES.has((parts[zipIndex - 1] ?? "").toUpperCase()) ? parts[zipIndex - 1].toUpperCase() : null;
+    const city = state && zipIndex > 1 ? parts[zipIndex - 2] : null;
+    const addressParts = zip && state ? parts.slice(0, Math.max(0, zipIndex - 2)) : parts;
 
     return {
-      property_address: addressParts.join(" ") || null,
-      city,
+      property_address: titleCase(addressParts.join(" ")) || null,
+      city: titleCase(city),
       state,
       zip_code: zip,
     };
   } catch {
     return {};
   }
+}
+
+function extractTaxYear(text: string) {
+  const match = text.match(/\b(20\d{2})\s*(?:property\s*)?(?:tax|taxes)\b|\b(?:property\s*)?(?:tax|taxes)\s*(?:year)?\s*(20\d{2})\b/i);
+  return match?.[1] ?? match?.[2] ?? null;
 }
 
 function applyExtractionGuardrails(
@@ -105,14 +136,22 @@ function applyExtractionGuardrails(
     guarded.strategy_primary = null;
   }
 
-  const hasUserSuppliedOfficialTax = hasAny(userText, [
-    /(?:county|assessor|treasurer|tax bill|tax history|official record|property tax)[^\d$]{0,40}\$?\s*[\d,]{3,8}/i,
+  const hasListingTax = hasAny(extractionText, [
+    /(?:20\d{2}\s*)?(?:property\s*)?(?:tax|taxes|annual tax|tax amount|tax assessed)[^\d$]{0,40}\$?\s*[\d,]{3,8}/i,
+    /\$?\s*[\d,]{3,8}[^\n]{0,40}(?:20\d{2}\s*)?(?:property\s*)?(?:tax|taxes|annual tax)/i,
   ]);
-  if (!hasUserSuppliedOfficialTax) {
-    guarded.annual_property_tax = null;
-    guarded.taxes = null;
-  } else if (typeof guarded.annual_property_tax === "number") {
+  if (hasListingTax && typeof deterministic.annual_property_tax === "number" && typeof guarded.annual_property_tax !== "number") {
+    guarded.annual_property_tax = deterministic.annual_property_tax;
+  }
+  if (typeof guarded.annual_property_tax === "number") {
+    if (!isPlausibleAnnualPropertyTax(guarded.annual_property_tax)) {
+      guarded.annual_property_tax = null;
+    }
+  }
+  if (typeof guarded.annual_property_tax === "number") {
     guarded.taxes = guarded.annual_property_tax;
+  } else {
+    guarded.taxes = null;
   }
 
   const questions = Array.isArray(guarded.missing_questions) ? [...guarded.missing_questions] : [];
@@ -122,7 +161,14 @@ function applyExtractionGuardrails(
   if (!guarded.monthly_rent) addQuestion("Verify market rent with reliable rent comps.");
   if (!guarded.insurance) addQuestion("Obtain an annual insurance quote.");
   if (!guarded.estimated_arv) addQuestion("Verify resale value or ARV with relevant comps.");
-  if (!guarded.annual_property_tax) addQuestion("Open county tax records and enter the last three years of property taxes.");
+  const taxYear = extractTaxYear(extractionText);
+  if (guarded.annual_property_tax) {
+    addQuestion(`${taxYear ? `${taxYear} ` : ""}property tax was found in the listing. Verify it against county records and add prior-year history if available.`);
+  } else if (hasListingTax) {
+    addQuestion("A tax-related value was found, but BRIX did not treat it as annual property tax. Verify taxes against county records.");
+  } else {
+    addQuestion("Open county tax records and enter the last three years of property taxes.");
+  }
   guarded.missing_questions = questions;
 
   return guarded;
@@ -139,22 +185,22 @@ async function fetchListingPage(urlString: string) {
     });
 
     if (!response.ok) {
-      return { text: "", warning: `The listing page returned HTTP ${response.status}. Paste listing text or screenshots to extract more fields.` };
+      return { text: "", warning: `The listing page returned HTTP ${response.status}. Unsupported fields will remain blank until readable listing facts or evidence are available.` };
     }
 
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
-      return { text: "", warning: "The listing URL did not return readable page content. Paste listing text or upload screenshots to extract more fields." };
+      return { text: "", warning: "The listing page did not return readable content. BRIX will keep unsupported fields blank until readable listing facts or evidence are available." };
     }
 
     const html = await response.text();
     const text = htmlToReadableListingText(html);
     if (text.length < 80) {
-      return { text, warning: "The listing page did not expose enough readable content. Paste listing text or upload screenshots to extract more fields." };
+      return { text, warning: "The listing page exposed limited readable content. BRIX will fill supported fields and keep unsupported fields blank." };
     }
     return { text, warning: "" };
   } catch {
-    return { text: "", warning: "BRIX could not read that listing page. Paste listing text or upload screenshots to extract more fields." };
+    return { text: "", warning: "BRIX could not read that listing page. Unsupported fields will remain blank until readable listing facts or evidence are available." };
   }
 }
 
@@ -208,8 +254,10 @@ function deterministicListingExtract(listingText: string) {
     /\$\s*([\d,]{5,9})\b/,
   ]));
   const taxes = toNumber(firstMatch(text, [
-    /(?:taxes|property tax|annual tax)[^\d$]{0,20}\$?\s*([\d,]{3,8})/i,
+    /(?:20\d{2}\s*)?(?:property\s*)?(?:taxes|tax|annual tax|tax amount|tax assessed)[^\d$]{0,40}\$?\s*([\d,]{3,8})/i,
+    /\$?\s*([\d,]{3,8})[^\n]{0,40}(?:20\d{2}\s*)?(?:property\s*)?(?:taxes|tax|annual tax)/i,
   ]));
+  const taxYear = extractTaxYear(text);
 
   const lower = text.toLowerCase();
   const propertyType =
@@ -259,7 +307,7 @@ function deterministicListingExtract(listingText: string) {
     photo_urls: extractPhotoUrls(text),
     missing_questions: [
       "Verify rent comps with a reliable source.",
-      "Verify taxes from official records.",
+      taxes ? `${taxYear ? `${taxYear} ` : ""}property tax was found in the listing. Verify it against county records and add prior-year history if available.` : "Verify taxes from official records.",
       "Verify insurance quote before offer.",
       "Verify condition through inspection or field photos.",
     ],
@@ -333,6 +381,7 @@ serve(async (req) => {
   "estimated_arv": number | null,
   "monthly_rent": number | null,
   "annual_property_tax": number | null,
+  "property_tax_year": string | null,
   "taxes": number | null,
   "insurance": number | null,
   "beds": number | null,
@@ -347,6 +396,7 @@ serve(async (req) => {
   "source_confidence": "low" | "medium" | "high"
 }
 Only extract facts actually present in the text. Do not invent rent, taxes, ARV, expenses, condition, strategy, or risk values. Put unknown diligence items in missing_questions.
+If the listing states a property tax amount or tax year, extract it as listing-stated data. It is acceptable to extract listing-stated taxes, but include a missing_questions item telling the user to verify taxes against county records.
 Do not extract insurance from mortgage calculators, payment estimates, affordability widgets, or general listing estimates. Use null unless an actual insurance quote or premium is explicitly supplied by the user.
 Do not infer an investment strategy unless the text explicitly states one.
 Do not include any markdown formatting, code fences, or explanation. Only output the JSON object.`

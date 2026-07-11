@@ -2,9 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { evaluateBillingAccess, type BillingProfile } from "@/lib/billingAccess";
 import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
-
-const MAX_DEALS = 15;
 
 export function useDeals() {
   const { user } = useAuth();
@@ -23,6 +22,22 @@ export function useDeals() {
   });
 }
 
+export function useDealFileUsage() {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["deal-file-usage", user?.id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("deal_file_usage")
+        .select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!user,
+  });
+}
+
 export function useCreateDeal() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -31,20 +46,20 @@ export function useCreateDeal() {
     mutationFn: async (deal: Omit<TablesInsert<"deals">, "user_id">) => {
       if (!user) throw new Error("Not authenticated");
 
-      // Enforce 15-deal limit: delete oldest if at limit
-      const { count } = await supabase
-        .from("deals")
+      const { count: lifetimeDealCount } = await supabase
+        .from("deal_file_usage")
         .select("*", { count: "exact", head: true });
 
-      if (count !== null && count >= MAX_DEALS) {
-        const { data: oldest } = await supabase
-          .from("deals")
-          .select("id")
-          .order("created_at", { ascending: true })
-          .limit(1);
-        if (oldest && oldest.length > 0) {
-          await supabase.from("deals").delete().eq("id", oldest[0].id);
-        }
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("subscription_status, free_deal_used, admin_override, manual_premium_override, stripe_customer_id, stripe_subscription_id")
+        .eq("id", user.id)
+        .single();
+      if (profileError) throw profileError;
+
+      const access = evaluateBillingAccess(profile as BillingProfile, lifetimeDealCount ?? 0);
+      if (!access.canCreateDeal) {
+        throw new Error(access.reason);
       }
 
       const { data, error } = await supabase
@@ -54,8 +69,7 @@ export function useCreateDeal() {
         .single();
       if (error) throw error;
 
-      // Mark free deal as used after first deal creation
-      if (count === 0 || count === null) {
+      if (lifetimeDealCount === 0 || lifetimeDealCount === null) {
         await supabase
           .from("profiles")
           .update({ free_deal_used: true })
@@ -66,6 +80,7 @@ export function useCreateDeal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deals"] });
+      queryClient.invalidateQueries({ queryKey: ["deal-file-usage"] });
       queryClient.invalidateQueries({ queryKey: ["profile"] });
     },
     onError: (error: Error) => {

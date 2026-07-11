@@ -13,7 +13,6 @@ import {
   Plus,
   ShieldAlert,
   SlidersHorizontal,
-  Trash2,
   Upload,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -25,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { useDeals, useDeleteDeal } from "@/hooks/useDeals";
+import { useDeals } from "@/hooks/useDeals";
 import { supabase } from "@/integrations/supabase/client";
 import { analyzeDeal, type AnalysisResult, type DealInput } from "@/lib/dealAnalysisEngine";
 import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
@@ -184,7 +183,6 @@ function scoreColor(score: number) {
 
 export function DealIQLanding() {
   const { data: deals, isLoading } = useDeals();
-  const deleteDeal = useDeleteDeal();
   const navigate = useNavigate();
   const liveDeals = deals ?? [];
   const rankedDeals = [...liveDeals].sort((a, b) => readiness(b) - readiness(a));
@@ -661,53 +659,11 @@ function EmptyDealCockpit() {
             <PrimaryButton>Start in FindIQ</PrimaryButton>
           </Link>
           <Button variant="outline" asChild>
-            <Link to="/dealiq/new">Add manually</Link>
+            <Link to="/dealiq/new">Add deal</Link>
           </Button>
         </div>
       </div>
     </CardContainer>
-  );
-}
-
-function DealRow({ deal, onOpen, onDelete }: { deal: Deal; onOpen: () => void; onDelete: () => void }) {
-  const score = readiness(deal);
-  const input = toDealInput(deal);
-  const analysis = analyzeDeal(input);
-  const intel = analyzeDealIntelligence(analysis);
-  const missing = missingInputs(deal);
-
-  return (
-    <div className="grid gap-4 p-4 md:p-5 lg:grid-cols-[minmax(0,1fr)_320px_120px] xl:grid-cols-[minmax(0,1fr)_420px_150px] lg:items-center">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="font-semibold text-foreground">{deal.property_address || "Unnamed property"}</h3>
-          <Badge variant="outline">{deal.strategy_primary ?? "Strategy needed"}</Badge>
-          {missing.length > 0 && (
-            <Badge className="border border-signal-warning/25 bg-signal-warning/10 text-signal-warning">
-              <ShieldAlert className="mr-1 h-3 w-3" />
-              {missing.length} to verify
-            </Badge>
-          )}
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {[deal.city, deal.state].filter(Boolean).join(", ") || "Location missing"} - {money(deal.purchase_price)} - {intel.decision}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
-        <Mini label="Ready" value={String(score)} tone={score >= 80 ? "good" : "warn"} />
-        <Mini label="Cap" value={pct(analysis.metrics.cap_rate)} tone={analysis.metrics.cap_rate >= 0.06 ? "good" : "warn"} />
-        <Mini label="CoC" value={pct(analysis.metrics.cash_on_cash)} tone={analysis.metrics.cash_on_cash >= 0.08 ? "good" : "warn"} />
-        <Mini label="Risk" value={String(intel.dealKillers.length + intel.warnings.length)} tone={intel.dealKillers.length ? "bad" : intel.warnings.length ? "warn" : "good"} />
-      </div>
-
-      <div className="flex gap-2 lg:justify-end">
-        <Button onClick={onOpen}>Open</Button>
-        <Button variant="ghost" size="icon" onClick={onDelete} aria-label="Delete deal">
-          <Trash2 className="h-4 w-4 text-destructive" />
-        </Button>
-      </div>
-    </div>
   );
 }
 

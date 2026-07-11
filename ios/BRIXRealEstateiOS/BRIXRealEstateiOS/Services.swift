@@ -82,6 +82,7 @@ struct BRIXAPIClient {
             zipCode: optionalText(draft.zipCode),
             propertyType: optionalText(draft.propertyType),
             purchasePrice: optionalNumber(draft.purchasePrice),
+            estimatedARV: optionalNumber(draft.estimatedARV),
             monthlyRent: optionalNumber(draft.monthlyRent),
             annualPropertyTax: optionalNumber(draft.annualTaxes),
             taxes: optionalNumber(draft.annualTaxes),
@@ -92,6 +93,10 @@ struct BRIXAPIClient {
             yearBuilt: optionalNumber(draft.yearBuilt),
             strategyPrimary: optionalText(draft.strategy),
             listingURL: optionalText(draft.listingURL),
+            listingPhotoURLs: optionalArray(draft.listingPhotoURLs),
+            conditionNotes: optionalArray(draft.conditionNotes),
+            visibleOrStatedRisks: optionalArray(draft.visibleOrStatedRisks),
+            missingQuestions: optionalArray(draft.missingQuestions),
             listingRemarks: optionalText(draft.notes),
             sourceConfidence: draft.sourceConfidence
         )
@@ -105,7 +110,10 @@ struct BRIXAPIClient {
     }
 
     func extractListing(from text: String, session: AuthSession?) async throws -> ExtractListingResponse {
-        let body = ["listing_text": text]
+        var body = ["listing_text": text]
+        if let url = ListingTextParser.firstURL(in: text) {
+            body["listing_url"] = url
+        }
         let data = try await send(path: "/functions/v1/extract-deal-from-text", method: "POST", body: body, session: session)
         return try decode(ExtractListingResponse.self, from: data)
     }
@@ -145,7 +153,10 @@ struct BRIXAPIClient {
             "password": password
         ]
         let data = try await send(path: "/auth/v1/signup", method: "POST", body: body, session: nil)
-        return try? decode(AuthSession.self, from: data)
+        if let directSession = try? decode(AuthSession.self, from: data) {
+            return directSession
+        }
+        return try decode(SignUpResponse.self, from: data).session
     }
 
     func sendPasswordReset(email: String) async throws {
@@ -273,6 +284,13 @@ struct BRIXAPIClient {
         let cleaned = value.replacingOccurrences(of: "$", with: "").replacingOccurrences(of: ",", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard let number = Double(cleaned), number > 0 else { return nil }
         return number
+    }
+
+    private func optionalArray(_ values: [String]) -> [String]? {
+        let cleaned = values
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { $0.isEmpty == false }
+        return cleaned.isEmpty ? nil : cleaned
     }
 }
 

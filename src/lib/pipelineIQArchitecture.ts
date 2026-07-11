@@ -62,7 +62,7 @@ export const pipelineStages: PipelineStage[] = [
   "Rejected",
 ];
 
-export const samplePipelineOpportunities: PipelineOpportunity[] = [
+export const regressionPipelineOpportunities: PipelineOpportunity[] = [
   {
     id: "pipe-sandhurst",
     address: "1019 Sandhurst Dr",

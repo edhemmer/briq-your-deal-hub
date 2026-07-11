@@ -40,13 +40,7 @@ import {
   type DollarImpact,
   type Perspective,
 } from "@/lib/contractIQEngine";
-import {
-  generateFullDealBookPDF,
-  generateHighlightBriefPDF,
-  generateAttorneyQuestionsPDF,
-  generateBrokerQuestionsPDF,
-  type ContractReportContext,
-} from "@/lib/contractReports";
+import type { ContractReportContext } from "@/lib/contractReports";
 import type { CanonicalContractExtraction } from "@/lib/contractDataMapper";
 import { ClauseEvidenceBlock } from "@/components/contractiq/ClauseEvidence";
 import {
@@ -205,9 +199,15 @@ const ContractAnalysisPage = () => {
     };
   };
 
-  const downloadReport = (kind: "full" | "highlight" | "attorney" | "broker") => {
+  const downloadReport = async (kind: "full" | "highlight" | "attorney" | "broker") => {
     const ctx = buildReportCtx();
     if (!ctx) return;
+    const {
+      generateFullDealBookPDF,
+      generateHighlightBriefPDF,
+      generateAttorneyQuestionsPDF,
+      generateBrokerQuestionsPDF,
+    } = await import("@/lib/contractReports");
     if (kind === "full") generateFullDealBookPDF(ctx);
     else if (kind === "highlight") generateHighlightBriefPDF(ctx);
     else if (kind === "attorney") generateAttorneyQuestionsPDF(ctx);

@@ -36,7 +36,7 @@ export default function Privacy() {
         </PolicySection>
 
         <PolicySection title="Third-Party Providers">
-          BRIX uses infrastructure and service providers such as Supabase for authentication, database, storage, and backend functions. Future property, market, insurance, tax, or payment providers may be added only when needed to provide BRIX functionality and must protect user data consistently with this policy.
+          BRIX uses trusted service providers for authentication, database, storage, secure processing, payments, support, and property-related data. Any provider used by BRIX must support the service and protect user data consistently with this policy.
         </PolicySection>
 
         <PolicySection title="Account Deletion">
@@ -44,7 +44,7 @@ export default function Privacy() {
         </PolicySection>
 
         <PolicySection title="Security">
-          BRIX uses authenticated API access, row-level security, private storage buckets, and service-role backend functions for privileged account operations. Users should not rely on estimates as verified facts; BRIX labels missing and estimated data to reduce false confidence.
+          BRIX uses authenticated access, row-level security, private storage, and protected server-side operations for sensitive account actions. Users should not rely on estimates as verified facts; BRIX labels missing and estimated data to reduce false confidence.
         </PolicySection>
 
         <PolicySection title="Contact">

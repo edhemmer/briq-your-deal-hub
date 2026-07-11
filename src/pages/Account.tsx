@@ -5,7 +5,7 @@ import { SectionContainer } from "@/components/ui/section-container";
 import { CardContainer } from "@/components/ui/card-container";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
-import { useDeals } from "@/hooks/useDeals";
+import { useDealFileUsage, useDeals } from "@/hooks/useDeals";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, ExternalLink, LogOut, Lock, Trash2 } from "lucide-react";
@@ -13,12 +13,11 @@ import { evaluateBillingAccess } from "@/lib/billingAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-const MAX_DEALS = 15;
-
 const Account = () => {
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
   const { data: deals } = useDeals();
+  const { data: lifetimeDealCount } = useDealFileUsage();
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
   const billingAccess = evaluateBillingAccess(profile ? {
@@ -28,7 +27,7 @@ const Account = () => {
     manual_premium_override: profile.manual_premium_override ?? false,
     stripe_customer_id: profile.stripe_customer_id,
     stripe_subscription_id: profile.stripe_subscription_id,
-  } : null, deals?.length ?? 0);
+  } : null, lifetimeDealCount ?? deals?.length ?? 0);
 
   const requestAccountDeletion = async () => {
     const confirmed = window.confirm(
@@ -80,9 +79,28 @@ const Account = () => {
               </Badge>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Deals Used</span>
-              <span className="text-foreground font-medium">{deals?.length ?? 0} / {MAX_DEALS}</span>
+              <span className="text-muted-foreground">Active deal files</span>
+              <span className="text-foreground font-medium">{deals?.length ?? 0}</span>
             </div>
+            {billingAccess.isFreeUser && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Free plan usage</span>
+                <span className="text-foreground font-medium">
+                  {billingAccess.dealCount} / {billingAccess.freeDealLimit}
+                </span>
+              </div>
+            )}
+            {!billingAccess.isFreeUser && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Deal file limit</span>
+                <span className="text-foreground font-medium">Unlimited</span>
+              </div>
+            )}
+            {billingAccess.isFreeUser && !billingAccess.canCreateDeal && (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-200">
+                {billingAccess.reason}
+              </div>
+            )}
           </div>
         </CardContainer>
 
@@ -93,7 +111,7 @@ const Account = () => {
           ) : (
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
               <Lock className="h-4 w-4 mt-0.5 shrink-0" />
-              <p>Subscription billing will be enabled once platform configuration is completed.</p>
+              <p>Billing management is not available for this account.</p>
             </div>
           )}
         </CardContainer>

@@ -60,7 +60,7 @@ export interface TransactionMilestone {
   status: "Upcoming" | "At Risk" | "Complete";
 }
 
-export const sampleOfferStrategies: Array<{
+export const regressionOfferStrategies: Array<{
   strategy: AcquisitionStrategy;
   fit: string;
   rationale: string;
@@ -86,7 +86,7 @@ export const sampleOfferStrategies: Array<{
   },
 ];
 
-export const sampleOfferStructures: OfferStructure[] = [
+export const regressionOfferStructures: OfferStructure[] = [
   {
     id: "offer-a",
     label: "Offer A - Protected Value",
