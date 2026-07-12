@@ -330,7 +330,7 @@ export function DealIQLanding() {
                 <Progress value={readiness(activeDeal)} className="h-2" />
                 <div className="mt-4 space-y-2">
                   {activeMissing.length === 0 ? (
-                    <ActionLine icon={CheckCircle2} text="Core inputs are present. Continue source review and stress testing." tone="good" />
+                    <ActionLine icon={CheckCircle2} text="Core inputs are present. Continue evidence review and stress testing." tone="good" />
                   ) : (
                     activeMissing.slice(0, 6).map((item) => (
                       <ActionLine key={item} icon={AlertTriangle} text={item} tone="warn" />

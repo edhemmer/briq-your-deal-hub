@@ -59,7 +59,7 @@ struct FindIQView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Property source")
+                    Text("Property")
                         .font(.subheadline.weight(.bold))
                     TextField("", text: $quickStart, axis: .vertical)
                         .textInputAutocapitalization(.words)
@@ -156,7 +156,7 @@ struct FindIQView: View {
             HStack {
                 Image(systemName: "checkmark.seal.fill")
                     .foregroundStyle(.green)
-                Text("Deal packet ready")
+                Text("Ready to create")
                     .font(.subheadline.weight(.bold))
                 Spacer()
             }
@@ -273,7 +273,7 @@ struct FindIQView: View {
         }
 
         if draft.trimmedAddress.isEmpty {
-            intakeMessage = "BRIX could not find a property address in that source."
+            intakeMessage = "BRIX could not find a property address."
             return
         }
 

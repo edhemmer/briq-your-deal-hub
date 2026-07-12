@@ -25,7 +25,7 @@ struct TodayDecisionView: View {
                             SectionHeader(title: "Next Actions", subtitle: "Work that improves confidence fastest.", symbol: "checklist")
                             let missing = deal.missingInputs
                             if missing.isEmpty {
-                                ActionRow(title: "Run source review, stress case, and professional diligence before committing capital.", severity: .info)
+                                ActionRow(title: "Run evidence review, stress case, and professional diligence before committing capital.", severity: .info)
                             } else {
                                 ForEach(missing.prefix(4), id: \.self) { item in
                                     ActionRow(title: "Verify \(item.lowercased()).", severity: .caution)

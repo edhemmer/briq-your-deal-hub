@@ -144,7 +144,7 @@ export default function Index() {
                       </div>
                       <Progress value={primaryScore} className="mt-2 h-2" />
                       <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                        {primaryMissing.length === 0 ? "Ready for scenario and source review." : `${primaryMissing.length} item${primaryMissing.length === 1 ? "" : "s"} blocking confidence.`}
+                        {primaryMissing.length === 0 ? "Ready for scenario and evidence review." : `${primaryMissing.length} item${primaryMissing.length === 1 ? "" : "s"} blocking confidence.`}
                       </p>
                     </div>
                   </div>
@@ -184,7 +184,7 @@ export default function Index() {
                     <CheckCircle2 className="mt-0.5 h-5 w-5 text-signal-positive" />
                     <div>
                       <p className="font-semibold text-foreground">Core inputs are present</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Continue with source review, scenarios, and professional diligence before committing.</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Continue with evidence review, scenarios, and professional diligence before committing.</p>
                     </div>
                   </div>
                 </div>
@@ -209,7 +209,7 @@ export default function Index() {
               <PanelTitle
                 icon={BarChart3}
                 title="Deal Queue"
-                subtitle="The active properties in your workspace."
+                subtitle="The active properties you are evaluating."
               />
               <div className="grid gap-3">
                 {activeDeals.slice(0, 6).map((deal, index) => (

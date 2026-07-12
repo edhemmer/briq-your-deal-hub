@@ -128,6 +128,8 @@ describe("app route regression", () => {
     expect(iosAppStateSource).toContain("Sign in to continue.");
     expect(iosFindIQSource).toContain("appState.extractListing");
     expect(iosFindIQSource).not.toContain("BRIXAPIClient().extractListing");
+    expect(iosFindIQSource).not.toContain("Deal packet ready");
+    expect(iosFindIQSource).not.toContain("Property source");
     expect(iosAppStateSource).toContain("apiClient.requestAccountDeletion");
     expect(iosAccountSource).toContain("appState.requestAccountDeletion");
     expect(iosAccountSource).not.toContain("apiClient.requestAccountDeletion");
@@ -141,8 +143,10 @@ describe("app route regression", () => {
     expect(findIQSource).toContain("Deal intake");
     expect(findIQSource).not.toContain("Start property");
     expect(dashboardSource).not.toContain("Start Property");
+    expect(dashboardSource).not.toContain("workspace");
     expect(dashboardSource).toContain("property address or listing link");
     expect(dealIQLandingSource).not.toContain("<span className=\"hidden sm:inline\">Import</span>");
+    expect(dealIQLandingSource).not.toContain("Continue source review");
     expect(dealCompareSource).toContain("Start in FindIQ");
     expect(dealCompareSource).not.toContain("Start Property");
     expect(offerIQSource).not.toContain("FileSignature");
@@ -164,6 +168,8 @@ describe("app route regression", () => {
     expect(findIQSource).toContain("formatPropertyIdentity");
     expect(findIQSource).toContain("setQuickParsedFields");
     expect(analysisContextGateSource).toContain("Confirm Deal Setup");
+    expect(analysisContextGateSource).toContain("const nextCountry = e.target.value");
+    expect(analysisContextGateSource).toContain("const nextRegion = e.target.value");
     expect(helpContentSource).toContain("Enter a property address or listing link");
     expect(helpContentSource).not.toContain("Create an acquisition profile");
     expect(helpContentSource).not.toContain("admin console tracks");

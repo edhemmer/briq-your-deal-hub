@@ -104,7 +104,7 @@ const extractDealFromListingUrl = (input: string): ExtractedDeal | null => {
       "Confirm listing facts against official records or supporting documents before relying on the analysis.",
     ],
     visible_or_stated_risks: [
-      "Listing-link extraction returned address-level facts only; unsupported fields remain blank until BRIX reads more evidence.",
+      "BRIX found address-level facts from the listing link. Review the deal file and add any missing evidence before relying on the analysis.",
     ],
   };
 };
@@ -168,7 +168,7 @@ export function DealImageUpload({ onExtracted }: DealImageUploadProps) {
         handleExtractionResponse(data as ExtractionResponse);
       } catch (err: unknown) {
         console.error("Extraction error:", err);
-        setExtractionWarning("BRIX could not complete image extraction. The image remains useful evidence, but unsupported fields stay blank until they are read from another source.");
+        setExtractionWarning("BRIX could not complete image extraction. The image is saved as evidence and can still support manual review.");
         toast.error("Image extraction unavailable.");
       } finally {
         setIsExtracting(false);

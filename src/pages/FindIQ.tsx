@@ -249,7 +249,7 @@ export default function FindIQ() {
           propertyAddress = parsed.property_address || result.formatted_address?.split(",")[0] || propertyAddress;
         }
       } catch {
-        // Fall back to parsed text and leave unsupported fields blank.
+        // Fall back to parsed text and keep the deal creation workflow moving.
       }
     }
 

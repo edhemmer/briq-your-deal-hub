@@ -27,7 +27,7 @@ struct StrategyLabView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             SectionHeader(title: "Required Inputs", subtitle: "Missing facts lower confidence until verified.", symbol: "checklist")
                             if deal.missingInputs.isEmpty {
-                                Text("Core mobile deal inputs are present. Continue with source review and stress-case analysis.")
+                                Text("Core deal inputs are present. Continue with evidence review and stress-case analysis.")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             } else {

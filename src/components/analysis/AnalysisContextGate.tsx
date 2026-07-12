@@ -160,7 +160,11 @@ export function AnalysisContextGate({ onContextComplete, initialContext }: Analy
               <Label className="text-xs text-muted-foreground">Country</Label>
               <Input
                 value={intlCountry}
-                onChange={e => { setIntlCountry(e.target.value); setAssetType(intlCountry ? "international" : ""); }}
+                onChange={e => {
+                  const nextCountry = e.target.value;
+                  setIntlCountry(nextCountry);
+                  setAssetType(nextCountry && intlRegion ? "international" : "");
+                }}
                 onBlur={() => { if (intlCountry && intlRegion) setAssetType("international"); }}
                 className="h-9"
               />
@@ -169,7 +173,11 @@ export function AnalysisContextGate({ onContextComplete, initialContext }: Analy
               <Label className="text-xs text-muted-foreground">Region / City</Label>
               <Input
                 value={intlRegion}
-                onChange={e => { setIntlRegion(e.target.value); }}
+                onChange={e => {
+                  const nextRegion = e.target.value;
+                  setIntlRegion(nextRegion);
+                  setAssetType(intlCountry && nextRegion ? "international" : "");
+                }}
                 onBlur={() => { if (intlCountry && intlRegion) setAssetType("international"); }}
                 className="h-9"
               />
