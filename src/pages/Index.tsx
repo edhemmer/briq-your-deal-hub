@@ -3,16 +3,12 @@ import type { ElementType } from "react";
 import {
   AlertTriangle,
   ArrowRight,
-  Activity,
   BarChart3,
   CheckCircle2,
   ClipboardCheck,
-  Compass,
-  FileSignature,
   Gauge,
   Home,
   ShieldCheck,
-  Sparkles,
   Target,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -94,14 +90,11 @@ export default function Index() {
               Deal Dashboard
             </h1>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Open the next property, close verification gaps, compare active deals, and move the strongest file forward.
+              Your working list of properties, missing proof, and the next deal to underwrite.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button size="sm" asChild>
-                <Link to="/findiq">Find an address</Link>
-              </Button>
-              <Button size="sm" variant="outline" asChild>
-                <Link to="/findiq">Start property</Link>
+                <Link to="/findiq">Start with an address</Link>
               </Button>
               <Button size="sm" variant="outline" asChild>
                 <Link to="/dealiq/compare">Compare active deals</Link>
@@ -121,15 +114,12 @@ export default function Index() {
         <EmptyDealDashboard />
       ) : (
         <>
-          <DealJourney activeDeals={activeDeals.length} readyCount={readyCount} needsVerification={needsVerification} />
-
           <section className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
             <CardContainer className="relative overflow-hidden space-y-5">
-              <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
               <PanelTitle
                 icon={Target}
-                title="Active Deal File"
-                subtitle="The property you are working now, what is known, and what still needs proof."
+                title="Current Property"
+                subtitle="Open this file in DealIQ when you are ready to review numbers, risk, and strategy."
               />
               {primaryDeal && (
                 <div className="relative rounded-2xl border border-border/70 bg-background/45 p-4">
@@ -179,9 +169,6 @@ export default function Index() {
                 <Button variant="outline" asChild>
                   <Link to="/dealiq/compare">Compare active deals</Link>
                 </Button>
-                <Button variant="outline" asChild>
-                  <Link to="/findiq">Start property</Link>
-                </Button>
               </div>
             </CardContainer>
 
@@ -189,7 +176,7 @@ export default function Index() {
               <PanelTitle
                 icon={ShieldCheck}
                 title="Verification"
-                subtitle="What must be confirmed before relying on the recommendation."
+                subtitle="What must be confirmed before BRIX can raise confidence."
               />
               {primaryMissing.length === 0 ? (
                 <div className="rounded-2xl border border-signal-positive/25 bg-signal-positive/10 p-4">
@@ -212,7 +199,7 @@ export default function Index() {
                 </div>
               )}
               <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-                BRIX can help structure the decision, but your buy/renegotiate/pass decision should stay provisional until source quality is strong enough.
+                Treat the recommendation as provisional until the missing items are confirmed.
               </div>
             </CardContainer>
           </section>
@@ -222,7 +209,7 @@ export default function Index() {
               <PanelTitle
                 icon={BarChart3}
                 title="Deal Queue"
-                subtitle="Open deal files prioritized by readiness, missing information, and next action."
+                subtitle="The active properties in your workspace."
               />
               <div className="grid gap-3">
                 {activeDeals.slice(0, 6).map((deal, index) => (
@@ -234,7 +221,7 @@ export default function Index() {
             <CardContainer className="space-y-4">
               <PanelTitle
                 icon={ClipboardCheck}
-                title="Next Best Actions"
+                title="Next Actions"
                 subtitle="The work that improves confidence fastest."
               />
               <ActionLine tone="caution" text="Verify rent support with comps or a lease/rent roll." />
@@ -283,49 +270,6 @@ function EmptyDealDashboard() {
         <ActionLine tone="neutral" text="Estimates are never presented as facts." />
         <ActionLine tone="neutral" text="Missing rent, insurance, taxes, or rehab scope lowers confidence." />
       </CardContainer>
-    </section>
-  );
-}
-
-function DealJourney({ activeDeals, readyCount, needsVerification }: { activeDeals: number; readyCount: number; needsVerification: number }) {
-  const steps = [
-    { label: "Find", detail: `${activeDeals} deal file${activeDeals === 1 ? "" : "s"}`, icon: Compass, tone: activeDeals > 0 ? "positive" : "neutral" as Tone },
-    { label: "Prepare", detail: "Notes, tasks, contact", icon: Activity, tone: activeDeals > 0 ? "positive" : "neutral" as Tone },
-    { label: "Analyze", detail: needsVerification > 0 ? `${needsVerification} to verify` : "Inputs clean", icon: BarChart3, tone: needsVerification > 0 ? "caution" : "positive" as Tone },
-    { label: "Contract", detail: "Terms and risk", icon: FileSignature, tone: "neutral" as Tone },
-    { label: "Learn", detail: `${readyCount} actionable`, icon: Sparkles, tone: readyCount > 0 ? "positive" : "neutral" as Tone },
-  ];
-
-  return (
-    <section className="ios-material relative overflow-hidden rounded-2xl p-4">
-      <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">From property to decision record</h2>
-        </div>
-        <p className="text-sm text-muted-foreground">Source, prepare, underwrite, pursue, close or pass, learn.</p>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        {steps.map((step) => (
-          <div
-            key={step.label}
-            className={cn(
-              "ios-pressable group relative overflow-hidden rounded-xl border bg-background/55 p-3 transition-colors hover:border-primary/35 hover:bg-muted/35",
-              step.tone === "positive" && "border-signal-positive/25 bg-signal-positive/5",
-              step.tone === "caution" && "border-signal-warning/25 bg-signal-warning/5",
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <span className={cn("flex h-8 w-8 items-center justify-center rounded-xl bg-muted text-muted-foreground", step.tone === "positive" && "bg-signal-positive/10 text-signal-positive", step.tone === "caution" && "bg-signal-warning/10 text-signal-warning")}>
-                <step.icon className="h-4 w-4" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-foreground">{step.label}</p>
-                <p className="text-xs text-muted-foreground">{step.detail}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
     </section>
   );
 }

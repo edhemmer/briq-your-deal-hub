@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, BarChart3, Building2, CircleDollarSign, Landmark, LineChart, Plus, Save, ShieldCheck } from "lucide-react";
+import { ArrowRight, BarChart3, Building2, CircleDollarSign, Landmark, LineChart, Save, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionContainer } from "@/components/ui/section-container";
 import { CardContainer } from "@/components/ui/card-container";
@@ -39,12 +39,6 @@ export default function PortfolioIQ() {
         >
           <Save className="mr-2 h-4 w-4" />
           {saveSnapshot.isPending ? "Saving" : "Save review"}
-        </Button>
-        <Button asChild>
-          <Link to="/findiq">
-            <Plus className="mr-2 h-4 w-4" />
-            Add property
-          </Link>
         </Button>
       </PageHeader>
 
@@ -174,9 +168,6 @@ function EmptyPortfolio({ title, body }: { title: string; body: string }) {
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Button asChild>
           <Link to="/pipelineiq">Open PipelineIQ</Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link to="/findiq">Add property</Link>
         </Button>
       </div>
     </div>

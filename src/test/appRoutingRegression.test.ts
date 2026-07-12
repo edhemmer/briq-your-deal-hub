@@ -4,10 +4,24 @@ import { describe, expect, it } from "vitest";
 
 const appSource = readFileSync(resolve(process.cwd(), "src/App.tsx"), "utf8");
 const findIQSource = readFileSync(resolve(process.cwd(), "src/pages/FindIQ.tsx"), "utf8");
+const dealIQLandingSource = readFileSync(resolve(process.cwd(), "src/components/dealiq/DealIQLanding.tsx"), "utf8");
+const offerIQSource = readFileSync(resolve(process.cwd(), "src/pages/OfferIQ.tsx"), "utf8");
+const pipelineIQSource = readFileSync(resolve(process.cwd(), "src/pages/PipelineIQ.tsx"), "utf8");
+const portfolioIQSource = readFileSync(resolve(process.cwd(), "src/pages/PortfolioIQ.tsx"), "utf8");
+const reportsSource = readFileSync(resolve(process.cwd(), "src/pages/Reports.tsx"), "utf8");
+const appLayoutSource = readFileSync(resolve(process.cwd(), "src/components/AppLayout.tsx"), "utf8");
+const topNavSource = readFileSync(resolve(process.cwd(), "src/components/TopNav.tsx"), "utf8");
 const dealsHookSource = readFileSync(resolve(process.cwd(), "src/hooks/useDeals.ts"), "utf8");
 const iosModelsSource = readFileSync(resolve(process.cwd(), "ios/BRIXRealEstateiOS/BRIXRealEstateiOS/AppModels.swift"), "utf8");
 const iosFindIQSource = readFileSync(resolve(process.cwd(), "ios/BRIXRealEstateiOS/BRIXRealEstateiOS/FindIQView.swift"), "utf8");
 const iosDealIQSource = readFileSync(resolve(process.cwd(), "ios/BRIXRealEstateiOS/BRIXRealEstateiOS/DealIQCockpitView.swift"), "utf8");
+const iosOfferIQSource = readFileSync(resolve(process.cwd(), "ios/BRIXRealEstateiOS/BRIXRealEstateiOS/OfferIQView.swift"), "utf8");
+const iosPipelineIQSource = readFileSync(resolve(process.cwd(), "ios/BRIXRealEstateiOS/BRIXRealEstateiOS/PipelineIQView.swift"), "utf8");
+const iosPortfolioIQSource = readFileSync(resolve(process.cwd(), "ios/BRIXRealEstateiOS/BRIXRealEstateiOS/PortfolioOSView.swift"), "utf8");
+const iosServicesSource = readFileSync(resolve(process.cwd(), "ios/BRIXRealEstateiOS/BRIXRealEstateiOS/Services.swift"), "utf8");
+const iosAppStateSource = readFileSync(resolve(process.cwd(), "ios/BRIXRealEstateiOS/BRIXRealEstateiOS/AppState.swift"), "utf8");
+const iosAccountSource = readFileSync(resolve(process.cwd(), "ios/BRIXRealEstateiOS/BRIXRealEstateiOS/AccountView.swift"), "utf8");
+const supabaseClientSource = readFileSync(resolve(process.cwd(), "src/integrations/supabase/client.ts"), "utf8");
 
 describe("app route regression", () => {
   it("keeps specific DealIQ routes before the optional deal id catch-all", () => {
@@ -97,5 +111,44 @@ describe("app route regression", () => {
     expect(iosFindIQSource).toContain("brixStrategyDefinitions");
     expect(iosDealIQSource).toContain("rankedStrategyDefinitions");
     expect(iosDealIQSource).toContain("Proof:");
+  });
+
+  it("refreshes native iOS Supabase sessions instead of surfacing expired JWT errors", () => {
+    expect(iosServicesSource).toContain("grant_type=refresh_token");
+    expect(iosServicesSource).toContain("func refreshSession");
+    expect(iosAppStateSource).toContain("func extractListing(from text: String)");
+    expect(iosAppStateSource).toContain("func requestAccountDeletion");
+    expect(iosAppStateSource).toContain("refreshStoredSession");
+    expect(iosAppStateSource).toContain("recoverExpiredSessionIfNeeded");
+    expect(iosAppStateSource).toContain("isExpiredAuthError");
+    expect(iosAppStateSource).toContain("Sign in to continue.");
+    expect(iosFindIQSource).toContain("appState.extractListing");
+    expect(iosFindIQSource).not.toContain("BRIXAPIClient().extractListing");
+    expect(iosAppStateSource).toContain("apiClient.requestAccountDeletion");
+    expect(iosAccountSource).toContain("appState.requestAccountDeletion");
+    expect(iosAccountSource).not.toContain("apiClient.requestAccountDeletion");
+    expect(supabaseClientSource).toContain("autoRefreshToken: true");
+    expect(supabaseClientSource).toContain("persistSession: true");
+  });
+
+  it("keeps module navigation focused on real workflow actions", () => {
+    expect(appLayoutSource).not.toContain("DealOperatingStrip");
+    expect(topNavSource).not.toContain("Search deals, addresses, reports");
+    expect(findIQSource).toContain("Deal intake");
+    expect(findIQSource).not.toContain("Start property");
+    expect(dealIQLandingSource).not.toContain("<span className=\"hidden sm:inline\">Import</span>");
+    expect(offerIQSource).not.toContain("FileSignature");
+    expect(pipelineIQSource).toContain("Start in FindIQ");
+    expect(portfolioIQSource).not.toContain("Add property");
+    expect(reportsSource).not.toContain("Open report tools");
+    expect(reportsSource).not.toContain('Link to="/dealiq/compare">Compare');
+  });
+
+  it("keeps native iOS module screens actionable instead of informational only", () => {
+    expect(iosOfferIQSource).toContain("Open DealIQ");
+    expect(iosOfferIQSource).toContain("appState.selectedTab = .deal");
+    expect(iosOfferIQSource).toContain("Start in FindIQ");
+    expect(iosPipelineIQSource).toContain("Start in FindIQ");
+    expect(iosPortfolioIQSource).toContain("Start in FindIQ");
   });
 });

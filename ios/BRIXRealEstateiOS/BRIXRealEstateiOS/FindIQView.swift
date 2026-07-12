@@ -219,7 +219,7 @@ struct FindIQView: View {
         defer { isExtracting = false }
 
         do {
-            let response = try await BRIXAPIClient().extractListing(from: text, session: appState.session)
+            let response = try await appState.extractListing(from: text)
             draft.apply(response.extracted, originalText: text)
             intakeMessage = response.warning ?? "Fields filled from the listing. Review before saving."
         } catch {

@@ -136,10 +136,7 @@ function ReportRow({ deal, saving, onSave }: { deal: Deal; saving: boolean; onSa
           {saving ? "Saving" : "Save snapshot"}
         </Button>
         <Button asChild>
-          <Link to={`/dealiq/${deal.id}`}>Open report tools</Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link to="/dealiq/compare">Compare</Link>
+          <Link to={`/dealiq/${deal.id}`}>Open DealIQ</Link>
         </Button>
       </div>
     </div>
@@ -154,10 +151,7 @@ function EmptyReports({ title, body }: { title: string; body: string }) {
       <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{body}</p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Button asChild>
-          <Link to="/findiq">Add property</Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link to="/dealiq">Open DealIQ</Link>
+          <Link to="/findiq">Start in FindIQ</Link>
         </Button>
       </div>
     </div>

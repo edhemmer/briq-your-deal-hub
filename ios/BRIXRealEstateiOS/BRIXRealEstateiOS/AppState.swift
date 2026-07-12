@@ -16,7 +16,7 @@ final class BRIXAppState {
     var portfolioMetrics: [PortfolioMetric] = []
     var queuedOfflineActions: [OfflineAction] = []
     var investorLevel: InvestorLevel = .firstDeal
-    var didRestoreSession = true
+    var didRestoreSession = false
     var isLoading = false
     var lastError: String?
     var lastNotice: String?
@@ -44,7 +44,12 @@ final class BRIXAppState {
 
     func restore() async {
         if let savedSession = sessionStore.loadSession() {
-            authState = .signedIn(savedSession)
+            if let freshSession = await refreshStoredSession(savedSession) {
+                authState = .signedIn(freshSession)
+            } else {
+                sessionStore.clear()
+                authState = .signedOut
+            }
             didRestoreSession = true
             await refresh()
             return
@@ -65,7 +70,9 @@ final class BRIXAppState {
         defer { isLoading = false }
 
         do {
-            let fetchedDeals = try await apiClient.fetchDeals(session: session)
+            let fetchedDeals = try await authenticatedRequest { session in
+                try await apiClient.fetchDeals(session: session)
+            }
             deals = fetchedDeals
             if selectedDealID == nil || deals.contains(where: { $0.id == selectedDealID }) == false {
                 selectedDealID = deals.first?.id
@@ -74,7 +81,7 @@ final class BRIXAppState {
             await loadSelectedDecision()
             await loadFieldCaptureAnalyses()
         } catch {
-            lastError = error.localizedDescription
+            lastError = brixAppMessage(error)
         }
     }
 
@@ -93,9 +100,14 @@ final class BRIXAppState {
         }
 
         do {
-            selectedDecisionSnapshot = try await apiClient.fetchDecisionSnapshot(dealID: dealID, session: session)
+            selectedDecisionSnapshot = try await authenticatedRequest { session in
+                try await apiClient.fetchDecisionSnapshot(dealID: dealID, session: session)
+            }
         } catch {
             selectedDecisionSnapshot = nil
+            if isExpiredAuthError(error) {
+                lastNotice = "Sign in to continue."
+            }
         }
     }
 
@@ -106,9 +118,14 @@ final class BRIXAppState {
         }
 
         do {
-            fieldCaptureAnalyses = try await apiClient.fetchFieldCaptureAnalyses(dealID: dealID, session: session)
+            fieldCaptureAnalyses = try await authenticatedRequest { session in
+                try await apiClient.fetchFieldCaptureAnalyses(dealID: dealID, session: session)
+            }
         } catch {
             fieldCaptureAnalyses = []
+            if isExpiredAuthError(error) {
+                lastNotice = "Sign in to continue."
+            }
         }
     }
 
@@ -157,7 +174,9 @@ final class BRIXAppState {
         do {
             try await apiClient.signOut(session: session)
         } catch {
-            lastError = error.localizedDescription
+            if isExpiredAuthError(error) == false {
+                lastError = brixAppMessage(error)
+            }
         }
         sessionStore.clear()
         authState = .signedOut
@@ -181,12 +200,14 @@ final class BRIXAppState {
         queuedOfflineActions.append(OfflineAction(id: UUID(uuidString: localID) ?? UUID(), title: "\(captureType) capture", detail: selectedDeal.title, uploadState: .uploading))
 
         do {
-            try await apiClient.uploadFieldCapture(propertyID: selectedDeal.id, payload: payload, imageData: imageData, session: session)
+            try await authenticatedRequest { session in
+                try await apiClient.uploadFieldCapture(propertyID: selectedDeal.id, payload: payload, imageData: imageData, session: session)
+            }
             updateQueue(localIdentifier: localID, state: .uploaded)
             await loadFieldCaptureAnalyses()
         } catch {
             updateQueue(localIdentifier: localID, state: .failed)
-            lastError = error.localizedDescription
+            lastError = brixAppMessage(error)
         }
     }
 
@@ -201,7 +222,9 @@ final class BRIXAppState {
         defer { isLoading = false }
 
         do {
-            let createdDeal = try await apiClient.createDeal(draft, session: session)
+            let createdDeal = try await authenticatedRequest { session in
+                try await apiClient.createDeal(draft, session: session)
+            }
             deals.insert(createdDeal, at: 0)
             selectedDealID = createdDeal.id
             if openInDealIQ {
@@ -216,18 +239,123 @@ final class BRIXAppState {
         }
     }
 
+    func extractListing(from text: String) async throws -> ExtractListingResponse {
+        try await authenticatedRequest { session in
+            try await apiClient.extractListing(from: text, session: session)
+        }
+    }
+
+    func requestAccountDeletion(reason: String?) async -> Bool {
+        guard authState.isSignedIn else {
+            lastError = "Sign in to continue."
+            return false
+        }
+
+        isLoading = true
+        lastError = nil
+        defer { isLoading = false }
+
+        do {
+            try await authenticatedRequest { session in
+                try await apiClient.requestAccountDeletion(reason: reason, session: session)
+            }
+            lastNotice = "Account deletion request submitted."
+            return true
+        } catch {
+            lastError = brixAppMessage(error)
+            return false
+        }
+    }
+
     private func updateQueue(localIdentifier: String, state: UploadState) {
         guard let uuid = UUID(uuidString: localIdentifier),
               let index = queuedOfflineActions.firstIndex(where: { $0.id == uuid }) else { return }
         queuedOfflineActions[index].uploadState = state
+    }
+
+    private func authenticatedRequest<T>(_ operation: (AuthSession?) async throws -> T) async throws -> T {
+        do {
+            return try await operation(session)
+        } catch {
+            if await recoverExpiredSessionIfNeeded(from: error) {
+                return try await operation(session)
+            }
+            throw error
+        }
+    }
+
+    private func refreshStoredSession(_ savedSession: AuthSession) async -> AuthSession? {
+        guard let refreshToken = savedSession.refreshToken, refreshToken.isEmpty == false else {
+            return nil
+        }
+
+        do {
+            let freshSession = try await apiClient.refreshSession(refreshToken: refreshToken)
+            sessionStore.save(freshSession)
+            return freshSession
+        } catch {
+            return nil
+        }
+    }
+
+    private func recoverExpiredSessionIfNeeded(from error: Error) async -> Bool {
+        guard isExpiredAuthError(error),
+              let currentSession = session,
+              let refreshToken = currentSession.refreshToken,
+              refreshToken.isEmpty == false
+        else {
+            if isExpiredAuthError(error) {
+                await expireSession()
+            }
+            return false
+        }
+
+        do {
+            let freshSession = try await apiClient.refreshSession(refreshToken: refreshToken)
+            sessionStore.save(freshSession)
+            authState = .signedIn(freshSession)
+            return true
+        } catch {
+            await expireSession()
+            return false
+        }
+    }
+
+    private func expireSession() async {
+        sessionStore.clear()
+        authState = .signedOut
+        deals = []
+        selectedDealID = nil
+        selectedDecisionSnapshot = nil
+        fieldCaptureAnalyses = []
+        lastError = nil
+        lastNotice = "Sign in to continue."
+    }
+}
+
+func isExpiredAuthError(_ error: Error) -> Bool {
+    guard let apiError = error as? BRIXAPIError else {
+        let message = error.localizedDescription.lowercased()
+        return message.contains("jwt") || message.contains("expired") || message.contains("401")
+    }
+
+    switch apiError {
+    case .backend(let status, let message):
+        let lower = message.lowercased()
+        return status == 401 || lower.contains("jwt") || lower.contains("expired") || lower.contains("invalid token")
+    default:
+        return false
     }
 }
 
 func brixAppMessage(_ error: Error) -> String {
     if let apiError = error as? BRIXAPIError {
         switch apiError {
-        case .backend(_, let backendMessage):
+        case .backend(let status, let backendMessage):
             let lower = backendMessage.lowercased()
+            if status == 401 || lower.contains("jwt") || lower.contains("expired") {
+                return "Sign in to continue."
+            }
             if lower.contains("free plan includes 15 deal files") {
                 return "Free plan includes 15 deal files. Upgrade to create more deal files."
             }

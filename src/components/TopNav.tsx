@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { User, HelpCircle, ShieldCheck, LogOut, ChevronDown, Search } from "lucide-react";
+import { User, HelpCircle, ShieldCheck, LogOut, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -41,13 +41,7 @@ export function TopNav() {
           <span className="hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-none sm:inline">Real Estate</span>
         </Link>
 
-        <div className="hidden min-w-0 flex-1 justify-center px-6 xl:flex">
-          <div className="ios-control flex h-9 w-full max-w-[420px] items-center gap-2 px-3 text-sm text-muted-foreground">
-            <Search className="h-4 w-4 shrink-0" />
-            <span className="truncate">Search deals, addresses, reports</span>
-            <span className="ml-auto rounded-md border border-border/70 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">/</span>
-          </div>
-        </div>
+        <div className="hidden min-w-0 flex-1 xl:block" />
 
         <div className="flex items-center gap-1.5">
           <ThemeToggle />

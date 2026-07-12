@@ -19,6 +19,13 @@ struct PipelineIQView: View {
                                 Text("No active opportunities yet. Add a property in FindIQ to begin tracking it.")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
+                                Button {
+                                    appState.selectedTab = .find
+                                } label: {
+                                    Label("Start in FindIQ", systemImage: "magnifyingglass")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.borderedProminent)
                             } else {
                                 ForEach(appState.deals) { deal in
                                     PipelineRow(deal: deal)

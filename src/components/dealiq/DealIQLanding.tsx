@@ -12,8 +12,6 @@ import {
   MoreHorizontal,
   Plus,
   ShieldAlert,
-  SlidersHorizontal,
-  Upload,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -230,22 +228,6 @@ export function DealIQLanding() {
                   <h2 className="text-base font-semibold text-foreground">Deals</h2>
                   <p className="mt-0.5 text-xs text-muted-foreground">{rankedDeals.length} active files</p>
                 </div>
-                <Button variant="ghost" size="icon" aria-label="Filter deals">
-                  <SlidersHorizontal className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="border-b border-border/70 p-3">
-                <div className="grid grid-cols-4 gap-1 rounded-xl bg-muted/45 p-1 text-xs font-semibold text-muted-foreground">
-                  {["All", "Ready", "Verify", "Risk"].map((label, index) => (
-                    <button
-                      key={label}
-                      type="button"
-                      className={cn("rounded-lg px-2 py-1.5 transition-colors", index === 0 ? "bg-background text-foreground shadow-sm" : "hover:text-foreground")}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
               </div>
               <div className="max-h-[640px] divide-y divide-border/70 overflow-y-auto">
                 {rankedDeals.map((deal) => (
@@ -392,7 +374,6 @@ export function DealIQLanding() {
                 <Button variant="outline" asChild>
                   <Link to="/findiq"><Plus className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Start</span></Link>
                 </Button>
-                <Button variant="outline"><Upload className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Import</span></Button>
                 <Button asChild>
                   <Link to={`/dealiq/${activeDeal.id}`}><FileText className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Report</span></Link>
                 </Button>
@@ -650,9 +631,6 @@ function EmptyDealCockpit() {
           <Link to="/findiq">
             <PrimaryButton>Start in FindIQ</PrimaryButton>
           </Link>
-          <Button variant="outline" asChild>
-            <Link to="/findiq">Start property</Link>
-          </Button>
         </div>
       </div>
     </CardContainer>

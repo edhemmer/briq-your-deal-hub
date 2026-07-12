@@ -4,7 +4,6 @@ import {
   ArrowRight,
   CheckCircle2,
   DollarSign,
-  FileSignature,
   MessageSquareText,
   ShieldAlert,
   Target,
@@ -85,12 +84,6 @@ export default function OfferIQ() {
       >
         <Button variant="outline" asChild>
           <Link to="/pipelineiq">Pipeline</Link>
-        </Button>
-        <Button asChild>
-          <Link to="/findiq">
-            <FileSignature className="mr-2 h-4 w-4" />
-            Start property
-          </Link>
         </Button>
       </PageHeader>
 
@@ -362,9 +355,6 @@ function EmptyOffer({ title, body }: { title: string; body: string }) {
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Button asChild>
           <Link to="/findiq">Start in FindIQ</Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link to="/findiq">Start property</Link>
         </Button>
       </div>
     </div>

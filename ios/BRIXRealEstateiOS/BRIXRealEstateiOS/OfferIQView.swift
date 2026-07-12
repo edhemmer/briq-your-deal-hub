@@ -20,6 +20,24 @@ struct OfferIQView: View {
                             Text("Keep terms provisional until rent support, insurance, taxes, condition, financing, and exit assumptions are verified.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                            HStack(spacing: 10) {
+                                Button {
+                                    appState.selectDeal(deal)
+                                    appState.selectedTab = .deal
+                                } label: {
+                                    Label("Open DealIQ", systemImage: "chart.bar.xaxis")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.borderedProminent)
+
+                                Button {
+                                    appState.selectedTab = .pipeline
+                                } label: {
+                                    Label("Pipeline", systemImage: "rectangle.stack")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.bordered)
+                            }
                         }
                     }
 
@@ -41,6 +59,13 @@ struct OfferIQView: View {
                         message: "OfferIQ starts after a property exists in FindIQ or DealIQ.",
                         symbol: "doc.badge.plus"
                     )
+                    Button {
+                        appState.selectedTab = .find
+                    } label: {
+                        Label("Start in FindIQ", systemImage: "magnifyingglass")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
 
                 if let error = appState.lastError {

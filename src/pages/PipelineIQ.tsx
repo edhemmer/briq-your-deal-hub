@@ -84,13 +84,10 @@ export default function PipelineIQ() {
         title="PipelineIQ"
         description="Move each property from intake to outcome with clear status, missing proof, next action, and deal history."
       >
-        <Button variant="outline" asChild>
-          <Link to="/findiq">Find properties</Link>
-        </Button>
         <Button asChild>
           <Link to="/findiq">
             <Plus className="mr-2 h-4 w-4" />
-            Start property
+            Start in FindIQ
           </Link>
         </Button>
       </PageHeader>
@@ -374,9 +371,6 @@ function EmptyPipeline({ title, body }: { title: string; body: string }) {
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Button asChild>
           <Link to="/findiq">Start in FindIQ</Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link to="/findiq">Start property</Link>
         </Button>
       </div>
     </div>

@@ -261,12 +261,12 @@ struct AccountView: View {
     }
 
     private func requestDeletion() async {
-        do {
-            try await apiClient.requestAccountDeletion(reason: deletionReason.isEmpty ? nil : deletionReason, session: appState.session)
+        let submitted = await appState.requestAccountDeletion(reason: deletionReason.isEmpty ? nil : deletionReason)
+        if submitted {
             await appState.signOut()
             deletionStatus = "Account deletion started. You have been signed out."
-        } catch {
-            deletionStatus = "Could not submit deletion request. Try again or contact support."
+        } else {
+            deletionStatus = appState.lastError ?? "Could not submit deletion request. Try again or contact support."
         }
     }
 }

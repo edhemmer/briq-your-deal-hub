@@ -153,6 +153,14 @@ struct BRIXAPIClient {
         return try decode(AuthSession.self, from: data)
     }
 
+    func refreshSession(refreshToken: String) async throws -> AuthSession {
+        let body = [
+            "refresh_token": refreshToken
+        ]
+        let data = try await send(path: "/auth/v1/token?grant_type=refresh_token", method: "POST", body: body, session: nil)
+        return try decode(AuthSession.self, from: data)
+    }
+
     func signUpWithEmail(email: String, password: String) async throws -> AuthSession? {
         let body = [
             "email": email.trimmingCharacters(in: .whitespacesAndNewlines),

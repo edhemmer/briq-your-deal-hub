@@ -17,6 +17,13 @@ struct PortfolioOSView: View {
                         message: "Add an owned property to review equity, debt, cash flow, risk, and next actions.",
                         symbol: "chart.pie"
                     )
+                    Button {
+                        appState.selectedTab = .find
+                    } label: {
+                        Label("Start in FindIQ", systemImage: "magnifyingglass")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
                 } else {
                     BrixCard {
                         VStack(alignment: .leading, spacing: 12) {

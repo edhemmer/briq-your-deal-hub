@@ -122,7 +122,6 @@ export default function FindIQ() {
   const strongMatches = rankedOpportunities.filter((opportunity) => opportunity.score >= 82).length;
   const needsVerification = rankedOpportunities.filter((opportunity) => opportunity.missingData.length > 0 || opportunity.risks.length > 0).length;
   const dealFiles = deals ?? [];
-  const importedDeals = dealFiles.filter((deal) => deal.listing_url || deal.listing_remarks || deal.listing_photo_urls);
   const readyForDealIQ = rankedOpportunities.filter((opportunity) => opportunity.score >= 75 && opportunity.missingData.length <= 2).length;
 
   const startFromQuickInput = (event?: FormEvent) => {
@@ -302,7 +301,7 @@ export default function FindIQ() {
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/80 to-transparent" />
           <div className="flex flex-col gap-5">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Start property</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Deal intake</p>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">Address or listing link</h2>
             </div>
 
@@ -364,9 +363,8 @@ export default function FindIQ() {
               </form>
             )}
 
-            <div className="grid w-full grid-cols-3 gap-2">
+            <div className="grid w-full grid-cols-2 gap-2">
               <MiniMetric label="Deal files" value={String(dealFiles.length)} />
-              <MiniMetric label="Imported" value={String(importedDeals.length)} />
               <MiniMetric label="Ready" value={String(readyForDealIQ)} />
             </div>
           </div>
@@ -383,7 +381,7 @@ export default function FindIQ() {
                   Opportunity Queue
                 </div>
                 <h2 className="mt-2 text-lg font-semibold text-foreground">
-                  {rankedOpportunities.length > 0 ? "Ranked property results" : "Deal queue"}
+                  {rankedOpportunities.length > 0 ? "Ranked properties" : "Deal queue"}
                 </h2>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center lg:w-[260px] lg:shrink-0">
@@ -413,7 +411,7 @@ export default function FindIQ() {
                 <h3 className="mt-4 text-xl font-semibold text-foreground">No deal files yet</h3>
                 <div className="mt-5 flex flex-wrap justify-center gap-3">
                   <Button onClick={() => document.getElementById("findiq-quick-input")?.focus()}>
-                    Start Property
+                    Start
                     <ClipboardPaste className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
