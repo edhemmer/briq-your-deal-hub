@@ -6,7 +6,7 @@ const features = [
     icon: Search,
     title: "FindIQ",
     question: "What should I investigate?",
-    description: "Create acquisition profiles, monitor opportunities, rank property candidates, compare them, and send the strongest ones into underwriting without duplicate entry.",
+    description: "Enter a property address or listing link, choose a strategy, create the deal file, and send it into underwriting without duplicate entry.",
   },
   {
     icon: BarChart3,

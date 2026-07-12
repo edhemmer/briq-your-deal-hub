@@ -108,6 +108,7 @@ export default function FindIQ() {
   const [quickStrategy, setQuickStrategy] = useState("");
   const [quickStage, setQuickStage] = useState<"property" | "strategy">("property");
   const [quickPropertyAddress, setQuickPropertyAddress] = useState("");
+  const [quickParsedFields, setQuickParsedFields] = useState<Partial<ManualListingState>>({});
   const [isQuickScanning, setIsQuickScanning] = useState(false);
 
   const activeProfile = useMemo(() => searchToProfile(search), [search]);
@@ -124,7 +125,7 @@ export default function FindIQ() {
   const dealFiles = deals ?? [];
   const readyForDealIQ = rankedOpportunities.filter((opportunity) => opportunity.score >= 75 && opportunity.missingData.length <= 2).length;
 
-  const startFromQuickInput = (event?: FormEvent) => {
+  const startFromQuickInput = async (event?: FormEvent) => {
     event?.preventDefault();
     const text = quickInput.trim();
     if (!text) {
@@ -132,7 +133,21 @@ export default function FindIQ() {
       return;
     }
 
-    setQuickPropertyAddress(text);
+    setIsQuickScanning(true);
+    try {
+      const parsed = parseListingText(text);
+      const listingUrl = text.match(/https?:\/\/[^\s"'<>]+/i)?.[0];
+      const urlParts = parseListingUrlParts(listingUrl);
+      const merged = {
+        ...urlParts,
+        ...Object.fromEntries(Object.entries(parsed).filter(([, value]) => value !== undefined && value !== "")),
+      } as Partial<ManualListingState>;
+      const displayAddress = formatPropertyIdentity(merged) || text;
+      setQuickParsedFields(merged);
+      setQuickPropertyAddress(displayAddress);
+    } finally {
+      setIsQuickScanning(false);
+    }
     setQuickStage("strategy");
   };
 
@@ -148,7 +163,10 @@ export default function FindIQ() {
     }
 
     const listingUrl = trimmedAddress.match(/https?:\/\/[^\s"'<>]+/i)?.[0];
-    let parsed = parseListingText(trimmedAddress);
+    let parsed = {
+      ...parseListingText(trimmedAddress),
+      ...Object.fromEntries(Object.entries(quickParsedFields).filter(([, value]) => value !== undefined && value !== "")),
+    } as Partial<ManualListingState>;
     let extractedFields: Partial<ManualListingState> = {};
     const loadingToast = toast.loading("Creating deal file...");
     setIsQuickScanning(true);
@@ -280,13 +298,14 @@ export default function FindIQ() {
 
   const continueFromStrategy = async (event?: FormEvent) => {
     event?.preventDefault();
-    await createDealFromAddressStrategy(quickPropertyAddress, quickStrategy);
+    await createDealFromAddressStrategy(quickInput || quickPropertyAddress, quickStrategy);
   };
 
   const resetQuickWorkflow = () => {
     setQuickStage("property");
     setQuickPropertyAddress("");
     setQuickStrategy("");
+    setQuickParsedFields({});
   };
 
   return (
@@ -781,6 +800,14 @@ function parseListingUrlParts(url: string | undefined): Partial<ManualListingSta
   } catch {
     return {};
   }
+}
+
+function formatPropertyIdentity(fields: Partial<ManualListingState>) {
+  const cityStateZip = [
+    fields.city,
+    [fields.state, fields.zip_code].filter(Boolean).join(" "),
+  ].filter(Boolean).join(", ");
+  return [fields.property_address, cityStateZip].filter(Boolean).join(" - ");
 }
 
 const STATE_CODES = new Set([

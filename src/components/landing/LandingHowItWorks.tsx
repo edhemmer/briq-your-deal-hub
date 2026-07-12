@@ -3,13 +3,13 @@ import { motion } from "framer-motion";
 const steps = [
   {
     step: "01",
-    title: "Set your acquisition profile",
-    description: "Tell BRIX your budget, markets, property type, goals, risk profile, and preferred strategies.",
+    title: "Start with a property",
+    description: "Enter an address or listing link, then choose the strategy you want BRIX to test first.",
   },
   {
     step: "02",
-    title: "Review ranked opportunities",
-    description: "FindIQ shows which properties deserve attention and explains why they match or miss your profile.",
+    title: "Create the deal file",
+    description: "FindIQ captures the property facts it can read and opens a working file without duplicate entry.",
   },
   {
     step: "03",

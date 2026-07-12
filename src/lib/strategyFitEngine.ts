@@ -80,12 +80,16 @@ function normalize(value: number, low: number, high: number): number {
 
 export interface StrategyFitInput {
   purchasePrice: number;
+  closingCosts?: number;
   rehabCost: number;
   arv: number;
   projectedRent: number;       // monthly rent
   cashFlowMonthly: number;
   capRate: number;
   cashOnCashReturn: number;
+  sellingCostPercent?: number;
+  carryMonths?: number;
+  monthlyCarryCost?: number;
   rentTrend: number | null;    // rent_growth_12mo
   priceTrend: number | null;   // price_growth_12mo
   inventoryTrend: number | null; // months_of_supply
@@ -301,20 +305,29 @@ const STRATEGY_METADATA: Record<StrategyKey, StrategyMetadata> = {
 
 export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResults {
   const pp = safeNum(input.purchasePrice);
+  const closingCosts = safeNum(input.closingCosts) || pp * 0.03;
   const rehab = safeNum(input.rehabCost);
   const arv = safeNum(input.arv);
   const rent = safeNum(input.projectedRent);
   const cf = safeNum(input.cashFlowMonthly);
   const cap = safeNum(input.capRate);
   const coc = safeNum(input.cashOnCashReturn);
+  const sellingCostPercent = input.sellingCostPercent ?? 0.08;
+  const carryMonths = input.carryMonths ?? 4;
+  const monthlyCarryCost = input.monthlyCarryCost ?? pp * 0.005;
+  const exitSellingCosts = arv * sellingCostPercent;
+  const holdingCosts = monthlyCarryCost * carryMonths;
   const rentTrend = input.rentTrend;
   const priceTrend = input.priceTrend;
   const inventory = input.inventoryTrend;
   const crime = input.crimeScore;
 
   // Shared helpers
-  const totalCost = pp + rehab;
+  const totalCost = pp + closingCosts + rehab;
+  const netExitValue = Math.max(0, arv - exitSellingCosts);
+  const flipProfit = netExitValue - totalCost - holdingCosts;
   const arvSpread = totalCost > 0 ? (arv - totalCost) / totalCost : 0;
+  const netExitSpread = totalCost > 0 ? flipProfit / totalCost : 0;
   const rentTrendScore = rentTrend != null ? normalize(rentTrend, -5, 10) : 50;
   const priceTrendScore = priceTrend != null ? normalize(priceTrend, -5, 15) : 50;
   // Lower months_of_supply = tighter inventory = better for sellers
@@ -387,12 +400,12 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
 
   // ---- Fix & Flip ----
   const flipFinancial = clamp(
-    normalize(arvSpread, 0, 0.4) * 0.7 +
-    normalize(arv - totalCost, 0, 100000) * 0.3,
+    normalize(netExitSpread, 0, 0.25) * 0.7 +
+    normalize(flipProfit, 0, 75000) * 0.3,
     0, 100
   );
   const flipProperty = clamp(
-    normalize(arvSpread, 0, 0.5) * 0.5 +
+    normalize(netExitSpread, 0, 0.35) * 0.5 +
     normalize(rehab > 0 && pp > 0 ? rehab / pp : 0, 0, 0.3) * 50,
     0, 100
   );
@@ -443,6 +456,7 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
   // Compute disqualifiers from existing inputs
   const allDisqualifiers: string[] = [];
   const thinArvSpread = arv - totalCost < pp * 0.10;
+  const thinNetExitSpread = flipProfit < pp * 0.05;
   const negativeCashFlow = cf < 0;
   const elevatedCrime = crime != null && crime >= 7;
   const softPriceTrend = priceTrend != null && priceTrend <= 0;
@@ -450,6 +464,7 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
   const lowProjectedRent = rent > 0 && cf < 0; // rent produces negative cash flow
 
   if (thinArvSpread) allDisqualifiers.push("Thin ARV spread");
+  if (thinNetExitSpread) allDisqualifiers.push("Thin net resale spread");
   if (negativeCashFlow) allDisqualifiers.push("Negative monthly cash flow");
   if (elevatedCrime) allDisqualifiers.push("Elevated crime signal");
   if (softPriceTrend) allDisqualifiers.push("Soft price trend");
@@ -465,7 +480,7 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
   const ltrDQ = pickDisqualifiers(["Negative monthly cash flow", "Elevated crime signal", "Low projected rent", "Soft price trend"]);
   const mtrDQ = pickDisqualifiers(["Negative monthly cash flow", "Soft price trend", "Low projected rent", "Elevated crime signal"]);
   const strDQ = pickDisqualifiers(["Elevated crime signal", "Negative monthly cash flow", "Soft price trend", "Low projected rent"]);
-  const flipDQ = pickDisqualifiers(["Thin ARV spread", "Soft price trend", "High rehab burden", "Elevated crime signal"]);
+  const flipDQ = pickDisqualifiers(["Thin net resale spread", "Thin ARV spread", "Soft price trend", "High rehab burden", "Elevated crime signal"]);
   const vaDQ = pickDisqualifiers(["High rehab burden", "Negative monthly cash flow", "Low projected rent", "Thin ARV spread"]);
   const ahDQ = pickDisqualifiers(["Soft price trend", "Elevated crime signal", "Thin ARV spread", "Negative monthly cash flow"]);
 
@@ -474,6 +489,7 @@ export function evaluateDealStrategies(input: StrategyFitInput): StrategyFitResu
   if (cf > 0) financialSignals.push("Positive monthly cash flow");
   if (cf < 0) financialSignals.push("Negative monthly cash flow");
   const arvSpreadAmt = arv - totalCost;
+  if (flipProfit > 0) financialSignals.push("Positive net resale margin");
   if (arvSpreadAmt >= pp * 0.20) financialSignals.push("Strong ARV spread");
   else if (arvSpreadAmt >= pp * 0.10) financialSignals.push("Moderate ARV spread");
   else financialSignals.push("Weak ARV spread");

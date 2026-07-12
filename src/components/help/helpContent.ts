@@ -19,7 +19,7 @@ export const DEAL_INPUT_HELP = {
 } as const;
 
 export const METRIC_HELP = {
-  cap_rate: "Capitalization Rate - Net Operating Income divided by purchase price. Measures property return independent of financing. Compare it to local market norms.",
+  cap_rate: "Capitalization Rate - Net Operating Income divided by total cost basis when available: purchase price, closing costs, rehab, and contingency. Measures property return independent of financing.",
   cash_on_cash: "Cash-on-Cash Return - Annual pre-tax cash flow divided by total cash invested. Measures return on your actual cash outlay.",
   monthly_cashflow: "Monthly Cash Flow - Net income after all expenses, vacancy, reserves, and debt service. Positive cash flow means the property produces income beyond modeled costs.",
   dscr: "Debt Service Coverage Ratio - NOI divided by annual debt payments. Above 1.25 is generally stronger; below 1.0 means income does not cover debt service.",
@@ -58,7 +58,7 @@ export const HELP_CENTER_SECTIONS = [
     id: "module-map",
     title: "The Five Core Modules",
     content: [
-      "FindIQ answers: what should I investigate? Create an acquisition profile, review ranked opportunity cards, save or hide properties, compare candidates, and send the best candidates into DealIQ.",
+      "FindIQ answers: what should I investigate first? Enter a property address or listing link, choose the strategy to test, and create the deal file BRIX will rank and underwrite.",
       "DealIQ answers: should I acquire it? It runs financial, rent, resale, renovation, risk, market, scenario, and strategy analysis, then produces an acquisition recommendation with confidence and next actions.",
       "PipelineIQ answers: where is it in the process? It turns opportunities into a clear deal workflow with stages, tasks, deadlines, health scores, notes, activity history, and outcome records.",
       "OfferIQ answers: how should I pursue it? It turns DealIQ findings into offer strategy, document packages, communication drafts, counteroffer logic, diligence checklists, and transaction timelines.",
@@ -101,13 +101,13 @@ export const HELP_CENTER_SECTIONS = [
     id: "acquisition-playbook",
     title: "Recommended Acquisition Workflow",
     content: [
-      "1. Create an acquisition profile with budget, markets, property type, bed/bath minimums, tax preferences, goals, strategy, risk profile, and hold period.",
-      "2. Review FindIQ opportunities and ask why each one is being surfaced. Save strong candidates, hide poor fits, and compare similar deals side by side.",
-      "3. Send promising opportunities to DealIQ. Do not re-enter data BRIX already knows; review the imported facts and mark weak assumptions for verification.",
-      "4. Read the recommendation like an investment memo: decision, why, confidence, risks, missing information, bull case, bear case, what must be true, failure scenarios, and next actions.",
-      "5. Move active opportunities into PipelineIQ. Assign tasks, watch deadlines, keep notes, and record whether the deal was won, lost, passed, or closed.",
-      "6. If the deal is worth pursuing, activate OfferIQ. Generate offer structures, negotiation points, communication drafts, and due diligence tasks based on DealIQ evidence.",
-      "7. After closing, transfer the asset into PortfolioIQ. Track equity, cash flow, documents, maintenance, refinance opportunities, risk, long-term performance, and the deal characteristics that led to the outcome.",
+      "1. Start in FindIQ with a property address or listing link, then choose the strategy you want BRIX to test first.",
+      "2. Let BRIX create the deal file and open DealIQ. Review the imported facts, then fill only the missing items that materially change the decision.",
+      "3. Read the recommendation like an investment memo: decision, why, confidence, risks, missing information, bull case, bear case, what must be true, failure scenarios, and next actions.",
+      "4. Use Deal Comparison when you have multiple candidates. BRIX ranks tradeoffs using shared readiness, risk, and underwriting rules so the comparison matches the deal file.",
+      "5. Move active opportunities into PipelineIQ. Keep status, next actions, deadlines, notes, and outcome history attached to the same property record.",
+      "6. If the deal is worth pursuing, use OfferIQ for offer posture, terms, negotiation points, and diligence requests based on DealIQ evidence.",
+      "7. After closing, track the asset in PortfolioIQ. Monitor equity, debt, cash flow, documents, risk, and what the outcome teaches future decisions.",
     ],
   },
   {
@@ -148,8 +148,8 @@ export const HELP_CENTER_SECTIONS = [
     id: "billing",
     title: "Plans, Access, and Account Help",
     content: [
-      "The admin console tracks free access, paid plans, cancellations, account deletes, signups, revenue, and usage KPIs so support and business health stay visible.",
-      "If your account has a free override, you can continue using premium workflows without an active paid subscription until the override is removed.",
+      "Free accounts have a deal-file limit. Paid access unlocks continued use once the free limit is reached.",
+      "If your account has premium access, your deal workflows remain available while that access is active.",
       "Password resets are handled through the account flow. If sign-in fails, use Forgot Password or contact support so your account can be verified safely.",
       "Account deletion should remove or anonymize user-owned data according to the app privacy policy and Apple compliance requirements where applicable.",
     ],

@@ -1,4 +1,3 @@
-import AuthenticationServices
 import SwiftUI
 
 struct AccountView: View {
@@ -6,11 +5,6 @@ struct AccountView: View {
     @State private var isShowingDeleteConfirmation = false
     @State private var deletionReason = ""
     @State private var deletionStatus: String?
-    @State private var authStatus: String?
-    @State private var email = ""
-    @State private var password = ""
-    @State private var isAuthWorking = false
-    private let apiClient = BRIXAPIClient()
 
     var body: some View {
         @Bindable var appState = appState
@@ -46,72 +40,8 @@ struct AccountView: View {
                             }
                             .buttonStyle(.bordered)
                         } else {
-                            VStack(alignment: .leading, spacing: 10) {
-                                TextField("", text: $email)
-                                    .textContentType(.username)
-                                    .keyboardType(.emailAddress)
-                                    .textInputAutocapitalization(.never)
-                                    .autocorrectionDisabled()
-                                    .textFieldStyle(.roundedBorder)
-
-                                SecureField("", text: $password)
-                                    .textContentType(.password)
-                                    .textFieldStyle(.roundedBorder)
-
-                                HStack {
-                                    Button {
-                                        Task { await signInWithEmail() }
-                                    } label: {
-                                        Label("Sign In", systemImage: "person.fill.checkmark")
-                                            .frame(maxWidth: .infinity)
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .disabled(isAuthWorking || email.isEmpty || password.isEmpty)
-
-                                    Button {
-                                        Task { await createEmailAccount() }
-                                    } label: {
-                                        Text("Create")
-                                            .frame(maxWidth: .infinity)
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .disabled(isAuthWorking || email.isEmpty || password.count < 6)
-                                }
-
-                                Button {
-                                    Task { await sendPasswordReset() }
-                                } label: {
-                                    Text("Send password reset")
-                                        .frame(maxWidth: .infinity)
-                                }
-                                .buttonStyle(.plain)
-                                .disabled(isAuthWorking || email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                            }
-
-                            HStack {
-                                Rectangle().frame(height: 1).foregroundStyle(.quaternary)
-                                Text("or")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Rectangle().frame(height: 1).foregroundStyle(.quaternary)
-                            }
-
-                            SignInWithAppleButton(.signIn) { request in
-                                request.requestedScopes = [.fullName, .email]
-                            } onCompletion: { result in
-                                handleAppleSignIn(result)
-                            }
-                            .signInWithAppleButtonStyle(.black)
-                            .frame(height: 48)
-
-                            Text("Use the same account on web, iPhone, and iPad.")
+                            Text("Sign in to manage your account.")
                                 .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        if let authStatus {
-                            Text(authStatus)
-                                .font(.footnote.weight(.medium))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -188,75 +118,6 @@ struct AccountView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This permanently removes your BRIX account and personal data, except records BRIX is legally required to retain.")
-        }
-    }
-
-    private func signInWithEmail() async {
-        isAuthWorking = true
-        authStatus = "Signing in..."
-        defer { isAuthWorking = false }
-
-        do {
-            let session = try await apiClient.signInWithEmail(email: email, password: password)
-            await appState.signIn(with: session)
-            password = ""
-            authStatus = "Signed in. Your deal files are ready."
-        } catch {
-            authStatus = "Sign in failed: \(brixAuthMessage(error))"
-        }
-    }
-
-    private func createEmailAccount() async {
-        isAuthWorking = true
-        authStatus = "Creating account..."
-        defer { isAuthWorking = false }
-
-        do {
-            if let session = try await apiClient.signUpWithEmail(email: email, password: password) {
-                await appState.signIn(with: session)
-                authStatus = "Account created. Your deal files are ready."
-            } else {
-                authStatus = "Account created. Check your email to confirm it, then sign in."
-            }
-            password = ""
-        } catch {
-            authStatus = "Account creation failed: \(brixAuthMessage(error))"
-        }
-    }
-
-    private func sendPasswordReset() async {
-        isAuthWorking = true
-        authStatus = "Sending password reset..."
-        defer { isAuthWorking = false }
-
-        do {
-            try await apiClient.sendPasswordReset(email: email)
-            authStatus = "Password reset sent. Check your email, then return to sign in."
-        } catch {
-            authStatus = "Password reset failed: \(brixAuthMessage(error))"
-        }
-    }
-
-    private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
-        switch result {
-        case .success(let authorization):
-            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else { return }
-            guard let identityToken = credential.identityToken else {
-                authStatus = "Apple did not return an identity token."
-                return
-            }
-
-            Task {
-                do {
-                    let session = try await apiClient.signInWithApple(identityToken: identityToken)
-                    await appState.signIn(with: session)
-                    authStatus = "Signed in securely with Apple."
-                } catch {
-                    authStatus = "Sign in failed: \(brixAuthMessage(error))"
-                }
-            }
-        case .failure(let error):
-            authStatus = "Sign in failed: \(brixAuthMessage(error))"
         }
     }
 

@@ -5,10 +5,14 @@ import { describe, expect, it } from "vitest";
 const appSource = readFileSync(resolve(process.cwd(), "src/App.tsx"), "utf8");
 const findIQSource = readFileSync(resolve(process.cwd(), "src/pages/FindIQ.tsx"), "utf8");
 const dealIQLandingSource = readFileSync(resolve(process.cwd(), "src/components/dealiq/DealIQLanding.tsx"), "utf8");
+const dealCompareSource = readFileSync(resolve(process.cwd(), "src/pages/DealCompare.tsx"), "utf8");
+const dashboardSource = readFileSync(resolve(process.cwd(), "src/pages/Index.tsx"), "utf8");
 const offerIQSource = readFileSync(resolve(process.cwd(), "src/pages/OfferIQ.tsx"), "utf8");
 const pipelineIQSource = readFileSync(resolve(process.cwd(), "src/pages/PipelineIQ.tsx"), "utf8");
 const portfolioIQSource = readFileSync(resolve(process.cwd(), "src/pages/PortfolioIQ.tsx"), "utf8");
 const reportsSource = readFileSync(resolve(process.cwd(), "src/pages/Reports.tsx"), "utf8");
+const helpContentSource = readFileSync(resolve(process.cwd(), "src/components/help/helpContent.ts"), "utf8");
+const analysisContextGateSource = readFileSync(resolve(process.cwd(), "src/components/analysis/AnalysisContextGate.tsx"), "utf8");
 const appLayoutSource = readFileSync(resolve(process.cwd(), "src/components/AppLayout.tsx"), "utf8");
 const topNavSource = readFileSync(resolve(process.cwd(), "src/components/TopNav.tsx"), "utf8");
 const dealsHookSource = readFileSync(resolve(process.cwd(), "src/hooks/useDeals.ts"), "utf8");
@@ -136,12 +140,33 @@ describe("app route regression", () => {
     expect(topNavSource).not.toContain("Search deals, addresses, reports");
     expect(findIQSource).toContain("Deal intake");
     expect(findIQSource).not.toContain("Start property");
+    expect(dashboardSource).not.toContain("Start Property");
+    expect(dashboardSource).toContain("property address or listing link");
     expect(dealIQLandingSource).not.toContain("<span className=\"hidden sm:inline\">Import</span>");
+    expect(dealCompareSource).toContain("Start in FindIQ");
+    expect(dealCompareSource).not.toContain("Start Property");
     expect(offerIQSource).not.toContain("FileSignature");
     expect(pipelineIQSource).toContain("Start in FindIQ");
     expect(portfolioIQSource).not.toContain("Add property");
     expect(reportsSource).not.toContain("Open report tools");
     expect(reportsSource).not.toContain('Link to="/dealiq/compare">Compare');
+  });
+
+  it("keeps trust and intake behavior consistent across modules", () => {
+    expect(dealCompareSource).toContain("dealReadinessScore(deal, { requireLocation: true, requireSource: true })");
+    expect(dealCompareSource).toContain("missingDealInputs(deal, { requireLocation: true, requireSource: true })");
+    expect(dealCompareSource).toContain("evaluateDealStrategies");
+    expect(dealCompareSource).toContain("selectedStrategy");
+    expect(dealCompareSource).toContain("bestStrategy");
+    expect(dealCompareSource).toContain("analyzeDealIntelligence(analysis, { strategy: deal.strategy_primary })");
+    expect(dealCompareSource).not.toContain("const requiredFields");
+    expect(dashboardSource).toContain("dealReadinessScore(deal, { requireLocation: true, requireSource: true })");
+    expect(findIQSource).toContain("formatPropertyIdentity");
+    expect(findIQSource).toContain("setQuickParsedFields");
+    expect(analysisContextGateSource).toContain("Confirm Deal Setup");
+    expect(helpContentSource).toContain("Enter a property address or listing link");
+    expect(helpContentSource).not.toContain("Create an acquisition profile");
+    expect(helpContentSource).not.toContain("admin console tracks");
   });
 
   it("keeps native iOS module screens actionable instead of informational only", () => {

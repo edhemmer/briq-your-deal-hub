@@ -77,7 +77,7 @@ export function AnalysisContextGate({ onContextComplete, initialContext }: Analy
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h2 className="text-lg font-bold text-foreground">Configure Analysis</h2>
+        <h2 className="text-lg font-bold text-foreground">Confirm Deal Setup</h2>
         <p className="text-sm text-muted-foreground">
           Select your market type, asset class, investment strategy, and risk tolerance to begin analysis.
         </p>
@@ -242,7 +242,7 @@ export function AnalysisContextGate({ onContextComplete, initialContext }: Analy
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {!contextReady && (
-            <p className="text-xs text-muted-foreground">Complete all selections above to begin analysis.</p>
+            <p className="text-xs text-muted-foreground">Confirm the setup above to begin analysis.</p>
           )}
         </div>
         <Button onClick={handleSubmit} disabled={!contextReady} className="gap-2">

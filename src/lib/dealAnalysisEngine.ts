@@ -138,12 +138,14 @@ export function analyzeDeal(d: DealInput): AnalysisResult {
   // NOI
   const noi = effective_rent + oi - operating_expenses;
 
-  // Cap Rate
-  const cap_rate = safeDivide(noi, pp);
+  // Cap rate on total basis, not just purchase price. This is more conservative
+  // for value-add deals because rehab and closing costs are real capital in the deal.
+  const total_cost_basis = pp + cc + total_rehab;
+  const cap_rate = safeDivide(noi, total_cost_basis || pp);
 
   // Cash Flow
-  const monthly_cashflow = (mr + oi / 12) - operating_expenses / 12 - monthly_payment;
-  const annual_cashflow = monthly_cashflow * 12;
+  const annual_cashflow = noi - annual_debt_service;
+  const monthly_cashflow = annual_cashflow / 12;
 
   // Cash on Cash
   const initial_cash_required = down_payment + cc + rc + rcont;
@@ -153,7 +155,7 @@ export function analyzeDeal(d: DealInput): AnalysisResult {
   const dscr = safeDivide(noi, annual_debt_service);
 
   // BRRRR / Refinance
-  const total_project_cost = pp + cc + rc;
+  const total_project_cost = pp + cc + total_rehab;
   const equity_created = arv - total_project_cost;
   const refinance_amount = arv * ASSUMPTION_DEFAULTS.refinanceLtv;
   const cash_out = refinance_amount - loan_amount;

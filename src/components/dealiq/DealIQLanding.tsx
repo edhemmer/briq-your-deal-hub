@@ -110,6 +110,7 @@ function normalizeStrategyKey(strategy: string | null | undefined): StrategyKey 
 function toStrategyFitInput(input: DealInput, analysis: AnalysisResult): StrategyFitInput {
   return {
     purchasePrice: input.purchase_price,
+    closingCosts: input.closing_costs,
     rehabCost: input.rehab_cost + input.rehab_contingency,
     arv: input.arv,
     projectedRent: input.monthly_rent,
@@ -176,7 +177,7 @@ export function DealIQLanding() {
   const activeDeal = rankedDeals[0];
   const activeInput = activeDeal ? toDealInput(activeDeal) : null;
   const activeAnalysis = activeInput ? analyzeDeal(activeInput) : null;
-  const activeIntelligence = activeAnalysis ? analyzeDealIntelligence(activeAnalysis) : null;
+  const activeIntelligence = activeAnalysis ? analyzeDealIntelligence(activeAnalysis, { strategy: activeDeal?.strategy_primary }) : null;
   const activeStrategyFit = activeInput && activeAnalysis
     ? evaluateDealStrategies(toStrategyFitInput(activeInput, activeAnalysis))
     : null;

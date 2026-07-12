@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { analyzeDeal, type DealInput } from "@/lib/dealAnalysisEngine";
+import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
 import { runStressTests } from "@/lib/stressTestingEngine";
 import { evaluateDealStrategies } from "@/lib/strategyFitEngine";
 import { defaultAcquisitionProfile, opportunityToDealInsert, rankOpportunities, type FindIQOpportunity } from "@/lib/findIQArchitecture";
@@ -127,7 +128,8 @@ describe("BRIX operating system regression", () => {
     const stress = runStressTests(baseDeal, analysis);
     const strategyFit = evaluateDealStrategies({
       purchasePrice: baseDeal.purchase_price,
-      rehabCost: baseDeal.rehab_cost,
+      closingCosts: baseDeal.closing_costs,
+      rehabCost: baseDeal.rehab_cost + baseDeal.rehab_contingency,
       arv: baseDeal.arv,
       projectedRent: baseDeal.monthly_rent,
       cashFlowMonthly: analysis.metrics.monthly_cashflow,
@@ -148,11 +150,47 @@ describe("BRIX operating system regression", () => {
     expect(strategyFit.fixFlip.score).toBeGreaterThan(50);
   });
 
+  it("uses conservative real-world underwriting formulas for cash flow, cap rate, and BRRRR basis", () => {
+    const analysis = analyzeDeal(baseDeal);
+    const totalBasis = baseDeal.purchase_price + baseDeal.closing_costs + baseDeal.rehab_cost + baseDeal.rehab_contingency;
+
+    expect(analysis.metrics.annual_cashflow).toBeCloseTo(
+      analysis.metrics.noi - analysis.financing.annual_debt_service,
+      2,
+    );
+    expect(analysis.metrics.monthly_cashflow).toBeCloseTo(analysis.metrics.annual_cashflow / 12, 2);
+    expect(analysis.metrics.cap_rate).toBeCloseTo(analysis.metrics.noi / totalBasis, 6);
+    expect(analysis.refinance.total_project_cost).toBe(totalBasis);
+  });
+
+  it("applies strategy-specific advice instead of treating every deal like a rental or BRRRR", () => {
+    const liveInDeal = analyzeDeal({
+      ...baseDeal,
+      monthly_rent: 0,
+      arv: baseDeal.purchase_price + 20000,
+    });
+    const ownerRead = analyzeDealIntelligence(liveInDeal, { strategy: "Owner Occupant" });
+
+    expect(ownerRead.dealKillers.join(" ")).not.toMatch(/DSCR|cash flow|Refinance/i);
+    expect(ownerRead.warnings.join(" ")).toMatch(/Owner-occupant|housing cost/i);
+
+    const weakBrrrr = analyzeDeal({
+      ...baseDeal,
+      rehab_cost: 50000,
+      rehab_contingency: 7500,
+      arv: 260000,
+    });
+    const brrrrRead = analyzeDealIntelligence(weakBrrrr, { strategy: "BRRRR" });
+
+    expect(brrrrRead.dealKillers.join(" ")).toMatch(/No equity created|Refinance/i);
+  });
+
   it("requires every strategy to expose expert assumptions, proof needs, and failure logic", () => {
     const analysis = analyzeDeal(baseDeal);
     const strategyFit = evaluateDealStrategies({
       purchasePrice: baseDeal.purchase_price,
-      rehabCost: baseDeal.rehab_cost,
+      closingCosts: baseDeal.closing_costs,
+      rehabCost: baseDeal.rehab_cost + baseDeal.rehab_contingency,
       arv: baseDeal.arv,
       projectedRent: baseDeal.monthly_rent,
       cashFlowMonthly: analysis.metrics.monthly_cashflow,
@@ -193,7 +231,8 @@ describe("BRIX operating system regression", () => {
     const stress = runStressTests(weakDeal, analysis);
     const strategyFit = evaluateDealStrategies({
       purchasePrice: weakDeal.purchase_price,
-      rehabCost: weakDeal.rehab_cost,
+      closingCosts: weakDeal.closing_costs,
+      rehabCost: weakDeal.rehab_cost + weakDeal.rehab_contingency,
       arv: weakDeal.arv,
       projectedRent: weakDeal.monthly_rent,
       cashFlowMonthly: analysis.metrics.monthly_cashflow,
@@ -208,7 +247,7 @@ describe("BRIX operating system regression", () => {
     expect(analysis.metrics.monthly_cashflow).toBeLessThan(0);
     expect(stress.resilience).toBe("Fragile");
     expect(strategyFit.longTermRental.disqualifiers).toContain("Negative monthly cash flow");
-    expect(strategyFit.fixFlip.disqualifiers).toContain("Thin ARV spread");
+    expect(strategyFit.fixFlip.disqualifiers).toEqual(expect.arrayContaining(["Thin ARV spread"]));
   });
 
   it("compares OfferIQ structures and preserves PipelineIQ execution health signals", () => {

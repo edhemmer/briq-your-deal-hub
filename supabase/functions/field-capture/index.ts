@@ -183,7 +183,18 @@ type VisualAnalysisResult = {
   verification_recommendation: string;
 };
 
-async function analyzeStoredCapture(adminClient: any, storagePath: string): Promise<VisualAnalysisResult | null> {
+type StorageSigningClient = {
+  storage: {
+    from: (bucket: string) => {
+      createSignedUrl: (path: string, expiresIn: number) => Promise<{
+        data: { signedUrl?: string | null } | null;
+        error: unknown;
+      }>;
+    };
+  };
+};
+
+async function analyzeStoredCapture(adminClient: StorageSigningClient, storagePath: string): Promise<VisualAnalysisResult | null> {
   const apiKey = Deno.env.get("AI_GATEWAY_API_KEY") ?? Deno.env.get("OPENAI_API_KEY");
   if (!apiKey) return null;
 

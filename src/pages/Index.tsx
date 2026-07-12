@@ -33,11 +33,11 @@ const money = (value: number | null | undefined) =>
       }).format(value);
 
 function readinessScore(deal: Deal) {
-  return dealReadinessScore(deal, { requireLocation: true });
+  return dealReadinessScore(deal, { requireLocation: true, requireSource: true });
 }
 
 function missingItems(deal: Deal) {
-  return missingDealInputs(deal, { requireLocation: true });
+  return missingDealInputs(deal, { requireLocation: true, requireSource: true });
 }
 
 function riskTone(score: number): Tone {
@@ -248,7 +248,7 @@ function EmptyDealDashboard() {
         <div className="grid gap-3 md:grid-cols-2">
           <StartAction
             title="1. Find the address"
-            body="Use FindIQ to search a geography, import listings, and rank properties against your buying criteria."
+            body="Use FindIQ to enter a property address or listing link. BRIX creates the working deal file from what it can read."
             to="/findiq"
             action="Open FindIQ"
           />
@@ -256,7 +256,7 @@ function EmptyDealDashboard() {
             title="2. Build the file"
             body="Choose a strategy in FindIQ, then BRIX opens the DealIQ file for numbers, photos, evidence, and analysis."
             to="/findiq"
-            action="Start Property"
+            action="Start in FindIQ"
           />
         </div>
       </CardContainer>

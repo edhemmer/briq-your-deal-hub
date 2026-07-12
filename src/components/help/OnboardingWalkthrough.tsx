@@ -13,7 +13,7 @@ const steps = [
   {
     icon: Search,
     title: "Find What Deserves Attention",
-    description: "Start in FindIQ with an acquisition profile. BRIX ranks opportunities by fit so you know what to investigate before spending time on full underwriting.",
+    description: "Start in FindIQ with a property address or listing link, choose the strategy to test, and let BRIX create the deal file before full underwriting.",
   },
   {
     icon: BarChart3,

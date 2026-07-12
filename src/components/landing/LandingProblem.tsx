@@ -10,8 +10,8 @@ const beforeItems = [
 ];
 
 const afterItems = [
-  "Create one acquisition profile",
-  "Rank opportunities against your goals",
+  "Enter an address or listing link",
+  "Create one reusable deal file",
   "Analyze every strategy with scenarios",
   "Move next actions into the pipeline",
   "See confidence, evidence, and risks",

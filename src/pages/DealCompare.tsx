@@ -19,6 +19,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDeals } from "@/hooks/useDeals";
 import { analyzeDeal, type DealInput } from "@/lib/dealAnalysisEngine";
 import { analyzeDealIntelligence } from "@/lib/dealIntelligenceEngine";
+import { evaluateDealStrategies, type StrategyFitResults, type StrategyScore } from "@/lib/strategyFitEngine";
+import { dealReadinessScore, missingDealInputs } from "@/lib/dealReadiness";
 import type { Tables } from "@/integrations/supabase/types";
 
 type DealRow = Tables<"deals">;
@@ -28,6 +30,11 @@ type ComparedDeal = {
   input: DealInput;
   analysis: ReturnType<typeof analyzeDeal>;
   intelligence: ReturnType<typeof analyzeDealIntelligence>;
+  strategyFit: StrategyFitResults;
+  selectedStrategy: StrategyScore;
+  selectedStrategyLabel: string;
+  bestStrategy: StrategyScore;
+  bestStrategyLabel: string;
   readiness: number;
   riskScore: number;
   decisionScore: number;
@@ -42,17 +49,35 @@ const money = (value: number | null | undefined) =>
 const pct = (value: number) => `${(value * 100).toFixed(1)}%`;
 const multiple = (value: number) => `${value.toFixed(2)}x`;
 
-const requiredFields: Array<{ key: keyof DealRow; label: string }> = [
-  { key: "purchase_price", label: "Purchase price" },
-  { key: "monthly_rent", label: "Rent" },
-  { key: "taxes", label: "Taxes" },
-  { key: "insurance", label: "Annual Insurance" },
-  { key: "estimated_arv", label: "ARV" },
-  { key: "strategy_primary", label: "Strategy" },
-  { key: "property_type", label: "Property type" },
-  { key: "city", label: "City" },
-  { key: "state", label: "State" },
-];
+type StrategyKey = keyof StrategyFitResults;
+
+const STRATEGY_LABELS: Record<StrategyKey, string> = {
+  ownerOccupant: "Owner Occupant",
+  buyAndHold: "Buy & Hold",
+  brrrr: "BRRRR",
+  hybridBrrrr: "Hybrid BRRRR",
+  longTermRental: "Long-Term Rental",
+  midTermRental: "Mid-Term Rental",
+  shortTermRental: "Short-Term Rental",
+  hybridRental: "Hybrid Rental",
+  houseHack: "House Hack",
+  fixFlip: "Fix & Flip",
+  valueAdd: "Value-Add",
+  appreciationHold: "Appreciation Hold",
+  refinance: "Refinance",
+  hold: "Hold",
+  sell: "Sell",
+  sellerFinance: "Seller Finance",
+  subjectTo: "Subject-To",
+  leaseOption: "Lease Option",
+  wrapMortgage: "Wrap Mortgage",
+  adu: "ADU / Value-Add",
+  lotSplit: "Lot Split",
+  mixedUseConversion: "Mixed-Use Conversion",
+  commercialRepositioning: "Commercial Repositioning",
+  development: "Development",
+  exchange1031: "1031 Exchange",
+};
 
 function toDealInput(deal: DealRow): DealInput {
   return {
@@ -75,31 +100,89 @@ function toDealInput(deal: DealRow): DealInput {
   };
 }
 
-function calculateReadiness(deal: DealRow) {
-  const missing = requiredFields
-    .filter(({ key }) => {
-      const value = deal[key];
-      return value == null || value === "" || value === 0;
-    })
-    .map((field) => field.label);
-
-  return {
-    missing,
-    readiness: Math.round(((requiredFields.length - missing.length) / requiredFields.length) * 100),
-  };
-}
-
 function compareDeal(deal: DealRow): ComparedDeal {
   const input = toDealInput(deal);
   const analysis = analyzeDeal(input);
-  const intelligence = analyzeDealIntelligence(analysis);
-  const { readiness, missing } = calculateReadiness(deal);
+  const intelligence = analyzeDealIntelligence(analysis, { strategy: deal.strategy_primary });
+  const strategyFit = evaluateDealStrategies({
+    purchasePrice: input.purchase_price,
+    closingCosts: input.closing_costs,
+    rehabCost: input.rehab_cost + input.rehab_contingency,
+    arv: input.arv,
+    projectedRent: input.monthly_rent,
+    cashFlowMonthly: analysis.metrics.monthly_cashflow,
+    capRate: analysis.metrics.cap_rate,
+    cashOnCashReturn: analysis.metrics.cash_on_cash,
+    rentTrend: null,
+    priceTrend: null,
+    inventoryTrend: null,
+    crimeScore: null,
+  });
+  const selectedStrategyKey = normalizeStrategyKey(deal.strategy_primary);
+  const selectedStrategy = strategyFit[selectedStrategyKey];
+  const [bestStrategyKey, bestStrategy] = (Object.entries(strategyFit) as [StrategyKey, StrategyScore][])
+    .sort((a, b) => b[1].score - a[1].score)[0];
+  const readiness = dealReadinessScore(deal, { requireLocation: true, requireSource: true });
+  const missing = missingDealInputs(deal, { requireLocation: true, requireSource: true }).map(formatMissingInput);
   const riskScore = Math.min(100, intelligence.dealKillers.length * 30 + intelligence.warnings.length * 10);
   const decisionScore = Math.round(
-    intelligence.score * 0.55 + readiness * 0.25 + (100 - riskScore) * 0.2,
+    intelligence.score * 0.35 + selectedStrategy.score * 0.25 + readiness * 0.25 + (100 - riskScore) * 0.15,
   );
 
-  return { deal, input, analysis, intelligence, readiness, riskScore, decisionScore, missing };
+  return {
+    deal,
+    input,
+    analysis,
+    intelligence,
+    strategyFit,
+    selectedStrategy,
+    selectedStrategyLabel: STRATEGY_LABELS[selectedStrategyKey],
+    bestStrategy,
+    bestStrategyLabel: STRATEGY_LABELS[bestStrategyKey],
+    readiness,
+    riskScore,
+    decisionScore,
+    missing,
+  };
+}
+
+function normalizeStrategyKey(strategy: string | null | undefined): StrategyKey {
+  const normalized = (strategy ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (normalized.includes("owneroccup") || normalized.includes("livein") || normalized.includes("primary")) return "ownerOccupant";
+  if (normalized.includes("hybridbrrrr")) return "hybridBrrrr";
+  if (normalized.includes("brrrr")) return "brrrr";
+  if (normalized.includes("longterm")) return "longTermRental";
+  if (normalized.includes("midterm")) return "midTermRental";
+  if (normalized.includes("shortterm")) return "shortTermRental";
+  if (normalized.includes("hybridrental")) return "hybridRental";
+  if (normalized.includes("househack")) return "houseHack";
+  if (normalized.includes("flip")) return "fixFlip";
+  if (normalized.includes("valueadd")) return "valueAdd";
+  if (normalized.includes("appreciation")) return "appreciationHold";
+  if (normalized.includes("refinance")) return "refinance";
+  if (normalized === "hold") return "hold";
+  if (normalized === "sell") return "sell";
+  if (normalized.includes("sellerfinance")) return "sellerFinance";
+  if (normalized.includes("subjectto")) return "subjectTo";
+  if (normalized.includes("leaseoption")) return "leaseOption";
+  if (normalized.includes("wrap")) return "wrapMortgage";
+  if (normalized.includes("adu")) return "adu";
+  if (normalized.includes("lotsplit")) return "lotSplit";
+  if (normalized.includes("mixeduse")) return "mixedUseConversion";
+  if (normalized.includes("commercial")) return "commercialRepositioning";
+  if (normalized.includes("development")) return "development";
+  if (normalized.includes("1031")) return "exchange1031";
+  return "buyAndHold";
+}
+
+function formatMissingInput(item: string) {
+  switch (item) {
+    case "rent support": return "Monthly rent support";
+    case "verified annual taxes": return "Verified annual taxes";
+    case "annual insurance quote": return "Annual insurance quote";
+    case "source listing or notes": return "Source listing or notes";
+    default: return item.charAt(0).toUpperCase() + item.slice(1);
+  }
 }
 
 function rankBadge(index: number) {
@@ -151,7 +234,7 @@ export default function DealCompare() {
         <div className="flex gap-2">
           <Link to="/findiq">
             <Button>
-              Start Property
+              Start in FindIQ
             </Button>
           </Link>
           <Link to="/dealiq">
@@ -177,7 +260,7 @@ export default function DealCompare() {
           />
           <div className="mt-4 flex justify-center">
             <Link to="/findiq">
-              <Button>Start Property</Button>
+              <Button>Start in FindIQ</Button>
             </Link>
           </div>
         </CardContainer>
@@ -205,7 +288,7 @@ export default function DealCompare() {
                     <p className={`text-xl font-bold ${scoreClass(leader.readiness)}`}>{leader.readiness}</p>
                   </div>
                   <div className="rounded-lg border border-border bg-muted/30 p-3">
-                    <p className="text-xs text-muted-foreground">Risk</p>
+                    <p className="text-xs text-muted-foreground">Risk flags</p>
                     <p className={`text-xl font-bold ${scoreClass(100 - leader.riskScore)}`}>{leader.riskScore}</p>
                   </div>
                 </div>
@@ -263,6 +346,8 @@ export default function DealCompare() {
                   <CompareRow label="DSCR" value={multiple(item.analysis.metrics.dscr)} signal={item.analysis.metrics.dscr >= 1.2 ? "positive" : "warning"} />
                   <CompareRow label="Cash on cash" value={pct(item.analysis.metrics.cash_on_cash)} />
                   <CompareRow label="Initial cash" value={money(item.analysis.metrics.initial_cash_required)} />
+                  <CompareRow label="Selected strategy" value={`${item.selectedStrategyLabel} (${item.selectedStrategy.score})`} signal={item.selectedStrategy.score >= 70 ? "positive" : "warning"} />
+                  <CompareRow label="Best strategy" value={`${item.bestStrategyLabel} (${item.bestStrategy.score})`} signal={item.bestStrategy.score >= item.selectedStrategy.score ? "positive" : "warning"} />
                   <CompareRow label="Equity created" value={money(item.analysis.refinance.equity_created)} signal={item.analysis.refinance.equity_created > 0 ? "positive" : "risk"} />
                 </div>
 
@@ -273,6 +358,11 @@ export default function DealCompare() {
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">{item.intelligence.decision}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{cleanText(item.intelligence.summary)}</p>
+                  {item.bestStrategy.score > item.selectedStrategy.score + 5 && (
+                    <p className="mt-2 text-xs font-medium text-primary">
+                      Strategy check: {item.bestStrategyLabel} currently scores better than {item.selectedStrategyLabel}.
+                    </p>
+                  )}
                 </div>
 
                 <div className="mt-4 space-y-2">

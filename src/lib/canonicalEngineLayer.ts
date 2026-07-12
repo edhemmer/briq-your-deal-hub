@@ -114,7 +114,8 @@ export function deriveStrategyFitInput(
 ): StrategyFitInput {
   return {
     purchasePrice: state.financing.purchasePrice.value ?? 0,
-    rehabCost: state.expenses.rehabCost.value ?? 0,
+    closingCosts: state.financing.closingCosts.value ?? 0,
+    rehabCost: (state.expenses.rehabCost.value ?? 0) + (state.expenses.rehabContingency.value ?? 0),
     arv: state.financing.arv.value ?? 0,
     projectedRent: state.rent.monthlyRent.value ?? 0,
     cashFlowMonthly: analysis.metrics.monthly_cashflow,
@@ -184,7 +185,7 @@ export function runCanonicalAnalysis(
   const bufferedAnalysis = analyzeDeal(bufferedDealInput);
 
   // Intelligence uses buffered analysis for conservative decisioning
-  const intelligence = analyzeDealIntelligence(bufferedAnalysis);
+  const intelligence = analyzeDealIntelligence(bufferedAnalysis, { strategy: resolvedContext.strategy });
 
   // Market analysis
   const marketConditions = deriveMarketConditions(state);
