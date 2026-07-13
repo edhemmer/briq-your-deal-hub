@@ -10,6 +10,7 @@ export function analyzeDeal(deal: DealFacts): DealAnalysis {
   const readiness = clamp(100 - missing.length * 12 - (deal.photoUrls.length + deal.uploadedPhotoNames.length === 0 ? 8 : 0));
   const confidence = clamp(Math.round((primary.confidence + readiness) / 2));
   const affordability = calculateAffordability(deal);
+  const financials = calculateFinancials(deal);
   const decision = confidence >= 78 && readiness >= 74 ? "Visit" : confidence >= 55 ? "Research first" : "Do not visit yet";
 
   return {
@@ -17,6 +18,7 @@ export function analyzeDeal(deal: DealFacts): DealAnalysis {
     confidence,
     readiness,
     affordability,
+    ...financials,
     monthlyPayment: estimateMonthlyPayment(deal),
     estimatedCashNeeded: estimateCashNeeded(deal),
     primaryStrategy: primary,
@@ -24,6 +26,33 @@ export function analyzeDeal(deal: DealFacts): DealAnalysis {
     nextActions: nextActions(deal, missing),
     evidence: evidence(deal),
     missing,
+  };
+}
+
+function calculateFinancials(deal: DealFacts) {
+  if (!deal.listPrice) return {};
+  const monthlyPayment = estimateMonthlyPayment({ ...deal, annualTaxes: 0, annualInsurance: 0, hoaMonthly: 0 }) ?? 0;
+  if (!deal.monthlyRent) {
+    return { monthlyDebtService: Math.round(monthlyPayment) };
+  }
+  const grossRent = deal.monthlyRent;
+  const vacancy = grossRent * 0.06;
+  const maintenance = grossRent * 0.08;
+  const management = grossRent * 0.08;
+  const taxes = (deal.annualTaxes ?? 0) / 12;
+  const insurance = (deal.annualInsurance ?? 0) / 12;
+  const hoa = deal.hoaMonthly ?? 0;
+  const monthlyNOI = Math.round(grossRent - vacancy - maintenance - management - taxes - insurance - hoa);
+  const monthlyCashFlow = Math.round(monthlyNOI - monthlyPayment);
+  const annualNOI = monthlyNOI * 12;
+  const cashNeeded = estimateCashNeeded(deal) ?? 0;
+  return {
+    monthlyNOI,
+    monthlyDebtService: Math.round(monthlyPayment),
+    monthlyCashFlow,
+    dscr: monthlyPayment > 0 ? round2(monthlyNOI / monthlyPayment) : undefined,
+    capRate: round2((annualNOI / deal.listPrice) * 100),
+    cashOnCash: cashNeeded > 0 ? round2((monthlyCashFlow * 12 / cashNeeded) * 100) : undefined,
   };
 }
 
@@ -152,6 +181,10 @@ function label(field: string) {
 
 function clamp(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function round2(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 export function formatCurrency(value?: number) {

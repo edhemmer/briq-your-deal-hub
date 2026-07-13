@@ -19,6 +19,12 @@ export async function downloadDecisionPdf(deal: DealFacts, analysis: DealAnalysi
     `Purchase price: ${formatCurrency(deal.listPrice)}`,
     `Annual taxes: ${formatCurrency(deal.annualTaxes)}`,
     `Annual insurance: ${formatCurrency(deal.annualInsurance)}`,
+    `Monthly payment: ${formatCurrency(analysis.monthlyPayment)}`,
+    `Monthly NOI: ${formatCurrency(analysis.monthlyNOI)}`,
+    `Monthly cash flow: ${formatCurrency(analysis.monthlyCashFlow)}`,
+    `DSCR: ${analysis.dscr ? `${analysis.dscr}x` : "Missing"}`,
+    `Cap rate: ${analysis.capRate ? `${analysis.capRate}%` : "Missing"}`,
+    `Cash-on-cash: ${analysis.cashOnCash ? `${analysis.cashOnCash}%` : "Missing"}`,
     "",
     "Evidence:",
     ...analysis.evidence.map((item) => `- ${item}`),
@@ -51,6 +57,12 @@ export async function downloadWorkbook(deal: DealFacts, analysis: DealAnalysis) 
     monthly_rent: deal.monthlyRent ?? null,
     rehab_budget: deal.rehabBudget ?? null,
     arv: deal.arv ?? null,
+    monthly_payment: analysis.monthlyPayment ?? null,
+    monthly_noi: analysis.monthlyNOI ?? null,
+    monthly_cash_flow: analysis.monthlyCashFlow ?? null,
+    dscr: analysis.dscr ?? null,
+    cap_rate: analysis.capRate ?? null,
+    cash_on_cash: analysis.cashOnCash ?? null,
   }]), "Deal");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analysis.strategyScores), "Strategies");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analysis.nextActions.map((action) => ({ action }))), "Next Actions");

@@ -15,6 +15,16 @@ describe("BRIX rebuilt core", () => {
     expect(deal.zip).toBe("60404");
   });
 
+  it("extracts production-style listing URL slugs and leaves unknown facts empty", () => {
+    const deal = parseListingInput("https://www.zillow.com/homedetails/169-Sandalwood-Ln-Bolingbrook-IL-60440/5397652_zpid/", "owner_occupant");
+    expect(deal.address).toBe("169 Sandalwood Ln");
+    expect(deal.city).toBe("Bolingbrook");
+    expect(deal.state).toBe("IL");
+    expect(deal.zip).toBe("60440");
+    expect(deal.listPrice).toBeUndefined();
+    expect(deal.annualTaxes).toBeUndefined();
+  });
+
   it("contains the complete BRIX strategy surface, not a three-strategy shell", () => {
     expect(strategyCatalog.length).toBeGreaterThanOrEqual(30);
     expect(strategyCatalog.map((strategy) => strategy.id)).toContain("owner_occupant");
@@ -30,6 +40,18 @@ describe("BRIX rebuilt core", () => {
     expect(analysis.missing).toContain("Purchase price");
     expect(analysis.missing).toContain("Annual taxes");
     expect(analysis.missing).toContain("Monthly rent support");
+  });
+
+  it("calculates rental economics when verified inputs exist", () => {
+    const deal = parseListingInput("101 Main St Plainfield IL 60544 $250,000 3 bed 2 bath Taxes $5,000", "buy_and_hold");
+    deal.monthlyRent = 2400;
+    deal.annualInsurance = 1800;
+    deal.downPayment = 50000;
+    const analysis = analyzeDeal(deal);
+    expect(analysis.monthlyNOI).toBeGreaterThan(0);
+    expect(analysis.monthlyDebtService).toBeGreaterThan(0);
+    expect(analysis.dscr).toBeGreaterThan(0);
+    expect(analysis.capRate).toBeGreaterThan(0);
   });
 
   it("flags contract clauses that change acquisition risk", () => {

@@ -55,6 +55,12 @@ export type DealAnalysis = {
   confidence: number;
   readiness: number;
   affordability: number;
+  monthlyNOI?: number;
+  monthlyDebtService?: number;
+  monthlyCashFlow?: number;
+  dscr?: number;
+  capRate?: number;
+  cashOnCash?: number;
   monthlyPayment?: number;
   estimatedCashNeeded?: number;
   primaryStrategy: StrategyScore;

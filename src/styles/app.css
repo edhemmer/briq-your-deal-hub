@@ -68,9 +68,13 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .step p { color: var(--muted); margin-bottom: 0; line-height: 1.5; }
 
 .metric-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 22px 0; }
+.stat-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
 .metric { border: 1px solid var(--line); background: #08101f; padding: 14px; border-radius: 14px; }
+.stat { border: 1px solid var(--line); background: #08101f; padding: 14px; border-radius: 14px; }
 .metric span { color: var(--muted); display: block; margin-bottom: 8px; }
+.stat span { color: var(--muted); display: block; margin-bottom: 8px; }
 .metric strong { font-size: 30px; color: var(--green); }
+.stat strong { font-size: 22px; color: white; overflow-wrap: anywhere; }
 .metric div { height: 7px; background: #1c2941; border-radius: 999px; overflow: hidden; margin-top: 10px; }
 .metric i { display: block; height: 100%; background: linear-gradient(90deg, var(--blue), var(--cyan)); }
 
@@ -117,7 +121,7 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 
 @media (max-width: 640px) {
   .workspace, .rail { padding: 16px; }
-  .rail nav, .metric-row, .form-grid, .score-list, .landing-grid { grid-template-columns: 1fr; }
+  .rail nav, .metric-row, .stat-row, .form-grid, .score-list, .landing-grid { grid-template-columns: 1fr; }
   .topbar { display: grid; }
   .table-row { grid-template-columns: 1fr; }
   .landing { padding: 22px; }

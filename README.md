@@ -10,9 +10,8 @@ BRIX is a production application for sourcing, analyzing, verifying, comparing, 
 
 | Module | Purpose |
 | --- | --- |
-| **Deal Dashboard** | Active deal command view, readiness, next actions, and verification gaps |
-| **FindIQ** | Import, search, rank, and queue acquisition opportunities |
-| **DealIQ** | Underwrite properties, strategies, risks, returns, and scenarios |
+| **FindIQ** | Start a property file from an address, listing URL, or listing text |
+| **DealIQ** | Underwrite properties, strategies, risks, returns, verification gaps, and scenarios |
 | **OfferIQ** | Convert analysis into offer structure and transaction action |
 | **PipelineIQ** | Track acquisition workflow from opportunity through close/pass |
 | **PortfolioIQ** | Track owned assets, equity, cash flow, and portfolio performance |
@@ -32,18 +31,16 @@ BRIX is a production application for sourcing, analyzing, verifying, comparing, 
 
 ## Local Development
 
-Prerequisites:
+Use the repo-local wrapper on Windows so BRIX does not depend on broken global PATH settings:
 
-- Node.js 18+
-- npm
-- Supabase CLI when working on backend functions or migrations
-
-```bash
-npm install
-npm run dev
+```powershell
+.\scripts\toolchain-check.cmd
+.\scripts\brix.cmd dev
+.\scripts\brix.cmd test
+.\scripts\brix.cmd build
 ```
 
-The web app runs locally at `http://localhost:8080` unless another port is configured.
+The wrapper uses the bundled Node runtime, the local `node_modules` binaries, the Supabase CLI shim, and the checked-in Supabase Go binary path.
 
 ## Environment Configuration
 
@@ -88,9 +85,9 @@ supabase/functions
 
 Apply migrations and deploy functions from Supabase CLI or the connected CI/CD process:
 
-```bash
+```powershell
 supabase link --project-ref luwaqrkhmxcqsozmilbw
-supabase db push
+.\scripts\brix.cmd supabase-push
 supabase functions deploy
 ```
 
@@ -116,9 +113,8 @@ Apple compliance artifacts include:
 
 Primary checks:
 
-```bash
-npm run build
-npm run test -- --environment jsdom
+```powershell
+.\scripts\brix.cmd verify
 ```
 
 Before production release, also verify:

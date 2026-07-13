@@ -34,6 +34,8 @@ function parseListing(input: string, strategyId: string) {
       baths: number(input.match(/(\d+(?:\.\d+)?)\s*(?:baths?|ba|bathrooms?)/i)?.[1]),
       squareFeet: number(input.match(/([\d,]+)\s*(?:sqft|sq\.?\s*ft|square feet)/i)?.[1]),
       annualTaxes: money(input.match(/(?:tax|taxes)\D{0,35}(\$[\d,]+)/i)?.[1]),
+      hoaMonthly: money(input.match(/(?:hoa|association)\D{0,25}(\$[\d,]+)/i)?.[1]),
+      photoUrls: [...input.matchAll(/https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp)(?:\?[^\s"'<>]+)?/gi)].map((match) => match[0]),
     },
     verification: { address: slugAddress || match ? "source_backed" : "entered" },
   };
@@ -52,11 +54,15 @@ function parseAddressFromUrlSlug(input: string) {
   const suffixIndex = beforeState.findIndex((token, index) => index > 0 && suffixes.has(token.toLowerCase()));
   const addressEnd = suffixIndex >= 0 ? suffixIndex + 1 : Math.max(2, beforeState.length - 1);
   return {
-    address: beforeState.slice(0, addressEnd).join(" ").trim(),
-    city: beforeState.slice(addressEnd).join(" ").trim(),
+    address: titleCase(beforeState.slice(0, addressEnd).join(" ").trim()),
+    city: titleCase(beforeState.slice(addressEnd).join(" ").trim()),
     state: tokens[zipIndex - 1]?.toUpperCase(),
     zip: tokens[zipIndex],
   };
+}
+
+function titleCase(value: string) {
+  return value.split(/\s+/).filter(Boolean).map((token) => token.charAt(0).toUpperCase() + token.slice(1)).join(" ");
 }
 
 function money(value?: string | null) {

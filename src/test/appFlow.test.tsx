@@ -79,10 +79,10 @@ describe("BRIX app module flow", () => {
     expect(await screen.findByText(/Conservative:/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /PipelineIQ/i }));
-    expect(await screen.findByText("draft")).toBeInTheDocument();
+    expect(await screen.findByText("New")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Reports/i }));
-    await screen.findByText(/Recommendation:/i);
+    await screen.findByText("Recommendation");
     expect(screen.getAllByText(/Decision memo/i).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: /PortfolioIQ/i }));

@@ -117,7 +117,7 @@ function New-AppStoreScreenshot($Dest, [int]$Width, [int]$Height, [string]$Mode)
   $Title = switch ($Mode) {
     'find' { 'FindIQ intake' }
     'deal' { 'DealIQ cockpit' }
-    default { 'Deal Dashboard' }
+    default { 'PipelineIQ flow' }
   }
   $Items = switch ($Mode) {
     'find' { @('Search a city, ZIP, county, or state', 'Paste a listing URL or listing text', 'Upload screenshots, XLS files, or photos', 'Rank only properties in your workspace') }

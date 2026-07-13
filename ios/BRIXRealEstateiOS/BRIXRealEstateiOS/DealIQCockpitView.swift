@@ -17,6 +17,11 @@ struct DealIQCockpitView: View {
                                     Text(analysis.decision).font(.largeTitle.bold())
                                     Text(deal.address).foregroundStyle(Brix.muted)
                                     HStack { BrixMetric(title: "Confidence", value: analysis.confidence); BrixMetric(title: "Readiness", value: analysis.readiness) }
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("Monthly payment: \(currency(analysis.monthlyPayment))").foregroundStyle(Brix.muted)
+                                        Text("Monthly cash flow: \(currency(analysis.monthlyCashFlow))").foregroundStyle(Brix.muted)
+                                        Text("DSCR: \(analysis.dscr.map { "\($0)x" } ?? "Missing")").foregroundStyle(Brix.muted)
+                                    }
                                 }
                             }
                             BrixCard {
@@ -83,5 +88,10 @@ struct DealIQCockpitView: View {
         TextField(label, value: value, format: .number)
             .keyboardType(.decimalPad)
             .textFieldStyle(.roundedBorder)
+    }
+
+    private func currency(_ value: Double?) -> String {
+        guard let value else { return "Missing" }
+        return value.formatted(.currency(code: "USD").precision(.fractionLength(0)))
     }
 }

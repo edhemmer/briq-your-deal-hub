@@ -81,8 +81,11 @@ function BrixApp() {
   }
 
   function deleteDeal(id: string) {
-    setDeals((current) => current.filter((deal) => deal.id !== id));
-    setSelectedId((current) => current === id ? deals.find((deal) => deal.id !== id)?.id ?? null : current);
+    setDeals((current) => {
+      const next = current.filter((deal) => deal.id !== id);
+      setSelectedId((currentId) => currentId === id ? next[0]?.id ?? null : currentId);
+      return next;
+    });
     softDeleteRemoteDeal(id)
       .then(() => setSyncMessage(null))
       .catch((error) => setSyncMessage(`Deal removed on this device, but cloud sync failed: ${error.message ?? "check your connection."}`));
@@ -132,7 +135,7 @@ function BrixApp() {
         {isAuthenticated && module === "offer" && <OfferIQ deal={selectedDeal} />}
         {isAuthenticated && module === "portfolio" && <PortfolioIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
         {isAuthenticated && module === "reports" && <Reports deal={selectedDeal} />}
-        {isAuthenticated && module === "account" && <Account onAuthChanged={() => setIsAuthenticated(true)} />}
+        {isAuthenticated && module === "account" && <Account onAuthChanged={() => setIsAuthenticated(true)} onSignedOut={() => { setIsAuthenticated(false); setModule("account"); }} />}
       </main>
     </div>
   );
@@ -317,7 +320,7 @@ function PipelineIQ({ deals, onOpen, onStatusChange }: { deals: DealFacts[]; onO
       <div className="kanban">
         {stages.map((stage) => (
           <div className="kanban-col" key={stage}>
-            <strong>{stage.replace(/_/g, " ")}</strong>
+            <strong>{statusLabel(stage)}</strong>
             {deals.filter((deal) => deal.status === stage).map((deal) => {
               const analysis = analyzeDeal(deal);
               return (
@@ -364,10 +367,10 @@ function PortfolioIQ({ deals, onOpen }: { deals: DealFacts[]; onOpen: (id: strin
   return (
     <section className="panel wide">
       <p className="eyebrow">Portfolio</p>
-      <div className="metric-row">
-        <Metric label="Assets" value={metrics.count} />
-        <Metric label="Cash flow" value={Math.max(0, Math.min(100, Math.round(metrics.annualNet / 1000)))} />
-        <Metric label="Equity" value={Math.max(0, Math.min(100, Math.round(metrics.estimatedEquity / 10000)))} />
+      <div className="stat-row">
+        <Stat label="Assets" value={String(metrics.count)} />
+        <Stat label="Annual net" value={formatCurrency(metrics.annualNet)} />
+        <Stat label="Estimated equity" value={formatCurrency(metrics.estimatedEquity)} />
       </div>
       <div className="table">{closed.map((deal) => <button className="table-row" key={deal.id} onClick={() => onOpen(deal.id)}><span>{deal.address}</span><span>{formatCurrency(deal.listPrice)}</span><span>{formatCurrency(deal.monthlyRent)}</span></button>)}</div>
     </section>
@@ -407,10 +410,31 @@ function ContractIQ({ deal }: { deal?: DealFacts }) {
 function Reports({ deal }: { deal?: DealFacts }) {
   if (!deal) return <Empty title="No report available" text="Create or open a deal first." />;
   const analysis = analyzeDeal(deal);
-  return <section className="panel memo"><p className="eyebrow">Decision memo</p><h2>{deal.address}</h2><div className="button-row"><button className="primary" onClick={() => downloadDecisionPdf(deal, analysis)}>Download PDF</button><button className="secondary" onClick={() => downloadWorkbook(deal, analysis)}>Download XLS</button></div><p>Recommendation: {analysis.decision}</p><p>Confidence: {analysis.confidence}/100</p><p>Readiness: {analysis.readiness}/100</p><h3>Evidence</h3><ul>{analysis.evidence.map((item) => <li key={item}>{item}</li>)}</ul><h3>Missing</h3><ul>{analysis.missing.map((item) => <li key={item}>{item}</li>)}</ul></section>;
+  return (
+    <section className="panel memo">
+      <p className="eyebrow">Decision memo</p>
+      <h2>{deal.address}</h2>
+      <div className="button-row"><button className="primary" onClick={() => downloadDecisionPdf(deal, analysis)}>Download PDF</button><button className="secondary" onClick={() => downloadWorkbook(deal, analysis)}>Download XLS</button></div>
+      <div className="stat-row">
+        <Stat label="Recommendation" value={analysis.decision} />
+        <Stat label="Confidence" value={`${analysis.confidence}/100`} />
+        <Stat label="Readiness" value={`${analysis.readiness}/100`} />
+      </div>
+      <h3>Financial read</h3>
+      <div className="stat-row">
+        <Stat label="Monthly payment" value={formatCurrency(analysis.monthlyPayment)} />
+        <Stat label="Monthly cash flow" value={formatCurrency(analysis.monthlyCashFlow)} />
+        <Stat label="DSCR" value={analysis.dscr ? `${analysis.dscr}x` : "Missing"} />
+      </div>
+      <h3>Evidence</h3><ul>{analysis.evidence.map((item) => <li key={item}>{item}</li>)}</ul>
+      <h3>Missing</h3><ul>{analysis.missing.map((item) => <li key={item}>{item}</li>)}</ul>
+      <h3>Strategy comparison</h3>
+      <ul>{analysis.strategyScores.slice(0, 8).map((score) => <li key={score.strategyId}>{score.name}: {score.recommendation} ({score.score}/100)</li>)}</ul>
+    </section>
+  );
 }
 
-function Account({ onAuthChanged }: { onAuthChanged: () => void }) {
+function Account({ onAuthChanged, onSignedOut }: { onAuthChanged: () => void; onSignedOut?: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -441,6 +465,12 @@ function Account({ onAuthChanged }: { onAuthChanged: () => void }) {
     }
   }
 
+  async function signOut() {
+    await supabase.auth.signOut();
+    setMessage("Signed out.");
+    onSignedOut?.();
+  }
+
   return (
     <section className="panel account-panel">
       <p className="eyebrow">Account</p>
@@ -450,7 +480,7 @@ function Account({ onAuthChanged }: { onAuthChanged: () => void }) {
         <button className="primary" onClick={signIn}>Sign in</button>
         <button className="secondary" onClick={signUp}>Create account</button>
         <button className="secondary" onClick={reset}>Reset password</button>
-        <button className="secondary" onClick={() => supabase.auth.signOut()}><LogOut size={16} /> Sign out</button>
+        <button className="secondary" onClick={signOut}><LogOut size={16} /> Sign out</button>
         <button className="danger" onClick={deleteAccount}>Request account deletion</button>
       </div>
       {message && <p className="quiet">{message}</p>}
@@ -466,6 +496,10 @@ function DealSwitcher({ deals, selectedId, onSelect }: { deals: DealFacts[]; sel
 
 function Metric({ label, value }: { label: string; value: number }) {
   return <div className="metric"><span>{label}</span><strong>{value}</strong><div><i style={{ width: `${value}%` }} /></div></div>;
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return <div className="stat"><span>{label}</span><strong>{value}</strong></div>;
 }
 
 function MoneyField({ label, value, onChange }: { label: string; value?: number; onChange: (value?: number) => void }) {
@@ -497,4 +531,17 @@ function toNumber(value: string) {
 function nextStatus(status: DealStatus): DealStatus {
   const stages: DealStatus[] = ["draft", "reviewing", "underwriting", "pursuing", "under_contract", "closed"];
   return stages[Math.min(stages.indexOf(status) + 1, stages.length - 1)] ?? "reviewing";
+}
+
+function statusLabel(status: DealStatus) {
+  const labels: Record<DealStatus, string> = {
+    draft: "New",
+    reviewing: "Reviewing",
+    underwriting: "Underwriting",
+    pursuing: "Pursuing",
+    under_contract: "Under contract",
+    closed: "Closed",
+    passed: "Passed",
+  };
+  return labels[status];
 }

@@ -4,29 +4,26 @@ This checklist tracks App Store requirements that affect BRIX iOS.
 
 ## Implemented in Source
 
-- Sign in with Apple UI is present in `AccountView.swift`.
-- Account deletion can be initiated from inside the app in `AccountView.swift`.
-- Account deletion is full deletion, not temporary deactivation.
-- Privacy policy is reachable in app from Account -> Privacy.
-- Terms of Use and Support are reachable from Account.
-- Account screen explicitly states no cross-app tracking or advertising identifier use.
+- Email sign-in, account creation, password reset, sign out, and account deletion request actions are present in `AccountView.swift`.
+- Account deletion can be initiated from inside the app in `AccountView.swift` through the backend deletion request function.
+- Privacy Policy, Terms of Use, and Support links are reachable in `AccountView.swift`.
+- Account screen states that BRIX does not use app tracking.
 - Permission purpose strings are present in `Info.plist` for camera, microphone, selected photo access, photo saving, location, and document import.
 - `PrivacyInfo.xcprivacy` declares no tracking and lists intended collected data categories: email, user ID, photos/videos, optional location, audio notes, user-created deal content, and product interaction.
 - `BRIXRealEstateiOS.entitlements` includes the Sign in with Apple entitlement.
-- `BRIXAPIClient` keeps account deletion, uploads, auth, storage, and decision fetching behind API boundaries.
-- The app requires sign-in for saved deals, sync, uploads, portfolio data, and deletion controls.
+- `BRIXService` keeps auth, Edge Function calls, and account deletion requests behind API boundaries.
 - The app does not include seeded fake property data or synthetic recommendations.
-- Field captures upload to the private `field-captures` bucket and are recorded through the `field-capture` Edge Function.
-- DealIQ mobile recommendations read from the RLS-aware `mobile_decision_snapshots` view.
 
 ## Backend Requirements Before App Review
 
 - Configure the Apple provider in Supabase Auth.
-- Verify native iOS Sign in with Apple token exchange against Supabase Auth in TestFlight.
+- Add native Sign in with Apple UI before enabling any third-party social login provider.
+- Verify native iOS Sign in with Apple token exchange against Supabase Auth in TestFlight if Apple login is enabled.
 - Revoke Sign in with Apple tokens through Apple's REST API when users delete accounts, when Apple token material is available.
 - Deploy the `request-account-deletion` Supabase Edge Function.
-- Deploy the `field-capture` Supabase Edge Function and confirm the private `field-captures` Storage bucket exists.
-- Apply the migration that exposes `mobile_decision_snapshots` for production DealIQ memo summaries.
+- Confirm hosted Privacy Policy, Terms of Use, and Support URLs are live before App Review.
+- Persist native deal records to Supabase so iOS-created deals appear in the web app and web-created deals appear in iOS.
+- Add private media upload storage and Edge Function support before claiming photo sync or backend field-capture upload.
 - Apply the BRIX OS + Apple compliance Supabase migration.
 - Confirm full account and associated personal-data deletion behavior, except legally required retention.
 - Send deletion confirmation when deletion is complete.

@@ -92,6 +92,10 @@ struct DealAnalysis {
     var decision: String
     var confidence: Int
     var readiness: Int
+    var monthlyPayment: Double?
+    var monthlyNOI: Double?
+    var monthlyCashFlow: Double?
+    var dscr: Double?
     var missing: [String]
     var nextActions: [String]
 }
