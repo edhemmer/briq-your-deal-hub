@@ -48,8 +48,25 @@ echo "Archived app Info.plist keys:"
 echo ""
 
 bundle_id="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$PLIST_PATH" 2>/dev/null || true)"
+executable_name="$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$PLIST_PATH" 2>/dev/null || true)"
 if [[ -z "$bundle_id" ]]; then
   echo "ERROR: The archived app Info.plist exists, but CFBundleIdentifier is empty or missing."
+  exit 1
+fi
+
+if [[ -z "$executable_name" ]]; then
+  echo "ERROR: The archived app Info.plist is missing CFBundleExecutable."
+  exit 1
+fi
+
+if [[ ! -f "$APP_PATH/$executable_name" ]]; then
+  echo "ERROR: The archived app does not contain the executable '$executable_name'."
+  echo "This is the condition App Store reports as ITMS-90207."
+  exit 1
+fi
+
+if [[ ! -x "$APP_PATH/$executable_name" ]]; then
+  echo "ERROR: The archived executable exists but is not marked executable: $APP_PATH/$executable_name"
   exit 1
 fi
 
@@ -59,4 +76,4 @@ if [[ "$bundle_id" != "$PROJECT_BUNDLE_ID" ]]; then
   exit 1
 fi
 
-echo "Archive bundle identity is correct."
+echo "Archive bundle identity and executable are correct."

@@ -339,8 +339,10 @@
 				CODE_SIGN_ENTITLEMENTS = BRIXRealEstateiOS/BRIXRealEstateiOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
+				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = NO;
 				DEVELOPMENT_ASSET_PATHS = "";
 				GENERATE_INFOPLIST_FILE = NO;
+				INSTALL_PATH = "$(LOCAL_APPS_DIR)";
 				INFOPLIST_FILE = BRIXRealEstateiOS/Info.plist;
 				INFOPLIST_KEY_BRIX_SUPABASE_PUBLISHABLE_KEY = sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f;
 				INFOPLIST_KEY_BRIX_SUPABASE_URL = "https://luwaqrkhmxcqsozmilbw.supabase.co";
@@ -363,12 +365,15 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MACH_O_TYPE = mh_execute;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "BrixRE.Brix-Real-Estate";
 				PRODUCT_NAME = "BRIX Real Estate";
 				SDKROOT = iphoneos;
+				SKIP_INSTALL = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -382,8 +387,10 @@
 				CODE_SIGN_ENTITLEMENTS = BRIXRealEstateiOS/BRIXRealEstateiOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
+				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = NO;
 				DEVELOPMENT_ASSET_PATHS = "";
 				GENERATE_INFOPLIST_FILE = NO;
+				INSTALL_PATH = "$(LOCAL_APPS_DIR)";
 				INFOPLIST_FILE = BRIXRealEstateiOS/Info.plist;
 				INFOPLIST_KEY_BRIX_SUPABASE_PUBLISHABLE_KEY = sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f;
 				INFOPLIST_KEY_BRIX_SUPABASE_URL = "https://luwaqrkhmxcqsozmilbw.supabase.co";
@@ -406,12 +413,15 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MACH_O_TYPE = mh_execute;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "BrixRE.Brix-Real-Estate";
 				PRODUCT_NAME = "BRIX Real Estate";
 				SDKROOT = iphoneos;
+				SKIP_INSTALL = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

@@ -61,6 +61,26 @@ if ! grep -q '<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>' "$ROOT_DIR/BRIXReal
   exit 1
 fi
 
+if ! grep -q '<key>CFBundleExecutable</key>' "$ROOT_DIR/BRIXRealEstateiOS/Info.plist"; then
+  echo "ERROR: Info.plist is missing CFBundleExecutable. App Store uploads reject bundles without this key."
+  exit 1
+fi
+
+if ! grep -q '<string>$(EXECUTABLE_NAME)</string>' "$ROOT_DIR/BRIXRealEstateiOS/Info.plist"; then
+  echo "ERROR: CFBundleExecutable must use EXECUTABLE_NAME so the archived app points to the compiled binary."
+  exit 1
+fi
+
+if ! grep -q "MACH_O_TYPE = mh_execute;" "$PROJECT_PATH/project.pbxproj"; then
+  echo "ERROR: Target must build a Mach-O executable for App Store archives."
+  exit 1
+fi
+
+if ! grep -q "SKIP_INSTALL = NO;" "$PROJECT_PATH/project.pbxproj"; then
+  echo "ERROR: SKIP_INSTALL must be NO so the app executable is installed into the archive."
+  exit 1
+fi
+
 if [[ ! -f "$ROOT_DIR/BRIXRealEstateiOS/LaunchScreen.storyboard" ]]; then
   echo "ERROR: LaunchScreen.storyboard is missing. iPad multitasking uploads require a launch storyboard."
   exit 1

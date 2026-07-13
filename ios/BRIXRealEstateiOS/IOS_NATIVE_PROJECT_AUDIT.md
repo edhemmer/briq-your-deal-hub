@@ -37,6 +37,8 @@ Do not create a new Xcode project and do not open a generated `ContentView` app 
 - App icon source: `Assets.xcassets/AppIcon.appiconset`
 - Privacy manifest: `PrivacyInfo.xcprivacy`
 - Entitlement: Sign in with Apple
+- Bundle executable key: `CFBundleExecutable = $(EXECUTABLE_NAME)`
+- Archive install settings: `MACH_O_TYPE = mh_execute`, `SKIP_INSTALL = NO`
 
 ## Backend Connections
 
@@ -57,3 +59,11 @@ bash scripts/verify-ios-project.sh
 ```
 
 This confirms the Xcode project exists, the real BRIX Swift files are target members, no template `Hello World` app is present, and the project builds for iOS Simulator.
+
+After creating an archive, inspect the exported app bundle before uploading:
+
+```bash
+bash scripts/inspect-archive.sh /path/to/BRIXRealEstateiOS.xcarchive
+```
+
+This confirms the archive contains `BRIX Real Estate.app`, a valid bundle id, `CFBundleExecutable`, and the compiled executable file required by App Store Connect.
