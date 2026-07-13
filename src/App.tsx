@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Upload, Plus, LogOut, FileDown, Table2, MapPinned, Landmark } from "lucide-react";
+import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch } from "lucide-react";
 import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
 import { createDealFromInput, loadDeals, loadRemoteDeals, persistRemoteDeal, saveDeals, softDeleteRemoteDeal } from "./core/store";
@@ -9,12 +9,16 @@ import { downloadDecisionPdf, downloadWorkbook } from "./core/reportExports";
 import { analyzePhotoEvidence } from "./core/photoAnalysis";
 import { areaSearchUrl, ownerOccupiedConveniences, taxSearchUrl } from "./core/areaAndTax";
 import { requestAccountDeletion } from "./core/authActions";
+import { reviewContractText } from "./core/contractReview";
+import { buildOfferStructures, offerSummary } from "./core/offerEngine";
+import { portfolioMetrics } from "./core/portfolioEngine";
 
-type Module = "find" | "deal" | "pipeline" | "offer" | "portfolio" | "reports" | "account";
+type Module = "find" | "deal" | "contract" | "pipeline" | "offer" | "portfolio" | "reports" | "account";
 
 const nav: Array<{ id: Module; label: string; icon: typeof Search; purpose: string }> = [
   { id: "find", label: "FindIQ", icon: Search, purpose: "Start or import a property" },
   { id: "deal", label: "DealIQ", icon: BarChart3, purpose: "Underwrite and compare strategies" },
+  { id: "contract", label: "ContractIQ", icon: FileSearch, purpose: "Review contract risk" },
   { id: "pipeline", label: "PipelineIQ", icon: KanbanSquare, purpose: "Track active opportunities" },
   { id: "offer", label: "OfferIQ", icon: FilePenLine, purpose: "Plan pursuit and terms" },
   { id: "portfolio", label: "PortfolioIQ", icon: Building2, purpose: "Monitor owned assets" },
@@ -34,6 +38,7 @@ function BrixApp() {
   const [deals, setDeals] = useState<DealFacts[]>(() => loadDeals());
   const [selectedId, setSelectedId] = useState<string | null>(() => loadDeals()[0]?.id ?? null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const selectedDeal = deals.find((deal) => deal.id === selectedId) ?? deals[0];
 
   useEffect(() => saveDeals(deals), [deals]);
@@ -53,12 +58,15 @@ function BrixApp() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    loadRemoteDeals().then((remoteDeals) => {
-      if (remoteDeals.length > 0) {
-        setDeals(remoteDeals);
-        setSelectedId(remoteDeals[0].id);
-      }
-    });
+    loadRemoteDeals()
+      .then((remoteDeals) => {
+        if (remoteDeals.length > 0) {
+          setDeals(remoteDeals);
+          setSelectedId(remoteDeals[0].id);
+        }
+        setSyncMessage(null);
+      })
+      .catch((error) => setSyncMessage(`Could not load cloud records: ${error.message ?? "check your connection."}`));
   }, [isAuthenticated]);
 
   function upsertDeal(next: DealFacts) {
@@ -67,13 +75,17 @@ function BrixApp() {
       return exists ? current.map((deal) => deal.id === next.id ? next : deal) : [next, ...current];
     });
     setSelectedId(next.id);
-    void persistRemoteDeal(next);
+    persistRemoteDeal(next)
+      .then(() => setSyncMessage(null))
+      .catch((error) => setSyncMessage(`Deal saved on this device, but cloud sync failed: ${error.message ?? "check your connection."}`));
   }
 
   function deleteDeal(id: string) {
     setDeals((current) => current.filter((deal) => deal.id !== id));
     setSelectedId((current) => current === id ? deals.find((deal) => deal.id !== id)?.id ?? null : current);
-    void softDeleteRemoteDeal(id);
+    softDeleteRemoteDeal(id)
+      .then(() => setSyncMessage(null))
+      .catch((error) => setSyncMessage(`Deal removed on this device, but cloud sync failed: ${error.message ?? "check your connection."}`));
   }
 
   return (
@@ -112,9 +124,11 @@ function BrixApp() {
         </header>
 
         {!isAuthenticated && <Account onAuthChanged={() => setIsAuthenticated(true)} />}
+        {isAuthenticated && syncMessage && <div className="callout danger-callout"><strong>Sync needs attention</strong><span>{syncMessage}</span></div>}
         {isAuthenticated && module === "find" && <FindIQ onCreate={(deal) => { upsertDeal(deal); setModule("deal"); }} />}
         {isAuthenticated && module === "deal" && <DealIQ deal={selectedDeal} onChange={upsertDeal} onDelete={deleteDeal} />}
-        {isAuthenticated && module === "pipeline" && <PipelineIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
+        {isAuthenticated && module === "contract" && <ContractIQ deal={selectedDeal} />}
+        {isAuthenticated && module === "pipeline" && <PipelineIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} onStatusChange={(deal) => upsertDeal(deal)} />}
         {isAuthenticated && module === "offer" && <OfferIQ deal={selectedDeal} />}
         {isAuthenticated && module === "portfolio" && <PortfolioIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
         {isAuthenticated && module === "reports" && <Reports deal={selectedDeal} />}
@@ -237,11 +251,11 @@ function DealIQ({ deal, onChange, onDelete }: { deal?: DealFacts; onChange: (dea
         <p className="eyebrow">Strategy comparison</p>
         <div className="score-list">
           {analysis.strategyScores.slice(0, 12).map((score) => (
-            <article key={score.strategyId} className={score.strategyId === deal.strategyId ? "score-card selected" : "score-card"} onClick={() => patch({ strategyId: score.strategyId })}>
+            <button key={score.strategyId} className={score.strategyId === deal.strategyId ? "score-card selected" : "score-card"} onClick={() => patch({ strategyId: score.strategyId })}>
               <strong>{score.name}</strong>
               <span>{score.recommendation}</span>
               <b>{score.score}</b>
-            </article>
+            </button>
           ))}
         </div>
       </section>
@@ -294,21 +308,100 @@ function DealIQ({ deal, onChange, onDelete }: { deal?: DealFacts; onChange: (dea
   );
 }
 
-function PipelineIQ({ deals, onOpen }: { deals: DealFacts[]; onOpen: (id: string) => void }) {
+function PipelineIQ({ deals, onOpen, onStatusChange }: { deals: DealFacts[]; onOpen: (id: string) => void; onStatusChange: (deal: DealFacts) => void }) {
   if (!deals.length) return <Empty title="No active properties" text="Create a deal in FindIQ to begin tracking it." />;
-  return <section className="panel"><p className="eyebrow">Pipeline</p><div className="table">{deals.map((deal) => <button key={deal.id} className="table-row" onClick={() => onOpen(deal.id)}><span>{deal.address}</span><span>{deal.status.replace(/_/g, " ")}</span><span>{analyzeDeal(deal).confidence}</span></button>)}</div></section>;
+  const stages: DealStatus[] = ["draft", "reviewing", "underwriting", "pursuing", "under_contract", "closed", "passed"];
+  return (
+    <section className="panel wide">
+      <p className="eyebrow">Pipeline</p>
+      <div className="kanban">
+        {stages.map((stage) => (
+          <div className="kanban-col" key={stage}>
+            <strong>{stage.replace(/_/g, " ")}</strong>
+            {deals.filter((deal) => deal.status === stage).map((deal) => {
+              const analysis = analyzeDeal(deal);
+              return (
+                <article key={deal.id} className="mini-card">
+                  <button onClick={() => onOpen(deal.id)}>{deal.address || "Untitled property"}</button>
+                  <span>{analysis.decision} - {analysis.confidence}</span>
+                  <button className="tiny" onClick={() => onStatusChange({ ...deal, status: nextStatus(deal.status), updatedAt: new Date().toISOString() })}>Advance</button>
+                </article>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function OfferIQ({ deal }: { deal?: DealFacts }) {
   if (!deal) return <Empty title="No deal selected" text="Open a deal before building an offer plan." />;
   const analysis = analyzeDeal(deal);
-  return <section className="panel"><p className="eyebrow">Offer plan</p><h2>{deal.address}</h2><p className="quiet">Recommended posture: {analysis.decision === "Visit" ? "prepare terms after verification" : "do not write terms until missing data is cleared"}.</p><ul className="check-list">{analysis.nextActions.map((action) => <li key={action}>{action}</li>)}</ul></section>;
+  const offers = buildOfferStructures(deal, analysis);
+  return (
+    <section className="panel wide">
+      <p className="eyebrow">Offer plan</p>
+      <h2>{deal.address}</h2>
+      <p className="quiet">Terms stay conditional until required facts are verified.</p>
+      <div className="score-list">
+        {offers.map((offer) => (
+          <article className="score-card" key={offer.name}>
+            <strong>{offerSummary(offer)}</strong>
+            <span>{offer.posture}</span>
+            {offer.risks.map((risk) => <small key={risk}>{risk}</small>)}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function PortfolioIQ({ deals, onOpen }: { deals: DealFacts[]; onOpen: (id: string) => void }) {
   const closed = deals.filter((deal) => deal.status === "closed");
   if (!closed.length) return <Empty title="No portfolio assets yet" text="Closed acquisitions will appear here." />;
-  return <section className="panel"><p className="eyebrow">Assets</p>{closed.map((deal) => <button className="table-row" key={deal.id} onClick={() => onOpen(deal.id)}><span>{deal.address}</span><span>{formatCurrency(deal.listPrice)}</span><span>{formatCurrency(deal.monthlyRent)}</span></button>)}</section>;
+  const metrics = portfolioMetrics(deals);
+  return (
+    <section className="panel wide">
+      <p className="eyebrow">Portfolio</p>
+      <div className="metric-row">
+        <Metric label="Assets" value={metrics.count} />
+        <Metric label="Cash flow" value={Math.max(0, Math.min(100, Math.round(metrics.annualNet / 1000)))} />
+        <Metric label="Equity" value={Math.max(0, Math.min(100, Math.round(metrics.estimatedEquity / 10000)))} />
+      </div>
+      <div className="table">{closed.map((deal) => <button className="table-row" key={deal.id} onClick={() => onOpen(deal.id)}><span>{deal.address}</span><span>{formatCurrency(deal.listPrice)}</span><span>{formatCurrency(deal.monthlyRent)}</span></button>)}</div>
+    </section>
+  );
+}
+
+function ContractIQ({ deal }: { deal?: DealFacts }) {
+  const [text, setText] = useState("");
+  const findings = useMemo(() => reviewContractText(text), [text]);
+  if (!deal) return <Empty title="No deal selected" text="Open a deal before reviewing contract risk." />;
+  return (
+    <section className="two-column">
+      <div className="panel">
+        <p className="eyebrow">ContractIQ</p>
+        <h2>{deal.address}</h2>
+        <label className="field">
+          <span>Paste contract text or key clauses</span>
+          <textarea rows={12} value={text} onChange={(event) => setText(event.target.value)} />
+        </label>
+      </div>
+      <div className="panel">
+        <p className="eyebrow">Risk review</p>
+        {!text.trim() && <p className="quiet">Paste contract language to review inspection, financing, appraisal, HOA, earnest money, tax proration, closing, and condition risk.</p>}
+        <div className="findings">
+          {findings.map((finding) => (
+            <article key={`${finding.clause}-${finding.action}`}>
+              <strong>{finding.severity}: {finding.clause}</strong>
+              <span>{finding.finding} {finding.action}</span>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function Reports({ deal }: { deal?: DealFacts }) {

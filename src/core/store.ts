@@ -36,14 +36,15 @@ export async function loadRemoteDeals(): Promise<DealFacts[]> {
     .select("*")
     .is("deleted_at", null)
     .order("updated_at", { ascending: false });
-  if (error || !data) return [];
+  if (error) throw error;
+  if (!data) return [];
   return data.map(fromRow);
 }
 
 export async function persistRemoteDeal(deal: DealFacts) {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return;
-  await supabase.from("brix_deals").upsert({
+  const { error } = await supabase.from("brix_deals").upsert({
     id: deal.id,
     owner_id: userData.user.id,
     status: deal.status,
@@ -59,12 +60,14 @@ export async function persistRemoteDeal(deal: DealFacts) {
     verification: deal.verification,
     updated_at: new Date().toISOString(),
   });
+  if (error) throw error;
 }
 
 export async function softDeleteRemoteDeal(id: string) {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return;
-  await supabase.from("brix_deals").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  const { error } = await supabase.from("brix_deals").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw error;
 }
 
 function fromRow(row: any): DealFacts {
