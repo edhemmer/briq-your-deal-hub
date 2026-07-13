@@ -55,6 +55,7 @@ describe("BRIX app module flow", () => {
     render(<App />);
 
     await screen.findByRole("heading", { name: "FindIQ" });
+    expect(window.location.pathname).toBe("/app");
     fireEvent.change(screen.getByLabelText("Address, listing URL, or listing text"), {
       target: { value: "https://example.com/homedetails/1615-Augusta-Ln-Shorewood-IL-60404/63210803_zpid/ $399000 4 bed 2 bath Taxes $9000 HOA $250" },
     });
@@ -62,6 +63,7 @@ describe("BRIX app module flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /create deal file/i }));
 
     expect(await screen.findByRole("heading", { name: /Visit|Research first|Do not visit yet/i })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/dealiq");
     expect(screen.getAllByText(/1615 Augusta Ln/i).length).toBeGreaterThan(0);
     expect(upsertMock).toHaveBeenCalled();
 
@@ -70,6 +72,7 @@ describe("BRIX app module flow", () => {
     expect(screen.getByText(/Top fit/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /ContractIQ/i }));
+    expect(window.location.pathname).toBe("/contractiq");
     expect(await screen.findByRole("heading", { name: /1615 Augusta Ln/i })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Paste contract text or key clauses"), {
       target: { value: "As-is purchase with inspection, financing, HOA, appraisal, earnest money, and tax proration." },
@@ -77,17 +80,21 @@ describe("BRIX app module flow", () => {
     expect(await screen.findByText(/As-is condition/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /OfferIQ/i }));
+    expect(window.location.pathname).toBe("/offeriq");
     expect(await screen.findByText(/Conservative:/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /PipelineIQ/i }));
+    expect(window.location.pathname).toBe("/pipelineiq");
     expect(await screen.findByText("New")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Reports/i }));
+    expect(window.location.pathname).toBe("/reports");
     await screen.findByText("Recommendation");
     expect(screen.getAllByText(/What must be true/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Decision memo/i).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: /PortfolioIQ/i }));
+    expect(window.location.pathname).toBe("/portfolioiq");
     expect(await screen.findByText(/No portfolio assets yet/i)).toBeInTheDocument();
 
     await waitFor(() => expect(screen.queryByText(/Sync needs attention/i)).not.toBeInTheDocument());

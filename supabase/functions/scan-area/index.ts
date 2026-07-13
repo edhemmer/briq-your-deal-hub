@@ -7,17 +7,21 @@ const cors = {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  const { address = "", city = "", state = "", zip = "" } = await req.json();
-  const origin = [address, city, state, zip].filter(Boolean).join(" ");
-  const needs = ["hospital", "grocery", "pharmacy", "highway access", "airport"];
-  return json({
-    origin,
-    checks: needs.map((need) => ({
-      need,
-      map_url: `https://www.google.com/maps/search/${encodeURIComponent(`${need} near ${origin}`)}`,
-      status: "verify_on_map",
-    })),
-  });
+  try {
+    const { address = "", city = "", state = "", zip = "" } = await req.json();
+    const origin = [address, city, state, zip].filter(Boolean).join(" ");
+    const needs = ["hospital", "grocery", "pharmacy", "highway access", "airport"];
+    return json({
+      origin,
+      checks: needs.map((need) => ({
+        need,
+        map_url: `https://www.google.com/maps/search/${encodeURIComponent(`${need} near ${origin}`)}`,
+        status: "verify_on_map",
+      })),
+    });
+  } catch (error) {
+    return json({ error: error instanceof Error ? error.message : "Unable to scan area." }, 400);
+  }
 });
 
 function json(body: unknown, status = 200) {

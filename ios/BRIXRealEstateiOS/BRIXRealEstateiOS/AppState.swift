@@ -8,7 +8,12 @@ final class AppState: ObservableObject {
     @Published var selectedDealID: UUID?
     @Published var email = ""
     @Published var authMessage = ""
-    @Published var accessToken = ""
+    @Published var accessToken = "" {
+        didSet { UserDefaults.standard.set(accessToken, forKey: "brix.accessToken") }
+    }
+    @Published var refreshToken = "" {
+        didSet { UserDefaults.standard.set(refreshToken, forKey: "brix.refreshToken") }
+    }
 
     var selectedDeal: Deal? {
         get { deals.first { $0.id == selectedDealID } ?? deals.first }
@@ -21,6 +26,7 @@ final class AppState: ObservableObject {
             }
             selectedDealID = newValue.id
             save()
+            syncDeal(newValue)
         }
     }
 
@@ -38,6 +44,7 @@ final class AppState: ObservableObject {
         deals.removeAll { $0.id == selectedDealID }
         self.selectedDealID = deals.first?.id
         save()
+        syncDelete(selectedDealID)
     }
 
     func advance(_ deal: Deal) {
@@ -45,6 +52,35 @@ final class AppState: ObservableObject {
         updated.status = nextStatus(after: deal.status)
         updated.updatedAt = Date()
         selectedDeal = updated
+    }
+
+    func completeAuthentication(session: BRIXAuthSession, message: String) {
+        accessToken = session.accessToken
+        refreshToken = session.refreshToken
+        authMessage = message
+        Task { await loadCloudDeals() }
+    }
+
+    func signOut() {
+        accessToken = ""
+        refreshToken = ""
+        authMessage = "Signed out."
+        UserDefaults.standard.removeObject(forKey: "brix.accessToken")
+        UserDefaults.standard.removeObject(forKey: "brix.refreshToken")
+    }
+
+    func loadCloudDeals() async {
+        guard !accessToken.isEmpty else { return }
+        do {
+            let remoteDeals = try await BRIXService.fetchDeals(accessToken: accessToken)
+            if !remoteDeals.isEmpty {
+                deals = remoteDeals
+                selectedDealID = remoteDeals.first?.id
+                save()
+            }
+        } catch {
+            authMessage = "Could not sync deal files. Check network access."
+        }
     }
 
     func analysis(for deal: Deal) -> DealAnalysis {
@@ -235,6 +271,7 @@ final class AppState: ObservableObject {
     }
 
     private func nextStatus(after status: String) -> String {
+        if status == "passed" || status == "closed" { return status }
         let stages = ["draft", "reviewing", "underwriting", "pursuing", "under_contract", "closed"]
         guard let index = stages.firstIndex(of: status) else { return "reviewing" }
         return stages[min(index + 1, stages.count - 1)]
@@ -273,9 +310,52 @@ final class AppState: ObservableObject {
     }
 
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: "brix.deals"),
-              let decoded = try? JSONDecoder().decode([Deal].self, from: data) else { return }
-        deals = decoded
-        selectedDealID = decoded.first?.id
+        accessToken = UserDefaults.standard.string(forKey: "brix.accessToken") ?? ""
+        refreshToken = UserDefaults.standard.string(forKey: "brix.refreshToken") ?? ""
+        if let data = UserDefaults.standard.data(forKey: "brix.deals"),
+           let decoded = try? JSONDecoder().decode([Deal].self, from: data) {
+            deals = decoded
+            selectedDealID = decoded.first?.id
+        }
+        if !refreshToken.isEmpty {
+            Task { await refreshAndLoadCloudDeals() }
+        } else if !accessToken.isEmpty {
+            Task { await loadCloudDeals() }
+        }
+    }
+
+    private func refreshAndLoadCloudDeals() async {
+        do {
+            let session = try await BRIXService.refreshSession(refreshToken: refreshToken)
+            accessToken = session.accessToken
+            if !session.refreshToken.isEmpty { refreshToken = session.refreshToken }
+            await loadCloudDeals()
+        } catch {
+            accessToken = ""
+            refreshToken = ""
+            authMessage = "Please sign in again."
+        }
+    }
+
+    private func syncDeal(_ deal: Deal) {
+        guard !accessToken.isEmpty else { return }
+        Task {
+            do {
+                try await BRIXService.upsertDeal(deal, accessToken: accessToken)
+            } catch {
+                authMessage = "Deal saved on this device. Cloud sync needs attention."
+            }
+        }
+    }
+
+    private func syncDelete(_ id: UUID) {
+        guard !accessToken.isEmpty else { return }
+        Task {
+            do {
+                try await BRIXService.softDeleteDeal(id: id, accessToken: accessToken)
+            } catch {
+                authMessage = "Deal removed on this device. Cloud sync needs attention."
+            }
+        }
     }
 }

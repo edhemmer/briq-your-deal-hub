@@ -30,18 +30,31 @@ struct AccountView: View {
                                     .textContentType(.password)
                                     .textFieldStyle(.roundedBorder)
                             }
-                            Button("Sign in") { Task { await run { state.accessToken = try await BRIXService.signIn(email: state.email, password: password); state.authMessage = "Signed in." } } }
+                            Button("Sign in") {
+                                Task {
+                                    await run {
+                                        let session = try await BRIXService.signIn(email: state.email, password: password)
+                                        state.completeAuthentication(session: session, message: "Signed in.")
+                                    }
+                                }
+                            }
                                 .buttonStyle(.borderedProminent)
                                 .tint(Brix.blue)
                                 .disabled(isWorking || !canSubmitCredentials)
-                            Button("Create account") { Task { await run { state.accessToken = try await BRIXService.signUp(email: state.email, password: password); state.authMessage = "Account created." } } }
+                            Button("Create account") {
+                                Task {
+                                    await run {
+                                        let session = try await BRIXService.signUp(email: state.email, password: password)
+                                        state.completeAuthentication(session: session, message: session.accessToken.isEmpty ? "Account created. Check email if confirmation is required." : "Account created.")
+                                    }
+                                }
+                            }
                                 .disabled(isWorking || !canSubmitCredentials)
                             Button("Reset password") { Task { await run { try await BRIXService.resetPassword(email: state.email); state.authMessage = "Password reset email sent." } } }
                                 .disabled(isWorking || state.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             Button("Sign out") {
-                                state.accessToken = ""
+                                state.signOut()
                                 password = ""
-                                state.authMessage = "Signed out."
                             }
                             .disabled(state.accessToken.isEmpty)
                             Button(role: .destructive) {

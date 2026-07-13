@@ -1,7 +1,7 @@
 import Foundation
 
 enum AppTab: String, CaseIterable, Identifiable {
-    case find, deal, contract, pipeline, offer, portfolio, account
+    case find, deal, contract, pipeline, offer, portfolio, reports, account
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -11,6 +11,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .pipeline: "PipelineIQ"
         case .offer: "OfferIQ"
         case .portfolio: "PortfolioIQ"
+        case .reports: "Reports"
         case .account: "Account"
         }
     }

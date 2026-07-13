@@ -33,27 +33,68 @@ export default function App() {
   return <BrixApp />;
 }
 
+function moduleFromPath(): Module {
+  const raw = window.location.pathname.replace(/^\/+/, "").split("/")[0];
+  const aliases: Record<string, Module> = {
+    app: "find",
+    findiq: "find",
+    dealiq: "deal",
+    contractiq: "contract",
+    pipelineiq: "pipeline",
+    offeriq: "offer",
+    portfolioiq: "portfolio",
+    reports: "reports",
+    account: "account",
+  };
+  return aliases[raw] ?? "find";
+}
+
+function pathForModule(module: Module) {
+  const paths: Record<Module, string> = {
+    find: "/findiq",
+    deal: "/dealiq",
+    contract: "/contractiq",
+    pipeline: "/pipelineiq",
+    offer: "/offeriq",
+    portfolio: "/portfolioiq",
+    reports: "/reports",
+    account: "/account",
+  };
+  return paths[module];
+}
+
 function BrixApp() {
-  const [module, setModule] = useState<Module>("account");
+  const [module, setModuleState] = useState<Module>(() => moduleFromPath());
   const [deals, setDeals] = useState<DealFacts[]>(() => loadDeals());
   const [selectedId, setSelectedId] = useState<string | null>(() => loadDeals()[0]?.id ?? null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const selectedDeal = deals.find((deal) => deal.id === selectedId) ?? deals[0];
 
+  function setModule(next: Module) {
+    setModuleState(next);
+    const nextPath = pathForModule(next);
+    if (window.location.pathname !== nextPath) window.history.pushState({}, "", nextPath);
+  }
+
   useEffect(() => saveDeals(deals), [deals]);
   useEffect(() => {
+    const onPopState = () => setModuleState(moduleFromPath());
+    window.addEventListener("popstate", onPopState);
     supabase.auth.getSession().then(({ data }) => {
       const signedIn = Boolean(data.session);
       setIsAuthenticated(signedIn);
-      if (signedIn) setModule("find");
+      if (signedIn && module === "account") setModule(moduleFromPath() === "account" ? "find" : moduleFromPath());
       if (!signedIn) setModule("account");
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(Boolean(session));
       if (!session) setModule("account");
     });
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -126,7 +167,7 @@ function BrixApp() {
           <DealSwitcher deals={deals} selectedId={selectedDeal?.id} onSelect={setSelectedId} />
         </header>
 
-        {!isAuthenticated && <Account onAuthChanged={() => setIsAuthenticated(true)} />}
+        {!isAuthenticated && <Account onAuthChanged={() => { setIsAuthenticated(true); setModule("find"); }} />}
         {isAuthenticated && syncMessage && <div className="callout danger-callout"><strong>Sync needs attention</strong><span>{syncMessage}</span></div>}
         {isAuthenticated && module === "find" && <FindIQ onCreate={(deal) => { upsertDeal(deal); setModule("deal"); }} />}
         {isAuthenticated && module === "deal" && <DealIQ deal={selectedDeal} onChange={upsertDeal} onDelete={deleteDeal} />}
@@ -135,7 +176,7 @@ function BrixApp() {
         {isAuthenticated && module === "offer" && <OfferIQ deal={selectedDeal} />}
         {isAuthenticated && module === "portfolio" && <PortfolioIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
         {isAuthenticated && module === "reports" && <Reports deal={selectedDeal} />}
-        {isAuthenticated && module === "account" && <Account onAuthChanged={() => setIsAuthenticated(true)} onSignedOut={() => { setIsAuthenticated(false); setModule("account"); }} />}
+        {isAuthenticated && module === "account" && <Account onAuthChanged={() => { setIsAuthenticated(true); setModule("find"); }} onSignedOut={() => { setIsAuthenticated(false); setModule("account"); }} />}
       </main>
     </div>
   );
@@ -151,7 +192,7 @@ function Landing() {
         </div>
         <h1>Real estate decisions with evidence before emotion.</h1>
         <p>Enter a property, choose a strategy, and BRIX builds the deal file, checks missing facts, compares strategies, and tells you whether to visit, research first, or pass.</p>
-        <button className="primary" onClick={() => { window.history.pushState({}, "", "/app"); window.location.reload(); }}>Open BRIX</button>
+        <button className="primary" onClick={() => window.location.assign("/app")}>Open BRIX</button>
       </section>
       <section className="landing-grid">
         <Step n="1" title="Start with one property" text="Address, listing URL, or listing text. No browsing maze." />
@@ -571,6 +612,7 @@ function toNumber(value: string) {
 
 function nextStatus(status: DealStatus): DealStatus {
   const stages: DealStatus[] = ["draft", "reviewing", "underwriting", "pursuing", "under_contract", "closed"];
+  if (status === "passed" || status === "closed") return status;
   return stages[Math.min(stages.indexOf(status) + 1, stages.length - 1)] ?? "reviewing";
 }
 
