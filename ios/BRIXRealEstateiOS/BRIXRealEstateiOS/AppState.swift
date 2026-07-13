@@ -65,8 +65,89 @@ final class AppState: ObservableObject {
             monthlyCashFlow: cashFlow,
             dscr: dscr,
             missing: missing,
-            nextActions: missing.map { "Add or verify \($0.lowercased())." }
+            nextActions: nextActions(for: deal, missing: missing),
+            keyRisks: keyRisks(for: deal, missing: missing),
+            bullCase: bullCase(for: deal),
+            bearCase: bearCase(for: deal, missing: missing),
+            whatMustBeTrue: whatMustBeTrue(for: deal),
+            failureScenarios: failureScenarios(for: deal),
+            alternativeStrategies: alternativeStrategies(for: deal)
         )
+    }
+
+    private func nextActions(for deal: Deal, missing: [String]) -> [String] {
+        if missing.isEmpty {
+            return ["Review contract terms.", "Confirm final financing and insurance.", "Save the decision memo before pursuing the property."]
+        }
+        return missing.map { "Add or verify \($0.lowercased())." }
+    }
+
+    private func keyRisks(for deal: Deal, missing: [String]) -> [String] {
+        var risks = missing.map { "\($0) is not verified." }
+        if [.brrrr, .hybridBrrrr, .fixAndFlip, .valueAdd, .development].contains(deal.strategy) {
+            risks.append("Renovation scope, permits, timeline, and exit value can materially change the result.")
+        }
+        if deal.strategy == .shortTermRental || deal.strategy == .hybridRental {
+            risks.append("Occupancy, local rules, HOA restrictions, and management burden must be verified.")
+        }
+        if risks.isEmpty { risks.append("Source quality and inspection findings remain the main decision risks.") }
+        return Array(risks.prefix(6))
+    }
+
+    private func bullCase(for deal: Deal) -> [String] {
+        var items = ["The property may fit the selected strategy if the captured facts verify."]
+        if let price = deal.listPrice {
+            items.append("Purchase price is captured at \(currency(price)), so affordability and offer structure can be tested.")
+        }
+        if deal.monthlyRent != nil { items.append("Rent support is available for cash flow and DSCR testing.") }
+        return items
+    }
+
+    private func bearCase(for deal: Deal, missing: [String]) -> [String] {
+        var items: [String] = []
+        if !missing.isEmpty { items.append("Decision quality is limited by missing data: \(missing.prefix(3).joined(separator: ", ")).") }
+        if deal.annualInsurance == nil { items.append("Insurance is not verified, so carrying cost may be understated.") }
+        if deal.annualTaxes == nil { items.append("Taxes are not verified, so affordability may be overstated.") }
+        if items.isEmpty { items.append("The strategy can fail if assumptions are too optimistic or inspection findings change the economics.") }
+        return items
+    }
+
+    private func whatMustBeTrue(for deal: Deal) -> [String] {
+        var items = ["Purchase price, taxes, insurance, financing, and condition must remain inside the user's tolerance."]
+        if deal.strategy != .ownerOccupant { items.append("Market rent must support the selected strategy after vacancy and operating expenses.") }
+        if [.brrrr, .hybridBrrrr, .fixAndFlip, .valueAdd].contains(deal.strategy) {
+            items.append("Rehab budget, after repair value, and timeline must be verified before relying on projected upside.")
+        }
+        if deal.strategy == .ownerOccupant { items.append("Commute, neighborhood fit, HOA rules, and monthly payment must work for the household.") }
+        return items
+    }
+
+    private func failureScenarios(for deal: Deal) -> [String] {
+        switch deal.strategy {
+        case .ownerOccupant:
+            return ["Monthly payment exceeds comfort range.", "HOA, parking, commute, or local fit fails verification.", "Inspection reveals condition beyond tolerance."]
+        case .brrrr, .hybridBrrrr:
+            return ["Rehab exceeds budget.", "After repair value is overstated.", "Refinance or rent support does not verify."]
+        case .fixAndFlip:
+            return ["Resale value misses.", "Carrying costs and rehab overruns erase margin.", "Permits or resale timeline slip."]
+        case .shortTermRental, .hybridRental:
+            return ["Occupancy or daily rate underperforms.", "HOA or municipal rules restrict use.", "Management burden is higher than expected."]
+        default:
+            return ["Required data fails verification.", "Costs exceed tolerance.", "Market or exit assumptions weaken."]
+        }
+    }
+
+    private func alternativeStrategies(for deal: Deal) -> [String] {
+        switch deal.strategy {
+        case .ownerOccupant:
+            return ["Buy and Hold", "House Hack", "Hold"]
+        case .fixAndFlip:
+            return ["BRRRR", "Value Add", "Sell"]
+        case .brrrr, .hybridBrrrr:
+            return ["Buy and Hold", "Value Add", "Cash-Out Refinance"]
+        default:
+            return ["Owner Occupant", "Buy and Hold", "Sell"]
+        }
     }
 
     private func missingFields(_ deal: Deal) -> [String] {
@@ -106,6 +187,10 @@ final class AppState: ObservableObject {
 
     private func rounded(_ value: Double) -> Double {
         (value * 100).rounded() / 100
+    }
+
+    private func currency(_ value: Double) -> String {
+        value.formatted(.currency(code: "USD").precision(.fractionLength(0)))
     }
 
     func save() {

@@ -83,6 +83,7 @@ describe("BRIX app module flow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Reports/i }));
     await screen.findByText("Recommendation");
+    expect(screen.getAllByText(/What must be true/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Decision memo/i).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: /PortfolioIQ/i }));

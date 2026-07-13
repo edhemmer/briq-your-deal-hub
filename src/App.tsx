@@ -301,6 +301,18 @@ function DealIQ({ deal, onChange, onDelete }: { deal?: DealFacts; onChange: (dea
         </div>
       </section>
 
+      <section className="panel wide">
+        <p className="eyebrow">Decision challenge</p>
+        <div className="challenge-grid">
+          <ChallengeBlock title="Key risks" items={analysis.keyRisks} />
+          <ChallengeBlock title="Bull case" items={analysis.bullCase} />
+          <ChallengeBlock title="Bear case" items={analysis.bearCase} />
+          <ChallengeBlock title="What must be true" items={analysis.whatMustBeTrue} />
+          <ChallengeBlock title="Failure scenarios" items={analysis.failureScenarios} />
+          <ChallengeBlock title="Alternatives" items={analysis.alternativeStrategies} />
+        </div>
+      </section>
+
       <section className="panel wide action-bar">
         <button className="secondary" onClick={() => patch({ status: nextStatus(deal.status) })}>Advance status</button>
         <button className="secondary" onClick={() => downloadDecisionPdf(deal, analysis)}><FileDown size={16} /> PDF memo</button>
@@ -430,6 +442,12 @@ function Reports({ deal }: { deal?: DealFacts }) {
       <h3>Missing</h3><ul>{analysis.missing.map((item) => <li key={item}>{item}</li>)}</ul>
       <h3>Strategy comparison</h3>
       <ul>{analysis.strategyScores.slice(0, 8).map((score) => <li key={score.strategyId}>{score.name}: {score.recommendation} ({score.score}/100)</li>)}</ul>
+      <h3>Decision challenge</h3>
+      <h4>Key risks</h4><ul>{analysis.keyRisks.map((item) => <li key={item}>{item}</li>)}</ul>
+      <h4>Bull case</h4><ul>{analysis.bullCase.map((item) => <li key={item}>{item}</li>)}</ul>
+      <h4>Bear case</h4><ul>{analysis.bearCase.map((item) => <li key={item}>{item}</li>)}</ul>
+      <h4>What must be true</h4><ul>{analysis.whatMustBeTrue.map((item) => <li key={item}>{item}</li>)}</ul>
+      <h4>Failure scenarios</h4><ul>{analysis.failureScenarios.map((item) => <li key={item}>{item}</li>)}</ul>
     </section>
   );
 }
@@ -500,6 +518,10 @@ function Metric({ label, value }: { label: string; value: number }) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return <div className="stat"><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function ChallengeBlock({ title, items }: { title: string; items: string[] }) {
+  return <article className="challenge-block"><strong>{title}</strong><ul>{items.map((item) => <li key={item}>{item}</li>)}</ul></article>;
 }
 
 function MoneyField({ label, value, onChange }: { label: string; value?: number; onChange: (value?: number) => void }) {

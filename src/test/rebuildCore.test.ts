@@ -40,6 +40,8 @@ describe("BRIX rebuilt core", () => {
     expect(analysis.missing).toContain("Purchase price");
     expect(analysis.missing).toContain("Annual taxes");
     expect(analysis.missing).toContain("Monthly rent support");
+    expect(analysis.keyRisks.length).toBeGreaterThan(0);
+    expect(analysis.bearCase.join(" ")).toContain("missing data");
   });
 
   it("calculates rental economics when verified inputs exist", () => {
@@ -52,6 +54,10 @@ describe("BRIX rebuilt core", () => {
     expect(analysis.monthlyDebtService).toBeGreaterThan(0);
     expect(analysis.dscr).toBeGreaterThan(0);
     expect(analysis.capRate).toBeGreaterThan(0);
+    expect(analysis.alternativeStrategies.length).toBeGreaterThan(0);
+    expect(analysis.bullCase.length).toBeGreaterThan(0);
+    expect(analysis.whatMustBeTrue.length).toBeGreaterThan(0);
+    expect(analysis.failureScenarios.length).toBeGreaterThan(0);
   });
 
   it("flags contract clauses that change acquisition risk", () => {

@@ -34,6 +34,21 @@ export async function downloadDecisionPdf(deal: DealFacts, analysis: DealAnalysi
     "",
     "Next actions:",
     ...analysis.nextActions.map((item) => `- ${item}`),
+    "",
+    "Key risks:",
+    ...analysis.keyRisks.map((item) => `- ${item}`),
+    "",
+    "Bull case:",
+    ...analysis.bullCase.map((item) => `- ${item}`),
+    "",
+    "Bear case:",
+    ...analysis.bearCase.map((item) => `- ${item}`),
+    "",
+    "What must be true:",
+    ...analysis.whatMustBeTrue.map((item) => `- ${item}`),
+    "",
+    "Failure scenarios:",
+    ...analysis.failureScenarios.map((item) => `- ${item}`),
   ];
   pdf.text(lines, 18, 46, { maxWidth: 174, lineHeightFactor: 1.25 });
   pdf.save(fileName(deal, "decision-memo", "pdf"));
@@ -66,6 +81,14 @@ export async function downloadWorkbook(deal: DealFacts, analysis: DealAnalysis) 
   }]), "Deal");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analysis.strategyScores), "Strategies");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analysis.nextActions.map((action) => ({ action }))), "Next Actions");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+    ...analysis.keyRisks.map((item) => ({ section: "Key risks", item })),
+    ...analysis.bullCase.map((item) => ({ section: "Bull case", item })),
+    ...analysis.bearCase.map((item) => ({ section: "Bear case", item })),
+    ...analysis.whatMustBeTrue.map((item) => ({ section: "What must be true", item })),
+    ...analysis.failureScenarios.map((item) => ({ section: "Failure scenarios", item })),
+    ...analysis.alternativeStrategies.map((item) => ({ section: "Alternatives", item })),
+  ]), "Decision Challenge");
   XLSX.writeFile(wb, fileName(deal, "underwriting", "xlsx"));
 }
 

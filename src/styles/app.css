@@ -93,6 +93,10 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .findings { display: grid; gap: 10px; margin-top: 14px; }
 .findings article { display: grid; gap: 5px; border: 1px solid #3a557c; background: rgba(59,130,246,.08); border-radius: 14px; padding: 12px; color: var(--muted); }
 .findings strong { color: white; }
+.challenge-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.challenge-block { border: 1px solid var(--line); border-radius: 16px; background: #08101f; padding: 14px; }
+.challenge-block strong { display: block; margin-bottom: 8px; }
+.challenge-block ul { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.5; }
 .table { display: grid; gap: 8px; }
 .table-row { display: grid; grid-template-columns: 1fr 160px 80px; gap: 16px; width: 100%; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: #091120; color: white; text-align: left; }
 .kanban { display: grid; grid-template-columns: repeat(7, minmax(180px, 1fr)); gap: 12px; overflow-x: auto; padding-bottom: 8px; }
@@ -116,12 +120,12 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
   .rail { position: relative; height: auto; }
   .rail nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .two-column, .deal-grid { grid-template-columns: 1fr; }
-  .score-list, .landing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .score-list, .landing-grid, .challenge-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 640px) {
   .workspace, .rail { padding: 16px; }
-  .rail nav, .metric-row, .stat-row, .form-grid, .score-list, .landing-grid { grid-template-columns: 1fr; }
+  .rail nav, .metric-row, .stat-row, .form-grid, .score-list, .landing-grid, .challenge-grid { grid-template-columns: 1fr; }
   .topbar { display: grid; }
   .table-row { grid-template-columns: 1fr; }
   .landing { padding: 22px; }

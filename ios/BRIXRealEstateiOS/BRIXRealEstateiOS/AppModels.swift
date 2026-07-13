@@ -98,4 +98,10 @@ struct DealAnalysis {
     var dscr: Double?
     var missing: [String]
     var nextActions: [String]
+    var keyRisks: [String]
+    var bullCase: [String]
+    var bearCase: [String]
+    var whatMustBeTrue: [String]
+    var failureScenarios: [String]
+    var alternativeStrategies: [String]
 }

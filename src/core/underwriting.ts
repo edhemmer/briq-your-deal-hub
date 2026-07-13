@@ -26,6 +26,12 @@ export function analyzeDeal(deal: DealFacts): DealAnalysis {
     nextActions: nextActions(deal, missing),
     evidence: evidence(deal),
     missing,
+    keyRisks: keyRisks(primary, missing),
+    alternativeStrategies: scores.filter((score) => score.strategyId !== primary.strategyId).slice(0, 3).map((score) => `${score.name}: ${score.recommendation} (${score.score}/100)`),
+    bullCase: bullCase(deal, primary),
+    bearCase: bearCase(deal, primary, missing),
+    whatMustBeTrue: whatMustBeTrue(deal, primary),
+    failureScenarios: failureScenarios(primary),
   };
 }
 
@@ -148,6 +154,42 @@ function evidence(deal: DealFacts) {
   if (deal.annualTaxes) items.push(`Annual taxes captured: ${formatCurrency(deal.annualTaxes)}.`);
   if (deal.beds || deal.baths) items.push(`Beds/baths captured: ${deal.beds ?? "?"}/${deal.baths ?? "?"}.`);
   return items.length ? items : ["No source-backed facts have been captured yet."];
+}
+
+function keyRisks(primary: StrategyScore, missing: string[]) {
+  return [...new Set([...primary.risks, ...missing.map((item) => `${item} is not verified.`)])].slice(0, 8);
+}
+
+function bullCase(deal: DealFacts, primary: StrategyScore) {
+  const strategy = getStrategy(primary.strategyId);
+  return [
+    primary.why[0] ?? "The property may fit the selected strategy if the missing facts verify.",
+    strategy?.successCriteria[0] ? `Success path: ${strategy.successCriteria[0]}.` : "The selected strategy can work if core assumptions verify.",
+    deal.listPrice ? `Pricing can be evaluated from the captured purchase price of ${formatCurrency(deal.listPrice)}.` : "Pricing upside cannot be confirmed until the purchase price is verified.",
+  ];
+}
+
+function bearCase(deal: DealFacts, primary: StrategyScore, missing: string[]) {
+  const strategy = getStrategy(primary.strategyId);
+  return [
+    missing.length ? `Decision quality is limited by missing data: ${missing.slice(0, 3).join(", ")}.` : "Remaining risk depends on source quality and inspection findings.",
+    strategy?.failureScenarios[0] ? `Failure path: ${strategy.failureScenarios[0]}.` : "The strategy can fail if assumptions are too optimistic.",
+    !deal.annualInsurance ? "Insurance is not verified, so carrying cost may be understated." : "Insurance is available but should still be verified against the final use.",
+  ];
+}
+
+function whatMustBeTrue(deal: DealFacts, primary: StrategyScore) {
+  const strategy = getStrategy(primary.strategyId);
+  return [
+    ...(strategy?.assumptions.slice(0, 3) ?? []),
+    deal.annualTaxes ? "Annual taxes remain close to the captured amount." : "Annual taxes must be verified from an official or county source.",
+    deal.annualInsurance ? "Insurance is obtainable at the entered annual premium." : "An insurance quote must confirm insurability and annual premium.",
+  ].slice(0, 6);
+}
+
+function failureScenarios(primary: StrategyScore) {
+  const strategy = getStrategy(primary.strategyId);
+  return strategy?.failureScenarios.slice(0, 6) ?? ["Required data fails verification.", "Costs exceed the user's risk tolerance."];
 }
 
 function estimateMonthlyPayment(deal: DealFacts) {

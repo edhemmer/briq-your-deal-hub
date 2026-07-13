@@ -20,7 +20,7 @@ struct DealIQCockpitView: View {
                                     VStack(alignment: .leading, spacing: 8) {
                                         Text("Monthly payment: \(currency(analysis.monthlyPayment))").foregroundStyle(Brix.muted)
                                         Text("Monthly cash flow: \(currency(analysis.monthlyCashFlow))").foregroundStyle(Brix.muted)
-                                        Text("DSCR: \(analysis.dscr.map { "\($0)x" } ?? "Missing")").foregroundStyle(Brix.muted)
+                                        Text("DSCR: \(dscr(analysis.dscr))").foregroundStyle(Brix.muted)
                                     }
                                 }
                             }
@@ -49,6 +49,17 @@ struct DealIQCockpitView: View {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text("Next actions").font(.title2.bold())
                                     ForEach(analysis.nextActions, id: \.self) { action in Label(action, systemImage: "checkmark.seal").foregroundStyle(Brix.muted) }
+                                }
+                            }
+                            BrixCard {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("Decision challenge").font(.title2.bold())
+                                    challengeSection("Key risks", items: analysis.keyRisks)
+                                    challengeSection("Bull case", items: analysis.bullCase)
+                                    challengeSection("Bear case", items: analysis.bearCase)
+                                    challengeSection("What must be true", items: analysis.whatMustBeTrue)
+                                    challengeSection("Failure scenarios", items: analysis.failureScenarios)
+                                    challengeSection("Alternatives", items: analysis.alternativeStrategies)
                                 }
                             }
                             BrixCard {
@@ -93,5 +104,21 @@ struct DealIQCockpitView: View {
     private func currency(_ value: Double?) -> String {
         guard let value else { return "Missing" }
         return value.formatted(.currency(code: "USD").precision(.fractionLength(0)))
+    }
+
+    private func dscr(_ value: Double?) -> String {
+        guard let value else { return "Missing" }
+        return "\(value)x"
+    }
+
+    private func challengeSection(_ title: String, items: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.headline)
+            ForEach(items, id: \.self) { item in
+                Label(item, systemImage: "exclamationmark.triangle")
+                    .font(.subheadline)
+                    .foregroundStyle(Brix.muted)
+            }
+        }
     }
 }

@@ -68,6 +68,12 @@ export type DealAnalysis = {
   nextActions: string[];
   evidence: string[];
   missing: string[];
+  keyRisks: string[];
+  alternativeStrategies: string[];
+  bullCase: string[];
+  bearCase: string[];
+  whatMustBeTrue: string[];
+  failureScenarios: string[];
 };
 
 export type PipelineItem = {
