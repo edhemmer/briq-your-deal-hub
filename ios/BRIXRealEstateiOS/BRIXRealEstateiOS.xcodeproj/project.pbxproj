@@ -336,7 +336,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "";
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BRIXRealEstateiOS/Info.plist;
 				INFOPLIST_KEY_BRIX_SUPABASE_PUBLISHABLE_KEY = sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f;
 				INFOPLIST_KEY_BRIX_SUPABASE_URL = "https://luwaqrkhmxcqsozmilbw.supabase.co";
 				INFOPLIST_KEY_CFBundleDisplayName = "BRIX Real Estate";
@@ -378,7 +379,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "";
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BRIXRealEstateiOS/Info.plist;
 				INFOPLIST_KEY_BRIX_SUPABASE_PUBLISHABLE_KEY = sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f;
 				INFOPLIST_KEY_BRIX_SUPABASE_URL = "https://luwaqrkhmxcqsozmilbw.supabase.co";
 				INFOPLIST_KEY_CFBundleDisplayName = "BRIX Real Estate";

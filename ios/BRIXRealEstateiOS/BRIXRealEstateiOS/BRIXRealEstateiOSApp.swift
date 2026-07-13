@@ -2,12 +2,11 @@ import SwiftUI
 
 @main
 struct BRIXRealEstateiOSApp: App {
-    @State private var appState = BRIXAppState()
-
+    @StateObject private var state = AppState()
     var body: some Scene {
         WindowGroup {
             AppView()
-                .environment(appState)
+                .environmentObject(state)
         }
     }
 }

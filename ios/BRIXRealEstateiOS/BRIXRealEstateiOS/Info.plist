@@ -2,45 +2,46 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>BRIX Real Estate</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
-	<string>BrixRE.Brix-Real-Estate</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleName</key>
-	<string>$(PRODUCT_NAME)</string>
+	<string>BRIX Real Estate</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>$(MARKETING_VERSION)</string>
+	<string>1.0</string>
 	<key>CFBundleVersion</key>
-	<string>2</string>
+	<string>1</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>UILaunchScreen</key>
-	<dict/>
+	<key>NSCameraUsageDescription</key>
+	<string>BRIX uses the camera to add property photos to a deal file for condition review.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>BRIX uses selected photos to document and review property condition.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>BRIX may save generated property images or reports when you choose to export them.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>BRIX uses the microphone only when you choose to record property notes.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>BRIX uses location only when you choose to attach field context to a property record.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
-	<key>BRIX_SUPABASE_URL</key>
-	<string>https://luwaqrkhmxcqsozmilbw.supabase.co</string>
-	<key>BRIX_SUPABASE_PUBLISHABLE_KEY</key>
-	<string>sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f</string>
-	<key>NSCameraUsageDescription</key>
-	<string>BRIX uses the camera to capture property photos, videos, and documents for deal files and field due diligence.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>BRIX uses the microphone only when you record voice notes for property walkthroughs.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>BRIX accesses selected photos and videos you choose to attach to a property, project, or deal.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>BRIX may save captured property images to your library only when you choose to export or save them.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>BRIX uses location only with permission to tag field captures to a property visit and improve property organization.</string>
-	<key>NSDocumentsFolderUsageDescription</key>
-	<string>BRIX imports documents you select for inspection, bid, lease, and due diligence analysis.</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
 </dict>
 </plist>

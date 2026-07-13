@@ -1,0 +1,3 @@
+-- Ledger compatibility migration.
+-- The BRIX rebuild no longer uses the prior delete-policy change from this timestamp,
+-- but the remote Supabase migration history has already recorded this version.

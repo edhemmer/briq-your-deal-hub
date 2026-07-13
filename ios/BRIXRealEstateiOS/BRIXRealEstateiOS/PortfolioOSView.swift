@@ -1,55 +1,30 @@
 import SwiftUI
 
 struct PortfolioOSView: View {
-    @Environment(BRIXAppState.self) private var appState
-
+    @EnvironmentObject private var state: AppState
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                if appState.authState.isSignedIn == false {
-                    SignInRequiredCard(
-                        title: "PortfolioIQ requires sign-in",
-                        message: "Review owned assets, equity, debt, cash flow, and performance records in one account."
-                    )
-                } else if appState.portfolioMetrics.isEmpty {
-                    EmptyOperatingState(
-                        title: "No portfolio assets yet",
-                        message: "Add an owned property to review equity, debt, cash flow, risk, and next actions.",
-                        symbol: "chart.pie"
-                    )
-                    Button {
-                        appState.selectedTab = .find
-                    } label: {
-                        Label("Start in FindIQ", systemImage: "magnifyingglass")
-                            .frame(maxWidth: .infinity)
+        NavigationStack {
+            List {
+                ForEach(state.deals.filter { $0.status == "closed" }) { deal in
+                    VStack(alignment: .leading) {
+                        Text(deal.address).font(.headline)
+                        Text("Purchase price: \(currency(deal.listPrice))").foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.borderedProminent)
-                } else {
-                    BrixCard {
-                        VStack(alignment: .leading, spacing: 12) {
-                            SectionHeader(title: "PortfolioIQ", subtitle: "Asset performance and risk visibility.", symbol: "chart.pie")
-                            Text("Review portfolio performance, risk exposure, and next actions.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        ForEach(appState.portfolioMetrics) { metric in
-                            ScorePill(label: metric.label, value: metric.value, severity: metric.severity)
-                        }
-                    }
-                }
-
-                if let error = appState.lastError {
-                    ErrorCard(message: error)
                 }
             }
-            .padding()
+            .overlay {
+                if state.deals.filter({ $0.status == "closed" }).isEmpty {
+                    ContentUnavailableView("No Portfolio Assets", systemImage: "building.2", description: Text("Closed acquisitions will appear here."))
+                }
+            }
+            .navigationTitle("PortfolioIQ")
+            .scrollContentBackground(.hidden)
+            .brixScreen()
         }
-        .refreshable {
-            await appState.refresh()
-        }
-        .brixScreenBackground()
+    }
+
+    private func currency(_ value: Double?) -> String {
+        guard let value else { return "Missing" }
+        return value.formatted(.currency(code: "USD").precision(.fractionLength(0)))
     }
 }

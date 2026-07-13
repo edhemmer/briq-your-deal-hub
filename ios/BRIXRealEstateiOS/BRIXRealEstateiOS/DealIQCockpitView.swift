@@ -1,294 +1,65 @@
 import SwiftUI
 
 struct DealIQCockpitView: View {
-    @Environment(BRIXAppState.self) private var appState
-    @State private var selectedPanel: DealPanel = .overview
+    @EnvironmentObject private var state: AppState
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                if appState.authState.isSignedIn == false {
-                    SignInRequiredCard(
-                        title: "Sign in to open DealIQ",
-                        message: "Open your BRIX deal files, review assumptions, compare strategies, and keep verification visible before making a decision."
-                    )
-                } else if let deal = appState.selectedDeal {
-                    cockpitHeader(deal)
-                    panelPicker
-                    panelContent(deal)
-                } else {
-                    EmptyOperatingState(
-                        title: "Choose a property",
-                        message: "Start in FindIQ, enter a listing, then open it here for underwriting and strategy review.",
-                        symbol: "chart.bar.doc.horizontal"
-                    )
-                }
-
-                if let error = appState.lastError {
-                    ErrorCard(message: error)
-                }
-            }
-            .padding()
-        }
-        .brixScreenBackground()
-        .refreshable { await appState.refresh() }
-    }
-
-    private func cockpitHeader(_ deal: DealSummary) -> some View {
-        BrixCard {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(deal.title)
-                            .font(.title.bold())
-                            .foregroundStyle(Color.brixInk)
-                        Text(deal.locationLine.isEmpty ? "Location incomplete" : deal.locationLine)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    SeverityBadge(text: deal.displayStatus, severity: .caution)
-                }
-
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                    ScorePill(label: "File readiness", value: "\(deal.mobileCompletenessScore)/100", severity: deal.mobileCompletenessScore >= 80 ? .positive : .caution)
-                    ScorePill(label: "Recommendation", value: appState.selectedDecisionSnapshot?.recommendation ?? "Pending", severity: .neutral)
-                    ScorePill(label: "Trust", value: appState.selectedDecisionSnapshot.map { "\($0.trustScore)/100" } ?? "Pending", severity: .info)
-                    ScorePill(label: "Next", value: appState.selectedDecisionSnapshot?.nextAction ?? "Verify inputs", severity: .caution)
-                }
-            }
-        }
-    }
-
-    private var panelPicker: some View {
-        Picker("DealIQ panel", selection: $selectedPanel) {
-            ForEach(DealPanel.allCases) { panel in
-                Text(panel.rawValue).tag(panel)
-            }
-        }
-        .pickerStyle(.segmented)
-    }
-
-    @ViewBuilder
-    private func panelContent(_ deal: DealSummary) -> some View {
-        switch selectedPanel {
-        case .overview:
-            overview(deal)
-        case .inputs:
-            inputs(deal)
-        case .strategy:
-            strategies(deal)
-        case .risk:
-            risk(deal)
-        }
-    }
-
-    private func overview(_ deal: DealSummary) -> some View {
-        VStack(spacing: 16) {
-            BrixCard {
-                VStack(alignment: .leading, spacing: 12) {
-                    SectionHeader(title: "Underwriting Snapshot", subtitle: "What BRIX can evaluate right now.", symbol: "gauge.with.dots.needle.50percent")
-                    MetricLine(label: "Purchase price", value: deal.purchasePrice?.formatted(.currency(code: "USD").precision(.fractionLength(0))) ?? "Missing")
-                    MetricLine(label: "Monthly rent", value: deal.monthlyRent?.formatted(.currency(code: "USD").precision(.fractionLength(0))) ?? "Missing")
-                    MetricLine(label: "Annual taxes", value: deal.annualTaxesForDisplay?.formatted(.currency(code: "USD").precision(.fractionLength(0))) ?? "Missing")
-                    MetricLine(label: "Annual insurance", value: deal.insurance?.formatted(.currency(code: "USD").precision(.fractionLength(0))) ?? "Missing")
-                    MetricLine(label: "Beds / Baths", value: formatBedsBaths(deal))
-                    MetricLine(label: "Size", value: deal.squareFeet.map { "\($0.formatted(.number.precision(.fractionLength(0)))) sq ft" } ?? "Missing")
-                }
-            }
-
-            BrixCard {
-                VStack(alignment: .leading, spacing: 12) {
-                    SectionHeader(title: "Quick Math", subtitle: "Directional math from entered facts. Verify source quality before relying on the result.", symbol: "function")
-                    let math = DealQuickMath(deal: deal)
-                    MetricLine(label: "Annual gross rent", value: money(math.annualGrossRent))
-                    MetricLine(label: "Gross rent ratio", value: math.grossRentRatio.map { "\(($0 * 100).formatted(.number.precision(.fractionLength(2))))%" } ?? "Missing")
-                    MetricLine(label: "Known monthly tax + insurance", value: money(math.knownMonthlyCarry))
-                    MetricLine(label: "Known NOI before debt", value: money(math.knownAnnualNOIBeforeDebt))
-                }
-            }
-
-            BrixCard {
-                VStack(alignment: .leading, spacing: 12) {
-                    SectionHeader(title: "Continue Workflow", subtitle: "Move from analysis to action without leaving the selected deal.", symbol: "arrow.forward.circle")
-                    HStack {
-                        Button {
-                            appState.selectedTab = .offer
-                        } label: {
-                            Label("OfferIQ", systemImage: "doc.text")
-                                .frame(maxWidth: .infinity)
+        NavigationStack {
+            Group {
+                if var deal = state.selectedDeal {
+                    let analysis = state.analysis(for: deal)
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 18) {
+                            BrixCard {
+                                VStack(alignment: .leading, spacing: 14) {
+                                    Text(analysis.decision).font(.largeTitle.bold())
+                                    Text(deal.address).foregroundStyle(Brix.muted)
+                                    HStack { BrixMetric(title: "Confidence", value: analysis.confidence); BrixMetric(title: "Readiness", value: analysis.readiness) }
+                                }
+                            }
+                            BrixCard {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("Deal facts").font(.title2.bold())
+                                    money("Purchase price", value: Binding(get: { deal.listPrice }, set: { deal.listPrice = $0; state.selectedDeal = deal }))
+                                    money("Annual taxes", value: Binding(get: { deal.annualTaxes }, set: { deal.annualTaxes = $0; state.selectedDeal = deal }))
+                                    money("Annual insurance", value: Binding(get: { deal.annualInsurance }, set: { deal.annualInsurance = $0; state.selectedDeal = deal }))
+                                    money("Monthly rent", value: Binding(get: { deal.monthlyRent }, set: { deal.monthlyRent = $0; state.selectedDeal = deal }))
+                                    money("Rehab budget", value: Binding(get: { deal.rehabBudget }, set: { deal.rehabBudget = $0; state.selectedDeal = deal }))
+                                }
+                            }
+                            BrixCard {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("Strategy").font(.title2.bold())
+                                    Picker("Strategy", selection: Binding(get: { deal.strategy }, set: { deal.strategy = $0; state.selectedDeal = deal })) {
+                                        ForEach(StrategyId.allCases) { item in Text(item.title).tag(item) }
+                                    }
+                                    .pickerStyle(.navigationLink)
+                                    Text("BRIX compares the selected strategy against alternatives and lowers confidence when required facts are missing.")
+                                        .foregroundStyle(Brix.muted)
+                                }
+                            }
+                            BrixCard {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("Next actions").font(.title2.bold())
+                                    ForEach(analysis.nextActions, id: \.self) { action in Label(action, systemImage: "checkmark.seal").foregroundStyle(Brix.muted) }
+                                }
+                            }
+                            Button(role: .destructive) { state.deleteSelectedDeal() } label: { Label("Delete Deal", systemImage: "trash") }
                         }
-                        .buttonStyle(.bordered)
-
-                        Button {
-                            appState.selectedTab = .pipeline
-                        } label: {
-                            Label("PipelineIQ", systemImage: "rectangle.stack.badge.play")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
+                        .padding()
                     }
-                }
-            }
-        }
-    }
-
-    private func inputs(_ deal: DealSummary) -> some View {
-        BrixCard {
-            VStack(alignment: .leading, spacing: 12) {
-                SectionHeader(title: "Verification Checklist", subtitle: "Complete these before relying on the recommendation.", symbol: "checkmark.shield")
-                if deal.missingInputs.isEmpty {
-                    ActionLine(title: "Core mobile fields are complete. Confirm all numbers with source documents.", severity: .positive)
                 } else {
-                    ForEach(deal.missingInputs, id: \.self) { input in
-                        ActionLine(title: "\(input) needs verification.", severity: .caution)
-                    }
+                    ContentUnavailableView("No Deal File", systemImage: "house", description: Text("Start in FindIQ."))
                 }
             }
+            .navigationTitle("DealIQ")
+            .brixScreen()
         }
     }
 
-    private func strategies(_ deal: DealSummary) -> some View {
-        let selectedName = deal.strategyPrimary ?? "Buy & Hold"
-        let rankedStrategies = rankedStrategyDefinitions(for: deal, selectedName: selectedName)
-
-        BrixCard {
-            VStack(alignment: .leading, spacing: 12) {
-                SectionHeader(title: "Strategy Fit", subtitle: "Compare the selected strategy with credible alternatives.", symbol: "arrow.triangle.branch")
-                ForEach(rankedStrategies) { strategy in
-                    StrategyFitRow(
-                        name: strategy.name,
-                        detail: strategy.detail,
-                        proof: strategy.requiredProof,
-                        status: strategy.name == selectedName ? "Selected" : "Compare"
-                    )
-                }
-            }
-        }
+    private func money(_ label: String, value: Binding<Double?>) -> some View {
+        TextField(label, value: value, format: .number)
+            .keyboardType(.decimalPad)
+            .textFieldStyle(.roundedBorder)
     }
-
-    private func rankedStrategyDefinitions(for deal: DealSummary, selectedName: String) -> [BRIXStrategyDefinition] {
-        let normalizedSelected = selectedName.lowercased()
-        var scored = brixStrategyDefinitions.map { strategy in
-            (strategy, scoreStrategy(strategy, deal: deal, selectedName: normalizedSelected))
-        }
-        scored.sort { lhs, rhs in
-            if lhs.0.name == selectedName { return true }
-            if rhs.0.name == selectedName { return false }
-            return lhs.1 > rhs.1
-        }
-        return scored.map { $0.0 }
-    }
-
-    private func scoreStrategy(_ strategy: BRIXStrategyDefinition, deal: DealSummary, selectedName: String) -> Int {
-        let key = strategy.name.lowercased()
-        var score = key == selectedName ? 30 : 0
-        if deal.purchasePrice != nil { score += 8 }
-        if deal.monthlyRent != nil, key.contains("rental") || key.contains("hold") || key.contains("hack") || key.contains("brrrr") { score += 14 }
-        if deal.estimatedARV != nil, key.contains("flip") || key.contains("brrrr") || key.contains("value") || key.contains("refinance") { score += 14 }
-        if deal.annualTaxesForDisplay != nil { score += 6 }
-        if deal.insurance != nil { score += 6 }
-        if deal.beds != nil, deal.baths != nil, key.contains("occupant") || key.contains("rental") || key.contains("hack") { score += 8 }
-        if key.contains("development") || key.contains("lot split") || key.contains("commercial") || key.contains("subject-to") || key.contains("wrap") { score -= 4 }
-        return score
-    }
-
-    private func risk(_ deal: DealSummary) -> some View {
-        BrixCard {
-            VStack(alignment: .leading, spacing: 12) {
-                SectionHeader(title: "Risk Inspector", subtitle: "Keep the decision tied to evidence.", symbol: "exclamationmark.shield")
-                ActionLine(title: "Verify rent with comps, lease data, or market evidence.", severity: deal.monthlyRent == nil ? .caution : .info)
-                ActionLine(title: "Enter insurance as an annual quote.", severity: deal.insurance == nil ? .caution : .info)
-                ActionLine(title: "Support condition and rehab scope with photos, inspection, or contractor bid.", severity: .caution)
-            }
-        }
-    }
-}
-
-private func money(_ value: Double?) -> String {
-    value?.formatted(.currency(code: "USD").precision(.fractionLength(0))) ?? "Missing"
-}
-
-private func formatBedsBaths(_ deal: DealSummary) -> String {
-    let beds = deal.beds.map { "\($0.formatted(.number.precision(.fractionLength(1)))) bd" }
-    let baths = deal.baths.map { "\($0.formatted(.number.precision(.fractionLength(1)))) ba" }
-    let value = [beds, baths].compactMap { $0 }.joined(separator: " / ")
-    return value.isEmpty ? "Missing" : value.replacingOccurrences(of: ".0", with: "")
-}
-
-private enum DealPanel: String, CaseIterable, Identifiable {
-    case overview = "Overview"
-    case inputs = "Inputs"
-    case strategy = "Strategy"
-    case risk = "Risk"
-
-    var id: String { rawValue }
-}
-
-private struct MetricLine: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        HStack {
-            Text(label)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
-                .fontWeight(.bold)
-        }
-        .font(.subheadline)
-        .padding(.vertical, 4)
-    }
-}
-
-struct ActionLine: View {
-    let title: String
-    let severity: Severity
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: severity == .positive ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .foregroundStyle(severity.color)
-            Text(title)
-                .font(.subheadline.weight(.medium))
-            Spacer()
-        }
-        .padding(12)
-        .background(severity.color.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
-    }
-}
-
-private struct StrategyFitRow: View {
-    let name: String
-    let detail: String
-    let proof: String
-    let status: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(name)
-                    .font(.subheadline.weight(.bold))
-                Spacer()
-                SeverityBadge(text: status, severity: status == "Selected" ? .positive : .caution)
-            }
-            Text(detail)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text("Proof: \(proof)")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-        }
-        .padding(12)
-        .background(.background, in: RoundedRectangle(cornerRadius: 8))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8).stroke(.quaternary)
-        }
-    }
-}
-
-#Preview {
-    DealIQCockpitView()
-        .environment(BRIXAppState())
 }
