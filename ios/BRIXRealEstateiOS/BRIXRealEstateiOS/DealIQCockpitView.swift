@@ -1,7 +1,9 @@
 import SwiftUI
+import PhotosUI
 
 struct DealIQCockpitView: View {
     @EnvironmentObject private var state: AppState
+    @State private var selectedPhotos: [PhotosPickerItem] = []
 
     var body: some View {
         NavigationStack {
@@ -42,6 +44,26 @@ struct DealIQCockpitView: View {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text("Next actions").font(.title2.bold())
                                     ForEach(analysis.nextActions, id: \.self) { action in Label(action, systemImage: "checkmark.seal").foregroundStyle(Brix.muted) }
+                                }
+                            }
+                            BrixCard {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("Photos").font(.title2.bold())
+                                    PhotosPicker(selection: $selectedPhotos, maxSelectionCount: 20, matching: .images) {
+                                        Label("Add Property Photos", systemImage: "camera.fill")
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(Brix.blue)
+                                    .onChange(of: selectedPhotos) { _, newItems in
+                                        deal.photoNames = newItems.enumerated().map { "Property photo \($0.offset + 1)" }
+                                        state.selectedDeal = deal
+                                    }
+                                    if !deal.photoNames.isEmpty {
+                                        ForEach(deal.photoNames, id: \.self) { name in
+                                            Label(name, systemImage: "photo").foregroundStyle(Brix.muted)
+                                        }
+                                    }
                                 }
                             }
                             Button(role: .destructive) { state.deleteSelectedDeal() } label: { Label("Delete Deal", systemImage: "trash") }

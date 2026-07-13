@@ -8,6 +8,7 @@ final class AppState: ObservableObject {
     @Published var selectedDealID: UUID?
     @Published var email = ""
     @Published var authMessage = ""
+    @Published var accessToken = ""
 
     var selectedDeal: Deal? {
         get { deals.first { $0.id == selectedDealID } ?? deals.first }
@@ -58,6 +59,7 @@ final class AppState: ObservableObject {
         if deal.address.isEmpty { missing.append("Address") }
         if deal.listPrice == nil { missing.append("Purchase price") }
         if deal.annualTaxes == nil { missing.append("Annual taxes") }
+        if deal.annualInsurance == nil { missing.append("Annual insurance") }
         if deal.strategy != .ownerOccupant && deal.monthlyRent == nil { missing.append("Monthly rent support") }
         if [.brrrr, .hybridBrrrr, .fixAndFlip, .valueAdd].contains(deal.strategy), deal.rehabBudget == nil { missing.append("Renovation budget") }
         return missing

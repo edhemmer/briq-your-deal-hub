@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Upload, Plus, LogOut } from "lucide-react";
+import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Upload, Plus, LogOut, FileDown, Table2, MapPinned, Landmark } from "lucide-react";
 import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
 import { createDealFromInput, loadDeals, loadRemoteDeals, persistRemoteDeal, saveDeals, softDeleteRemoteDeal } from "./core/store";
 import type { DealFacts, DealStatus } from "./core/types";
 import { supabase } from "./core/supabase";
+import { downloadDecisionPdf, downloadWorkbook } from "./core/reportExports";
+import { analyzePhotoEvidence } from "./core/photoAnalysis";
+import { areaSearchUrl, ownerOccupiedConveniences, taxSearchUrl } from "./core/areaAndTax";
+import { requestAccountDeletion } from "./core/authActions";
 
 type Module = "find" | "deal" | "pipeline" | "offer" | "portfolio" | "reports" | "account";
 
@@ -19,20 +23,43 @@ const nav: Array<{ id: Module; label: string; icon: typeof Search; purpose: stri
 ];
 
 export default function App() {
-  const [module, setModule] = useState<Module>("find");
+  if (window.location.pathname === "/") {
+    return <Landing />;
+  }
+  return <BrixApp />;
+}
+
+function BrixApp() {
+  const [module, setModule] = useState<Module>("account");
   const [deals, setDeals] = useState<DealFacts[]>(() => loadDeals());
   const [selectedId, setSelectedId] = useState<string | null>(() => loadDeals()[0]?.id ?? null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const selectedDeal = deals.find((deal) => deal.id === selectedId) ?? deals[0];
 
   useEffect(() => saveDeals(deals), [deals]);
   useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const signedIn = Boolean(data.session);
+      setIsAuthenticated(signedIn);
+      if (signedIn) setModule("find");
+      if (!signedIn) setModule("account");
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(Boolean(session));
+      if (!session) setModule("account");
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
     loadRemoteDeals().then((remoteDeals) => {
       if (remoteDeals.length > 0) {
         setDeals(remoteDeals);
         setSelectedId(remoteDeals[0].id);
       }
     });
-  }, []);
+  }, [isAuthenticated]);
 
   function upsertDeal(next: DealFacts) {
     setDeals((current) => {
@@ -84,15 +111,37 @@ export default function App() {
           <DealSwitcher deals={deals} selectedId={selectedDeal?.id} onSelect={setSelectedId} />
         </header>
 
-        {module === "find" && <FindIQ onCreate={(deal) => { upsertDeal(deal); setModule("deal"); }} />}
-        {module === "deal" && <DealIQ deal={selectedDeal} onChange={upsertDeal} onDelete={deleteDeal} />}
-        {module === "pipeline" && <PipelineIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
-        {module === "offer" && <OfferIQ deal={selectedDeal} />}
-        {module === "portfolio" && <PortfolioIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
-        {module === "reports" && <Reports deal={selectedDeal} />}
-        {module === "account" && <Account />}
+        {!isAuthenticated && <Account onAuthChanged={() => setIsAuthenticated(true)} />}
+        {isAuthenticated && module === "find" && <FindIQ onCreate={(deal) => { upsertDeal(deal); setModule("deal"); }} />}
+        {isAuthenticated && module === "deal" && <DealIQ deal={selectedDeal} onChange={upsertDeal} onDelete={deleteDeal} />}
+        {isAuthenticated && module === "pipeline" && <PipelineIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
+        {isAuthenticated && module === "offer" && <OfferIQ deal={selectedDeal} />}
+        {isAuthenticated && module === "portfolio" && <PortfolioIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
+        {isAuthenticated && module === "reports" && <Reports deal={selectedDeal} />}
+        {isAuthenticated && module === "account" && <Account onAuthChanged={() => setIsAuthenticated(true)} />}
       </main>
     </div>
+  );
+}
+
+function Landing() {
+  return (
+    <main className="landing">
+      <section className="landing-hero">
+        <div className="brand large">
+          <div className="mark" aria-hidden="true"><span /><span /><span /><span /></div>
+          <div><strong>BRIX</strong><small>Real Estate</small></div>
+        </div>
+        <h1>Real estate decisions with evidence before emotion.</h1>
+        <p>Enter a property, choose a strategy, and BRIX builds the deal file, checks missing facts, compares strategies, and tells you whether to visit, research first, or pass.</p>
+        <button className="primary" onClick={() => { window.history.pushState({}, "", "/app"); window.location.reload(); }}>Open BRIX</button>
+      </section>
+      <section className="landing-grid">
+        <Step n="1" title="Start with one property" text="Address, listing URL, or listing text. No browsing maze." />
+        <Step n="2" title="Choose the strategy" text="Owner occupied, rental, BRRRR, flip, seller finance, refinance, tax, development, and partnership paths." />
+        <Step n="3" title="Get decision intelligence" text="Confidence, readiness, missing data, strategy comparison, report export, and next actions." />
+      </section>
+    </main>
   );
 }
 
@@ -210,6 +259,16 @@ function DealIQ({ deal, onChange, onDelete }: { deal?: DealFacts; onChange: (dea
         {[...deal.photoUrls, ...deal.uploadedPhotoNames].length > 0 && (
           <ul className="compact-list">{[...deal.photoUrls, ...deal.uploadedPhotoNames].slice(0, 8).map((item) => <li key={item}>{item}</li>)}</ul>
         )}
+        {analyzePhotoEvidence([...deal.photoUrls, ...deal.uploadedPhotoNames]).length > 0 && (
+          <div className="findings">
+            {analyzePhotoEvidence([...deal.photoUrls, ...deal.uploadedPhotoNames]).map((finding) => (
+              <article key={finding.area}>
+                <strong>{finding.severity}: {finding.area}</strong>
+                <span>{finding.finding} {finding.action}</span>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="panel">
@@ -217,11 +276,18 @@ function DealIQ({ deal, onChange, onDelete }: { deal?: DealFacts; onChange: (dea
         <ul className="check-list">
           {analysis.nextActions.map((action) => <li key={action}>{action}</li>)}
         </ul>
+        <div className="button-row">
+          <a className="secondary link-button" href={taxSearchUrl(deal)} target="_blank" rel="noreferrer"><Landmark size={16} /> Tax source</a>
+          {ownerOccupiedConveniences.slice(0, 3).map((item) => (
+            <a key={item.label} className="secondary link-button" href={areaSearchUrl(deal, item.label)} target="_blank" rel="noreferrer"><MapPinned size={16} /> {item.label}</a>
+          ))}
+        </div>
       </section>
 
       <section className="panel wide action-bar">
         <button className="secondary" onClick={() => patch({ status: nextStatus(deal.status) })}>Advance status</button>
-        <button className="secondary" onClick={() => window.print()}><Upload size={16} /> Export memo</button>
+        <button className="secondary" onClick={() => downloadDecisionPdf(deal, analysis)}><FileDown size={16} /> PDF memo</button>
+        <button className="secondary" onClick={() => downloadWorkbook(deal, analysis)}><Table2 size={16} /> XLS workbook</button>
         <button className="danger" onClick={() => onDelete(deal.id)}><Trash2 size={16} /> Delete deal</button>
       </section>
     </div>
@@ -248,10 +314,10 @@ function PortfolioIQ({ deals, onOpen }: { deals: DealFacts[]; onOpen: (id: strin
 function Reports({ deal }: { deal?: DealFacts }) {
   if (!deal) return <Empty title="No report available" text="Create or open a deal first." />;
   const analysis = analyzeDeal(deal);
-  return <section className="panel memo"><p className="eyebrow">Decision memo</p><h2>{deal.address}</h2><p>Recommendation: {analysis.decision}</p><p>Confidence: {analysis.confidence}/100</p><p>Readiness: {analysis.readiness}/100</p><h3>Evidence</h3><ul>{analysis.evidence.map((item) => <li key={item}>{item}</li>)}</ul><h3>Missing</h3><ul>{analysis.missing.map((item) => <li key={item}>{item}</li>)}</ul></section>;
+  return <section className="panel memo"><p className="eyebrow">Decision memo</p><h2>{deal.address}</h2><div className="button-row"><button className="primary" onClick={() => downloadDecisionPdf(deal, analysis)}>Download PDF</button><button className="secondary" onClick={() => downloadWorkbook(deal, analysis)}>Download XLS</button></div><p>Recommendation: {analysis.decision}</p><p>Confidence: {analysis.confidence}/100</p><p>Readiness: {analysis.readiness}/100</p><h3>Evidence</h3><ul>{analysis.evidence.map((item) => <li key={item}>{item}</li>)}</ul><h3>Missing</h3><ul>{analysis.missing.map((item) => <li key={item}>{item}</li>)}</ul></section>;
 }
 
-function Account() {
+function Account({ onAuthChanged }: { onAuthChanged: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -259,16 +325,27 @@ function Account() {
   async function signIn() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setMessage(error ? error.message : "Signed in.");
+    if (!error) onAuthChanged();
   }
 
   async function signUp() {
     const { error } = await supabase.auth.signUp({ email, password });
     setMessage(error ? error.message : "Account created. Check email if confirmation is required.");
+    if (!error) onAuthChanged();
   }
 
   async function reset() {
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/account` });
     setMessage(error ? error.message : "Password reset email sent.");
+  }
+
+  async function deleteAccount() {
+    try {
+      await requestAccountDeletion();
+      setMessage("Account deletion request recorded.");
+    } catch {
+      setMessage("Account deletion request failed. Sign in and try again.");
+    }
   }
 
   return (
@@ -281,6 +358,7 @@ function Account() {
         <button className="secondary" onClick={signUp}>Create account</button>
         <button className="secondary" onClick={reset}>Reset password</button>
         <button className="secondary" onClick={() => supabase.auth.signOut()}><LogOut size={16} /> Sign out</button>
+        <button className="danger" onClick={deleteAccount}>Request account deletion</button>
       </div>
       {message && <p className="quiet">{message}</p>}
       <div className="callout"><strong>Privacy controls</strong><span>Account deletion, data export, and billing controls are part of the BRIX account system.</span></div>

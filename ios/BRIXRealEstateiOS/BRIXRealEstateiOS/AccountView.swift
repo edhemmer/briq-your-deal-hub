@@ -18,15 +18,15 @@ struct AccountView: View {
                             Text("Password").font(.caption).foregroundStyle(Brix.muted)
                             SecureField("", text: $password).textFieldStyle(.roundedBorder)
                         }
-                        Button("Sign in") { Task { await run { try await BRIXService.signIn(email: state.email, password: password); state.authMessage = "Signed in." } } }
+                        Button("Sign in") { Task { await run { state.accessToken = try await BRIXService.signIn(email: state.email, password: password); state.authMessage = "Signed in." } } }
                             .buttonStyle(.borderedProminent)
                             .tint(Brix.blue)
                             .disabled(isWorking)
-                        Button("Create account") { Task { await run { try await BRIXService.signUp(email: state.email, password: password); state.authMessage = "Account created." } } }
+                        Button("Create account") { Task { await run { state.accessToken = try await BRIXService.signUp(email: state.email, password: password); state.authMessage = "Account created." } } }
                             .disabled(isWorking)
                         Button("Reset password") { Task { await run { try await BRIXService.resetPassword(email: state.email); state.authMessage = "Password reset email sent." } } }
                             .disabled(isWorking)
-                        Button(role: .destructive) { state.authMessage = "Account deletion request captured." } label: { Text("Request account deletion") }
+                        Button(role: .destructive) { Task { await run { try await BRIXService.requestAccountDeletion(accessToken: state.accessToken); state.authMessage = "Account deletion request recorded." } } } label: { Text("Request account deletion") }
                         if !state.authMessage.isEmpty { Text(state.authMessage).foregroundStyle(Brix.muted) }
                     }
                 }
