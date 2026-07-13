@@ -43,7 +43,7 @@ export async function loadRemoteDeals(): Promise<DealFacts[]> {
 
 export async function persistRemoteDeal(deal: DealFacts) {
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return;
+  if (!userData.user) throw new Error("Sign in before saving deal files.");
   const { error } = await supabase.from("brix_deals").upsert({
     id: deal.id,
     owner_id: userData.user.id,
@@ -65,7 +65,7 @@ export async function persistRemoteDeal(deal: DealFacts) {
 
 export async function softDeleteRemoteDeal(id: string) {
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return;
+  if (!userData.user) throw new Error("Sign in before deleting deal files.");
   const { error } = await supabase.from("brix_deals").update({ deleted_at: new Date().toISOString() }).eq("id", id);
   if (error) throw error;
 }

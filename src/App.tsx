@@ -182,6 +182,7 @@ function BrixApp() {
 
         {!isAuthenticated && <Account onAuthChanged={() => { setIsAuthenticated(true); setModule("find"); }} />}
         {isAuthenticated && syncMessage && <div className="callout danger-callout"><strong>Sync needs attention</strong><span>{syncMessage}</span></div>}
+        {isAuthenticated && module !== "account" && <WorkflowStrip active={module} onSelect={setModule} />}
         {isAuthenticated && module === "find" && <FindIQ onCreate={createDeal} />}
         {isAuthenticated && module === "deal" && <DealIQ deal={selectedDeal} onChange={upsertDeal} onDelete={deleteDeal} />}
         {isAuthenticated && module === "contract" && <ContractIQ deal={selectedDeal} />}
@@ -238,10 +239,9 @@ function FindIQ({ onCreate }: { onCreate: (deal: DealFacts) => Promise<boolean> 
 
   return (
     <section className="two-column">
-      <div className="panel hero-panel">
-        <p className="eyebrow">Start</p>
-        <h2>Paste or enter a property.</h2>
-        <p className="quiet">Use a listing URL, full address, or listing text. BRIX extracts what it can and leaves unknown fields empty.</p>
+      <div className="panel hero-panel focus-panel">
+        <p className="eyebrow">Start the deal file</p>
+        <h2>One property. One strategy. Then BRIX analyzes.</h2>
         <label className="field">
           <span>Address, listing URL, or listing text</span>
           <textarea value={input} onChange={(event) => setInput(event.target.value)} rows={7} />
@@ -255,15 +255,35 @@ function FindIQ({ onCreate }: { onCreate: (deal: DealFacts) => Promise<boolean> 
         {error && <p className="error">{error}</p>}
         <button className="primary" onClick={create} disabled={isCreating}><Plus size={18} /> {isCreating ? "Creating deal file" : "Create deal file"}</button>
       </div>
-      <div className="panel">
-        <p className="eyebrow">What happens next</p>
+      <div className="panel focus-panel">
+        <p className="eyebrow">After create</p>
         <div className="flow-steps">
-          <Step n="1" title="BRIX reads the listing" text="Address, price, beds, baths, taxes, HOA clues, photos, and condition signals are captured when present." />
-          <Step n="2" title="DealIQ checks the strategy" text="The selected strategy sets the questions, missing data, assumptions, and failure points." />
-          <Step n="3" title="You decide what is worth time" text="BRIX gives a visit, research-first, or do-not-visit-yet signal with evidence and next actions." />
+          <Step n="1" title="Captured facts appear in DealIQ" text="Known listing facts fill the deal file. Unknown facts stay empty and reduce confidence." />
+          <Step n="2" title="Strategy rules run immediately" text="The selected strategy controls required inputs, calculations, risks, and success conditions." />
+          <Step n="3" title="Decision output is provisional until verified" text="BRIX gives a visit, research-first, or do-not-visit-yet signal with missing data and next actions." />
         </div>
       </div>
     </section>
+  );
+}
+
+function WorkflowStrip({ active, onSelect }: { active: Module; onSelect: (module: Module) => void }) {
+  const steps: Array<{ id: Module; short: string; title: string }> = [
+    { id: "find", short: "1", title: "Start" },
+    { id: "deal", short: "2", title: "Analyze" },
+    { id: "offer", short: "3", title: "Pursue" },
+    { id: "pipeline", short: "4", title: "Track" },
+    { id: "portfolio", short: "5", title: "Own" },
+  ];
+  return (
+    <div className="workflow-strip" aria-label="BRIX workflow">
+      {steps.map((step) => (
+        <button key={step.id} className={active === step.id ? "workflow-step active" : "workflow-step"} onClick={() => onSelect(step.id)}>
+          <span>{step.short}</span>
+          <strong>{step.title}</strong>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -534,6 +554,7 @@ function Account({ onAuthChanged, onSignedOut }: { onAuthChanged: () => void; on
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [isWorking, setIsWorking] = useState(false);
 
   async function signIn() {
     const cleanEmail = email.trim();
@@ -541,9 +562,16 @@ function Account({ onAuthChanged, onSignedOut }: { onAuthChanged: () => void; on
       setMessage("Enter your email and password.");
       return;
     }
-    const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-    setMessage(error ? error.message : "Signed in.");
-    if (!error) onAuthChanged();
+    setIsWorking(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+      setMessage(error ? error.message : "Signed in.");
+      if (!error) onAuthChanged();
+    } catch {
+      setMessage("Sign in failed. Check your connection and try again.");
+    } finally {
+      setIsWorking(false);
+    }
   }
 
   async function signUp() {
@@ -552,9 +580,16 @@ function Account({ onAuthChanged, onSignedOut }: { onAuthChanged: () => void; on
       setMessage("Enter your email and password.");
       return;
     }
-    const { error } = await supabase.auth.signUp({ email: cleanEmail, password });
-    setMessage(error ? error.message : "Account created. Check email if confirmation is required.");
-    if (!error) onAuthChanged();
+    setIsWorking(true);
+    try {
+      const { error } = await supabase.auth.signUp({ email: cleanEmail, password });
+      setMessage(error ? error.message : "Account created. Check email if confirmation is required.");
+      if (!error) onAuthChanged();
+    } catch {
+      setMessage("Account creation failed. Check your connection and try again.");
+    } finally {
+      setIsWorking(false);
+    }
   }
 
   async function reset() {
@@ -563,23 +598,40 @@ function Account({ onAuthChanged, onSignedOut }: { onAuthChanged: () => void; on
       setMessage("Enter your email before requesting a reset link.");
       return;
     }
-    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo: `${window.location.origin}/account` });
-    setMessage(error ? error.message : "Password reset email sent.");
+    setIsWorking(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo: `${window.location.origin}/account` });
+      setMessage(error ? error.message : "Password reset email sent.");
+    } catch {
+      setMessage("Password reset failed. Check your connection and try again.");
+    } finally {
+      setIsWorking(false);
+    }
   }
 
   async function deleteAccount() {
     try {
+      setIsWorking(true);
       await requestAccountDeletion();
       setMessage("Account deletion request recorded.");
     } catch {
       setMessage("Account deletion request failed. Sign in and try again.");
+    } finally {
+      setIsWorking(false);
     }
   }
 
   async function signOut() {
-    await supabase.auth.signOut();
-    setMessage("Signed out.");
-    onSignedOut?.();
+    setIsWorking(true);
+    try {
+      await supabase.auth.signOut();
+      setMessage("Signed out.");
+      onSignedOut?.();
+    } catch {
+      setMessage("Sign out failed. Check your connection and try again.");
+    } finally {
+      setIsWorking(false);
+    }
   }
 
   return (
@@ -588,11 +640,11 @@ function Account({ onAuthChanged, onSignedOut }: { onAuthChanged: () => void; on
       <label className="field"><span>Email</span><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
       <label className="field"><span>Password</span><input value={password} type="password" onChange={(event) => setPassword(event.target.value)} /></label>
       <div className="button-row">
-        <button className="primary" onClick={signIn}>Sign in</button>
-        <button className="secondary" onClick={signUp}>Create account</button>
-        <button className="secondary" onClick={reset}>Reset password</button>
-        <button className="secondary" onClick={signOut}><LogOut size={16} /> Sign out</button>
-        <button className="danger" onClick={deleteAccount}>Request account deletion</button>
+        <button className="primary" onClick={signIn} disabled={isWorking}>Sign in</button>
+        <button className="secondary" onClick={signUp} disabled={isWorking}>Create account</button>
+        <button className="secondary" onClick={reset} disabled={isWorking}>Reset password</button>
+        <button className="secondary" onClick={signOut} disabled={isWorking}><LogOut size={16} /> Sign out</button>
+        <button className="danger" onClick={deleteAccount} disabled={isWorking}>Request account deletion</button>
       </div>
       {message && <p className="quiet">{message}</p>}
       <div className="callout"><strong>Privacy controls</strong><span>Account deletion, data export, and billing controls are part of the BRIX account system.</span></div>

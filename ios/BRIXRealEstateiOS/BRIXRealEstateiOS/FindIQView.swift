@@ -13,8 +13,13 @@ struct FindIQView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     BrixCard {
                         VStack(alignment: .leading, spacing: 14) {
-                            Text("Start with one property").font(.largeTitle.bold())
-                            Text("Enter an address, paste a listing URL, or paste listing text. Choose the strategy BRIX should evaluate first.")
+                            Text("Start the deal file").font(.largeTitle.bold())
+                            HStack(spacing: 10) {
+                                FindStep(number: "1", title: "Property")
+                                FindStep(number: "2", title: "Strategy")
+                                FindStep(number: "3", title: "Analyze")
+                            }
+                            Text("Enter one property and choose the strategy BRIX should evaluate first.")
                                 .foregroundStyle(Brix.muted)
                             TextEditor(text: $intake)
                                 .frame(minHeight: 140)
@@ -52,8 +57,8 @@ struct FindIQView: View {
                     }
                     BrixCard {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Photo capture").font(.headline)
-                            Text("After a deal file is created, open DealIQ to add listing photos, field photos, and drive-by observations.")
+                            Text("Next").font(.headline)
+                            Text("DealIQ opens after the deal file saves. Add photos, missing facts, and verification items there.")
                                 .foregroundStyle(Brix.muted)
                         }
                     }
@@ -63,5 +68,25 @@ struct FindIQView: View {
             .navigationTitle("FindIQ")
             .brixScreen()
         }
+    }
+}
+
+private struct FindStep: View {
+    let number: String
+    let title: String
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Text(number)
+                .font(.caption.bold())
+                .frame(width: 26, height: 26)
+                .background(Circle().fill(Brix.blue))
+            Text(title)
+                .font(.caption.bold())
+                .foregroundStyle(Brix.muted)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Brix.ink.opacity(0.46)))
     }
 }

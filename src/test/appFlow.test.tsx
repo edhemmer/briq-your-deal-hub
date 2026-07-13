@@ -8,6 +8,7 @@ import { normalizeDealRow } from "../core/store";
 
 const mocks = vi.hoisted(() => ({
   session: { value: { user: { id: "user-1" } } as { user: { id: string } } | null },
+  user: { value: { id: "user-1", email: "edhemmer@gmail.com" } as { id: string; email: string } | null },
   upsert: vi.fn(async () => ({ error: null })),
   update: vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) })),
   signInWithPassword: vi.fn(async () => ({ error: null })),
@@ -24,7 +25,7 @@ vi.mock("../core/supabase", () => ({
     auth: {
       getSession: vi.fn(async () => ({ data: { session: mocks.session.value } })),
       onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
-      getUser: vi.fn(async () => ({ data: { user: { id: "user-1", email: "edhemmer@gmail.com" } } })),
+      getUser: vi.fn(async () => ({ data: { user: mocks.user.value } })),
       signInWithPassword: mocks.signInWithPassword,
       signUp: mocks.signUp,
       resetPasswordForEmail: mocks.resetPasswordForEmail,
@@ -62,6 +63,7 @@ describe("BRIX app module flow", () => {
     localStorage.clear();
     window.history.replaceState({}, "", "/app");
     mocks.session.value = { user: { id: "user-1" } };
+    mocks.user.value = { id: "user-1", email: "edhemmer@gmail.com" };
     vi.clearAllMocks();
   });
 
@@ -172,5 +174,20 @@ describe("BRIX app module flow", () => {
     await screen.findByText(/BRIX could not save this deal/i);
     expect(window.location.pathname).toBe("/findiq");
     expect(screen.queryByRole("heading", { name: /Visit|Research first|Do not visit yet/i })).not.toBeInTheDocument();
+  });
+
+  it("does not create a local deal when the cloud user is missing", async () => {
+    mocks.user.value = null;
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "FindIQ" });
+    fireEvent.change(screen.getByLabelText("Address, listing URL, or listing text"), {
+      target: { value: "20 Missing User St, Test, IL 60000 $250000 3 bed 2 bath" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /create deal file/i }));
+
+    await screen.findByText(/BRIX could not save this deal/i);
+    expect(window.location.pathname).toBe("/findiq");
+    expect(mocks.upsert).not.toHaveBeenCalled();
   });
 });
