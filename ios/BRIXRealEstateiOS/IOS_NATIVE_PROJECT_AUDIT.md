@@ -44,7 +44,7 @@ Do not create a new Xcode project and do not open a generated `ContentView` app 
 - Email sign-in uses `/auth/v1/token?grant_type=password`.
 - Sign-up uses `/auth/v1/signup`.
 - Password recovery uses `/auth/v1/recover`.
-- Listing extraction uses `/functions/v1/extract-deal-from-text`.
+- Listing extraction uses the checked-in `extract-listing` Edge Function when server-side enrichment is enabled.
 - Property photos and notes are attached to deal records from the mobile workflow.
 
 ## Mac Verification

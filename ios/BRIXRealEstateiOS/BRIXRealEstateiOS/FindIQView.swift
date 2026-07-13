@@ -5,6 +5,7 @@ struct FindIQView: View {
     @State private var intake = ""
     @State private var strategy = StrategyId.ownerOccupant
     @State private var message = ""
+    @State private var isCreating = false
 
     var body: some View {
         NavigationStack {
@@ -26,17 +27,26 @@ struct FindIQView: View {
                             }
                             .pickerStyle(.navigationLink)
                             Button {
-                                let cleaned = intake.trimmingCharacters(in: .whitespacesAndNewlines)
-                                guard !cleaned.isEmpty else {
-                                    message = "Enter a property first."
-                                    return
+                                Task {
+                                    let cleaned = intake.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    guard !cleaned.isEmpty else {
+                                        message = "Enter a property first."
+                                        return
+                                    }
+                                    message = ""
+                                    isCreating = true
+                                    await state.createDeal(from: cleaned, strategy: strategy)
+                                    isCreating = false
+                                    if state.tab != .deal {
+                                        message = state.authMessage.isEmpty ? "Deal was not created." : state.authMessage
+                                    }
                                 }
-                                state.createDeal(from: cleaned, strategy: strategy)
                             } label: {
-                                Label("Create Deal File", systemImage: "plus.circle.fill").frame(maxWidth: .infinity)
+                                Label(isCreating ? "Creating Deal File" : "Create Deal File", systemImage: "plus.circle.fill").frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(Brix.blue)
+                            .disabled(isCreating)
                             if !message.isEmpty { Text(message).foregroundStyle(Brix.amber) }
                         }
                     }

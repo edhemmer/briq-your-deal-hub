@@ -32,11 +32,28 @@ final class AppState: ObservableObject {
 
     init() { load() }
 
-    func createDeal(from input: String, strategy: StrategyId) {
+    func createDeal(from input: String, strategy: StrategyId) async {
+        guard !accessToken.isEmpty else {
+            authMessage = "Sign in before creating a deal file."
+            tab = .account
+            return
+        }
         var deal = ListingTextParser.parse(input, strategy: strategy)
         deal.updatedAt = Date()
-        selectedDeal = deal
-        tab = .deal
+        do {
+            try await BRIXService.upsertDeal(deal, accessToken: accessToken)
+            if let index = deals.firstIndex(where: { $0.id == deal.id }) {
+                deals[index] = deal
+            } else {
+                deals.insert(deal, at: 0)
+            }
+            selectedDealID = deal.id
+            save()
+            authMessage = ""
+            tab = .deal
+        } catch {
+            authMessage = "Deal was not created. Check account access and network connection."
+        }
     }
 
     func deleteSelectedDeal() {

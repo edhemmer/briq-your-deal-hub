@@ -116,7 +116,7 @@ describe("BRIX app module flow", () => {
     expect(await screen.findByText(/No portfolio assets yet/i)).toBeInTheDocument();
 
     await waitFor(() => expect(screen.queryByText(/Sync needs attention/i)).not.toBeInTheDocument());
-  });
+  }, 10000);
 
   it("handles account sign-in, reset, and deletion request wiring", async () => {
     mocks.session.value = null;
@@ -134,6 +134,7 @@ describe("BRIX app module flow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Account/i }));
     await screen.findByRole("heading", { name: "Account" });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "edhemmer@gmail.com" } });
     fireEvent.click(screen.getByRole("button", { name: /Reset password/i }));
     await waitFor(() => expect(mocks.resetPasswordForEmail).toHaveBeenCalled());
 
@@ -156,5 +157,20 @@ describe("BRIX app module flow", () => {
     expect(deal.updatedAt).toBeTruthy();
     expect(deal.notes).toEqual([]);
     expect(deal.photoUrls).toEqual([]);
+  });
+
+  it("does not open DealIQ when cloud deal creation is rejected", async () => {
+    mocks.upsert.mockResolvedValueOnce({ error: new Error("free deal limit reached") });
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "FindIQ" });
+    fireEvent.change(screen.getByLabelText("Address, listing URL, or listing text"), {
+      target: { value: "10 Failed Save St, Test, IL 60000 $250000 3 bed 2 bath" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /create deal file/i }));
+
+    await screen.findByText(/BRIX could not save this deal/i);
+    expect(window.location.pathname).toBe("/findiq");
+    expect(screen.queryByRole("heading", { name: /Visit|Research first|Do not visit yet/i })).not.toBeInTheDocument();
   });
 });

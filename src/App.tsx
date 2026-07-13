@@ -101,14 +101,27 @@ function BrixApp() {
     if (!isAuthenticated) return;
     loadRemoteDeals()
       .then((remoteDeals) => {
-        if (remoteDeals.length > 0) {
-          setDeals(remoteDeals);
-          setSelectedId(remoteDeals[0].id);
-        }
+        setDeals(remoteDeals);
+        setSelectedId(remoteDeals[0]?.id ?? null);
         setSyncMessage(null);
       })
       .catch((error) => setSyncMessage(`Could not load cloud records: ${error.message ?? "check your connection."}`));
   }, [isAuthenticated]);
+
+  async function createDeal(deal: DealFacts) {
+    try {
+      await persistRemoteDeal(deal);
+      setDeals((current) => [deal, ...current.filter((item) => item.id !== deal.id)]);
+      setSelectedId(deal.id);
+      setSyncMessage(null);
+      setModule("deal");
+      return true;
+    } catch (error) {
+      setSyncMessage(`Deal was not created: ${error instanceof Error ? error.message : "cloud save failed."}`);
+      setModule("find");
+      return false;
+    }
+  }
 
   function upsertDeal(next: DealFacts) {
     setDeals((current) => {
@@ -169,7 +182,7 @@ function BrixApp() {
 
         {!isAuthenticated && <Account onAuthChanged={() => { setIsAuthenticated(true); setModule("find"); }} />}
         {isAuthenticated && syncMessage && <div className="callout danger-callout"><strong>Sync needs attention</strong><span>{syncMessage}</span></div>}
-        {isAuthenticated && module === "find" && <FindIQ onCreate={(deal) => { upsertDeal(deal); setModule("deal"); }} />}
+        {isAuthenticated && module === "find" && <FindIQ onCreate={createDeal} />}
         {isAuthenticated && module === "deal" && <DealIQ deal={selectedDeal} onChange={upsertDeal} onDelete={deleteDeal} />}
         {isAuthenticated && module === "contract" && <ContractIQ deal={selectedDeal} />}
         {isAuthenticated && module === "pipeline" && <PipelineIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} onStatusChange={(deal) => upsertDeal(deal)} />}
@@ -203,19 +216,24 @@ function Landing() {
   );
 }
 
-function FindIQ({ onCreate }: { onCreate: (deal: DealFacts) => void }) {
+function FindIQ({ onCreate }: { onCreate: (deal: DealFacts) => Promise<boolean> }) {
   const [input, setInput] = useState("");
   const [strategyId, setStrategyId] = useState<StrategyId>("owner_occupant");
   const [error, setError] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
 
-  function create() {
+  async function create() {
     const cleaned = input.trim();
     if (!cleaned) {
       setError("Enter an address, listing URL, or listing text.");
       return;
     }
+    setError("");
+    setIsCreating(true);
     const deal = createDealFromInput(cleaned, strategyId);
-    onCreate(deal);
+    const created = await onCreate(deal);
+    setIsCreating(false);
+    if (!created) setError("BRIX could not save this deal. Check your account access and try again.");
   }
 
   return (
@@ -235,7 +253,7 @@ function FindIQ({ onCreate }: { onCreate: (deal: DealFacts) => void }) {
           </select>
         </label>
         {error && <p className="error">{error}</p>}
-        <button className="primary" onClick={create}><Plus size={18} /> Create deal file</button>
+        <button className="primary" onClick={create} disabled={isCreating}><Plus size={18} /> {isCreating ? "Creating deal file" : "Create deal file"}</button>
       </div>
       <div className="panel">
         <p className="eyebrow">What happens next</p>
@@ -518,19 +536,34 @@ function Account({ onAuthChanged, onSignedOut }: { onAuthChanged: () => void; on
   const [message, setMessage] = useState("");
 
   async function signIn() {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) {
+      setMessage("Enter your email and password.");
+      return;
+    }
+    const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
     setMessage(error ? error.message : "Signed in.");
     if (!error) onAuthChanged();
   }
 
   async function signUp() {
-    const { error } = await supabase.auth.signUp({ email, password });
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) {
+      setMessage("Enter your email and password.");
+      return;
+    }
+    const { error } = await supabase.auth.signUp({ email: cleanEmail, password });
     setMessage(error ? error.message : "Account created. Check email if confirmation is required.");
     if (!error) onAuthChanged();
   }
 
   async function reset() {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/account` });
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      setMessage("Enter your email before requesting a reset link.");
+      return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo: `${window.location.origin}/account` });
     setMessage(error ? error.message : "Password reset email sent.");
   }
 
@@ -552,7 +585,7 @@ function Account({ onAuthChanged, onSignedOut }: { onAuthChanged: () => void; on
   return (
     <section className="panel account-panel">
       <p className="eyebrow">Account</p>
-      <label className="field"><span>Email</span><input value={email} onChange={(event) => setEmail(event.target.value)} /></label>
+      <label className="field"><span>Email</span><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
       <label className="field"><span>Password</span><input value={password} type="password" onChange={(event) => setPassword(event.target.value)} /></label>
       <div className="button-row">
         <button className="primary" onClick={signIn}>Sign in</button>
