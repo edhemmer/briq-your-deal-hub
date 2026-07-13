@@ -24,7 +24,6 @@ Do not create a new Xcode project and do not open a generated `ContentView` app 
   - `DealIQCockpitView.swift`
   - `PipelineIQView.swift`
   - `OfferIQView.swift`
-  - `FieldInvestorView.swift`
   - `PortfolioOSView.swift`
   - `AccountView.swift`
 
@@ -41,13 +40,12 @@ Do not create a new Xcode project and do not open a generated `ContentView` app 
 
 ## Backend Connections
 
-- Supabase URL is emitted into the generated archive plist from `INFOPLIST_KEY_BRIX_SUPABASE_URL`.
-- Supabase publishable key is emitted into the generated archive plist from `INFOPLIST_KEY_BRIX_SUPABASE_PUBLISHABLE_KEY`.
+- Supabase URL and publishable key are defined in `Services.swift`.
 - Email sign-in uses `/auth/v1/token?grant_type=password`.
 - Sign-up uses `/auth/v1/signup`.
 - Password recovery uses `/auth/v1/recover`.
 - Listing extraction uses `/functions/v1/extract-deal-from-text`.
-- Field uploads use Supabase Storage and `/functions/v1/field-capture`.
+- Property photos and notes are attached to deal records from the mobile workflow.
 
 ## Mac Verification
 

@@ -1,5 +1,5 @@
 import { createBlankDeal, parseListingInput } from "./listingParser";
-import type { StrategyId } from "./strategyCatalog";
+import { getStrategy, normalizeStrategy, type StrategyId } from "./strategyCatalog";
 import type { DealFacts } from "./types";
 import { supabase } from "./supabase";
 
@@ -38,7 +38,7 @@ export async function loadRemoteDeals(): Promise<DealFacts[]> {
     .order("updated_at", { ascending: false });
   if (error) throw error;
   if (!data) return [];
-  return data.map(fromRow);
+  return data.map(normalizeDealRow);
 }
 
 export async function persistRemoteDeal(deal: DealFacts) {
@@ -70,12 +70,15 @@ export async function softDeleteRemoteDeal(id: string) {
   if (error) throw error;
 }
 
-function fromRow(row: any): DealFacts {
+export function normalizeDealRow(row: any): DealFacts {
   const facts = row.facts ?? {};
+  const createdAt = row.created_at ?? facts.createdAt ?? new Date().toISOString();
+  const updatedAt = row.updated_at ?? facts.updatedAt ?? createdAt;
+  const strategyId = getStrategy(row.strategy_id ?? facts.strategyId)?.id ?? normalizeStrategy("owner_occupant");
   return {
     ...facts,
-    id: row.id,
-    status: row.status,
+    id: row.id ?? facts.id,
+    status: row.status ?? facts.status ?? "draft",
     sourceUrl: row.source_url ?? facts.sourceUrl,
     sourceText: row.source_text ?? facts.sourceText,
     address: row.address ?? facts.address ?? "",
@@ -83,10 +86,10 @@ function fromRow(row: any): DealFacts {
     state: row.state ?? facts.state,
     zip: row.zip ?? facts.zip,
     county: row.county ?? facts.county,
-    strategyId: row.strategy_id ?? facts.strategyId ?? "owner_occupant",
+    strategyId,
     verification: row.verification ?? facts.verification ?? {},
-    createdAt: row.created_at ?? facts.createdAt,
-    updatedAt: row.updated_at ?? facts.updatedAt,
+    createdAt,
+    updatedAt,
     notes: facts.notes ?? [],
     photoUrls: facts.photoUrls ?? [],
     uploadedPhotoNames: facts.uploadedPhotoNames ?? [],

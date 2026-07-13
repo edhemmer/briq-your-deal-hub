@@ -41,8 +41,13 @@ fi
 
 echo ""
 echo "Checking archive bundle identity settings..."
-if ! grep -q "GENERATE_INFOPLIST_FILE = YES;" "$PROJECT_PATH/project.pbxproj"; then
-  echo "ERROR: Target should generate the archive Info.plist so Xcode writes the bundle id into the final app."
+if ! grep -q "GENERATE_INFOPLIST_FILE = NO;" "$PROJECT_PATH/project.pbxproj"; then
+  echo "ERROR: Target should use the checked-in Info.plist so archive identity and launch settings stay deterministic."
+  exit 1
+fi
+
+if ! grep -q "INFOPLIST_FILE = BRIXRealEstateiOS/Info.plist;" "$PROJECT_PATH/project.pbxproj"; then
+  echo "ERROR: Target is not pointing at BRIXRealEstateiOS/Info.plist."
   exit 1
 fi
 
@@ -51,8 +56,8 @@ if ! grep -q 'PRODUCT_BUNDLE_IDENTIFIER = "BrixRE.Brix-Real-Estate";' "$PROJECT_
   exit 1
 fi
 
-if ! grep -q "INFOPLIST_KEY_CFBundleDisplayName" "$PROJECT_PATH/project.pbxproj"; then
-  echo "ERROR: Generated Info.plist display/privacy keys are missing from build settings."
+if ! grep -q '<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>' "$ROOT_DIR/BRIXRealEstateiOS/Info.plist"; then
+  echo "ERROR: Info.plist must use PRODUCT_BUNDLE_IDENTIFIER for archive signing."
   exit 1
 fi
 
@@ -61,8 +66,8 @@ if [[ ! -f "$ROOT_DIR/BRIXRealEstateiOS/LaunchScreen.storyboard" ]]; then
   exit 1
 fi
 
-if ! grep -q "INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;" "$PROJECT_PATH/project.pbxproj"; then
-  echo "ERROR: Generated Info.plist does not reference LaunchScreen.storyboard."
+if ! grep -q "UILaunchStoryboardName" "$ROOT_DIR/BRIXRealEstateiOS/Info.plist"; then
+  echo "ERROR: Info.plist does not reference LaunchScreen.storyboard."
   exit 1
 fi
 

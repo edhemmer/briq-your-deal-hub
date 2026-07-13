@@ -2,20 +2,33 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
+import { requestAccountDeletion } from "../core/authActions";
+import { downloadDecisionPdf, downloadWorkbook } from "../core/reportExports";
+import { normalizeDealRow } from "../core/store";
 
-const upsertMock = vi.fn(async () => ({ error: null }));
-const updateMock = vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) }));
+const mocks = vi.hoisted(() => ({
+  session: { value: { user: { id: "user-1" } } as { user: { id: string } } | null },
+  upsert: vi.fn(async () => ({ error: null })),
+  update: vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) })),
+  signInWithPassword: vi.fn(async () => ({ error: null })),
+  signUp: vi.fn(async () => ({ error: null })),
+  resetPasswordForEmail: vi.fn(async () => ({ error: null })),
+  signOut: vi.fn(async () => ({ error: null })),
+  downloadDecisionPdf: vi.fn(async () => undefined),
+  downloadWorkbook: vi.fn(async () => undefined),
+  requestAccountDeletion: vi.fn(async () => undefined),
+}));
 
 vi.mock("../core/supabase", () => ({
   supabase: {
     auth: {
-      getSession: vi.fn(async () => ({ data: { session: { user: { id: "user-1" } } } })),
+      getSession: vi.fn(async () => ({ data: { session: mocks.session.value } })),
       onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
       getUser: vi.fn(async () => ({ data: { user: { id: "user-1", email: "edhemmer@gmail.com" } } })),
-      signInWithPassword: vi.fn(async () => ({ error: null })),
-      signUp: vi.fn(async () => ({ error: null })),
-      resetPasswordForEmail: vi.fn(async () => ({ error: null })),
-      signOut: vi.fn(async () => ({ error: null })),
+      signInWithPassword: mocks.signInWithPassword,
+      signUp: mocks.signUp,
+      resetPasswordForEmail: mocks.resetPasswordForEmail,
+      signOut: mocks.signOut,
     },
     from: vi.fn((table: string) => {
       if (table === "brix_deals") {
@@ -25,8 +38,8 @@ vi.mock("../core/supabase", () => ({
               order: vi.fn(async () => ({ data: [], error: null })),
             })),
           })),
-          upsert: upsertMock,
-          update: updateMock,
+          upsert: mocks.upsert,
+          update: mocks.update,
         };
       }
       return {};
@@ -36,19 +49,20 @@ vi.mock("../core/supabase", () => ({
 }));
 
 vi.mock("../core/reportExports", () => ({
-  downloadDecisionPdf: vi.fn(async () => undefined),
-  downloadWorkbook: vi.fn(async () => undefined),
+  downloadDecisionPdf: mocks.downloadDecisionPdf,
+  downloadWorkbook: mocks.downloadWorkbook,
 }));
 
 vi.mock("../core/authActions", () => ({
-  requestAccountDeletion: vi.fn(async () => undefined),
+  requestAccountDeletion: mocks.requestAccountDeletion,
 }));
 
 describe("BRIX app module flow", () => {
   beforeEach(() => {
     localStorage.clear();
     window.history.replaceState({}, "", "/app");
-    upsertMock.mockClear();
+    mocks.session.value = { user: { id: "user-1" } };
+    vi.clearAllMocks();
   });
 
   it("creates a deal in FindIQ and opens every connected module without a dead end", async () => {
@@ -65,7 +79,7 @@ describe("BRIX app module flow", () => {
     expect(await screen.findByRole("heading", { name: /Visit|Research first|Do not visit yet/i })).toBeInTheDocument();
     expect(window.location.pathname).toBe("/dealiq");
     expect(screen.getAllByText(/1615 Augusta Ln/i).length).toBeGreaterThan(0);
-    expect(upsertMock).toHaveBeenCalled();
+    expect(mocks.upsert).toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: /Buy & Hold/i }));
     expect(await screen.findByText(/Buy & Hold:/i)).toBeInTheDocument();
@@ -92,11 +106,55 @@ describe("BRIX app module flow", () => {
     await screen.findByText("Recommendation");
     expect(screen.getAllByText(/What must be true/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Decision memo/i).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /Download PDF/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Download XLS/i }));
+    expect(downloadDecisionPdf).toHaveBeenCalled();
+    expect(downloadWorkbook).toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: /PortfolioIQ/i }));
     expect(window.location.pathname).toBe("/portfolioiq");
     expect(await screen.findByText(/No portfolio assets yet/i)).toBeInTheDocument();
 
     await waitFor(() => expect(screen.queryByText(/Sync needs attention/i)).not.toBeInTheDocument());
+  });
+
+  it("handles account sign-in, reset, and deletion request wiring", async () => {
+    mocks.session.value = null;
+    window.history.replaceState({}, "", "/account");
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Account" });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "edhemmer@gmail.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "inlight" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => expect(mocks.signInWithPassword).toHaveBeenCalledWith({ email: "edhemmer@gmail.com", password: "inlight" }));
+    expect(window.location.pathname).toBe("/findiq");
+
+    fireEvent.click(screen.getByRole("button", { name: /Account/i }));
+    await screen.findByRole("heading", { name: "Account" });
+    fireEvent.click(screen.getByRole("button", { name: /Reset password/i }));
+    await waitFor(() => expect(mocks.resetPasswordForEmail).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole("button", { name: /Request account deletion/i }));
+    await waitFor(() => expect(requestAccountDeletion).toHaveBeenCalled());
+  });
+
+  it("normalizes older or sparse remote deal rows before modules consume them", () => {
+    const deal = normalizeDealRow({
+      id: "deal-1",
+      address: "10 Test St",
+      facts: { listPrice: 250000, strategyId: "not-a-real-strategy" },
+    });
+
+    expect(deal.id).toBe("deal-1");
+    expect(deal.address).toBe("10 Test St");
+    expect(deal.status).toBe("draft");
+    expect(deal.strategyId).toBe("owner_occupant");
+    expect(deal.createdAt).toBeTruthy();
+    expect(deal.updatedAt).toBeTruthy();
+    expect(deal.notes).toEqual([]);
+    expect(deal.photoUrls).toEqual([]);
   });
 });
