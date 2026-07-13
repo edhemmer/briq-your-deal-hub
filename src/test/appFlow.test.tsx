@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { requestAccountDeletion } from "../core/authActions";
@@ -9,10 +9,25 @@ import { normalizeDealRow } from "../core/store";
 const mocks = vi.hoisted(() => ({
   session: { value: { user: { id: "user-1" } } as { user: { id: string } } | null },
   user: { value: { id: "user-1", email: "edhemmer@gmail.com" } as { id: string; email: string } | null },
-  upsert: vi.fn(async () => ({ error: null })),
-  update: vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) })),
-  signInWithPassword: vi.fn(async () => ({ error: null })),
-  signUp: vi.fn(async () => ({ error: null })),
+  remoteDeals: { value: [] as Array<Record<string, unknown>> },
+  authChangeCallback: { value: null as null | ((_event: string, session: { user: { id: string } } | null) => void) },
+  queriedOwnerIds: { value: [] as string[] },
+  upsert: vi.fn((row: Record<string, unknown>) => ({
+    select: vi.fn(() => ({
+      single: vi.fn(async () => ({ data: { ...row, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }, error: null })),
+    })),
+  })),
+  update: vi.fn(() => ({
+    eq: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(async () => ({ data: { id: "deleted-id" }, error: null })),
+        })),
+      })),
+    })),
+  })),
+  signInWithPassword: vi.fn(async () => ({ data: { session: mocks.session.value }, error: null })),
+  signUp: vi.fn(async () => ({ data: { session: mocks.session.value }, error: null })),
   resetPasswordForEmail: vi.fn(async () => ({ error: null })),
   signOut: vi.fn(async () => ({ error: null })),
   downloadDecisionPdf: vi.fn(async () => undefined),
@@ -24,7 +39,10 @@ vi.mock("../core/supabase", () => ({
   supabase: {
     auth: {
       getSession: vi.fn(async () => ({ data: { session: mocks.session.value } })),
-      onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+      onAuthStateChange: vi.fn((callback: (_event: string, session: { user: { id: string } } | null) => void) => {
+        mocks.authChangeCallback.value = callback;
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      }),
       getUser: vi.fn(async () => ({ data: { user: mocks.user.value } })),
       signInWithPassword: mocks.signInWithPassword,
       signUp: mocks.signUp,
@@ -36,8 +54,16 @@ vi.mock("../core/supabase", () => ({
         return {
           select: vi.fn(() => ({
             is: vi.fn(() => ({
-              order: vi.fn(async () => ({ data: [], error: null })),
+              order: vi.fn(async () => ({ data: mocks.remoteDeals.value, error: null })),
             })),
+            eq: vi.fn((field: string, value: string) => {
+              if (field === "owner_id") mocks.queriedOwnerIds.value.push(value);
+              return {
+                is: vi.fn(() => ({
+                  order: vi.fn(async () => ({ data: mocks.remoteDeals.value, error: null })),
+                })),
+              };
+            }),
           })),
           upsert: mocks.upsert,
           update: mocks.update,
@@ -64,6 +90,9 @@ describe("BRIX app module flow", () => {
     window.history.replaceState({}, "", "/app");
     mocks.session.value = { user: { id: "user-1" } };
     mocks.user.value = { id: "user-1", email: "edhemmer@gmail.com" };
+    mocks.remoteDeals.value = [];
+    mocks.authChangeCallback.value = null;
+    mocks.queriedOwnerIds.value = [];
     vi.clearAllMocks();
   });
 
@@ -84,6 +113,7 @@ describe("BRIX app module flow", () => {
     expect(mocks.upsert).toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: /Buy & Hold/i }));
+    await waitFor(() => expect(mocks.upsert).toHaveBeenCalledTimes(2));
     expect(await screen.findByText(/Buy & Hold:/i)).toBeInTheDocument();
     expect(screen.getByText(/Top fit/i)).toBeInTheDocument();
 
@@ -122,6 +152,7 @@ describe("BRIX app module flow", () => {
 
   it("handles account sign-in, reset, and deletion request wiring", async () => {
     mocks.session.value = null;
+    mocks.signInWithPassword.mockResolvedValueOnce({ data: { session: { user: { id: "user-1" } } }, error: null });
     window.history.replaceState({}, "", "/account");
 
     render(<App />);
@@ -162,7 +193,11 @@ describe("BRIX app module flow", () => {
   });
 
   it("does not open DealIQ when cloud deal creation is rejected", async () => {
-    mocks.upsert.mockResolvedValueOnce({ error: new Error("free deal limit reached") });
+    mocks.upsert.mockReturnValueOnce({
+      select: vi.fn(() => ({
+        single: vi.fn(async () => ({ data: null, error: new Error("free deal limit reached") })),
+      })),
+    });
     render(<App />);
 
     await screen.findByRole("heading", { name: "FindIQ" });
@@ -200,5 +235,72 @@ describe("BRIX app module flow", () => {
     expect(window.location.pathname).toBe("/dealiq");
     expect(await screen.findByText(/Sign in from Account/i)).toBeInTheDocument();
     expect(mocks.upsert).not.toHaveBeenCalled();
+  });
+
+  it("mocked: does not write authenticated cloud deals to the shared anonymous browser key", async () => {
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "FindIQ" });
+    fireEvent.change(screen.getByLabelText("Address, listing URL, or listing text"), {
+      target: { value: "30 Cloud Only St, Test, IL 60000 $300000 3 bed 2 bath" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /create deal file/i }));
+
+    await screen.findByRole("heading", { name: /Visit|Research first|Do not visit yet/i });
+    expect(mocks.upsert).toHaveBeenCalled();
+    expect(localStorage.getItem("brix.deals")).toBeNull();
+  });
+
+  it("mocked: sign out clears authenticated deals and can show preserved anonymous records only", async () => {
+    localStorage.setItem("brix.deals", JSON.stringify([{ id: "anon-1", address: "Anonymous Draft", status: "draft", strategyId: "owner_occupant", createdAt: "2026-01-01", updatedAt: "2026-01-01", notes: [], photoUrls: [], uploadedPhotoNames: [], verification: {} }]));
+    mocks.remoteDeals.value = [{ id: "remote-1", owner_id: "user-1", address: "User One Deal", status: "draft", strategy_id: "owner_occupant", facts: { id: "remote-1", address: "User One Deal", strategyId: "owner_occupant", status: "draft", createdAt: "2026-01-01", updatedAt: "2026-01-01", notes: [], photoUrls: [], uploadedPhotoNames: [], verification: {} } }];
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    await screen.findByText("User One Deal");
+    fireEvent.click(screen.getByRole("button", { name: /Sign out/i }));
+    await waitFor(() => expect(screen.queryByText("User One Deal")).not.toBeInTheDocument());
+    expect(await screen.findByText("Anonymous Draft")).toBeInTheDocument();
+    expect(localStorage.getItem("brix.deals")).toContain("Anonymous Draft");
+  });
+
+  it("mocked: switching authenticated users clears the prior user's remote deals before loading the next user", async () => {
+    mocks.remoteDeals.value = [{ id: "remote-a", owner_id: "user-a", address: "User A Deal", status: "draft", strategy_id: "owner_occupant", facts: { id: "remote-a", address: "User A Deal", strategyId: "owner_occupant", status: "draft", createdAt: "2026-01-01", updatedAt: "2026-01-01", notes: [], photoUrls: [], uploadedPhotoNames: [], verification: {} } }];
+    mocks.session.value = { user: { id: "user-a" } };
+    mocks.user.value = { id: "user-a", email: "a@example.com" };
+    render(<App />);
+
+    await screen.findByText("User A Deal");
+    mocks.remoteDeals.value = [{ id: "remote-b", owner_id: "user-b", address: "User B Deal", status: "draft", strategy_id: "owner_occupant", facts: { id: "remote-b", address: "User B Deal", strategyId: "owner_occupant", status: "draft", createdAt: "2026-01-01", updatedAt: "2026-01-01", notes: [], photoUrls: [], uploadedPhotoNames: [], verification: {} } }];
+    mocks.user.value = { id: "user-b", email: "b@example.com" };
+    act(() => {
+      mocks.authChangeCallback.value?.("SIGNED_IN", { user: { id: "user-b" } });
+    });
+
+    await waitFor(() => expect(screen.queryByText("User A Deal")).not.toBeInTheDocument());
+    expect(await screen.findByText("User B Deal")).toBeInTheDocument();
+  });
+
+  it("mocked: email-confirmation signup does not mark the app authenticated without a session", async () => {
+    mocks.session.value = null;
+    mocks.user.value = null;
+    mocks.signUp.mockResolvedValueOnce({ data: { session: null }, error: null });
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Account" });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "confirm@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    expect(await screen.findByText(/Confirm your email before signing in/i)).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/account");
+  });
+
+  it("mocked: remote loading is scoped to the current authenticated user", async () => {
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "FindIQ" });
+    await waitFor(() => expect(mocks.queriedOwnerIds.value).toContain("user-1"));
   });
 });

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch } from "lucide-react";
 import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
-import { createDealFromInput, loadDeals, loadRemoteDeals, persistRemoteDeal, saveDeals, softDeleteRemoteDeal } from "./core/store";
+import { createDealFromInput, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
 import type { DealFacts, DealStatus } from "./core/types";
 import { supabase } from "./core/supabase";
 import { downloadDecisionPdf, downloadWorkbook } from "./core/reportExports";
@@ -65,10 +65,12 @@ function pathForModule(module: Module) {
 
 function BrixApp() {
   const [module, setModuleState] = useState<Module>(() => moduleFromPath());
-  const [deals, setDeals] = useState<DealFacts[]>(() => loadDeals());
-  const [selectedId, setSelectedId] = useState<string | null>(() => loadDeals()[0]?.id ?? null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [deals, setDeals] = useState<DealFacts[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const isAuthenticated = Boolean(authUserId);
   const selectedDeal = deals.find((deal) => deal.id === selectedId) ?? deals[0];
 
   function setModule(next: Module) {
@@ -77,18 +79,45 @@ function BrixApp() {
     if (window.location.pathname !== nextPath) window.history.pushState({}, "", nextPath);
   }
 
-  useEffect(() => saveDeals(deals), [deals]);
+  useEffect(() => {
+    if (!authReady || authUserId) return;
+    saveAnonymousDeals(deals);
+  }, [authReady, authUserId, deals]);
+
   useEffect(() => {
     const onPopState = () => setModuleState(moduleFromPath());
     window.addEventListener("popstate", onPopState);
     supabase.auth.getSession()
-      .then(({ data }) => setIsAuthenticated(Boolean(data.session)))
+      .then(({ data }) => {
+        const userId = data.session?.user?.id ?? null;
+        setDeals([]);
+        setSelectedId(null);
+        setAuthUserId(userId);
+        setAuthReady(true);
+        if (!userId) {
+          const anonymousDeals = loadAnonymousDeals();
+          setDeals(anonymousDeals);
+          setSelectedId(anonymousDeals[0]?.id ?? null);
+        }
+      })
       .catch(() => {
-        setIsAuthenticated(false);
+        setAuthUserId(null);
+        setAuthReady(true);
+        setDeals([]);
+        setSelectedId(null);
         setSyncMessage("Sign in from Account when you are ready to save across devices.");
       });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(Boolean(session));
+      const userId = session?.user?.id ?? null;
+      setDeals([]);
+      setSelectedId(null);
+      setAuthUserId(userId);
+      setAuthReady(true);
+      if (!userId) {
+        const anonymousDeals = loadAnonymousDeals();
+        setDeals(anonymousDeals);
+        setSelectedId(anonymousDeals[0]?.id ?? null);
+      }
     });
     return () => {
       window.removeEventListener("popstate", onPopState);
@@ -97,21 +126,31 @@ function BrixApp() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-    loadRemoteDeals()
+    if (!authUserId) return;
+    let isCurrent = true;
+    setDeals([]);
+    setSelectedId(null);
+    loadRemoteDeals(authUserId)
       .then((remoteDeals) => {
+        if (!isCurrent) return;
         setDeals(remoteDeals);
         setSelectedId(remoteDeals[0]?.id ?? null);
         setSyncMessage(null);
       })
-      .catch((error) => setSyncMessage(`Could not load cloud records: ${error.message ?? "check your connection."}`));
-  }, [isAuthenticated]);
+      .catch((error) => {
+        if (!isCurrent) return;
+        setSyncMessage(`Could not load cloud records: ${error.message ?? "check your connection."}`);
+      });
+    return () => {
+      isCurrent = false;
+    };
+  }, [authUserId]);
 
   async function createDeal(deal: DealFacts) {
     try {
-      if (isAuthenticated) await persistRemoteDeal(deal);
-      setDeals((current) => [deal, ...current.filter((item) => item.id !== deal.id)]);
-      setSelectedId(deal.id);
+      const confirmedDeal = authUserId ? await persistRemoteDeal(deal, authUserId) : deal;
+      setDeals((current) => [confirmedDeal, ...current.filter((item) => item.id !== confirmedDeal.id)]);
+      setSelectedId(confirmedDeal.id);
       setSyncMessage(isAuthenticated ? null : "Deal created on this device. Sign in from Account to keep it across devices.");
       setModule("deal");
       return true;
@@ -122,34 +161,50 @@ function BrixApp() {
     }
   }
 
-  function upsertDeal(next: DealFacts) {
+  function putDealInState(next: DealFacts) {
     setDeals((current) => {
       const exists = current.some((deal) => deal.id === next.id);
       return exists ? current.map((deal) => deal.id === next.id ? next : deal) : [next, ...current];
     });
     setSelectedId(next.id);
-    if (!isAuthenticated) {
+  }
+
+  function upsertDeal(next: DealFacts) {
+    if (!authUserId) {
+      putDealInState(next);
       setSyncMessage("Deal updated on this device. Sign in from Account to keep it across devices.");
       return;
     }
-    persistRemoteDeal(next)
-      .then(() => setSyncMessage(null))
-      .catch((error) => setSyncMessage(`Deal saved on this device, but cloud sync failed: ${error.message ?? "check your connection."}`));
+    setSyncMessage("Saving deal to BRIX cloud...");
+    persistRemoteDeal(next, authUserId)
+      .then((confirmedDeal) => {
+        putDealInState(confirmedDeal);
+        setSyncMessage(null);
+      })
+      .catch((error) => setSyncMessage(`Deal was not saved: ${error.message ?? "check your connection."}`));
   }
 
   function deleteDeal(id: string) {
-    setDeals((current) => {
-      const next = current.filter((deal) => deal.id !== id);
-      setSelectedId((currentId) => currentId === id ? next[0]?.id ?? null : currentId);
-      return next;
-    });
-    if (!isAuthenticated) {
+    if (!authUserId) {
+      setDeals((current) => {
+        const next = current.filter((deal) => deal.id !== id);
+        setSelectedId((currentId) => currentId === id ? next[0]?.id ?? null : currentId);
+        return next;
+      });
       setSyncMessage("Deal removed from this device.");
       return;
     }
-    softDeleteRemoteDeal(id)
-      .then(() => setSyncMessage(null))
-      .catch((error) => setSyncMessage(`Deal removed on this device, but cloud sync failed: ${error.message ?? "check your connection."}`));
+    setSyncMessage("Deleting deal from BRIX cloud...");
+    softDeleteRemoteDeal(id, authUserId)
+      .then(() => {
+        setDeals((current) => {
+          const next = current.filter((deal) => deal.id !== id);
+          setSelectedId((currentId) => currentId === id ? next[0]?.id ?? null : currentId);
+          return next;
+        });
+        setSyncMessage(null);
+      })
+      .catch((error) => setSyncMessage(`Deal was not deleted: ${error.message ?? "check your connection."}`));
   }
 
   return (
@@ -196,7 +251,14 @@ function BrixApp() {
         {module === "offer" && <OfferIQ deal={selectedDeal} />}
         {module === "portfolio" && <PortfolioIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
         {module === "reports" && <Reports deal={selectedDeal} />}
-        {module === "account" && <Account onAuthChanged={() => { setIsAuthenticated(true); setModule("find"); }} onSignedOut={() => { setIsAuthenticated(false); setModule("find"); }} />}
+        {module === "account" && <Account onAuthChanged={(userId) => { setDeals([]); setSelectedId(null); setAuthUserId(userId); setAuthReady(true); setModule("find"); }} onSignedOut={() => {
+          const anonymousDeals = loadAnonymousDeals();
+          setDeals(anonymousDeals);
+          setSelectedId(anonymousDeals[0]?.id ?? null);
+          setAuthUserId(null);
+          setAuthReady(true);
+          setModule("find");
+        }} />}
       </main>
     </div>
   );
@@ -556,7 +618,7 @@ function Reports({ deal }: { deal?: DealFacts }) {
   );
 }
 
-function Account({ onAuthChanged, onSignedOut }: { onAuthChanged: () => void; onSignedOut?: () => void }) {
+function Account({ onAuthChanged, onSignedOut }: { onAuthChanged: (userId: string) => void; onSignedOut?: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -570,9 +632,16 @@ function Account({ onAuthChanged, onSignedOut }: { onAuthChanged: () => void; on
     }
     setIsWorking(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-      setMessage(error ? error.message : "Signed in.");
-      if (!error) onAuthChanged();
+      const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+      const userId = data.session?.user?.id;
+      if (error) {
+        setMessage(error.message);
+      } else if (userId) {
+        setMessage("Signed in.");
+        onAuthChanged(userId);
+      } else {
+        setMessage("Sign in did not return an active session. Check your email confirmation status and try again.");
+      }
     } catch {
       setMessage("Sign in failed. Check your connection and try again.");
     } finally {
@@ -588,9 +657,16 @@ function Account({ onAuthChanged, onSignedOut }: { onAuthChanged: () => void; on
     }
     setIsWorking(true);
     try {
-      const { error } = await supabase.auth.signUp({ email: cleanEmail, password });
-      setMessage(error ? error.message : "Account created. Check email if confirmation is required.");
-      if (!error) onAuthChanged();
+      const { data, error } = await supabase.auth.signUp({ email: cleanEmail, password });
+      const userId = data.session?.user?.id;
+      if (error) {
+        setMessage(error.message);
+      } else if (userId) {
+        setMessage("Account created and signed in.");
+        onAuthChanged(userId);
+      } else {
+        setMessage("Account created. Confirm your email before signing in.");
+      }
     } catch {
       setMessage("Account creation failed. Check your connection and try again.");
     } finally {
