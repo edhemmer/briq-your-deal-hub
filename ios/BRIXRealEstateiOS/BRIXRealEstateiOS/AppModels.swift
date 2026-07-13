@@ -104,4 +104,10 @@ struct DealAnalysis {
     var whatMustBeTrue: [String]
     var failureScenarios: [String]
     var alternativeStrategies: [String]
+    var strategyHeadline: String
+    var strategyExplanation: String
+    var bestStrategyName: String
+    var strategyScoreGap: Int
+    var strategyTradeoffs: [String]
+    var strategyVerification: [String]
 }

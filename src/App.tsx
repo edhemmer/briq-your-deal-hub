@@ -252,14 +252,31 @@ function DealIQ({ deal, onChange, onDelete }: { deal?: DealFacts; onChange: (dea
 
       <section className="panel wide">
         <p className="eyebrow">Strategy comparison</p>
+        <div className="strategy-insight">
+          <div>
+            <h3>{analysis.strategyInsight.headline}</h3>
+            <p className="quiet">{analysis.strategyInsight.explanation}</p>
+          </div>
+          <div className="stat-row compact">
+            <Stat label="Selected" value={analysis.strategyInsight.selected.name} />
+            <Stat label="Top fit" value={analysis.strategyInsight.best.name} />
+            <Stat label="Gap" value={`${analysis.strategyInsight.scoreGap} pts`} />
+          </div>
+        </div>
         <div className="score-list">
           {analysis.strategyScores.slice(0, 12).map((score) => (
             <button key={score.strategyId} className={score.strategyId === deal.strategyId ? "score-card selected" : "score-card"} onClick={() => patch({ strategyId: score.strategyId })}>
               <strong>{score.name}</strong>
               <span>{score.recommendation}</span>
               <b>{score.score}</b>
+              <small>{score.why[0]}</small>
+              {score.risks[0] && <small>Verify: {score.risks[0]}</small>}
             </button>
           ))}
+        </div>
+        <div className="comparison-detail">
+          <ChallengeBlock title="Tradeoffs" items={analysis.strategyInsight.tradeoffs} />
+          <ChallengeBlock title="Verify before switching strategy" items={analysis.strategyInsight.verification} />
         </div>
       </section>
 
@@ -441,6 +458,8 @@ function Reports({ deal }: { deal?: DealFacts }) {
       <h3>Evidence</h3><ul>{analysis.evidence.map((item) => <li key={item}>{item}</li>)}</ul>
       <h3>Missing</h3><ul>{analysis.missing.map((item) => <li key={item}>{item}</li>)}</ul>
       <h3>Strategy comparison</h3>
+      <p>{analysis.strategyInsight.headline}</p>
+      <ul>{analysis.strategyInsight.tradeoffs.map((item) => <li key={item}>{item}</li>)}</ul>
       <ul>{analysis.strategyScores.slice(0, 8).map((score) => <li key={score.strategyId}>{score.name}: {score.recommendation} ({score.score}/100)</li>)}</ul>
       <h3>Decision challenge</h3>
       <h4>Key risks</h4><ul>{analysis.keyRisks.map((item) => <li key={item}>{item}</li>)}</ul>

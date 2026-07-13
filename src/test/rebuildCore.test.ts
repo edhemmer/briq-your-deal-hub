@@ -58,6 +58,8 @@ describe("BRIX rebuilt core", () => {
     expect(analysis.bullCase.length).toBeGreaterThan(0);
     expect(analysis.whatMustBeTrue.length).toBeGreaterThan(0);
     expect(analysis.failureScenarios.length).toBeGreaterThan(0);
+    expect(analysis.strategyInsight.best.score).toBeGreaterThanOrEqual(analysis.strategyInsight.selected.score);
+    expect(analysis.strategyInsight.tradeoffs.length).toBeGreaterThan(0);
   });
 
   it("flags contract clauses that change acquisition risk", () => {

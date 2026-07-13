@@ -1,11 +1,12 @@
 import { getStrategy, strategyCatalog } from "./strategyCatalog";
-import type { DealAnalysis, DealFacts, StrategyScore } from "./types";
+import type { DealAnalysis, DealFacts, StrategyScore, StrategyInsight } from "./types";
 
 const REQUIRED_CORE: Array<keyof DealFacts> = ["address", "listPrice", "annualTaxes", "annualInsurance"];
 
 export function analyzeDeal(deal: DealFacts): DealAnalysis {
   const scores = strategyCatalog.map((strategy) => scoreStrategy(deal, strategy.id));
   const primary = scores.find((score) => score.strategyId === deal.strategyId) ?? scores[0];
+  const ranked = [...scores].sort((a, b) => b.score - a.score);
   const missing = missingFields(deal);
   const readiness = clamp(100 - missing.length * 12 - (deal.photoUrls.length + deal.uploadedPhotoNames.length === 0 ? 8 : 0));
   const confidence = clamp(Math.round((primary.confidence + readiness) / 2));
@@ -22,7 +23,8 @@ export function analyzeDeal(deal: DealFacts): DealAnalysis {
     monthlyPayment: estimateMonthlyPayment(deal),
     estimatedCashNeeded: estimateCashNeeded(deal),
     primaryStrategy: primary,
-    strategyScores: scores.sort((a, b) => b.score - a.score),
+    strategyScores: ranked,
+    strategyInsight: strategyInsight(deal, primary, ranked),
     nextActions: nextActions(deal, missing),
     evidence: evidence(deal),
     missing,
@@ -190,6 +192,42 @@ function whatMustBeTrue(deal: DealFacts, primary: StrategyScore) {
 function failureScenarios(primary: StrategyScore) {
   const strategy = getStrategy(primary.strategyId);
   return strategy?.failureScenarios.slice(0, 6) ?? ["Required data fails verification.", "Costs exceed the user's risk tolerance."];
+}
+
+function strategyInsight(deal: DealFacts, selected: StrategyScore, ranked: StrategyScore[]): StrategyInsight {
+  const best = ranked[0] ?? selected;
+  const selectedRule = getStrategy(selected.strategyId);
+  const bestRule = getStrategy(best.strategyId);
+  const gap = Math.max(0, best.score - selected.score);
+  const isSelectedBest = best.strategyId === selected.strategyId || gap <= 3;
+  const headline = isSelectedBest
+    ? `${selected.name} is currently the strongest fit.`
+    : `${best.name} may fit better than ${selected.name}.`;
+  const explanation = isSelectedBest
+    ? "The selected strategy ranks at or near the top based on the facts currently captured."
+    : `BRIX ranks ${best.name} ${gap} points higher because the property appears to match more of that strategy's current success signals. Treat this as a prompt to verify, not a recommendation to switch blindly.`;
+  const tradeoffs = [
+    ...(selectedRule ? [`Selected strategy: ${selectedRule.plainEnglish}`] : []),
+    ...(bestRule && best.strategyId !== selected.strategyId ? [`Alternative strategy: ${bestRule.plainEnglish}`] : []),
+    selected.risks[0] ? `${selected.name} risk: ${selected.risks[0]}` : `${selected.name} needs source-backed inputs before confidence increases.`,
+    best.risks[0] ? `${best.name} risk: ${best.risks[0]}` : `${best.name} has fewer visible gaps from the current data.`,
+  ].slice(0, 5);
+  const verification = [
+    ...(bestRule?.verification.slice(0, 4) ?? []),
+    ...(deal.photoUrls.length || deal.uploadedPhotoNames.length ? [] : ["Listing or field photos"]),
+    ...(deal.county ? [] : ["County and tax source"]),
+  ];
+
+  return {
+    selected,
+    best,
+    isSelectedBest,
+    scoreGap: gap,
+    headline,
+    explanation,
+    tradeoffs: [...new Set(tradeoffs)].slice(0, 6),
+    verification: [...new Set(verification)].slice(0, 6),
+  };
 }
 
 function estimateMonthlyPayment(deal: DealFacts) {

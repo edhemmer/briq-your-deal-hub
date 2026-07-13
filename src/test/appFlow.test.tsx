@@ -67,6 +67,7 @@ describe("BRIX app module flow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Buy & Hold/i }));
     expect(await screen.findByText(/Buy & Hold:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Top fit/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /ContractIQ/i }));
     expect(await screen.findByRole("heading", { name: /1615 Augusta Ln/i })).toBeInTheDocument();

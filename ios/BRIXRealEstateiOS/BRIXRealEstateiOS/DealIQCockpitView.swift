@@ -46,6 +46,20 @@ struct DealIQCockpitView: View {
                                 }
                             }
                             BrixCard {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("Strategy comparison").font(.title2.bold())
+                                    Text(analysis.strategyHeadline).font(.headline)
+                                    Text(analysis.strategyExplanation).foregroundStyle(Brix.muted)
+                                    HStack {
+                                        strategyFact("Selected", value: deal.strategy.title)
+                                        strategyFact("Top fit", value: analysis.bestStrategyName)
+                                        BrixMetric(title: "Gap", value: analysis.strategyScoreGap)
+                                    }
+                                    challengeSection("Tradeoffs", items: analysis.strategyTradeoffs)
+                                    challengeSection("Verify before switching", items: analysis.strategyVerification)
+                                }
+                            }
+                            BrixCard {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text("Next actions").font(.title2.bold())
                                     ForEach(analysis.nextActions, id: \.self) { action in Label(action, systemImage: "checkmark.seal").foregroundStyle(Brix.muted) }
@@ -109,6 +123,16 @@ struct DealIQCockpitView: View {
     private func dscr(_ value: Double?) -> String {
         guard let value else { return "Missing" }
         return "\(value)x"
+    }
+
+    private func strategyFact(_ title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.caption).foregroundStyle(Brix.muted)
+            Text(value).font(.headline).foregroundStyle(.white).lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Brix.panel))
     }
 
     private func challengeSection(_ title: String, items: [String]) -> some View {

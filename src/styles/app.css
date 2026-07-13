@@ -87,6 +87,9 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .score-card.selected { border-color: var(--blue); background: #10203a; }
 .score-card span { color: var(--muted); }
 .score-card b { color: var(--green); font-size: 28px; }
+.strategy-insight { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(360px, .9fr); gap: 16px; align-items: stretch; margin-bottom: 16px; }
+.stat-row.compact { margin: 0; }
+.comparison-detail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
 .upload-zone { position: relative; display: grid; place-items: center; gap: 8px; min-height: 160px; border: 1px dashed #3a557c; border-radius: 18px; color: #b5c9e6; }
 .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .compact-list, .check-list { color: var(--muted); line-height: 1.7; padding-left: 20px; }
@@ -120,12 +123,12 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
   .rail { position: relative; height: auto; }
   .rail nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .two-column, .deal-grid { grid-template-columns: 1fr; }
-  .score-list, .landing-grid, .challenge-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .score-list, .landing-grid, .challenge-grid, .strategy-insight, .comparison-detail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 640px) {
   .workspace, .rail { padding: 16px; }
-  .rail nav, .metric-row, .stat-row, .form-grid, .score-list, .landing-grid, .challenge-grid { grid-template-columns: 1fr; }
+  .rail nav, .metric-row, .stat-row, .form-grid, .score-list, .landing-grid, .challenge-grid, .strategy-insight, .comparison-detail { grid-template-columns: 1fr; }
   .topbar { display: grid; }
   .table-row { grid-template-columns: 1fr; }
   .landing { padding: 22px; }

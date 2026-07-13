@@ -56,6 +56,7 @@ final class AppState: ObservableObject {
         let noi = monthlyNOI(for: deal)
         let cashFlow = noi.flatMap { net in payment.map { net - $0 } }
         let dscr = noi.flatMap { net in payment.flatMap { debt in debt > 0 ? rounded(net / debt) : nil } }
+        let insight = strategyInsight(for: deal)
         return DealAnalysis(
             decision: decision,
             confidence: confidence,
@@ -71,7 +72,13 @@ final class AppState: ObservableObject {
             bearCase: bearCase(for: deal, missing: missing),
             whatMustBeTrue: whatMustBeTrue(for: deal),
             failureScenarios: failureScenarios(for: deal),
-            alternativeStrategies: alternativeStrategies(for: deal)
+            alternativeStrategies: alternativeStrategies(for: deal),
+            strategyHeadline: insight.headline,
+            strategyExplanation: insight.explanation,
+            bestStrategyName: insight.bestName,
+            strategyScoreGap: insight.gap,
+            strategyTradeoffs: insight.tradeoffs,
+            strategyVerification: insight.verification
         )
     }
 
@@ -148,6 +155,72 @@ final class AppState: ObservableObject {
         default:
             return ["Owner Occupant", "Buy and Hold", "Sell"]
         }
+    }
+
+    private func strategyInsight(for deal: Deal) -> (headline: String, explanation: String, bestName: String, gap: Int, tradeoffs: [String], verification: [String]) {
+        let selectedScore = strategyScore(for: deal.strategy, deal: deal)
+        let ranked = StrategyId.allCases
+            .map { strategy in (strategy, strategyScore(for: strategy, deal: deal)) }
+            .sorted { $0.1 > $1.1 }
+        let best = ranked.first ?? (deal.strategy, selectedScore)
+        let gap = max(0, best.1 - selectedScore)
+        let selectedName = deal.strategy.title
+        let bestName = best.0.title
+        let selectedIsBest = best.0 == deal.strategy || gap <= 3
+        let headline = selectedIsBest ? "\(selectedName) is currently the strongest fit." : "\(bestName) may fit better than \(selectedName)."
+        let explanation = selectedIsBest
+            ? "The selected strategy ranks at or near the top from the facts currently captured."
+            : "BRIX ranks \(bestName) \(gap) points higher from the current facts. Verify the missing items before switching strategy."
+        let tradeoffs = [
+            "\(selectedName): \(strategyDescription(deal.strategy))",
+            "\(bestName): \(strategyDescription(best.0))",
+            "Missing facts lower confidence even when a strategy ranks well.",
+            "A higher score is a signal to investigate, not a guarantee of a better outcome."
+        ]
+        return (headline, explanation, bestName, gap, tradeoffs, strategyVerification(for: best.0, deal: deal))
+    }
+
+    private func strategyScore(for strategy: StrategyId, deal: Deal) -> Int {
+        var score = 50
+        if !deal.address.isEmpty { score += 8 }
+        if deal.listPrice != nil { score += 10 }
+        if deal.annualTaxes != nil { score += 6 }
+        if !deal.photoNames.isEmpty { score += 8 }
+        if strategy == .ownerOccupant {
+            if (deal.beds ?? 0) >= 3 { score += 6 }
+            if (deal.baths ?? 0) >= 2 { score += 6 }
+        }
+        if [.buyAndHold, .longTermRental, .midTermRental, .shortTermRental, .hybridRental, .houseHack, .dscrFinancing].contains(strategy) {
+            score += deal.monthlyRent == nil ? -8 : 14
+            score += deal.annualInsurance == nil ? -4 : 5
+        }
+        if [.brrrr, .hybridBrrrr, .fixAndFlip, .valueAdd, .adu, .lotSplit, .development].contains(strategy) {
+            score += deal.rehabBudget == nil ? -8 : 12
+            score += deal.arv == nil ? -8 : 10
+        }
+        return max(0, min(100, score))
+    }
+
+    private func strategyDescription(_ strategy: StrategyId) -> String {
+        switch strategy {
+        case .ownerOccupant: return "tests affordability, daily-life fit, condition, commute, and resale risk"
+        case .buyAndHold, .longTermRental: return "tests durable rent, NOI, DSCR, reserves, and long-term ownership"
+        case .midTermRental, .shortTermRental, .hybridRental: return "tests furnished demand, regulations, occupancy, and operating burden"
+        case .brrrr, .hybridBrrrr: return "tests rehab scope, after repair value, rent, refinance, and trapped capital risk"
+        case .fixAndFlip, .valueAdd: return "tests margin, resale value, scope control, timeline, and carrying cost"
+        case .sellerFinance, .subjectTo, .leaseOption, .wrapMortgage, .assumableFinancing: return "tests legal structure, payment risk, documents, and professional review needs"
+        default: return "tests whether the property facts support this path before relying on the output"
+        }
+    }
+
+    private func strategyVerification(for strategy: StrategyId, deal: Deal) -> [String] {
+        var items = ["Purchase price", "Annual taxes", "Insurance quote", "Condition/photos"]
+        if strategy != .ownerOccupant { items.append("Rent support") }
+        if [.brrrr, .hybridBrrrr, .fixAndFlip, .valueAdd, .adu, .lotSplit, .development].contains(strategy) {
+            items.append("Rehab budget and after repair value")
+        }
+        if deal.city.isEmpty || deal.state.isEmpty { items.append("City/state") }
+        return Array(Set(items)).sorted()
     }
 
     private func missingFields(_ deal: Deal) -> [String] {

@@ -50,6 +50,17 @@ export type StrategyScore = {
   missing: string[];
 };
 
+export type StrategyInsight = {
+  selected: StrategyScore;
+  best: StrategyScore;
+  isSelectedBest: boolean;
+  scoreGap: number;
+  headline: string;
+  explanation: string;
+  tradeoffs: string[];
+  verification: string[];
+};
+
 export type DealAnalysis = {
   decision: "Visit" | "Research first" | "Do not visit yet";
   confidence: number;
@@ -65,6 +76,7 @@ export type DealAnalysis = {
   estimatedCashNeeded?: number;
   primaryStrategy: StrategyScore;
   strategyScores: StrategyScore[];
+  strategyInsight: StrategyInsight;
   nextActions: string[];
   evidence: string[];
   missing: string[];

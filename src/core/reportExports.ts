@@ -26,6 +26,14 @@ export async function downloadDecisionPdf(deal: DealFacts, analysis: DealAnalysi
     `Cap rate: ${analysis.capRate ? `${analysis.capRate}%` : "Missing"}`,
     `Cash-on-cash: ${analysis.cashOnCash ? `${analysis.cashOnCash}%` : "Missing"}`,
     "",
+    "Strategy comparison:",
+    `- ${analysis.strategyInsight.headline}`,
+    `- ${analysis.strategyInsight.explanation}`,
+    `- Selected: ${analysis.strategyInsight.selected.name}`,
+    `- Top fit: ${analysis.strategyInsight.best.name}`,
+    `- Score gap: ${analysis.strategyInsight.scoreGap}`,
+    ...analysis.strategyInsight.tradeoffs.map((item) => `- ${item}`),
+    "",
     "Evidence:",
     ...analysis.evidence.map((item) => `- ${item}`),
     "",
@@ -80,6 +88,17 @@ export async function downloadWorkbook(deal: DealFacts, analysis: DealAnalysis) 
     cash_on_cash: analysis.cashOnCash ?? null,
   }]), "Deal");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analysis.strategyScores), "Strategies");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+    {
+      headline: analysis.strategyInsight.headline,
+      explanation: analysis.strategyInsight.explanation,
+      selected: analysis.strategyInsight.selected.name,
+      top_fit: analysis.strategyInsight.best.name,
+      score_gap: analysis.strategyInsight.scoreGap,
+    },
+    ...analysis.strategyInsight.tradeoffs.map((item) => ({ tradeoff: item })),
+    ...analysis.strategyInsight.verification.map((item) => ({ verification: item })),
+  ]), "Strategy Insight");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analysis.nextActions.map((action) => ({ action }))), "Next Actions");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
     ...analysis.keyRisks.map((item) => ({ section: "Key risks", item })),
