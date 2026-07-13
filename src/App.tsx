@@ -81,15 +81,14 @@ function BrixApp() {
   useEffect(() => {
     const onPopState = () => setModuleState(moduleFromPath());
     window.addEventListener("popstate", onPopState);
-    supabase.auth.getSession().then(({ data }) => {
-      const signedIn = Boolean(data.session);
-      setIsAuthenticated(signedIn);
-      if (signedIn && module === "account") setModule(moduleFromPath() === "account" ? "find" : moduleFromPath());
-      if (!signedIn) setModule("account");
-    });
+    supabase.auth.getSession()
+      .then(({ data }) => setIsAuthenticated(Boolean(data.session)))
+      .catch(() => {
+        setIsAuthenticated(false);
+        setSyncMessage("Sign in from Account when you are ready to save across devices.");
+      });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(Boolean(session));
-      if (!session) setModule("account");
     });
     return () => {
       window.removeEventListener("popstate", onPopState);
@@ -110,10 +109,10 @@ function BrixApp() {
 
   async function createDeal(deal: DealFacts) {
     try {
-      await persistRemoteDeal(deal);
+      if (isAuthenticated) await persistRemoteDeal(deal);
       setDeals((current) => [deal, ...current.filter((item) => item.id !== deal.id)]);
       setSelectedId(deal.id);
-      setSyncMessage(null);
+      setSyncMessage(isAuthenticated ? null : "Deal created on this device. Sign in from Account to keep it across devices.");
       setModule("deal");
       return true;
     } catch (error) {
@@ -129,6 +128,10 @@ function BrixApp() {
       return exists ? current.map((deal) => deal.id === next.id ? next : deal) : [next, ...current];
     });
     setSelectedId(next.id);
+    if (!isAuthenticated) {
+      setSyncMessage("Deal updated on this device. Sign in from Account to keep it across devices.");
+      return;
+    }
     persistRemoteDeal(next)
       .then(() => setSyncMessage(null))
       .catch((error) => setSyncMessage(`Deal saved on this device, but cloud sync failed: ${error.message ?? "check your connection."}`));
@@ -140,6 +143,10 @@ function BrixApp() {
       setSelectedId((currentId) => currentId === id ? next[0]?.id ?? null : currentId);
       return next;
     });
+    if (!isAuthenticated) {
+      setSyncMessage("Deal removed from this device.");
+      return;
+    }
     softDeleteRemoteDeal(id)
       .then(() => setSyncMessage(null))
       .catch((error) => setSyncMessage(`Deal removed on this device, but cloud sync failed: ${error.message ?? "check your connection."}`));
@@ -180,17 +187,16 @@ function BrixApp() {
           <DealSwitcher deals={deals} selectedId={selectedDeal?.id} onSelect={setSelectedId} />
         </header>
 
-        {!isAuthenticated && <Account onAuthChanged={() => { setIsAuthenticated(true); setModule("find"); }} />}
-        {isAuthenticated && syncMessage && <div className="callout danger-callout"><strong>Sync needs attention</strong><span>{syncMessage}</span></div>}
-        {isAuthenticated && module !== "account" && <WorkflowStrip active={module} onSelect={setModule} />}
-        {isAuthenticated && module === "find" && <FindIQ onCreate={createDeal} />}
-        {isAuthenticated && module === "deal" && <DealIQ deal={selectedDeal} onChange={upsertDeal} onDelete={deleteDeal} />}
-        {isAuthenticated && module === "contract" && <ContractIQ deal={selectedDeal} />}
-        {isAuthenticated && module === "pipeline" && <PipelineIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} onStatusChange={(deal) => upsertDeal(deal)} />}
-        {isAuthenticated && module === "offer" && <OfferIQ deal={selectedDeal} />}
-        {isAuthenticated && module === "portfolio" && <PortfolioIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
-        {isAuthenticated && module === "reports" && <Reports deal={selectedDeal} />}
-        {isAuthenticated && module === "account" && <Account onAuthChanged={() => { setIsAuthenticated(true); setModule("find"); }} onSignedOut={() => { setIsAuthenticated(false); setModule("account"); }} />}
+        {syncMessage && <div className={isAuthenticated ? "callout danger-callout" : "callout"}><strong>{isAuthenticated ? "Sync needs attention" : "Account"}</strong><span>{syncMessage}</span></div>}
+        {module !== "account" && <WorkflowStrip active={module} onSelect={setModule} />}
+        {module === "find" && <FindIQ onCreate={createDeal} />}
+        {module === "deal" && <DealIQ deal={selectedDeal} onChange={upsertDeal} onDelete={deleteDeal} />}
+        {module === "contract" && <ContractIQ deal={selectedDeal} />}
+        {module === "pipeline" && <PipelineIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} onStatusChange={(deal) => upsertDeal(deal)} />}
+        {module === "offer" && <OfferIQ deal={selectedDeal} />}
+        {module === "portfolio" && <PortfolioIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
+        {module === "reports" && <Reports deal={selectedDeal} />}
+        {module === "account" && <Account onAuthChanged={() => { setIsAuthenticated(true); setModule("find"); }} onSignedOut={() => { setIsAuthenticated(false); setModule("find"); }} />}
       </main>
     </div>
   );

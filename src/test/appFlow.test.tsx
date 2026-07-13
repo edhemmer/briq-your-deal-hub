@@ -176,18 +176,29 @@ describe("BRIX app module flow", () => {
     expect(screen.queryByRole("heading", { name: /Visit|Research first|Do not visit yet/i })).not.toBeInTheDocument();
   });
 
-  it("does not create a local deal when the cloud user is missing", async () => {
+  it("opens the app workspace when signed out instead of forcing the account screen", async () => {
+    mocks.session.value = null;
+    mocks.user.value = null;
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "FindIQ" });
+    expect(window.location.pathname).toBe("/app");
+  });
+
+  it("creates a device-local deal when signed out and sends the user into DealIQ", async () => {
+    mocks.session.value = null;
     mocks.user.value = null;
     render(<App />);
 
     await screen.findByRole("heading", { name: "FindIQ" });
     fireEvent.change(screen.getByLabelText("Address, listing URL, or listing text"), {
-      target: { value: "20 Missing User St, Test, IL 60000 $250000 3 bed 2 bath" },
+      target: { value: "20 Local Save St, Test, IL 60000 $250000 3 bed 2 bath" },
     });
     fireEvent.click(screen.getByRole("button", { name: /create deal file/i }));
 
-    await screen.findByText(/BRIX could not save this deal/i);
-    expect(window.location.pathname).toBe("/findiq");
+    expect(await screen.findByRole("heading", { name: /Visit|Research first|Do not visit yet/i })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/dealiq");
+    expect(await screen.findByText(/Sign in from Account/i)).toBeInTheDocument();
     expect(mocks.upsert).not.toHaveBeenCalled();
   });
 });

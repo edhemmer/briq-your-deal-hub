@@ -21,6 +21,13 @@ struct FindIQView: View {
                             }
                             Text("Enter one property and choose the strategy BRIX should evaluate first.")
                                 .foregroundStyle(Brix.muted)
+                            if state.accessToken.isEmpty {
+                                Label("You can start now. Sign in from Account when you want this deal available on every device.", systemImage: "iphone.and.arrow.forward")
+                                    .font(.subheadline)
+                                    .foregroundStyle(Brix.cyan)
+                                    .padding(12)
+                                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Brix.cyan.opacity(0.10)))
+                            }
                             TextEditor(text: $intake)
                                 .frame(minHeight: 140)
                                 .scrollContentBackground(.hidden)
