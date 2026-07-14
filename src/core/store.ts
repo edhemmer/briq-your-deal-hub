@@ -1,40 +1,52 @@
 import { createBlankDeal, parseListingInput } from "./listingParser";
 import { getStrategy, normalizeStrategy, type StrategyId } from "./strategyCatalog";
-import type { DealFacts } from "./types";
+import type { DealFacts, DealStatus, VerificationState } from "./types";
 import { supabase } from "./supabase";
 
 export const ANONYMOUS_DEALS_KEY = "brix.deals";
 // Anonymous draft migration is intentionally deferred to the next contained task.
 
-type BrixDealRow = {
-  id: string;
-  owner_id?: string;
-  status?: DealFacts["status"];
-  source_url?: string | null;
-  source_text?: string | null;
-  address?: string | null;
-  city?: string | null;
-  state?: string | null;
-  zip?: string | null;
-  county?: string | null;
-  strategy_id?: string | null;
-  facts?: (Partial<Omit<DealFacts, "strategyId">> & { strategyId?: string }) | null;
-  verification?: DealFacts["verification"] | null;
-  created_at?: string | null;
-  updated_at?: string | null;
+type UnknownRecord = Record<string, unknown>;
+
+const dealStatuses: DealStatus[] = ["draft", "reviewing", "underwriting", "pursuing", "under_contract", "closed", "passed"];
+const verificationStates: VerificationState[] = ["entered", "source_backed", "estimated", "missing"];
+const numberFields = [
+  "listPrice",
+  "beds",
+  "baths",
+  "squareFeet",
+  "yearBuilt",
+  "hoaMonthly",
+  "annualTaxes",
+  "annualInsurance",
+  "monthlyRent",
+  "arv",
+  "rehabBudget",
+  "downPayment",
+  "interestRate",
+  "loanYears",
+] as const satisfies ReadonlyArray<keyof DealFacts>;
+const stringFields = ["sourceUrl", "sourceText", "city", "state", "zip", "county", "lotSize", "propertyType"] as const satisfies ReadonlyArray<keyof DealFacts>;
+
+export type DealPersistenceRepository = {
+  list: () => Promise<DealFacts[]> | DealFacts[];
+  create: (deal: DealFacts) => Promise<DealFacts> | DealFacts;
+  update: (deal: DealFacts) => Promise<DealFacts> | DealFacts;
+  softDelete: (id: string) => Promise<void> | void;
 };
 
 export function loadAnonymousDeals(): DealFacts[] {
   try {
-    const parsed = JSON.parse(localStorage.getItem(ANONYMOUS_DEALS_KEY) ?? "[]") as DealFacts[];
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed = JSON.parse(localStorage.getItem(ANONYMOUS_DEALS_KEY) ?? "[]") as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeDealRecord).filter(isDealFacts);
   } catch {
     return [];
   }
 }
 
 export function saveAnonymousDeals(deals: DealFacts[]) {
-  localStorage.setItem(ANONYMOUS_DEALS_KEY, JSON.stringify(deals));
+  localStorage.setItem(ANONYMOUS_DEALS_KEY, JSON.stringify(deals.map(normalizeDealRecord).filter(isDealFacts)));
 }
 
 export function createDealFromInput(input: string, strategyId: StrategyId) {
@@ -45,6 +57,38 @@ export function createDealFromInput(input: string, strategyId: StrategyId) {
 
 export function createManualDeal(strategyId: StrategyId) {
   return createBlankDeal(strategyId);
+}
+
+export const anonymousDealRepository: DealPersistenceRepository = {
+  list: loadAnonymousDeals,
+  create(deal) {
+    const saved = saveAnonymousDeal(deal);
+    return saved;
+  },
+  update(deal) {
+    const saved = saveAnonymousDeal(deal);
+    return saved;
+  },
+  softDelete(id) {
+    saveAnonymousDeals(loadAnonymousDeals().filter((deal) => deal.id !== id));
+  },
+};
+
+export function cloudDealRepository(userId: string): DealPersistenceRepository {
+  return {
+    list: () => loadRemoteDeals(userId),
+    create: (deal) => persistRemoteDeal(deal, userId),
+    update: (deal) => persistRemoteDeal(deal, userId),
+    softDelete: (id) => softDeleteRemoteDeal(id, userId),
+  };
+}
+
+function saveAnonymousDeal(deal: DealFacts) {
+  const normalized = normalizeDealRecord(deal);
+  if (!normalized) throw new Error("Deal record is missing a usable ID.");
+  const current = loadAnonymousDeals();
+  saveAnonymousDeals([normalized, ...current.filter((item) => item.id !== normalized.id)]);
+  return normalized;
 }
 
 async function requireAuthenticatedUser(expectedUserId?: string) {
@@ -65,30 +109,35 @@ export async function loadRemoteDeals(userId: string): Promise<DealFacts[]> {
     .order("updated_at", { ascending: false });
   if (error) throw error;
   if (!data) return [];
-  return (data as BrixDealRow[]).map(normalizeDealRow);
+  return (Array.isArray(data) ? data : []).map(normalizeDealRow).filter(isDealFacts);
 }
 
 export async function persistRemoteDeal(deal: DealFacts, userId: string): Promise<DealFacts> {
   await requireAuthenticatedUser(userId);
+  const now = new Date().toISOString();
+  const canonicalDeal = normalizeDealRecord({ ...deal, updatedAt: now });
+  if (!canonicalDeal) throw new Error("Deal record is missing a usable ID.");
   const { data, error } = await supabase.from("brix_deals").upsert({
-    id: deal.id,
+    id: canonicalDeal.id,
     owner_id: userId,
-    status: deal.status,
-    source_url: deal.sourceUrl || null,
-    source_text: deal.sourceText || null,
-    address: deal.address,
-    city: deal.city || null,
-    state: deal.state || null,
-    zip: deal.zip || null,
-    county: deal.county || null,
-    strategy_id: deal.strategyId,
-    facts: deal,
-    verification: deal.verification,
-    updated_at: new Date().toISOString(),
+    status: canonicalDeal.status,
+    source_url: canonicalDeal.sourceUrl || null,
+    source_text: canonicalDeal.sourceText || null,
+    address: canonicalDeal.address,
+    city: canonicalDeal.city || null,
+    state: canonicalDeal.state || null,
+    zip: canonicalDeal.zip || null,
+    county: canonicalDeal.county || null,
+    strategy_id: canonicalDeal.strategyId,
+    facts: canonicalDeal,
+    verification: canonicalDeal.verification,
+    updated_at: canonicalDeal.updatedAt,
   }).select("*").single();
   if (error) throw error;
   if (!data) throw new Error("Supabase did not return the saved deal.");
-  return normalizeDealRow(data as BrixDealRow);
+  const normalized = normalizeDealRow(data);
+  if (!normalized) throw new Error("Supabase returned a malformed deal record.");
+  return normalized;
 }
 
 export async function softDeleteRemoteDeal(id: string, userId: string) {
@@ -103,28 +152,83 @@ export async function softDeleteRemoteDeal(id: string, userId: string) {
   if (error) throw error;
 }
 
-export function normalizeDealRow(row: BrixDealRow): DealFacts {
-  const facts = row.facts ?? {};
-  const createdAt = row.created_at ?? facts.createdAt ?? new Date().toISOString();
-  const updatedAt = row.updated_at ?? facts.updatedAt ?? createdAt;
-  const strategyId = getStrategy(row.strategy_id ?? facts.strategyId)?.id ?? normalizeStrategy("owner_occupant");
-  return {
+export function normalizeDealRow(row: unknown): DealFacts | null {
+  if (!isRecord(row)) return null;
+  const facts = isRecord(row.facts) ? row.facts : {};
+  const merged = {
     ...facts,
     id: row.id ?? facts.id,
-    status: row.status ?? facts.status ?? "draft",
+    status: row.status ?? facts.status,
     sourceUrl: row.source_url ?? facts.sourceUrl,
     sourceText: row.source_text ?? facts.sourceText,
-    address: row.address ?? facts.address ?? "",
+    address: row.address ?? facts.address,
     city: row.city ?? facts.city,
     state: row.state ?? facts.state,
     zip: row.zip ?? facts.zip,
     county: row.county ?? facts.county,
-    strategyId,
-    verification: row.verification ?? facts.verification ?? {},
+    strategyId: row.strategy_id ?? facts.strategyId,
+    verification: row.verification ?? facts.verification,
+    createdAt: row.created_at ?? facts.createdAt,
+    updatedAt: row.updated_at ?? facts.updatedAt,
+  };
+  return normalizeDealRecord(merged);
+}
+
+export function normalizeDealRecord(value: unknown): DealFacts | null {
+  if (!isRecord(value)) return null;
+  const id = optionalString(value.id);
+  if (!id) return null;
+  const createdAt = optionalString(value.createdAt) ?? new Date().toISOString();
+  const updatedAt = optionalString(value.updatedAt) ?? createdAt;
+  const strategyId = getStrategy(optionalString(value.strategyId))?.id ?? normalizeStrategy("owner_occupant");
+  const deal: DealFacts = {
+    id,
     createdAt,
     updatedAt,
-    notes: facts.notes ?? [],
-    photoUrls: facts.photoUrls ?? [],
-    uploadedPhotoNames: facts.uploadedPhotoNames ?? [],
+    status: dealStatuses.includes(value.status as DealStatus) ? value.status as DealStatus : "draft",
+    address: optionalString(value.address) ?? "",
+    strategyId,
+    notes: stringArray(value.notes),
+    photoUrls: stringArray(value.photoUrls),
+    uploadedPhotoNames: stringArray(value.uploadedPhotoNames),
+    verification: verificationRecord(value.verification),
   };
+
+  for (const field of stringFields) {
+    const stringValue = optionalString(value[field]);
+    if (stringValue !== undefined) Object.assign(deal, { [field]: stringValue });
+  }
+
+  for (const field of numberFields) {
+    const numberValue = optionalNumber(value[field]);
+    if (numberValue !== undefined) Object.assign(deal, { [field]: numberValue });
+  }
+
+  return deal;
+}
+
+function isDealFacts(value: DealFacts | null): value is DealFacts {
+  return value !== null;
+}
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function optionalString(value: unknown) {
+  return typeof value === "string" ? value : undefined;
+}
+
+function optionalNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function verificationRecord(value: unknown) {
+  if (!isRecord(value)) return {};
+  const entries = Object.entries(value).filter((entry): entry is [string, VerificationState] => verificationStates.includes(entry[1] as VerificationState));
+  return Object.fromEntries(entries);
 }

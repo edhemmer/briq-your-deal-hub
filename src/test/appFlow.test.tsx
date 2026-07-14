@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { requestAccountDeletion } from "../core/authActions";
 import { downloadDecisionPdf, downloadWorkbook } from "../core/reportExports";
-import { normalizeDealRow } from "../core/store";
+import { loadAnonymousDeals, loadRemoteDeals, normalizeDealRecord, normalizeDealRow, persistRemoteDeal, saveAnonymousDeals } from "../core/store";
+import type { DealFacts } from "../core/types";
 
 const mocks = vi.hoisted(() => ({
   session: { value: { user: { id: "user-1" } } as { user: { id: string } } | null },
@@ -51,16 +52,17 @@ vi.mock("../core/supabase", () => ({
     },
     from: vi.fn((table: string) => {
       if (table === "brix_deals") {
+        const activeRemoteRows = () => mocks.remoteDeals.value.filter((row) => row.deleted_at === undefined || row.deleted_at === null);
         return {
           select: vi.fn(() => ({
-            is: vi.fn(() => ({
-              order: vi.fn(async () => ({ data: mocks.remoteDeals.value, error: null })),
+            is: vi.fn((field: string, value: unknown) => ({
+              order: vi.fn(async () => ({ data: field === "deleted_at" && value === null ? activeRemoteRows() : mocks.remoteDeals.value, error: null })),
             })),
             eq: vi.fn((field: string, value: string) => {
               if (field === "owner_id") mocks.queriedOwnerIds.value.push(value);
               return {
-                is: vi.fn(() => ({
-                  order: vi.fn(async () => ({ data: mocks.remoteDeals.value, error: null })),
+                is: vi.fn((isField: string, isValue: unknown) => ({
+                  order: vi.fn(async () => ({ data: isField === "deleted_at" && isValue === null ? activeRemoteRows() : mocks.remoteDeals.value, error: null })),
                 })),
               };
             }),
@@ -84,7 +86,7 @@ vi.mock("../core/authActions", () => ({
   requestAccountDeletion: mocks.requestAccountDeletion,
 }));
 
-function draftDeal(id: string, address: string) {
+function draftDeal(id: string, address: string): DealFacts {
   return {
     id,
     address,
@@ -99,7 +101,7 @@ function draftDeal(id: string, address: string) {
   };
 }
 
-function remoteDealRow(id: string, ownerId: string, address: string) {
+function remoteDealRow(id: string, ownerId: string, address: string, extra: Record<string, unknown> = {}) {
   return {
     id,
     owner_id: ownerId,
@@ -107,6 +109,7 @@ function remoteDealRow(id: string, ownerId: string, address: string) {
     status: "draft",
     strategy_id: "owner_occupant",
     facts: draftDeal(id, address),
+    ...extra,
   };
 }
 
@@ -208,14 +211,14 @@ describe("BRIX app module flow", () => {
       facts: { listPrice: 250000, strategyId: "not-a-real-strategy" },
     });
 
-    expect(deal.id).toBe("deal-1");
-    expect(deal.address).toBe("10 Test St");
-    expect(deal.status).toBe("draft");
-    expect(deal.strategyId).toBe("owner_occupant");
-    expect(deal.createdAt).toBeTruthy();
-    expect(deal.updatedAt).toBeTruthy();
-    expect(deal.notes).toEqual([]);
-    expect(deal.photoUrls).toEqual([]);
+    expect(deal?.id).toBe("deal-1");
+    expect(deal?.address).toBe("10 Test St");
+    expect(deal?.status).toBe("draft");
+    expect(deal?.strategyId).toBe("owner_occupant");
+    expect(deal?.createdAt).toBeTruthy();
+    expect(deal?.updatedAt).toBeTruthy();
+    expect(deal?.notes).toEqual([]);
+    expect(deal?.photoUrls).toEqual([]);
   });
 
   it("does not open DealIQ when cloud deal creation is rejected", async () => {
@@ -261,6 +264,22 @@ describe("BRIX app module flow", () => {
     expect(window.location.pathname).toBe("/dealiq");
     expect(await screen.findByText(/Sign in from Account/i)).toBeInTheDocument();
     expect(mocks.upsert).not.toHaveBeenCalled();
+  });
+
+  it("mocked: authenticated deal create and reopen uses Supabase records", async () => {
+    const created = await persistRemoteDeal({
+      ...draftDeal("cloud-roundtrip", "Cloud Roundtrip Deal"),
+      listPrice: 325000,
+      notes: ["Preserve this note"],
+    }, "user-1");
+    mocks.remoteDeals.value = [remoteDealRow(created.id, "user-1", "Cloud Roundtrip Deal", { facts: created, created_at: created.createdAt, updated_at: created.updatedAt })];
+
+    const reopened = await loadRemoteDeals("user-1");
+
+    expect(mocks.upsert).toHaveBeenCalled();
+    expect(reopened[0].id).toBe("cloud-roundtrip");
+    expect(reopened[0].listPrice).toBe(325000);
+    expect(reopened[0].notes).toEqual(["Preserve this note"]);
   });
 
   it("mocked: anonymous drafts load only when signed out", async () => {
@@ -322,6 +341,140 @@ describe("BRIX app module flow", () => {
     await screen.findByRole("heading", { name: /Visit|Research first|Do not visit yet/i });
     expect(mocks.upsert).toHaveBeenCalled();
     expect(localStorage.getItem("brix.deals")).toBeNull();
+  });
+
+  it("preserves canonical optional data and zero values through anonymous save and reopen", () => {
+    const deal = {
+      ...draftDeal("roundtrip-zero", "Zero Value House"),
+      city: "Naperville",
+      state: "IL",
+      zip: "60540",
+      county: "Will",
+      propertyType: "Single family",
+      sourceUrl: "https://example.com/listing",
+      sourceText: "Listing text",
+      listPrice: 0,
+      annualTaxes: 0,
+      annualInsurance: 0,
+      monthlyRent: 0,
+      notes: [],
+      photoUrls: [],
+      uploadedPhotoNames: [],
+      verification: { listPrice: "entered" as const },
+    };
+
+    saveAnonymousDeals([deal]);
+    const reopened = loadAnonymousDeals()[0];
+
+    expect(reopened.id).toBe("roundtrip-zero");
+    expect(reopened.city).toBe("Naperville");
+    expect(reopened.listPrice).toBe(0);
+    expect(reopened.annualTaxes).toBe(0);
+    expect(reopened.annualInsurance).toBe(0);
+    expect(reopened.monthlyRent).toBe(0);
+    expect(reopened.notes).toEqual([]);
+    expect(reopened.photoUrls).toEqual([]);
+    expect(reopened.verification.listPrice).toBe("entered");
+  });
+
+  it("rejects malformed anonymous storage without crashing the app", async () => {
+    localStorage.setItem("brix.deals", "{not json");
+    mocks.session.value = null;
+    mocks.user.value = null;
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "FindIQ" })).toBeInTheDocument();
+    expect(loadAnonymousDeals()).toEqual([]);
+  });
+
+  it("rejects malformed stored records and normalizes sparse usable records", () => {
+    const normalized = normalizeDealRecord({ id: "usable", address: "Sparse Deal", listPrice: 0, notes: "bad-notes" });
+
+    expect(normalizeDealRecord({ address: "Missing ID" })).toBeNull();
+    expect(normalized?.id).toBe("usable");
+    expect(normalized?.listPrice).toBe(0);
+    expect(normalized?.notes).toEqual([]);
+    expect(normalized?.photoUrls).toEqual([]);
+    expect(normalized?.verification).toEqual({});
+  });
+
+  it("deleting one anonymous deal does not delete another and safely selects the next deal", async () => {
+    localStorage.setItem("brix.deals", JSON.stringify([draftDeal("delete-1", "Delete This Deal"), draftDeal("keep-1", "Keep This Deal")]));
+    mocks.session.value = null;
+    mocks.user.value = null;
+    render(<App />);
+
+    expect(await screen.findByText("Delete This Deal")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /DealIQ/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Delete deal/i }));
+
+    await waitFor(() => expect(screen.queryByText("Delete This Deal")).not.toBeInTheDocument());
+    expect(screen.getAllByText("Keep This Deal").length).toBeGreaterThan(0);
+    expect(localStorage.getItem("brix.deals")).toContain("Keep This Deal");
+    expect(localStorage.getItem("brix.deals")).not.toContain("Delete This Deal");
+  });
+
+  it("mocked: failed authenticated delete leaves the deal visible", async () => {
+    mocks.remoteDeals.value = [remoteDealRow("remote-delete-fails", "user-1", "Still Visible Deal")];
+    mocks.update.mockReturnValueOnce({
+      eq: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn(async () => ({ data: null, error: new Error("delete failed") })),
+          })),
+        })),
+      })),
+    });
+    render(<App />);
+
+    expect(await screen.findByText("Still Visible Deal")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /DealIQ/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Delete deal/i }));
+
+    expect(await screen.findByText(/Deal was not deleted: delete failed/i)).toBeInTheDocument();
+    expect(screen.getAllByText("Still Visible Deal").length).toBeGreaterThan(0);
+  });
+
+  it("mocked: soft-deleted remote deals are excluded from active list results", async () => {
+    mocks.remoteDeals.value = [
+      remoteDealRow("active-cloud", "user-1", "Active Cloud Deal"),
+      remoteDealRow("deleted-cloud", "user-1", "Deleted Cloud Deal", { deleted_at: "2026-01-02" }),
+    ];
+
+    const records = await loadRemoteDeals("user-1");
+
+    expect(records.map((deal) => deal.address)).toEqual(["Active Cloud Deal"]);
+  });
+
+  it("create, reopen, edit, save, and reopen again keeps the canonical anonymous record", async () => {
+    mocks.session.value = null;
+    mocks.user.value = null;
+    const first = render(<App />);
+
+    await screen.findByRole("heading", { name: "FindIQ" });
+    fireEvent.change(screen.getByLabelText("Address, listing URL, or listing text"), {
+      target: { value: "44 Round Trip Ave, Test, IL 60000 $250000 3 bed 2 bath" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /create deal file/i }));
+
+    await screen.findByRole("heading", { name: /Visit|Research first|Do not visit yet/i });
+    const created = loadAnonymousDeals()[0];
+    fireEvent.change(screen.getByLabelText("Purchase price"), { target: { value: "275000" } });
+
+    await waitFor(() => {
+      expect(loadAnonymousDeals()[0].listPrice).toBe(275000);
+      expect(loadAnonymousDeals()[0].updatedAt).not.toBe(created.updatedAt);
+    });
+    const edited = loadAnonymousDeals()[0];
+    expect(edited.id).toBe(created.id);
+    expect(edited.createdAt).toBe(created.createdAt);
+
+    first.unmount();
+    render(<App />);
+
+    expect((await screen.findAllByText(/44 Round Trip Ave/i)).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /DealIQ/i }));
+    expect((screen.getByLabelText("Purchase price") as HTMLInputElement).value).toBe("275000");
   });
 
   it("mocked: sign out clears authenticated deals and can show preserved anonymous records only", async () => {
