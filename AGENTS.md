@@ -1,144 +1,102 @@
-# BRIX Hard Rules
+# BRIX Repository Instructions
 
-These rules are mandatory for every BRIX coding session. They exist because BRIX must be treated as one connected production system, not a set of isolated screens.
+BRIX Real Estate is intended to be a production real estate investment application, not a prototype, mockup, or landing-page demo. Treat the repository as an existing application under recovery. Preserve current Git history and working behavior.
 
-## 0. Read the Repo First
+## Product Authority
 
-Before planning or editing, inspect the current repo state and the BRIX source-of-truth documents.
+- `BRIX.md` is the canonical product intent for this repo.
+- DealIQ is the current production priority until a real property can be evaluated from intake through documented decision without developer intervention.
+- FindIQ, ContractIQ, PipelineIQ, OfferIQ, PortfolioIQ, iOS enhancements, and commercial expansion must not distract from completing the dependable DealIQ workflow.
+- If existing implementation conflicts with `BRIX.md`, stop and report the conflict before silently changing product behavior.
+- Before changing code, read `BRIX.md`, this file, and the source files for the affected flow.
 
-Minimum orientation:
+## Confirmed Stack
 
-- `git status --short`
-- `README.md`
-- `docs/BRIX_APP_WHITEBOARD.md`
-- `docs/FULL_APP_AUDIT_RELEASE_BLOCKERS.md`
-- `docs/ARCHITECTURE_OVERVIEW.md`
-- `docs/PRODUCTION_HARDENING_CHECKLIST.md`
-- Relevant corpus docs for the affected module.
-- Relevant web, iOS, Supabase, and test files.
+- Web: React 18, TypeScript, Vite.
+- Styling: Tailwind/shadcn-era dependencies plus `src/styles/app.css`.
+- Backend: Supabase Auth, Postgres, Storage assumptions, Edge Functions.
+- iOS: native SwiftUI project at `ios/BRIXRealEstateiOS`.
+- Deployment: Vercel config in `vercel.json`.
+- Package lock: `package-lock.json` exists; repo wrapper currently uses pnpm in `scripts/brix.ps1`.
 
-Do not create new rules, docs, architecture, or code until the existing repo structure has been read enough to avoid duplicating, contradicting, or bypassing what is already there.
+## Confirmed Commands
 
-## 1. Think System-Wide First
+Use repo scripts first:
 
-Do not touch code for meaningful product work until the affected system is mapped.
+- `.\scripts\brix.cmd install`
+- `.\scripts\brix.cmd typecheck`
+- `.\scripts\brix.cmd test`
+- `.\scripts\brix.cmd build`
+- `.\scripts\brix.cmd verify`
 
-Before editing, identify:
+The wrapper does not expose lint. If lint is needed, run the existing ESLint binary directly and report the exact command.
 
-- The user flow being changed.
-- All dependent modules.
-- Web impact.
-- iOS impact.
-- Supabase/database/edge-function impact.
-- Auth, billing, privacy, and Apple compliance impact when relevant.
-- Tests and verification needed.
-- Likely regressions.
+## Repository Map
 
-## 2. No Single-Screen Fixes
+- Web entry: `src/main.tsx`, `src/App.tsx`.
+- Web styles: `src/styles/app.css`.
+- Web domain types: `src/core/types.ts`.
+- Web Supabase client: `src/core/supabase.ts`.
+- Web deal persistence: `src/core/store.ts`.
+- Web listing parser: `src/core/listingParser.ts`.
+- Web DealIQ calculations: `src/core/underwriting.ts`.
+- Web strategy catalog: `src/core/strategyCatalog.ts`.
+- Web tests: `src/test`.
+- Supabase migrations: `supabase/migrations`.
+- Supabase Edge Functions: `supabase/functions`.
+- iOS app: `ios/BRIXRealEstateiOS/BRIXRealEstateiOS`.
+- iOS Supabase boundary: `ios/BRIXRealEstateiOS/BRIXRealEstateiOS/Services.swift`.
+- iOS state and calculations: `ios/BRIXRealEstateiOS/BRIXRealEstateiOS/AppState.swift`.
 
-If one screen is broken, assume the connected flow may also be broken.
+## Current Authority Caveat
 
-Examples:
+Some responsibilities have competing implementations. Do not assume any location is canonical until the recovery baseline or a later contained task proves it.
 
-- FindIQ issue means check intake, parser, deal creation, Supabase save, DealIQ handoff, strategy comparison, reports, and iOS parity.
-- DealIQ issue means check strategy logic, assumptions, readiness, confidence, exports, downstream OfferIQ/PipelineIQ/PortfolioIQ, and iOS parity.
-- Auth issue means check web login, iOS login, reset password, account deletion, Supabase session handling, admin access, and route behavior.
+Known unresolved authority conflicts include:
 
-## 3. Checklist Before Coding
+- Web parser vs Supabase `extract-listing`.
+- Web DealIQ calculations vs Supabase `analyze-deal`.
+- Web DealIQ calculations vs iOS `AppState.analysis`.
+- Browser localStorage deal storage vs Supabase `brix_deals`.
 
-For major work, create or update a checklist before editing code.
+## Non-Negotiable Rules
 
-The checklist must cover:
+- Follow the development priority in `BRIX.md`: accurate inputs, reliable save/reopen, authoritative calculations, clear results/risk, scenarios, then evidence.
+- Read the repo before editing.
+- Do not restart BRIX from scratch.
+- Do not add duplicate implementations.
+- Identify the existing source of truth before creating or modifying another parser, calculator, validation model, persistence model, or mobile equivalent.
+- Keep deterministic formulas outside presentation components.
+- Do not add mock, sample, fabricated, or hardcoded success behavior to make screens appear functional.
+- Do not expose service-role keys or private secrets in browser or iOS client code.
+- Do not weaken authentication, authorization, validation, or RLS to make UI pass.
+- Do not change database migrations casually. New schema changes require a forward migration and an explicit rollback/verification note.
+- Do not claim production readiness.
+- Do not present filename, URL, metadata, or alt-text matching as real image analysis.
+- Distinguish verified facts from inferred behavior.
+- Do not claim a command passed unless it was run and returned a passing result.
+- Do not change unrelated files.
 
-- Entry and auth
-- FindIQ intake
-- Deal creation
-- DealIQ underwriting
-- Strategy comparison
-- ContractIQ
-- OfferIQ
-- PipelineIQ
-- PortfolioIQ
-- Reports and exports
-- Admin/account/billing
-- iOS parity
-- Supabase functions, storage, and database rules
-- Tests, builds, and deployment risks
+## Required Verification
 
-Work through the checklist instead of reacting to one visible bug at a time.
+For code changes, run the smallest relevant checks and report exact commands/results. For release-impacting changes, attempt:
 
-## 4. Fix the Whole Occurrence Class
+- Typecheck
+- Lint
+- Tests
+- Production build
+- Relevant Supabase migration/function verification
+- iOS verification when a Mac/Xcode environment is available
 
-When fixing an issue, search the whole app for similar occurrences and fix the entire class of problem.
+If iOS cannot be built locally, state that plainly.
 
-Do not fix only the visible line, button, label, field, route, or screen.
+## Definition of Done
 
-## 5. Production Language Only
+A task is done only when:
 
-Do not leave demo, prototype, future, mock, sample, fake, live-provider-search, backend-label, or internal architecture wording in user-facing UI.
-
-Developer architecture terms such as Digital Twin, Trust Gate, Provider Layer, DRM, or backend implementation labels must not appear in customer-facing copy unless the user explicitly approves them.
-
-## 6. Verify Before Claiming
-
-Do not say a feature is fixed, production ready, reliable, connected, or trustworthy unless it has been verified.
-
-Every completion note must distinguish:
-
-- Verified locally.
-- Verified by test.
-- Verified by build.
-- Not verified because the environment cannot run it.
-
-iOS/Xcode/App Store archive claims require Mac/Xcode verification by the user unless a local Xcode environment is available.
-
-## 7. Respect the BRIX Corpus
-
-All product decisions must follow the BRIX corpus and master directive:
-
-- Decision quality over transaction volume.
-- Capital preservation over aggressive growth.
-- Evidence over opinion.
-- Verification before recommendation.
-- Explainability before automation.
-- Support all legal real estate strategies.
-- Support all real estate asset classes.
-- Never present estimates as facts.
-- Never fabricate data, comps, rents, contractor pricing, or market statistics.
-
-## 8. User Flow Standard
-
-BRIX must feel like one operating system:
-
-1. Open landing/sign-in entry.
-2. Start with a property.
-3. Choose strategy.
-4. Create a deal file.
-5. Analyze and compare.
-6. Verify missing data.
-7. Decide whether to visit, research, pursue, pass, contract, close, or track.
-8. Export and learn from outcomes.
-
-Every screen should make the next action obvious.
-
-## 9. Web and iOS Parity
-
-Native iOS is not an afterthought or separate product.
-
-iOS must:
-
-- Use the same backend and data model as web.
-- Support login, signup, reset password, and account deletion.
-- Support property intake, URL/text entry, strategy selection, photo capture/upload, deal review, and sync to web.
-- Follow Apple privacy and security expectations.
-- Feel native, not like a scaled web page.
-
-## 10. Commit Discipline
-
-Before committing:
-
-- Check git status.
-- Confirm changed files match the intended scope.
-- Run available tests/builds for the touched area.
-- Note anything that could not be verified.
-- Push to `main` when the user asks for push or when the completed work needs to reach the shared repo.
+- Scope stayed contained.
+- Existing behavior was preserved or intentionally changed.
+- Affected data path was traced.
+- Required checks were attempted.
+- Failures and unverified areas were reported honestly.
+- No unrelated files were changed.

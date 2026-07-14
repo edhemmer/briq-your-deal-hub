@@ -1,22 +1,24 @@
 # BRIX Real Estate
 
-AI-powered real estate acquisition and portfolio intelligence.
+AI-powered real estate investment decision support.
 
-BRIX is a production application for sourcing, analyzing, verifying, comparing, pursuing, and operating real estate investment decisions. It is owned and operated through BRIX-controlled infrastructure, not a website builder or prototype host.
+BRIX is a real estate investment operating system under recovery. The current production priority is making DealIQ dependable enough for Ed to evaluate a real property from initial intake through a documented investment decision with reliable saving, correct calculations, clear assumptions, scenario analysis, risk visibility, and no fabricated data.
 
 **Production application:** https://brixrealestate.app
+
+Product intent is controlled by [`BRIX.md`](BRIX.md). Engineering execution rules are controlled by [`AGENTS.md`](AGENTS.md).
 
 ## Core Modules
 
 | Module | Purpose |
 | --- | --- |
-| **FindIQ** | Start a property file from an address, listing URL, or listing text |
-| **DealIQ** | Underwrite properties, strategies, risks, returns, verification gaps, and scenarios |
-| **OfferIQ** | Convert analysis into offer structure and transaction action |
-| **PipelineIQ** | Track acquisition workflow from opportunity through close/pass |
-| **PortfolioIQ** | Track owned assets, equity, cash flow, and portfolio performance |
-| **ContractIQ** | Review contract terms, dates, leverage, and risk |
-| **Reports** | Export decision records and supporting analysis |
+| **DealIQ** | Current production priority: evaluate property facts, financing, costs, income, strategies, risks, scenarios, and decisions |
+| **ContractIQ** | Reviews contracts and related documents without presenting legal advice; must not delay DealIQ completion |
+| **FindIQ** | Deferred discovery/intake support until DealIQ is dependable |
+| **OfferIQ** | Deferred transaction execution layer |
+| **PipelineIQ** | Deferred acquisition workflow layer |
+| **PortfolioIQ** | Deferred owned-asset intelligence layer |
+| **Reports** | Deferred exports based on verified DealIQ records |
 
 ## Technology Stack
 
@@ -124,9 +126,9 @@ Before production release, also verify:
 - Auth sign-in/sign-out
 - Account deletion
 - Deal create/edit/read
-- FindIQ import/manual entry
-- DealIQ analysis
-- Field capture upload
+- DealIQ analysis and scenario comparison
+- Assumption edits recalculate results
+- Evidence, notes, photos, and documents preserve source status
 - Report export
 - Custom domain cache behavior
 
