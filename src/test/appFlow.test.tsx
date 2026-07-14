@@ -84,6 +84,32 @@ vi.mock("../core/authActions", () => ({
   requestAccountDeletion: mocks.requestAccountDeletion,
 }));
 
+function draftDeal(id: string, address: string) {
+  return {
+    id,
+    address,
+    status: "draft",
+    strategyId: "owner_occupant",
+    createdAt: "2026-01-01",
+    updatedAt: "2026-01-01",
+    notes: [],
+    photoUrls: [],
+    uploadedPhotoNames: [],
+    verification: {},
+  };
+}
+
+function remoteDealRow(id: string, ownerId: string, address: string) {
+  return {
+    id,
+    owner_id: ownerId,
+    address,
+    status: "draft",
+    strategy_id: "owner_occupant",
+    facts: draftDeal(id, address),
+  };
+}
+
 describe("BRIX app module flow", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -235,6 +261,53 @@ describe("BRIX app module flow", () => {
     expect(window.location.pathname).toBe("/dealiq");
     expect(await screen.findByText(/Sign in from Account/i)).toBeInTheDocument();
     expect(mocks.upsert).not.toHaveBeenCalled();
+  });
+
+  it("mocked: anonymous drafts load only when signed out", async () => {
+    localStorage.setItem("brix.deals", JSON.stringify([draftDeal("anon-only", "Anonymous Only Draft")]));
+    mocks.session.value = null;
+    mocks.user.value = null;
+    render(<App />);
+
+    expect(await screen.findByText("Anonymous Only Draft")).toBeInTheDocument();
+    expect(mocks.queriedOwnerIds.value).toEqual([]);
+  });
+
+  it("mocked: authenticated users see only cloud deals while device drafts stay untouched", async () => {
+    localStorage.setItem("brix.deals", JSON.stringify([draftDeal("anon-hidden", "Hidden Anonymous Draft")]));
+    mocks.remoteDeals.value = [remoteDealRow("cloud-visible", "user-1", "Visible Cloud Deal")];
+    render(<App />);
+
+    expect(await screen.findByText("Visible Cloud Deal")).toBeInTheDocument();
+    expect(screen.queryByText("Hidden Anonymous Draft")).not.toBeInTheDocument();
+    expect(localStorage.getItem("brix.deals")).toContain("Hidden Anonymous Draft");
+    expect(screen.getByText("Local drafts are saved on this device and are not part of your BRIX account.")).toBeInTheDocument();
+    expect(screen.getByText("Sign out to view local drafts.")).toBeInTheDocument();
+  });
+
+  it("mocked: signing in does not delete or merge anonymous drafts into cloud deals", async () => {
+    localStorage.setItem("brix.deals", JSON.stringify([draftDeal("anon-preserved", "Preserved Anonymous Draft")]));
+    mocks.session.value = null;
+    mocks.user.value = null;
+    mocks.signInWithPassword.mockImplementationOnce(async () => {
+      mocks.session.value = { user: { id: "user-1" } };
+      mocks.user.value = { id: "user-1", email: "edhemmer@gmail.com" };
+      return { data: { session: { user: { id: "user-1" } } }, error: null };
+    });
+    mocks.remoteDeals.value = [remoteDealRow("cloud-after-sign-in", "user-1", "Cloud After Sign In")];
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Account" });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "edhemmer@gmail.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "inlight" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByText("Cloud After Sign In")).toBeInTheDocument();
+    expect(screen.queryByText("Preserved Anonymous Draft")).not.toBeInTheDocument();
+    expect(localStorage.getItem("brix.deals")).toContain("Preserved Anonymous Draft");
+    expect(screen.getByText("Local drafts are saved on this device and are not part of your BRIX account.")).toBeInTheDocument();
+    expect(mocks.upsert).not.toHaveBeenCalledWith(expect.objectContaining({ id: "anon-preserved" }));
   });
 
   it("mocked: does not write authenticated cloud deals to the shared anonymous browser key", async () => {

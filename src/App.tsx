@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch } from "lucide-react";
 import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
@@ -70,6 +70,7 @@ function BrixApp() {
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [hasAnonymousDrafts, setHasAnonymousDrafts] = useState(false);
   const isAuthenticated = Boolean(authUserId);
   const selectedDeal = deals.find((deal) => deal.id === selectedId) ?? deals[0];
 
@@ -78,6 +79,18 @@ function BrixApp() {
     const nextPath = pathForModule(next);
     if (window.location.pathname !== nextPath) window.history.pushState({}, "", nextPath);
   }
+
+  const anonymousDraftsOnDevice = useCallback(() => {
+    const anonymousDeals = loadAnonymousDeals();
+    setHasAnonymousDrafts(anonymousDeals.length > 0);
+    return anonymousDeals;
+  }, []);
+
+  const restoreAnonymousDrafts = useCallback(() => {
+    const anonymousDeals = anonymousDraftsOnDevice();
+    setDeals(anonymousDeals);
+    setSelectedId(anonymousDeals[0]?.id ?? null);
+  }, [anonymousDraftsOnDevice]);
 
   useEffect(() => {
     if (!authReady || authUserId) return;
@@ -95,9 +108,9 @@ function BrixApp() {
         setAuthUserId(userId);
         setAuthReady(true);
         if (!userId) {
-          const anonymousDeals = loadAnonymousDeals();
-          setDeals(anonymousDeals);
-          setSelectedId(anonymousDeals[0]?.id ?? null);
+          restoreAnonymousDrafts();
+        } else {
+          anonymousDraftsOnDevice();
         }
       })
       .catch(() => {
@@ -114,16 +127,16 @@ function BrixApp() {
       setAuthUserId(userId);
       setAuthReady(true);
       if (!userId) {
-        const anonymousDeals = loadAnonymousDeals();
-        setDeals(anonymousDeals);
-        setSelectedId(anonymousDeals[0]?.id ?? null);
+        restoreAnonymousDrafts();
+      } else {
+        anonymousDraftsOnDevice();
       }
     });
     return () => {
       window.removeEventListener("popstate", onPopState);
       listener.subscription.unsubscribe();
     };
-  }, []);
+  }, [anonymousDraftsOnDevice, restoreAnonymousDrafts]);
 
   useEffect(() => {
     if (!authUserId) return;
@@ -151,6 +164,7 @@ function BrixApp() {
       const confirmedDeal = authUserId ? await persistRemoteDeal(deal, authUserId) : deal;
       setDeals((current) => [confirmedDeal, ...current.filter((item) => item.id !== confirmedDeal.id)]);
       setSelectedId(confirmedDeal.id);
+      if (!authUserId) setHasAnonymousDrafts(true);
       setSyncMessage(isAuthenticated ? null : "Deal created on this device. Sign in from Account to keep it across devices.");
       setModule("deal");
       return true;
@@ -172,6 +186,7 @@ function BrixApp() {
   function upsertDeal(next: DealFacts) {
     if (!authUserId) {
       putDealInState(next);
+      setHasAnonymousDrafts(true);
       setSyncMessage("Deal updated on this device. Sign in from Account to keep it across devices.");
       return;
     }
@@ -189,6 +204,7 @@ function BrixApp() {
       setDeals((current) => {
         const next = current.filter((deal) => deal.id !== id);
         setSelectedId((currentId) => currentId === id ? next[0]?.id ?? null : currentId);
+        setHasAnonymousDrafts(next.length > 0);
         return next;
       });
       setSyncMessage("Deal removed from this device.");
@@ -243,6 +259,13 @@ function BrixApp() {
         </header>
 
         {syncMessage && <div className={isAuthenticated ? "callout danger-callout" : "callout"}><strong>{isAuthenticated ? "Sync needs attention" : "Account"}</strong><span>{syncMessage}</span></div>}
+        {isAuthenticated && hasAnonymousDrafts && (
+          <div className="callout">
+            <strong>Local drafts</strong>
+            <span>Local drafts are saved on this device and are not part of your BRIX account.</span>
+            <span>Sign out to view local drafts.</span>
+          </div>
+        )}
         {module !== "account" && <WorkflowStrip active={module} onSelect={setModule} />}
         {module === "find" && <FindIQ onCreate={createDeal} />}
         {module === "deal" && <DealIQ deal={selectedDeal} onChange={upsertDeal} onDelete={deleteDeal} />}
@@ -251,12 +274,17 @@ function BrixApp() {
         {module === "offer" && <OfferIQ deal={selectedDeal} />}
         {module === "portfolio" && <PortfolioIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
         {module === "reports" && <Reports deal={selectedDeal} />}
-        {module === "account" && <Account onAuthChanged={(userId) => { setDeals([]); setSelectedId(null); setAuthUserId(userId); setAuthReady(true); setModule("find"); }} onSignedOut={() => {
-          const anonymousDeals = loadAnonymousDeals();
-          setDeals(anonymousDeals);
-          setSelectedId(anonymousDeals[0]?.id ?? null);
+        {module === "account" && <Account onAuthChanged={(userId) => {
+          setDeals([]);
+          setSelectedId(null);
+          setAuthUserId(userId);
+          setAuthReady(true);
+          if (userId) anonymousDraftsOnDevice();
+          setModule("find");
+        }} onSignedOut={() => {
           setAuthUserId(null);
           setAuthReady(true);
+          restoreAnonymousDrafts();
           setModule("find");
         }} />}
       </main>
