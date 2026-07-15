@@ -1,544 +1,1243 @@
 # BRIX
 
-## What BRIX Is
+## Product Identity
 
-BRIX is a real estate investment operating system.
+BRIX is a Property Deal Relationship Management platform, or PDRM.
 
-Its primary purpose is to help Ed evaluate real properties, organize available evidence, understand financial and physical risks, compare realistic investment strategies, and make a clear decision.
+It is a production-grade real estate investment operating system that manages the full relationship between an investor and a property opportunity from first discovery through underwriting, visit, negotiation, contract, due diligence, financing, ownership, operation, improvement, and exit.
 
-BRIX is being built first as a dependable tool for Ed's own investing. If it proves accurate, useful, and reliable through real-world use, it may later become a commercial product for other investors.
-
-BRIX is not a listing website, generic mortgage calculator, decorative dashboard, AI chatbot, or collection of disconnected features.
+BRIX is not a listing website, generic dashboard, mortgage calculator, AI chatbot, document repository, or disconnected collection of modules.
 
 The central question BRIX must answer is:
 
-> Should this property be pursued, negotiated, monitored, or passed on, and why?
+> What is the current state of this opportunity, what is the strongest available strategy, what evidence supports the conclusion, and what should the investor do next?
 
-## Immediate Product Objective
+Every feature must reduce uncertainty, strengthen the evidence chain, improve the investment decision, preserve meaningful deal knowledge, or move the opportunity forward.
 
-The current objective is to make BRIX fully usable on a real property.
+If a feature does not improve a decision or preserve important deal context, it does not belong in BRIX.
 
-Ed must be able to:
+## Primary Product Outcome
 
-1. Create a deal.
-2. Enter or import property information.
-3. Add financing assumptions.
-4. Add taxes, insurance, HOA, repairs, income, and operating costs.
-5. Evaluate one or more investment strategies.
-6. Review total cash required.
-7. Review monthly carrying cost.
-8. Review investment returns.
-9. Review risks, missing information, and conflicting information.
-10. Compare scenarios.
-11. Save the deal.
-12. Leave the application.
-13. Reopen the same deal later.
-14. Edit assumptions.
-15. Recalculate results.
-16. Add notes, photos, and supporting documents.
-17. Record a decision.
+BRIX must help an investor move from opportunity to confident action with the fewest practical steps.
 
-This complete workflow is more important than adding additional modules or features.
+The user should be able to:
 
-## Primary User
+1. Enter a property address or create a manual opportunity.
+2. Select an intended strategy as a starting hypothesis.
+3. Gather property, county, location, market, financing, rent, tax, insurance, zoning, and area information.
+4. Make visible and editable educated assumptions when complete underwriting information is unavailable.
+5. Run the deterministic engine for the selected strategy.
+6. Run every other compatible strategy engine for that property type and jurisdiction.
+7. Compare outcomes, risks, capital required, execution complexity, and confidence.
+8. Receive a clear recommendation and next action.
+9. Decide whether the property is worth a call, more research, a visit, negotiation, an offer, monitoring, or a pass.
+10. Add photos, emails, contracts, inspection reports, appraisals, financing terms, quotes, estimates, and notes.
+11. Re-underwrite the same canonical deal whenever new evidence arrives.
+12. Preserve what changed, why it changed, and how the recommendation evolved.
+13. Create reports, spreadsheets, property shortlists, visit lists, and decision summaries for collaboration.
+14. Return later without losing work, assumptions, evidence, relationships, or decision history.
 
-The first serious user is Ed Hemmer.
+## Primary Users
 
-BRIX should provide professional-quality analysis without assuming the user is an institutional investor, accountant, appraiser, engineer, attorney, or software developer.
+BRIX must support both:
 
-The product should be practical, clear, detailed where necessary, easy to update, honest about uncertainty, and useful during a real investment decision.
+- a first-time investor buying a first property
+- an experienced investor with decades of residential, multifamily, commercial, land, or development experience
 
-BRIX should initially prioritize residential investment and personal-use scenarios while preserving a foundation that can later support multifamily, mixed-use, commercial, and other real estate strategies.
+Both users receive the same professional-grade calculations and strategy logic.
 
-## Core Product Modules
+BRIX must not maintain separate beginner and professional calculation engines.
 
-### DealIQ
+The difference is presentation.
 
-DealIQ is the current production priority.
+### Guided Experience
 
-DealIQ evaluates the property, financing, costs, income, strategies, risks, and potential outcomes.
+For newer investors, BRIX should provide:
 
-It must help the user understand:
+- plain-language explanations
+- contextual definitions
+- recommended defaults
+- why each input matters
+- what could make the deal fail
+- what to verify next
+- who to ask
+- practical questions for professionals
+- simplified initial views with advanced detail available underneath
 
-- how much cash is required
-- the true monthly carrying cost
-- whether the property works as a rental
-- whether it works under another selected strategy
-- which assumptions drive the result
-- what information is missing
-- what risks could change the decision
-- what purchase terms would improve the deal
+### Professional Experience
 
-### ContractIQ
+For experienced investors, BRIX should provide:
 
-ContractIQ reviews real estate contracts and related documents.
+- full assumptions
+- formula transparency
+- dense financial views
+- detailed financing terms
+- strategy-by-strategy outputs
+- scenario controls
+- sensitivity analysis
+- source metadata
+- export tools
+- portfolio and pipeline comparisons
+- minimal unnecessary teaching
 
-It should identify deadlines, obligations, contingencies, unusual language, risks, and questions for qualified professionals.
+Users may switch presentation modes without changing the underlying deal, evidence, calculations, or recommendations.
 
-ContractIQ must not present itself as legal advice and must not delay completion of DealIQ.
+## Non-Negotiable Production Standard
 
-### FindIQ
+Every visible control must perform its stated function.
 
-FindIQ may eventually help locate and screen properties.
+Every button, link, navigation action, form, lookup, upload, scan, save, edit, delete, archive, calculation, recommendation, report, filter, status change, and workflow transition must be connected to real behavior.
 
-FindIQ is deferred until DealIQ is dependable.
+BRIX must never present:
 
-## Core Deal Workflow
+- dead buttons
+- fake success messages
+- decorative controls
+- placeholder analytics
+- simulated external data
+- hardcoded production results
+- fake image analysis
+- mock production records
+- generic AI explanations disconnected from the deal
+- unfinished features represented as complete
 
-The authoritative workflow is:
+The definition of done is not that a page renders.
 
-Create deal
-→ identify property
-→ enter facts
-→ enter assumptions
-→ enter financing
-→ enter income and expenses
-→ select strategy
-→ calculate
-→ review results
-→ review risks
-→ compare scenarios
-→ save
-→ reopen
-→ update
-→ recalculate
-→ record decision
+The definition of done is:
 
-All BRIX modules must use the same deal identity.
+> A real investor can complete the intended workflow, understand the result, inspect the evidence, save the outcome, reopen it later, and recover from errors without developer intervention.
 
-The user must not be required to re-enter valid information because different modules use disconnected data models.
+## Deterministic, Canonical, Defensible, and Accurate
 
-## Decision Outcomes
+BRIX must be deterministic where accuracy is controllable, transparent where uncertainty exists, and honest where information is incomplete.
 
-BRIX should support the following decisions:
+### Deterministic
 
-- Pursue
-- Pursue with conditions
-- Negotiate
-- Monitor
-- Pass
-- Insufficient information
+- The same inputs must produce the same calculations.
+- Investment formulas must be coded, versioned, and tested.
+- AI must never be the source of financial calculations.
+- Web, iOS, reports, spreadsheets, exports, and recommendations must use the same authoritative outputs.
+- Intermediate calculations must avoid premature rounding.
+- Every formula must define required inputs, units, treatment of zero, missing-value behavior, and final rounding.
 
-A decision must not rely only on a score.
+### Canonical
 
-BRIX must explain:
+- Every property opportunity has one Deal ID.
+- Every fact, assumption, document, photo, contract, inspection, appraisal, quote, note, task, person, calculation, recommendation, offer, and decision attaches to the same deal.
+- No module may create a competing copy of property or financial truth.
+- User overrides must not erase original sourced values.
+- New evidence must strengthen the existing deal rather than replace it.
 
-- what supports the decision
-- what weakens the decision
-- which assumptions matter most
-- what is missing
-- what must be verified
-- what terms would improve the opportunity
+### Defensible
+
+Every material result must be traceable to:
+
+- source
+- date
+- geography
+- value classification
+- evidence
+- assumption
+- formula
+- engine version
+- user override
+- confidence
+- limitation
+
+Recommendations must explain:
+
+- why the recommendation was made
+- what supports it
+- what weakens it
+- which assumptions drive it
+- what could make it fail
+- what information is still decision-changing
+- what price or terms could improve it
+- why another strategy ranks higher
+
+### Accurate
+
+- Deterministic calculations must match known test fixtures.
+- External data must be source-labeled and appropriate to the property and geography.
+- Estimates must use ranges where precision is not justified.
+- Unknown information must not be fabricated.
+- AI observations must point back to actual photos, documents, or structured evidence.
+- Failed integrations must fail visibly and allow manual continuation where responsible.
+
+No external estimate, AI interpretation, recommendation, or forecast should be described as universally certain.
 
 ## Information Classification
 
-Every material value must be identified as one of the following:
+Every material value must be classified as one of:
 
-### Confirmed Fact
-
-Supported by a reliable source or directly confirmed by the user.
-
-### User Assumption
-
-Entered by the investor for analysis.
-
-### System Calculation
-
-Calculated deterministically by BRIX.
-
-### External Estimate
-
-Retrieved from a third party but not independently confirmed.
-
-### AI Interpretation
-
-Narrative reasoning based on structured facts, assumptions, calculations, and evidence.
-
-### Missing Information
-
-Required or useful information that is unavailable.
-
-### Conflict
-
-Two or more sources provide different values.
+- Confirmed Fact
+- User-Entered Fact
+- User Assumption
+- System Calculation
+- External Estimate
+- AI Observation
+- Missing Information
+- Conflict
 
 BRIX must never blur these categories.
 
-## Trust Rules
+## Canonical Property Deal Lifecycle
 
-BRIX must never:
+The authoritative lifecycle is:
 
-- invent property facts
-- invent financial inputs
-- present estimates as confirmed facts
-- fabricate market or listing data
-- hide missing information
-- hide conflicting information
-- produce fake image analysis
-- claim information was saved when persistence failed
-- use mock data in the production workflow
-- substitute AI-generated numbers for deterministic calculations
-- provide a confident recommendation when critical information is missing
+Discover
+→ Qualify
+→ Research
+→ Pre-Visit Review
+→ Call First or Research First
+→ Visit Recommended
+→ Visit Scheduled
+→ Visited
+→ Post-Visit Review
+→ Underwriting
+→ Pursuing
+→ Offer Considered
+→ Offer Submitted
+→ Under Contract
+→ Due Diligence
+→ Financing
+→ Closing
+→ Purchased
+→ Operating
+→ Improving
+→ Monitoring
+→ Exit Planning
+→ Sold or Refinished
+→ Archived
 
-BRIX must always:
+Additional terminal or holding states include:
 
-- show important assumptions
-- identify the source of material facts
-- explain important calculations
-- flag missing inputs
-- flag conflicting values
-- preserve user-entered information
-- recalculate when assumptions change
-- clearly report failed integrations
-- distinguish calculation from interpretation
+- Monitor
+- Passed
+- Dead
+- Canceled
 
-When information is unavailable, BRIX should say:
+Dead and passed deals remain saved unless explicitly deleted.
 
-> Not confirmed
+## Decision Outcomes
 
-or:
+BRIX should support:
 
-> Insufficient information
+- Visit
+- Call First
+- Research First
+- Pursue
+- Pursue With Conditions
+- Negotiate
+- Offer
+- Monitor
+- Pass
+- Dead
+- Insufficient Basic Information
 
-## Property and Deal Inputs
+A score may help rank deals but must never replace the recommendation.
 
-BRIX should support the property and investment information necessary for the selected strategy.
+Each recommendation must include:
 
-Potential inputs include:
+- decision
+- confidence
+- top supporting reasons
+- top risks
+- strongest strategy
+- selected strategy result
+- strategy gap
+- material assumptions
+- key financial evidence
+- what could change the result
+- next action
 
-- property address
-- property type
-- listing price
-- taxes
-- insurance
-- HOA
-- purchase costs
+## The BRIX Decision Cockpit
+
+The cockpit is the primary experience for each deal.
+
+It must answer immediately:
+
+> What is the current state of this opportunity, and what should I do next?
+
+The cockpit should prioritize:
+
+### Decision
+
+- current recommendation
+- confidence
+- deal health
+- strongest strategy
+- selected strategy
+- why the ranking differs
+- next action
+
+### Key Financials
+
+- asking price
+- total cash required
+- monthly carrying cost
+- gross income
+- NOI
+- cash flow
+- cap rate
+- cash-on-cash return
+- DSCR
+- target price
+- maximum offer
+
+### Risks
+
+Only the few risks most likely to change the decision.
+
+### Evidence
+
+- strongest supporting evidence
+- conflicting evidence
+- source freshness
+- unresolved decision-changing items
+
+### Strategies
+
+- ranked compatible strategies
+- compatibility
+- projected result
+- risk
+- capital requirement
+- confidence
+
+### Actions
+
+- call realtor
+- schedule visit
+- upload inspection
+- review appraisal
+- ask attorney
+- request insurance quote
+- request financing terms
+- prepare offer
+
+### Timeline
+
+- what happened
+- what changed
+- why the recommendation changed
+
+## Mobile and Field Experience
+
+BRIX must be optimized for investors working in the field.
+
+The web application must be responsive.
+
+The native iOS application must be a fully native SwiftUI app for iPhone and iPad.
+
+It must not be a WebView, Capacitor wrapper, responsive website inside an app, React Native application, or embedded web interface.
+
+Field requirements include:
+
+- fast startup
+- thumb-reachable actions
+- large touch targets
+- camera access
+- photo-library access
+- native document scanning
+- voice notes
+- quick text notes
+- visit status
+- GPS-aware visit support where appropriate
+- upload progress
+- retry behavior
+- offline-safe drafts where intentionally designed
+- Dynamic Type
+- VoiceOver
+- accessible focus and labels
+
+The field flow should allow quick movement through:
+
+Decision
+→ Photos
+→ Risks
+→ Financials
+→ Questions
+→ Notes
+→ Next Action
+
+## Web and iOS Architecture
+
+BRIX has two production clients:
+
+1. React, TypeScript, and Vite web application
+2. Native Swift and SwiftUI iPhone and iPad application
+
+Both clients use the existing GitHub repository, Vercel project and domain, Supabase project, Supabase Auth, PostgreSQL database, Supabase Storage, controlled backend services, and Apple infrastructure.
+
+Web and iOS must share:
+
+- user identity
+- canonical deal contract
+- status definitions
+- property types
+- strategy IDs
+- evidence classifications
+- financing structures
+- underwriting definitions
+- recommendation structures
+- account lifecycle
+- data-deletion behavior
+
+They must not create competing deal models, persistence systems, calculations, statuses, strategy meanings, recommendation meanings, or source classifications.
+
+They share contracts and backend behavior, not presentation code.
+
+## Apple and Native iOS Requirements
+
+The native iOS app must be designed for successful Xcode archive validation and App Store Connect upload.
+
+It must preserve the existing bundle identifier, signing setup, App Store Connect record, entitlements, app icon identity, and Apple infrastructure.
+
+Requirements include:
+
+- native SwiftUI experience
+- iPhone and iPad layouts
+- secure Keychain storage for sensitive session material
+- no service-role credentials
+- no sensitive tokens in UserDefaults
+- working session restoration
+- working password-reset deep links
+- in-app account deletion before public release if accounts can be created
+- accurate privacy policy, terms, support URL, App Store privacy disclosures, permission-purpose strings, and privacy manifest
+- third-party SDK review
+- accessibility
+- network-failure handling
+- no placeholder or incomplete screens presented as finished
+- physical-device testing
+- TestFlight validation
+- successful archive validation
+- successful App Store Connect upload validation
+
+Email verification is not required for the initial release unless later enabled.
+
+## Authentication and Account Lifecycle
+
+Required flows include:
+
+- create account
+- sign in
+- sign out
+- forgot password
+- password-reset email
+- password-reset web route
+- password-reset iOS deep link
+- set new password
+- expired reset link
+- invalid reset link
+- session restoration
+- session expiration
+- authentication error recovery
+- account deletion
+- associated data deletion
+- privacy access
+- terms access
+- support access
+
+BRIX must not mark a user authenticated without a real session, expose one user’s deals to another, report password reset complete merely because an email was sent, store sensitive mobile sessions insecurely, or expose private credentials to clients.
+
+## Public Landing Page and Conversion Experience
+
+The public landing page is a production marketing surface and must be strong enough to convert qualified visitors into users.
+
+It must look credible, modern, premium, and appropriate for a product investors may pay for and trust with sensitive deal information.
+
+Required outcomes:
+
+- explain BRIX clearly within seconds
+- demonstrate how BRIX reduces wasted time and improves decisions
+- show the PDRM lifecycle visually
+- explain deterministic underwriting, strategy comparison, evidence tracking, field use, document intelligence, and native iOS support
+- communicate who BRIX is for
+- build trust through methodology, transparency, security, and clear limitations
+- lead visitors naturally to create an account or sign in
+
+Required sections include:
+
+- responsive header
+- strong hero message
+- primary and secondary calls to action
+- how BRIX works
+- decision-cockpit preview
+- supported property categories
+- strategy comparison explanation
+- evidence and document workflow
+- mobile and field experience
+- professional and beginner use cases
+- trust and methodology
+- privacy and security
+- frequently asked questions
+- help and support
+- legal links
+- footer
+
+The page should use polished, restrained motion and interaction where it improves clarity or engagement.
+
+Appropriate animation may include:
+
+- subtle hero transitions
+- scroll-based section reveals
+- interactive cockpit previews
+- animated evidence-to-decision flow
+- responsive strategy-comparison demonstrations
+- smooth call-to-action transitions
+- micro-interactions on meaningful controls
+
+Animations must not create distraction, slow the page, hide information, harm accessibility, or make unsupported product claims.
+
+The page must respect reduced-motion preferences, load quickly, remain accessible, and work well on mobile.
+
+Do not advertise unfinished capabilities as available.
+
+Every public claim must match verified product behavior.
+
+## Property and Asset Coverage
+
+BRIX must support lawful analysis across major real estate asset types.
+
+### Residential
+
+- single-family
+- condominium
+- townhouse
+- duplex
+- triplex
+- fourplex
+- manufactured housing
+- vacation home
+- luxury residential
+- student housing
+- senior housing
+- co-living
+
+### Multifamily
+
+- small multifamily
+- garden apartments
+- mid-rise
+- high-rise
+- affordable housing
+- student apartments
+- senior apartments
+- mixed-income communities
+
+### Commercial
+
+- office
+- medical office
+- retail
+- neighborhood center
+- strip center
+- shopping center
+- restaurant
+- hospitality
+- hotel
+- motel
+- industrial
+- warehouse
+- distribution
+- flex industrial
+- self-storage
+- data-center property
+- automotive property
+- special-purpose property
+
+### Mixed Use
+
+- residential over retail
+- residential and office
+- commercial and residential
+- live/work
+- urban infill
+
+### Land
+
+- residential lot
+- commercial lot
+- agricultural land
+- recreational land
+- timber land
+- infill land
+- entitled land
+- unentitled land
+- development parcel
+- subdivision opportunity
+
+### Specialized
+
+- mobile-home park
+- RV park
+- campground
+- marina
+- parking facility
+- assisted-living property
+- build-to-rent community
+- short-term-rental portfolio
+- car wash
+- laundromat real estate
+- daycare
+- church
+- school
+- cold storage
+- gas station
+- convenience store
+
+Property-specific fields, engines, risks, and outputs must be conditional.
+
+Residential assumptions must not be forced onto commercial or land deals.
+
+## Strategy Registry
+
+The selected strategy is an initial hypothesis, not the automatic recommendation.
+
+BRIX must evaluate every compatible strategy for the property, jurisdiction, capital structure, and investor profile.
+
+Each strategy must define:
+
+- strategy ID
+- name
+- strategy family
+- compatible asset types
+- required inputs
+- required calculations
+- market assumptions
+- disqualifying conditions
+- strengths
+- weaknesses
+- risk factors
+- financing compatibility
+- output metrics
+- recommendation rules
+- education content
+- engine version
+- deterministic test fixtures
+
+Strategy families include:
+
+### Owner-Occupied and Personal Use
+
+Primary residence, future rental conversion, house hack, duplex through fourplex house hack, live-in renovation, live-in flip, live-in BRRRR, multigenerational occupancy, ADU, second home, vacation home, and retirement home.
+
+### Rental
+
+Long-term rental, single-family rental, condominium rental, townhouse rental, small multifamily rental, multifamily hold, build-to-rent, portfolio hold, medium-term rental, short-term rental, furnished rental, corporate housing, executive rental, traveling-professional housing, student rental, senior housing, workforce housing, affordable housing, co-living, room rental, voucher-supported rental where lawful, and seasonal rental.
+
+### Value Add and Repositioning
+
+Cosmetic value-add, heavy value-add, BRRRR, partial BRRRR, multifamily BRRRR, commercial BRRRR, mixed-use BRRRR, buy-renovate-hold, stabilization, repositioning, adaptive reuse, lease-up, operational improvement, expense reduction, and rent optimization.
+
+### Resale and Flip
+
+Cosmetic flip, full-rehab flip, luxury flip, live-in flip, historic restoration flip, quick resale, retail resale, wholesale where lawful, assignment where lawful, double close where lawful, and novation where lawful.
+
+### Creative and Alternative Acquisition
+
+Seller financing, owner carry, installment sale, land contract, contract for deed, wrap financing, subject-to where lawful, lease option, lease purchase, sandwich lease option, master lease, master lease option, assumable financing, partnership, joint venture, equity partner, operating partner, syndication, private money, hard money, DSCR financing, bridge financing, portfolio financing, blanket loan, preferred equity, and mezzanine financing.
+
+### Multifamily
+
+Multifamily hold, value-add, unit renovation, operational value-add, rent growth, loss-to-lease capture, expense reduction, stabilization, recapitalization, mixed-income operation, affordable-housing preservation, and condo conversion where lawful.
+
+### Commercial
+
+Commercial buy and hold, owner-user acquisition, sale-leaseback, triple-net lease, gross lease, modified gross lease, commercial value-add, tenant repositioning, lease-up, mixed-use hold, office hold, medical office hold, retail hold, industrial hold, self-storage operation, hospitality operation, and commercial redevelopment.
+
+### Land and Development
+
+Land hold, land banking, agricultural use, recreational use, timber strategy, entitlement, subdivision, assemblage, horizontal development, vertical development, residential development, commercial development, industrial development, build to sell, build to rent, infill development, ground lease, spec homes, custom homes, townhome development, apartment development, and mixed-use development.
+
+### Distressed and Special Situations
+
+Foreclosure, pre-foreclosure, REO, estate sale, probate, divorce sale, bankruptcy, tax lien, tax deed, and short sale.
+
+### Disposition and Exit
+
+Hold, sell, refinance and hold, cash-out refinance, 1031 exchange, seller-financed resale, installment sale, portfolio sale, partial disposition, condo conversion, ground lease, syndicate, and legacy hold.
+
+No strategy may be added without a deterministic engine or explicit compatibility and analysis contract.
+
+## Strategy Engine Architecture
+
+Each strategy receives its own deterministic, versioned engine.
+
+Examples include:
+
+- BRRRR Engine
+- Long-Term Rental Engine
+- Short-Term Rental Engine
+- House Hack Engine
+- Flip Engine
+- Multifamily Engine
+- Commercial Hold Engine
+- Commercial Value-Add Engine
+- Land Engine
+- Development Engine
+- Seller Finance Engine
+- Owner-User Engine
+
+The decision engine runs:
+
+Selected Strategy Engine
+→ Other Compatible Strategy Engines
+→ Compatibility and Risk Filters
+→ Strategy Ranking
+→ Recommendation Explanation
+
+AI may explain and compare engine outputs.
+
+AI must never replace the engines.
+
+## Authoritative Underwriting Engine
+
+There must be one authoritative underwriting contract used by web, iOS, reports, spreadsheets, exports, and recommendations.
+
+### Acquisition
+
+- purchase price
 - down payment
 - loan amount
-- interest rate
-- loan term
+- points
+- origination
+- loan fees
 - closing costs
+- seller credits
 - immediate repairs
-- renovation budget
-- reserves
-- rent or income
+- renovation
+- initial reserves
+- other acquisition costs
+- total project cost
+- total cash required
+
+### Debt
+
+- principal and interest
+- amortization
+- interest-only periods
+- balloon payments
+- annual debt service
+- mortgage insurance
+- refinance proceeds
+- remaining loan balance
+- effective financing cost
+
+### Operations
+
+- gross potential income
+- other income
 - vacancy
+- collection loss
+- effective gross income
+- operating expenses
 - management
 - maintenance
 - capital expenditures
-- utilities
-- other operating expenses
-- current condition
-- property risks
-- hold period
-- resale assumptions
-- notes
-- photos
-- documents
-- source records
-
-The interface should adapt to the property type and selected strategy rather than forcing irrelevant inputs.
-
-A deal may be created with incomplete information, but BRIX must clearly show what is still required for a dependable analysis.
-
-## Financial Analysis
-
-BRIX must maintain one authoritative deterministic calculation engine.
-
-At minimum, where applicable, the system should calculate and clearly explain:
-
-- loan amount
-- monthly principal and interest
-- total monthly carrying cost
-- total acquisition cost
-- total cash required
-- gross potential income
-- vacancy and collection loss
-- effective gross income
-- operating expenses
+- owner-paid utilities
 - net operating income
-- annual debt service
+- total monthly carrying cost
 - cash flow before tax
+
+### Returns
+
 - capitalization rate
 - cash-on-cash return
-- debt-service coverage ratio
+- DSCR
+- debt yield
 - break-even occupancy
 - gross rent multiplier
 - operating expense ratio
 - return on cost
+- equity multiple
+- IRR when justified
+- annualized return when valid
+- profit margin
+- yield on cost
 
-BRIX must clearly identify what is included and excluded from each calculation.
+Strategy-specific outputs must include BRRRR, flip, house hack, multifamily, commercial, land, and development metrics where applicable.
 
-Debt service must not be included in net operating income.
+Irrelevant metrics must not be forced onto incompatible strategies.
 
-Down payment must not be presented as the total cash required.
+## Financing and Mortgage Intelligence
 
-A metric must not be shown when required inputs are missing.
+Financing data is part of the canonical deal.
 
-## Personal Affordability
+Each deal may include multiple financing options.
 
-BRIX should distinguish investment performance from personal affordability.
+Supported structures include conventional, FHA, VA, DSCR, portfolio, commercial, bridge, hard money, private money, seller financing, assumable financing, subject-to where lawful, land loans, construction loans, refinance, and all-cash.
 
-This is important when a property may be a primary residence, future rental, house hack, family-use property, temporary hold, or live-in renovation.
+Each option should capture:
 
-The analysis may consider:
+- lender or source
+- loan type and purpose
+- purchase price
+- loan amount
+- down payment amount and percentage
+- interest rate
+- fixed or variable
+- index and margin
+- amortization
+- term
+- interest-only period
+- balloon date
+- payment frequency
+- monthly payment
+- fees and points
+- mortgage insurance
+- escrow requirements
+- reserve requirements
+- DSCR, LTV, LTC, and liquidity conditions
+- recourse
+- personal guarantee
+- prepayment penalty
+- yield maintenance
+- defeasance
+- assumption rights
+- covenants
+- reporting requirements
+- application, quote, lock, commitment, closing, payment, and maturity dates
+- conditions outstanding
 
-- available cash
-- desired loan amount
-- desired monthly payment
-- taxes
-- insurance
-- HOA
-- repairs
-- reserves remaining after purchase
-- income stability
-- existing obligations
-- expected hold period
-- future rental potential
+The lowest rate must not automatically rank first.
 
-A property may be affordable but a weak investment.
+BRIX should compare cash required, debt service, total financing cost, balloon exposure, refinance risk, prepayment restrictions, recourse, liquidity burden, closing feasibility, and strategy compatibility.
 
-A property may also be financially attractive but exceed the user's risk or liquidity limits.
+When lender documentation arrives, BRIX must replace estimates with sourced terms while preserving prior assumptions and re-underwrite the deal.
 
-## Strategies and Scenarios
+## Market and Property Intelligence
 
-The same property should support multiple strategies without duplicating the underlying deal.
+BRIX should gather or estimate property and area information from lawful and reputable sources.
 
-Potential strategies include:
+Potential sources include county records, assessor records, municipal data, state records, zoning and planning authorities, FEMA, FRED, Census, BLS, HUD, public market data, user-entered comparables, lender quotes, insurance quotes, property-manager estimates, broker estimates, and contractor estimates.
 
-- primary residence
-- buy and hold
-- house hack
-- medium-term rental
-- short-term rental
-- fix and flip
-- BRRRR
-- live-in renovation
-- multifamily hold
-- mixed-use hold
-- commercial hold
-- land
-- development
-- resale after appreciation
+BRIX should help analyze:
 
-The user should be able to compare scenarios such as:
+- ownership and parcel information
+- taxes and assessments
+- zoning and permitted use
+- flood and environmental context
+- neighborhood access
+- nearby amenities
+- schools where relevant
+- employment and population context
+- transportation
+- convenience
+- nearby development
+- location concerns
+- local vacancy
+- rent context
+- resale liquidity
+- market demand
 
-- base
-- conservative
-- optimistic
-- lower purchase price
-- higher interest rate
-- lower rent
-- higher vacancy
-- higher taxes
-- higher insurance
-- higher repair cost
-- lower resale value
-- longer hold period
-- different down payment
+BRIX must not describe broad market information as property-specific certainty.
 
-Each scenario must show what changed and how the result changed.
+When precision is weak, BRIX should use low, base, and high ranges.
 
-BRIX should help answer:
+## Evidence Engine
 
-> What has to be true for this deal to work?
+Every document, photo, note, public record, market lookup, and user observation becomes evidence attached to the canonical deal.
 
-## Risk Analysis
+Evidence should retain:
 
-BRIX should identify risks in the following categories:
-
-- financial
-- property condition
-- legal and contract
-- market
-- operational
-- data quality
-
-Each material risk should include:
-
-- description
-- evidence
-- severity
-- confidence
-- potential effect
-- suggested next action
-
-BRIX should not diagnose hidden property conditions or replace qualified inspectors, engineers, attorneys, lenders, appraisers, or other professionals.
-
-## Evidence and Sources
-
-Important values should preserve:
-
-- value
+- evidence ID
+- type
 - source
-- date obtained
+- source date
+- retrieval date
+- geography
+- original value
+- normalized value
 - confidence
-- confirmation status
+- status
+- linked deal fields
 - user override
 - notes
+- limitations
+- version
 
-Evidence may include listing information, county records, HOA documents, tax records, insurance quotes, loan estimates, leases, rent comparables, sales comparables, inspections, contractor estimates, property photos, contracts, disclosures, user measurements, and notes.
+Higher-confidence evidence may supersede lower-confidence assumptions while preserving history.
 
-A user override must not erase the original sourced value.
+## Document Intake Workspace
 
-## Photos and AI Analysis
+BRIX must provide a real document intake workspace, not only a file-upload button.
 
-Real image analysis must examine the actual image content.
+Supported intake includes:
 
-Filename matching, URL matching, metadata, or alt text must never be presented as image analysis.
+- PDF
+- DOC and DOCX
+- images
+- email files such as EML
+- MSG where supported
+- pasted email body
+- spreadsheets
+- attachments
 
-AI may help summarize evidence, explain calculations, identify missing information, compare scenarios, organize notes, surface potential risks, draft questions, and produce a decision narrative.
+The original item must remain intact and viewable.
 
-AI must not create deterministic financial results, fabricate property or market data, hide uncertainty, claim certainty about hidden defects, or replace professional advice.
+### PDF Viewer
 
-AI output must be based on structured facts, assumptions, calculations, and evidence.
+- page-by-page viewer
+- zoom
+- search
+- thumbnails
+- exact page references
+- highlighted findings
+- side-by-side analysis
+- original-file download
+- preserved pagination
 
-## Data and Architecture Principles
+### Word Viewer
 
-BRIX must converge on:
+- preserve original file
+- render a reviewable version
+- preserve headings, tables, numbering, and paragraph context where technically available
+- reference sections or paragraphs when stable page numbers are unavailable
 
-- one canonical deal model
-- one authoritative persistence system
-- one authoritative calculation engine
-- one validation model
-- one authenticated ownership model
-- one shared calculation contract
-- one clear source of truth for each material value
+### Email Intake
 
-The application must avoid:
+BRIX should preserve and analyze sender, recipients, CC, subject, sent date and time, body, quoted messages, signatures, attachments, and embedded images where relevant.
 
-- competing web and mobile deal models
-- multiple active persistence systems
-- duplicate formulas
-- reports using different calculations from the application
-- AI prompts using different values from the calculation engine
-- critical deal data stored only in temporary UI state
+An email and its attachments are one evidence package while each item remains separately identifiable.
 
-Supabase is the authoritative persisted data source unless a future architectural decision explicitly replaces it.
+BRIX must detect conflicts between email statements and attachments.
 
-Local storage may support temporary drafts or offline behavior, but it must not become a competing production database.
+Every finding must link to the relevant page, section, paragraph, clause, table, exhibit, email, or attachment.
 
-## Security
+BRIX must never claim it reviewed information that was unreadable, missing, unsupported, or not supplied.
 
-BRIX may contain sensitive financial and property information.
+## ContractIQ
 
-The application must enforce:
+ContractIQ is a core BRIX capability.
+
+It should behave like a senior real estate paralegal performing issue spotting and document review while clearly stating that it is not an attorney and does not provide legal representation.
+
+ContractIQ must handle simple standard forms and complex negotiated agreements with exhibits, amendments, schedules, cross-references, and conflicting language.
+
+The user selects perspective, including buyer, seller, landlord, tenant, investor, developer, lender, or partner.
+
+ContractIQ should identify parties, property, money terms, financing, contingencies, inspection rights, due diligence, title, survey, closing, credits, repairs, representations, defaults, remedies, termination rights, assignment rights, risk of loss, insurance requirements, disputes, fees, broker obligations, deadlines, missing exhibits, conflicting terms, and unusual or one-sided language.
+
+Required outputs include:
+
+- plain-language summary
+- key dates and obligations
+- advantages
+- risks and disadvantages
+- missing or unclear items
+- suggested revision discussion drafts
+- questions by professional
+- negotiation priorities
+- exact supporting section references
+
+When something is unclear, missing, inconsistent, unreadable, or dependent on another document, ContractIQ should mark it as Verification Required, Missing Exhibit, Unclear Language, Conflicting Provision, Incomplete Information, or Professional Review Required.
+
+ContractIQ should continue analyzing what is clear, reduce confidence where appropriate, and isolate the few issues requiring follow-up.
+
+## Inspection and Appraisal Re-Underwriting
+
+Inspection reports and appraisals must update the canonical deal rather than remain isolated attachments.
+
+The flow is:
+
+Upload
+→ preserve original
+→ identify pages, sections, photos, systems, values, and findings
+→ classify evidence
+→ link findings to the deal
+→ estimate financial and strategy impact
+→ flag unclear items for verification
+→ update underwriting assumptions
+→ rerun compatible strategies
+→ compare before and after
+→ revise recommendation, reserves, value, price threshold, and offer posture
+
+BRIX must preserve the prior analysis and show what changed and why.
+
+Inspection findings should distinguish inspector-confirmed findings, AI extraction, user observation, contractor estimate, system estimate, and unresolved ambiguity.
+
+Appraisal analysis should extract and compare appraised value, effective date, property rights, highest and best use, condition, quality, comparable sales, adjustments, income approach, cost approach, extraordinary assumptions, limiting conditions, and required repairs.
+
+A certified appraisal may supersede a lower-confidence system estimate while preserving both values and their history.
+
+## Real AI Photo Analysis
+
+Photo analysis must inspect actual image content.
+
+It must not rely only on filenames, URLs, metadata, captions, or alt text.
+
+Potential visible observations include roof wear, exterior damage, staining, possible moisture indicators, cracking, drainage, flooring, windows, outdated finishes, renovation quality, visible mechanical equipment, parking, access, site issues, deferred maintenance, cosmetic scope, and visible safety concerns.
+
+Each finding must retain:
+
+- photo ID
+- image location
+- observation
+- severity
+- confidence
+- evidence description
+- possible cost category
+- recommended verification
+- limitation
+
+BRIX must not represent photo analysis as a professional inspection, engineering opinion, mold diagnosis, code inspection, appraisal, or contractor quote.
+
+## Pre-Visit and Post-Visit Workflow
+
+Before a visit, BRIX should answer:
+
+- Is this worth a call?
+- Is this worth more research?
+- Is this worth a drive?
+- What could eliminate it before visiting?
+- Which few questions are decision-changing?
+- What appears promising?
+- What does not fit the user?
+
+Visit tracking should include planned status, scheduled date and time, actual date and time, showing type, attendees, travel time, notes, positives, negatives, concerns, observations, deal-breakers, and follow-up.
+
+Post-visit BRIX must compare expectations with reality, update condition and renovation assumptions, rerun strategies, revise offer posture, update confidence, update deal health, and show what changed.
+
+Favorite, interest level, visit priority, reasons liked, reasons disliked, and not-yet-seen status belong to the canonical deal.
+
+## Reports, Spreadsheets, and Collaboration
+
+BRIX should provide a Deal Comparison Workspace and exports using the same canonical data and deterministic outputs as the application.
+
+Potential outputs include:
+
+- Excel workbook
+- CSV
+- shareable PDF
+- printable property shortlist
+- visit-planning list
+- side-by-side strategy comparison
+- decision summary for spouse, partner, lender, realtor, attorney, contractor, or investor
+
+Comparison fields may include address, property type, asking price, selected strategy, recommended strategy, score, confidence, cash required, carrying cost, cash flow, cap rate, cash-on-cash return, DSCR, renovation range, risks, deal-breakers, visit recommendation, visit status, favorite, deal health, target price, maximum offer, and next action.
+
+Reports and spreadsheets must never recompute the deal using separate formulas.
+
+## Help, Training, and Real Estate Education
+
+Help and education must be integrated into the active workflow.
+
+Required content includes contextual help, field definitions, calculation explanations, strategy education, onboarding, first-deal guidance, experienced-investor references, glossary, troubleshooting, account help, privacy help, and support contact.
+
+Education should cover property types, financing, underwriting, income, expenses, NOI, cap rate, cash flow, cash-on-cash return, DSCR, valuation, rents, vacancy, due diligence, contracts, inspections, insurance, taxes, HOA, zoning, environmental risks, renovation, market analysis, offers, negotiation, closing, operations, portfolio management, and exit strategies.
+
+Education must be practical, current, industry-accurate, and clearly differentiated from legal, tax, lending, appraisal, engineering, inspection, and personalized investment advice.
+
+## Administration, Billing, Usage, and Cost Control
+
+BRIX requires a secure owner-only administration system.
+
+The administration experience must be separated from normal user workflows and protected by server-side authorization.
+
+Admin access must never rely only on a hidden route or client-side role check.
+
+The admin dashboard should support:
+
+### User Management
+
+- search and filter users
+- view account status
+- view created date and last activity
+- view subscription tier
+- view enabled features and limits
+- suspend or restore access
+- initiate a secure password-reset flow
+- review account-deletion state
+- review support notes
+- apply approved overrides
+- impersonation only if later implemented with explicit audit controls and strong safeguards
+
+Admins must not be able to view user passwords.
+
+Password management means secure reset, revocation, and account-recovery controls, not password visibility.
+
+### Subscription and Billing Management
+
+- plans
+- trials
+- billing status
+- renewal date
+- payment failure state
+- promotional access
+- credits
+- refunds where supported
+- manual plan override
+- feature entitlements
+- cancellation state
+
+Billing behavior must use a reliable payment provider and server-verified webhooks.
+
+### Usage and Limits
+
+Track usage by user, account, plan, feature, provider, and billing period.
+
+Examples include:
+
+- active deals
+- archived deals
+- property lookups
+- county-record lookups
+- area-intelligence requests
+- AI text analysis
+- AI vision analysis
+- document pages processed
+- document storage
+- photo storage
+- emails processed
+- reports generated
+- exports generated
+- API calls
+- Edge Function executions
+- database usage
+- bandwidth
+- iOS and web activity where appropriate
+
+### Cost Observability
+
+The owner must be able to see:
+
+- usage today
+- usage this billing period
+- estimated provider cost
+- estimated cost per user
+- estimated cost per active deal
+- high-usage users
+- high-cost features
+- provider error rates
+- retry volume
+- unexpected usage spikes
+- projected month-end cost
+- budget thresholds
+- quota exhaustion risk
+
+### Limits and Guardrails
+
+Support configurable:
+
+- plan limits
+- per-user overrides
+- feature overrides
+- soft warnings
+- hard limits
+- rate limits
+- daily limits
+- monthly limits
+- file-size limits
+- page-processing limits
+- photo-processing limits
+- AI token or request budgets
+- provider-specific safeguards
+
+Limits must fail gracefully and explain what happened to the user.
+
+### Alerts
+
+Provide owner alerts for:
+
+- unusual API usage
+- sudden cost increase
+- repeated provider failures
+- approaching plan limits
+- storage growth
+- suspicious account behavior
+- billing failures
+- webhook failures
+- failed background jobs
+- queue backlog
+
+### Audit Trail
+
+Every admin action must record:
+
+- admin identity
+- action
+- target user or account
+- prior value
+- new value
+- reason
+- timestamp
+- request or correlation ID where applicable
+
+Sensitive admin actions must be reviewable and reversible where practical.
+
+### Privacy Boundary
+
+Usage analytics should expose operational numbers needed to manage cost and reliability without unnecessarily exposing private deal content.
+
+Viewing user deal content should be exceptional, permissioned, audited, and limited to legitimate support or security needs.
+
+## Security and Privacy
+
+BRIX may contain sensitive financial, property, contract, identity, and relationship information.
+
+Requirements include:
 
 - secure authentication
-- database-level user ownership
-- row-level access controls
+- row-level ownership
 - safe file access
-- server-side secret handling
+- server-side secrets
 - input validation
-- secure session handling
+- secure sessions
 - account deletion
-- data deletion controls
+- data-deletion controls
+- audit logging
+- least privilege
+- admin authorization
+- provider-key isolation
+- rate limiting
+- upload validation
+- malware scanning where appropriate
+- no service-role credentials in browser or iOS code
 
-A user must never be able to access another user's deals by changing a URL, identifier, request, or client-side state.
+A user must never access another user’s deals by changing a URL, identifier, request, or client state.
 
-Service-role keys and private credentials must never be exposed to browser or mobile code.
+## Build and Release Discipline
 
-## Web and Mobile
+BRIX must be built in dependency order.
 
-The web application should become the first complete and trusted BRIX client.
+The complete product definition does not authorize building every capability in one task.
 
-The iOS application must use the same backend, deal model, validation rules, and calculation contract.
+Each implementation assignment should contain one coherent capability, one contained diff, deterministic verification, and a clear definition of done.
 
-Mobile code must not independently redefine the core investment logic.
+A capability may not be presented as complete until its end-to-end workflow works.
 
-Native functionality may later include camera capture, photo upload, document scanning, voice notes, location capture, offline drafts, and notifications.
+The rebuild should preserve the current GitHub repository, Vercel project, Supabase project, domain, Apple Developer account, App Store Connect record, bundle identifier, signing setup, entitlements, and icon identity.
 
-These capabilities should extend BRIX, not create another disconnected version of it.
+The existing runtime code is not trusted as a production foundation and should not be copied wholesale into the rebuild.
 
 ## Definition of Working
 
-BRIX is working for Ed when he can use it on a real property without developer intervention.
+BRIX is working when a real investor can use it on a real property without developer intervention.
 
-He must be able to:
+The investor must be able to:
 
-- enter property information
-- distinguish confirmed facts from assumptions
-- calculate total cash required
-- calculate monthly carrying cost
-- evaluate rental and other selected strategies
-- compare scenarios
-- review risks
-- preserve evidence
-- save the deal
-- reopen it later
-- update assumptions
-- recalculate
-- record a decision
-- trust the formulas used
+- create and manage an account
+- recover a password
+- create a deal
+- gather property and market context
+- distinguish facts from assumptions
+- underwrite the property accurately
+- compare compatible strategies
+- understand recommendation logic
+- review risks and evidence
+- use the product in the field
+- upload and analyze photos and documents
+- add inspection and appraisal evidence
+- re-underwrite after new information
+- review financing terms
+- preserve contacts and interactions
+- create reports and spreadsheets
+- save and reopen the deal
+- understand what changed and why
+- make and preserve a defensible decision
 
-BRIX is not considered working merely because the application builds, a page renders, buttons exist, mocked tests pass, AI generates a narrative, or seeded demo data works.
+BRIX is not considered working merely because it builds, renders, contains buttons, or passes mocked tests.
 
-## Definition of Commercial Readiness
-
-BRIX should not be sold as a dependable product until:
-
-- Ed has used it on multiple real deals
-- core calculations are verified
-- live persistence is reliable
-- users are securely isolated
-- production failures are observable
-- account and data deletion work
-- external data is sourced and labeled
-- core workflows are tested
-- mobile and desktop experiences are usable
-- disclaimers are appropriate
-- billing is reliable
-- the application does not misrepresent AI or data capabilities
-
-## Development Priority
-
-Use this order:
-
-1. Accurate property and financial inputs
-2. Reliable saving and reopening
-3. Authoritative calculations
-4. Clear results and risk analysis
-5. Scenario comparison
-6. Evidence, notes, photos, and documents
-7. Real-deal usability
-8. Security and production reliability
-9. Mobile integration
-10. Commercial expansion
-
-Do not add features that expand BRIX while its core investment workflow remains incomplete.
-
-## Rules for Codex
-
-Before changing code, read `BRIX.md` and `AGENTS.md`.
-
-`BRIX.md` controls product intent.
-
-`AGENTS.md` controls engineering execution.
-
-Codex must:
-
-1. Preserve BRIX identity and terminology.
-2. Avoid restarting the application.
-3. Avoid duplicate implementations.
-4. Identify the existing source of truth before creating another.
-5. Keep deterministic formulas outside presentation components.
-6. Preserve valid user data.
-7. Use forward-only migrations.
-8. Add tests for new business logic and repaired defects.
-9. Verify behavior rather than file existence.
-10. Report anything not verified.
-11. Avoid broad redesigns.
-12. Avoid unrelated changes.
-13. Avoid fake or placeholder production behavior.
-14. Avoid weakening security.
-15. Finish complete user outcomes before adding more features.
-
-When the implementation conflicts with this document, Codex must stop and report the conflict rather than silently changing the product.
-
-## Current Objective
-
-The current objective is:
-
-> Make BRIX dependable enough for Ed to evaluate a real property from initial intake through a documented investment decision, with reliable saving, correct calculations, clear assumptions, scenario analysis, risk visibility, and no fabricated data.
-
-All current work should be judged against that objective.
+The product is working only when its real user flows, backend connections, calculations, evidence, recommendations, reports, and recovery states operate correctly and consistently across web and native iOS.
