@@ -1,358 +1,525 @@
 # BRIX Real Estate — Premium UI and UX System
 
-## 1. Purpose
+## 1. Authority and Rules of Engagement
 
-This document governs the complete BRIX user experience across responsive web, native iPhone, native iPad, reports, shared views, and admin tools.
+This document defines the required BRIX user experience and visual system. It is governed by:
 
-Premium means the product is easier to understand, faster to use, more trustworthy, and more resilient. It does not mean excessive animation, decorative dashboards, or visual complexity.
+- `docs/00-START-HERE.md`
+- `docs/01-PRODUCT-CONSTITUTION.md`
+- `docs/02-ENGINEERING-STANDARDS.md`
+- `docs/03-DATA-ARCHITECTURE.md`
 
-## 2. Experience principles
+Permanent UI/UX rules:
 
-- Decision first
-- Clear before clever
-- Fast without feeling rushed
-- Dense when useful, never cluttered
-- Calm under pressure
-- Progressive disclosure
-- Same truth, client-appropriate interaction
-- No dead ends
-- No hidden save state
-- No stale state presented as current
-- No disconnected modules
-- No framework-default visual experience
+1. BRIX is decision-first. The active decision, current status, material numbers, risks, missing information, deadlines, and next action must be easier to find than secondary detail.
+2. Premium design must improve comprehension, speed, confidence, and trust. Decoration may not hide state, delay work, or substitute for product substance.
+3. Web, iPhone, and iPad share canonical data and vocabulary but use platform-appropriate layouts and interaction patterns.
+4. Every visible control must work end to end or remain hidden behind an explicit feature flag.
+5. Every screen must intentionally support applicable loading, empty, saved, processing, partial, stale, offline, conflict, permission-denied, retry, and failure states.
+6. The active Workspace, Deal, Property, stage, freshness, and sync state must not become ambiguous.
+7. The user must not lose meaningful progress after refresh, relaunch, session renewal, network interruption, or safe retry.
+8. Color may support meaning but may never be the sole carrier of meaning.
+9. Accessibility is required, not optional polish.
+10. The UI may not imply that an estimate, AI observation, or unverified finding is a confirmed fact.
 
-## 3. Global information hierarchy
+## 2. Product Experience Goals
 
-Every Deal screen must make these visible or immediately reachable:
+BRIX must feel:
 
-1. Active workspace
-2. Active Deal and Property
-3. Deal stage
-4. Current recommendation
-5. Strongest strategy
-6. Selected strategy
-7. Key financial results
-8. Material risks and blockers
-9. Confidence and evidence quality
-10. Missing decision-changing information
-11. Deadlines
-12. Primary next action
-13. Freshness, processing, sync, and conflict state
+- Calm
+- Premium
+- Intelligent
+- Fast
+- Trustworthy
+- Field-ready
+- Professional
+- Clear under pressure
+- Dense when useful
+- Understandable without being simplistic
 
-## 4. Navigation architecture
+The product should feel like a coherent real estate operating system, not a collection of cards, forms, and AI summaries.
 
-### Global navigation
+## 3. Information Hierarchy
 
-- Home/portfolio cockpit
-- Deals/PipelineIQ
-- FindIQ
+Every screen must make the following immediately recognizable:
+
+1. Where the user is
+2. Which Workspace and Deal are active
+3. Current Deal stage or module status
+4. The user’s current goal
+5. The primary action
+6. Material risks, blockers, or deadlines
+7. Whether data is current, processing, stale, conflicted, incomplete, or offline
+8. Where assumptions, evidence, formulas, and deeper detail can be inspected
+
+Use typography, spacing, grouping, alignment, contrast, and restrained emphasis to create hierarchy.
+
+## 4. Navigation Architecture
+
+### 4.1 Global navigation
+
+Required global destinations:
+
+- Dashboard
+- Deals/Pipeline
+- Portfolio
+- Tasks and Deadlines
 - Reports
 - RELearnIQ
 - Notifications
-- Global search
-- Create Deal
-- Workspace/account
-- Admin for authorized users
+- Global Search
+- Workspace and Account Settings
+- Admin entry for authorized platform admins
 
-### Deal navigation
+### 4.2 Deal navigation
 
-- Overview
+Required Deal-level destinations, shown based on permissions and available capabilities:
+
+- Decision Cockpit
 - Property
 - Underwriting
 - Strategies
-- Market
-- Financing
+- MarketIQ
+- FinanceIQ
+- GovernanceIQ
+- ContractIQ
+- OfferIQ
 - Visits
-- Photos and media
-- Documents
-- Governance
-- Offer
-- Contract
-- Inspection
-- Appraisal
-- Tasks and deadlines
-- Contacts and organizations
-- Activity and history
+- Photos and Media
+- InspectionIQ
+- AppraisalIQ
+- Tasks and Deadlines
+- Contacts
+- Evidence and Documents
+- Activity and History
 - Reports
 - Education
 
-Deal navigation must preserve active Deal context. Deep links, notifications, map pins, search results, reports, and shared links must open the correct canonical record and relevant module.
+Navigation must preserve Deal context and last meaningful location. No module may open as a disconnected standalone island.
 
-## 5. Premium visual system
+### 4.3 Deep links
 
-### Typography
+Notifications, search results, share-extension intake, report links, map pins, emails, and task links must open the correct Workspace, Deal, record, and workflow state.
 
-- Strong numeric legibility
-- Tabular numerals for financial tables
-- Clear hierarchy for page title, section title, label, value, metadata, and helper text
-- No tiny secondary text that becomes unreadable in the field
-- Dynamic Type support on iOS
+Invalid, expired, unauthorized, or moved targets must show a clear recovery path.
 
-### Spacing and layout
+## 5. Design Tokens
 
-- Consistent spacing tokens
-- Deliberate content grouping
-- Avoid excessive nested cards
-- Use whitespace to separate decisions, evidence, and controls
-- Support compact professional density and guided density without changing underlying data
+Define canonical tokens for:
 
-### Color and status
+- Font families and fallbacks
+- Type scale
+- Font weights
+- Line height
+- Letter spacing
+- Spacing scale
+- Radius scale
+- Elevation
+- Borders and dividers
+- Surface hierarchy
+- Text hierarchy
+- Accent color
+- Semantic success, warning, danger, information, stale, conflict, and offline states
+- Chart palettes
+- Focus ring
+- Touch targets
+- Motion duration and easing
 
-Use separate systems for:
+Tokens must be reusable across web and mapped intentionally to native iOS equivalents.
 
-- Success/completion
-- Warning
-- Blocking risk
-- Informational state
-- Confidence
-- Freshness
+## 6. Typography and Numbers
+
+- Prioritize legibility over novelty.
+- Financial numbers use tabular numerals.
+- Currency, percentage, units, and time periods must remain visible.
+- Summary rounding must not imply precision that does not exist.
+- Dense tables may use compact typography but must remain readable.
+- Long-form legal or document text must support comfortable reading and source navigation.
+
+## 7. Color and Status Language
+
+Semantic states must have consistent wording and visual treatment across modules.
+
+Required distinctions include:
+
+- Confirmed
+- Estimated
+- Assumed
+- Inferred
+- AI observation
+- Professional opinion
+- Unknown
+- Conflict
+- Current
+- Stale
 - Processing
 - Offline
-- Conflict
+- Failed
+- Verified
+- Review recommended
 
-Do not use color alone. Pair color with labels, icons, patterns, or text.
+Do not overload red/amber/green as a universal score system. Risk, confidence, freshness, and workflow status require distinct patterns.
 
-### Components
+## 8. Layout Standards
 
-Canonical components must include:
+### 8.1 Web
 
-- Buttons and button groups
-- Inputs and selectors
-- Currency, percentage, date, and unit fields
-- Status badges
-- Risk and confidence indicators
-- Property and Deal cards
-- KPI blocks
-- Tables
-- Comparison grids
-- Timeline
-- Task and deadline lists
-- Upload zones
-- Processing indicators
-- Evidence citations
-- Side panels/drawers
-- Dialogs
-- Toasts and persistent alerts
-- Charts with accessible summaries
-- Empty, loading, stale, offline, conflict, and failure states
+- Responsive from mobile width through large desktop.
+- Use a stable application shell.
+- Decision-critical content must remain visible without excessive scrolling.
+- Large screens may use supporting side panels, but primary content remains clear.
+- Tables need sticky context, sorting, filtering, column control, and responsive alternatives.
+- Avoid endless nested cards and excessive border boxes.
 
-## 6. Interaction requirements
+### 8.2 iPhone
 
-- Primary action is obvious.
-- Secondary actions do not compete.
-- Destructive actions explain consequences.
-- Long forms use sections, autosave, progress, and return-to-last-position.
-- Material submissions use explicit confirmation.
-- Repetitive safe actions support batch behavior.
-- Filters show active state and clear reset.
-- Search explains its scope.
-- Empty states provide the next meaningful action.
-- Every action produces accurate feedback: local save, synced, queued, processing, complete, failed, stale, conflict, or needs verification.
-- Undo is provided where practical for frequent reversible actions.
+- Native one-handed workflows.
+- Large touch targets.
+- Clear primary action.
+- Fast access to current Deal, Quick Add, Photo, Voice Note, Maps, Tasks, and Decision Cockpit.
+- Bottom sheets and progressive disclosure may reduce navigation depth.
+- Respect safe areas, keyboard, orientation, and Dynamic Type.
+- Critical field capture must remain usable with weak connectivity.
 
-## 7. Form standards
+### 8.3 iPad
 
-Every form must include:
+- Native split view or multi-column layouts.
+- Deal list and workspace may coexist.
+- Document review and Deal context should coexist where useful.
+- Support keyboard shortcuts, pointer, drag and drop, multitasking, and landscape productivity.
+- Do not stretch the iPhone layout.
 
-- Clear labels
+## 9. Dashboard Experience
+
+The dashboard must prioritize:
+
+- Deals needing attention
+- Upcoming deadlines
+- Material recommendation changes
+- Incomplete or failed processing
+- Recent activity
+- Visit schedule
+- Portfolio summary
+- Quick actions
+
+Dashboard metrics must link to the records behind them. Counts and badges must come from canonical backend state, not client-local approximations.
+
+## 10. Decision Cockpit Experience
+
+Priority order:
+
+1. Current recommendation
+2. Deal stage
+3. Strongest viable strategy
+4. Selected strategy
+5. Key financial outputs
+6. Major risks and disqualifiers
+7. Confidence and freshness
+8. Missing decision-changing inputs
+9. Deadlines
+10. Next action
+11. Recent changes
+12. Supporting evidence and detail
+
+The Cockpit must:
+
+- Show what changed since the prior recommendation.
+- Separate confirmed problems, potential concerns, missing evidence, and informational observations.
+- Show calculation and evidence freshness independently.
+- Support guided and professional density modes using the same data.
+- Never show an outdated recommendation as current after dependencies change.
+
+## 11. Forms and Data Entry
+
+Every form must provide:
+
+- Persistent labels
+- Required versus optional state
 - Units and currency
-- Required versus optional indication
-- Inline validation
 - Source/classification where material
-- Sensible defaults labeled as assumptions or defaults
-- Preserved input after recoverable failure
-- Autosave when loss would be costly
-- Save/sync state
-- Accessible error summaries
-- Mobile-appropriate keyboard/input type
+- Inline validation
+- Clear defaults labeled as defaults
+- Retained input after recoverable errors
+- Autosave where loss would be costly
+- Explicit submit for irreversible, legal, financial, or externally transmitted actions
+- Accurate save/queue/sync status
+- Mobile-appropriate keyboards and controls
+- Keyboard and accessibility support
 - Conflict handling for concurrent edits
 
-No field may use a fabricated value to make a workflow appear complete.
+Long forms require sections, progress, autosave, and return-to-last-position behavior.
 
-## 8. State design
+## 12. Tables and Comparisons
 
-Each module must intentionally design:
+Tables must support, when relevant:
 
-- First use
-- Empty
-- Loading
-- Partial
-- Saved locally
-- Queued
-- Uploading
-- Processing
-- Complete
-- Failed
-- Retry scheduled
-- Permission denied
-- Offline
-- Stale
-- Conflict
-- Superseded
-- Cancelled
+- Sorting
+- Filtering
+- Search
+- Pagination or virtualization
+- Column control
+- Sticky identifiers
+- Export
+- Row actions
+- Accessible summaries
+- Mobile card or drill-down alternative
 
-Generic endless spinners are prohibited. Long-running work must show durable status and expected next step.
+Financial comparisons must keep units, time periods, scenario labels, and source versions visible.
 
-## 9. Freshness and stale-state UX
+## 13. Charts and Visualizations
 
-- Show `as of` time for market data, underwriting, rankings, recommendations, reports, and external findings.
-- Indicate when results do not include the latest evidence or assumptions.
-- Keep prior valid results visible when refresh fails, marked stale.
-- Do not replace a valid result with an empty error screen.
-- Show which change caused recalculation or stale state.
-- Show before/after material changes in recommendations.
+Charts must:
 
-## 10. Error and recovery UX
+- Answer a decision question.
+- Include accessible text or data access.
+- Avoid misleading axes or aggregation.
+- Show units, timeframe, source, and freshness.
+- Use consistent risk and scenario vocabulary.
+- Degrade gracefully when data is sparse.
 
-Errors must explain:
+Decorative charts that do not improve understanding should not be built.
 
-- What failed
-- What was preserved
-- Whether the Deal decision is affected
-- What the user can do now
-- Whether retry is safe
-- Support reference when appropriate
+## 14. Search, Filters, and Command Actions
 
-Differentiate validation, permission, offline, conflict, provider outage, timeout, rate limit, and internal error.
+Global search should support authorized lookup across:
 
-## 11. Web experience
+- Deals
+- Properties
+- Contacts
+- Organizations
+- Tasks
+- Documents/evidence metadata
+- Reports
 
-Web must support:
+Search must explain scope and preserve active Workspace permissions.
 
-- Responsive desktop, laptop, tablet, and narrow layouts
-- Keyboard navigation
-- Command/search access
-- Dense underwriting and comparison views
-- Drag and drop
-- Multi-column review
+Common command actions may include:
+
+- Create Deal
+- Add Evidence
+- Add Task
+- Add Contact
+- Add Photo
+- Add Voice Note
+- Generate Report
+- Get Directions
+- Jump to Module
+- Open Current Decision
+
+Commands must be context-aware and permission-aware.
+
+## 15. Empty States
+
+Empty states must:
+
+- Explain what belongs in the area.
+- Explain why it matters.
+- Offer the next meaningful action.
+- Avoid fake example records in production.
+- Distinguish first use from an empty filtered result.
+
+## 16. Loading and Processing States
+
+- Acknowledge actions immediately.
+- Preserve screen structure where possible.
+- Skeletons may be used only when they resemble expected content.
+- Long-running operations expose durable job state and progress when meaningful.
+- The user may navigate away while safe background work continues.
+- Prior valid results remain visible and labeled during reprocessing.
+- Endless generic spinners are prohibited.
+
+## 17. Success and Completion States
+
+Completion must identify:
+
+- What completed
+- What was saved or generated
+- Whether additional processing remains
+- Whether the result is verified or awaiting review
+- What changed
+- The next logical action
+
+A local save, backend sync, analysis completion, and professional verification must not share one ambiguous “complete” state.
+
+## 18. Error and Recovery Experience
+
+Errors must:
+
+- Use plain language.
+- State what failed.
+- State what was preserved.
+- State whether the Deal decision is affected.
+- Offer retry, correction, manual continuation, or support.
+- Include a support correlation ID where useful.
+- Avoid raw stack traces and provider messages.
+- Distinguish validation, permission, conflict, outage, timeout, upload, sync, and internal errors.
+
+A failure must never replace prior valid output with an empty state.
+
+## 19. Offline and Synchronization Experience
+
+Offline-capable workflows must show:
+
+- Offline status
+- Local-only drafts
+- Queued uploads/mutations
+- Last successful sync
+- Sync progress
+- Retry state
+- Conflict state
+
+Rules:
+
+- User work survives app termination.
+- Retried mutations are idempotent.
+- Conflicting material edits require explicit resolution.
+- The UI never claims server save before confirmation.
+- Offline evidence remains attached to the correct Deal.
+
+## 20. Freshness and Stale-State Experience
+
+Decision-sensitive content must show `as of` time and dependency state.
+
+Mark stale when:
+
+- Accepted assumptions changed.
+- New evidence affected the result.
+- A provider dataset exceeded freshness limits.
+- A calculation or ranking is awaiting reprocessing.
+- A report no longer reflects the current Deal.
+
+Stale results remain inspectable but cannot appear current.
+
+## 21. Animation and Micro-Interactions
+
+Animation may be used for:
+
+- Orientation
+- State transition
+- Progress
+- Confirmation
+- Reveal of related detail
+
+Animation must be short, purposeful, interruptible, and respect reduced motion. It may not delay work, hide information, or create a marketing-site feel inside the product.
+
+## 22. Accessibility
+
+Web must target WCAG 2.2 AA.
+
+Required:
+
+- Logical focus order
+- Keyboard access
+- Visible focus
+- Accessible names and descriptions
+- Proper headings and landmarks
+- Error announcements
+- Sufficient contrast
+- Non-color status cues
 - Accessible tables and charts
-- Persistent Deal context
-- Browser refresh without lost progress
-- Clear background processing center
+- Zoom and text resizing support
 
-## 12. iPhone experience
+Native requirements:
 
-The iPhone experience must be field-first:
+- VoiceOver
+- Dynamic Type
+- Reduce Motion
+- Sufficient contrast
+- Accessible actions and custom controls
+- Minimum touch targets
+- Logical rotor/navigation behavior
 
-- One-handed primary flows
-- Large touch targets
-- Quick Add Deal
-- Quick Photo
-- Quick Voice Note
-- Current Deal
-- Directions
-- Visit checklist
-- Offline capture
-- Background upload
-- Visible sync state
-- Deep-link routing
-- Minimal taps to record observations
-- Safe-area and orientation behavior
+## 23. Performance Experience
 
-Do not reproduce desktop tables as unusable horizontal grids.
+- Navigation and local interactions remain responsive during background work.
+- Decision-critical content loads before secondary detail where safe.
+- Large lists are paginated or virtualized.
+- Images use thumbnails and progressive loading.
+- Large documents and reports load asynchronously.
+- Caching requires freshness metadata and explicit invalidation.
+- Optimistic UI is permitted only when rollback is safe and truthful.
 
-## 13. iPad experience
-
-The iPad app must be designed as an iPad application:
-
-- Split view/multi-column layouts
-- Deal list plus active Deal
-- Cockpit beside document or comparison
-- Drag and drop
-- Keyboard shortcuts
-- Pointer support
-- Multitasking
-- Large-form underwriting
-- Document review with source-linked findings
-- No stretched iPhone screens
-
-## 14. Guided and professional modes
+## 24. Guided and Professional Modes
 
 Guided mode may provide:
 
 - Explanations
-- Definitions
-- Recommended order
 - Examples
-- Verification prompts
-- RELearnIQ links
+- Recommended order
+- Definitions
+- Warnings
+- Progressive disclosure
 
 Professional mode may provide:
 
-- Denser layouts
-- Advanced inputs
-- Keyboard shortcuts
+- Higher density
+- Advanced fields
 - Batch actions
-- Formula/source detail
-- Comparison tables
+- Compact tables
+- Scenario and version controls
+- Faster keyboard workflows
 
-Both modes use identical canonical data, calculations, risks, and recommendations.
+Both modes use the same canonical records, calculations, and permissions.
 
-## 15. Accessibility
+## 25. Cross-Module Experience Contract
 
-- WCAG 2.2 AA for web
-- VoiceOver
-- Dynamic Type
-- Reduce Motion
-- Logical focus order
-- Sufficient contrast
-- Accessible chart summaries
-- Keyboard operation
-- Announced form errors
-- Platform-compliant touch targets
-- No color-only meaning
+Every module must define:
 
-## 16. Animation
-
-Animation is allowed only for orientation, state change, progress, confirmation, and useful reveal.
-
-Animation must be:
-
-- Short
-- Purposeful
-- Interruptible
-- Reduced under accessibility settings
-- Non-blocking
-- Performance-safe
-
-Marketing-style animation must not enter core workflows.
-
-## 17. Module connection pattern
-
-Every module screen must define:
-
-- Entry points
-- Canonical records read
-- Canonical records written
-- Events consumed
-- Events emitted
-- Tasks/deadlines created
-- Calculations affected
-- Recommendations affected
-- Reports affected
-- Timeline entries created
-- Notifications created
+- Navigation entry
+- Header/status behavior
+- Primary goal and action
+- Canonical records read and written
+- Dependencies
+- Domain events
+- Processing state
+- Freshness behavior
 - Failure fallback
-- Offline behavior
-- Reopen behavior
+- Timeline update
+- Task/deadline creation
+- Recommendation/calculation effect
+- Report consumption
+- Mobile behavior
 
-A module is incomplete if its outputs remain trapped inside that module.
+A module is incomplete if its output remains trapped in its own screen.
 
-## 18. UI/UX release gate
+## 26. Verification and Validation
 
-Do not release when:
+### Visual-system verification
 
-- A visible control is disconnected.
-- A screen ends without a logical next action.
-- A saved workflow cannot be reopened.
-- Web and iOS show contradictory material values.
-- A stale result appears current.
-- A background failure is silent.
-- An offline change can be overwritten without conflict handling.
-- A notification opens the wrong context.
-- The iPad app is a stretched phone layout.
-- The UI appears like an unstyled component library.
-- Accessibility breaks a core workflow.
-- Loading, error, stale, offline, permission, and conflict states have not been designed.
+- Typography, spacing, alignment, components, iconography, and semantic states follow canonical tokens.
+- The product does not look like an unstyled framework or a collection of unrelated modules.
+- Financial and risk information is legible and consistent.
 
-Before release, run the same realistic Deal journey on web, iPhone, iPad, PDF, spreadsheet, shared report, and admin. Material values, statuses, permissions, history, and next actions must reconcile.
+### Workflow verification
+
+- The user always knows location, active Deal, status, freshness, and next action.
+- Every visible control has working end-to-end behavior.
+- Long workflows save progress and reopen correctly.
+- Completion provides a logical next action.
+- No dead ends exist.
+
+### State verification
+
+- Loading, empty, partial, saved, processing, stale, offline, conflict, permission, retry, and failure states are intentionally implemented.
+- Background failures are visible and recoverable.
+- Prior valid results remain available.
+- No client displays stale data as current.
+
+### Cross-client verification
+
+- The same realistic Deal is reviewed on web, iPhone, iPad, PDF, spreadsheet, shared report, and admin.
+- Material values, statuses, history, permissions, and actions reconcile.
+- iPhone and iPad flows are platform-appropriate.
+
+### Accessibility verification
+
+- Keyboard-only web operation succeeds.
+- Screen-reader labels, order, and errors are correct.
+- Dynamic Type and VoiceOver preserve core native workflows.
+- Reduced motion and contrast requirements pass.
+
+### Production readiness
+
+- No dead controls, placeholder states, fake data, silent errors, endless spinners, disconnected navigation, contradictory values, or unmarked stale results remain.
+
+**DOCUMENT STATUS: REVIEWED AND REPAIRED**
