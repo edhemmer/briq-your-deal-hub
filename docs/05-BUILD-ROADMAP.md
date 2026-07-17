@@ -1,517 +1,355 @@
 # BRIX Real Estate — Production Build Roadmap
 
-## 1. Purpose
-
-This roadmap controls the rebuild order. BRIX is rebuilt as complete vertical slices inside the existing repository while retaining the connected Supabase, Vercel, domain, deployment, and Apple infrastructure.
-
-The old application code is reference material. A slice may reuse proven code only after inspection confirms it fits the new architecture, data model, security, UI/UX, and testing standards.
-
-## 2. Build discipline
-
-- Build one complete slice at a time.
-- Each slice must leave the product usable.
-- Do not open multiple unfinished architecture fronts.
-- Do not begin a dependent slice before its prerequisite is complete.
-- Shared infrastructure may be introduced early only when required by the active slice.
-- Every slice must satisfy the Product Constitution, Engineering Standards, Data Architecture, and UI/UX System.
-- Every slice must include web, backend, persistence, authorization, error recovery, tests, and applicable iPhone/iPad behavior.
-- Incomplete future navigation remains hidden behind feature flags.
-
-## 3. Slice completion template
-
-Before implementation:
-
-1. State the investor outcome.
-2. Inspect the repository.
-3. Identify reusable and rejected legacy code.
-4. State the user journey.
-5. State the canonical data path.
-6. State tables, storage, APIs, jobs, and events.
-7. State web/iPhone/iPad behavior.
-8. State loading, empty, error, stale, offline, conflict, and retry states.
-9. State files expected to change.
-10. State tests and measurable acceptance criteria.
-
-After implementation:
-
-1. Demonstrate the full journey.
-2. Verify save and reopen.
-3. Verify refresh/relaunch.
-4. Verify permissions and RLS.
-5. Verify no stale or split-brain state.
-6. Verify background failures and retry.
-7. Run relevant tests and builds.
-8. Record exact results.
-9. Confirm no unrelated files changed.
-10. Mark `SLICE COMPLETE` or `SLICE NOT COMPLETE`.
-
-## 4. Phase 0 — Controlled rebuild preparation
-
-### Outcome
-
-Create a clean rebuild boundary without disconnecting Supabase, Vercel, domains, or Apple infrastructure.
-
-### Required work
-
-- Preserve Git history.
-- Tag or document the last legacy baseline.
-- Establish the new application/package structure.
-- Inventory environment variables and connected services.
-- Separate accepted infrastructure from rejected application architecture.
-- Establish feature flags.
-- Establish CI quality gates.
-- Establish local, preview, staging, and production environment rules.
-- Establish error tracking, structured logging, and correlation IDs.
-- Establish migration and rollback process.
-- Establish current Apple project ownership, bundle identifiers, signing, capabilities, and App Store Connect connection.
-
-### Validation
-
-- Fresh clone installs.
-- Local web starts.
-- Local Supabase starts.
-- Preview deploy succeeds.
-- Production deployment remains connected but is protected from incomplete rebuild UI.
-- iOS project opens and builds in the supported environment.
-- No secrets are committed.
-
-## 5. Slice 1 — Authentication, workspace, and native session foundation
-
-### Outcome
-
-A real user can create or access an account, enter a workspace, close the client, return, and continue securely.
-
-### Includes
-
-- Sign up
-- Sign in
-- Sign out
-- Password reset
-- Password change
-- Session refresh
-- Session expiration
-- Native deep links
-- Keychain storage
-- Workspace creation
-- Membership and roles
-- Invitation acceptance
-- Account deletion foundation
-- RLS baseline
-- Responsive web auth
-- Native iPhone/iPad auth
-
-### Validation
-
-- All flows work end to end.
-- Password reset returns to the correct client.
-- Sessions survive refresh/relaunch.
-- Revoked sessions stop access.
-- Cross-workspace access is denied.
-- Error and offline states preserve user intent.
-
-## 6. Slice 2 — Premium application shell and navigation
-
-### Outcome
-
-Users enter a polished BRIX shell that preserves workspace and Deal context and contains no dead navigation.
-
-### Includes
-
-- Design tokens
-- Core components
-- Responsive web shell
-- Native iPhone shell
-- Native iPad shell
-- Global search foundation
-- Notifications foundation
-- Account/workspace menu
-- Background job status surface
-- Guided/professional mode preference
-- Loading/error boundaries
-- Accessibility foundation
-
-### Validation
-
-- Navigation works on supported sizes.
-- iPhone and iPad are independently designed.
-- Keyboard and VoiceOver paths work.
-- Every visible navigation item has a destination.
-- Active context survives navigation and relaunch.
-
-## 7. Slice 3 — Canonical Deal and Property lifecycle
-
-### Outcome
-
-A user can create, save, reopen, edit, archive, restore, and intentionally delete a Deal connected to a canonical Property.
-
-### Includes
-
-- Workspace, Property, Deal, stage history, activities, tasks, contacts, organizations, and domain events
-- Address normalization
-- Duplicate Property warning
-- Deal stages
-- Deal list and filters
-- Deal overview foundation
-- Audit history
-- Web/iPhone/iPad CRUD
-- Offline Deal draft creation on native clients
-
-### Validation
-
-- Deal lifecycle works.
-- Duplicate warning does not silently merge.
-- Save/reopen works across clients.
-- Offline draft reconciles safely.
-- Stage history and audit history are correct.
-
-## 8. Slice 4 — Property intake and source tracking
-
-### Outcome
-
-A user can create a meaningful Deal from address, listing URL, manual entry, or native share action.
-
-### Includes
-
-- Address search/geocoding
-- Listing URL intake
-- Manual intake
-- Source classification
-- Listing snapshot
-- Property facts
-- Public/county data provider abstraction
-- Tax, parcel, ownership, sale, permit, zoning, hazard, and association indicators where available
-- Source conflict display
-- Preliminary assumptions
-- Missing-information list
-
-### Validation
-
-- Intake methods work.
-- Provider failure permits manual continuation.
-- Estimates are labeled.
-- Re-import is idempotent.
-- Source history is preserved.
-
-## 9. Slice 5 — Deterministic underwriting foundation
-
-### Outcome
-
-A user can enter assumptions and receive authoritative, reproducible financial results.
-
-### Includes
-
-- Assumption sets
-- Underwriting snapshots/results
-- Acquisition and cash-required calculations
-- Debt schedules
-- Income/expense/NOI
-- Cash flow
-- Cap rate
-- Cash-on-cash
-- DSCR
-- Break-even occupancy
-- IRR/XIRR
-- NPV
-- Equity multiple
-- Return on cost
-- Maximum offer
-- Scenarios and sensitivities
-- Property-type calculation contracts
-- Formula explanations
-- Golden fixtures
-
-### Validation
-
-- Golden tests reconcile.
-- Same inputs/version produce same outputs.
-- Web/iOS/report values match.
-- Stale results are labeled after assumption changes.
-- Historical results remain reproducible.
-
-## 10. Slice 6 — Strategy intelligence
-
-### Outcome
-
-A user can compare the intended strategy against all compatible alternatives and understand why each ranks where it does.
-
-### Includes
-
-- Versioned strategy registry
-- Residential, multifamily, commercial, land, development, distressed, creative-finance, partnership, and portfolio strategies
-- Required inputs
-- Hard disqualifiers
-- Deterministic ranking
-- Risk and confidence
-- Investor-fit preferences
-- Strategy comparison UI
-- RELearnIQ links
-- Targeted re-ranking events
-
-### Validation
-
-- Every strategy has tests.
-- Selected strategy is not automatically favored.
-- Disqualifiers work.
-- Rankings are reproducible.
-- Explanations show binding factors.
-
-## 11. Slice 7 — Decision Cockpit
-
-### Outcome
-
-A user can understand the current Deal and make the next decision quickly.
-
-### Includes
-
-- Current recommendation
-- Strongest/selected strategy
-- Key numbers
-- Material risks
-- Confidence
-- Missing decision-changing information
-- Deadlines
-- Next action
-- Recent changes
-- Freshness and processing status
-- Guided/professional views
-- Before/after recommendation changes
-- Full Deal module navigation
-
-### Validation
-
-- A new Deal can progress to a recorded decision.
-- Every recommendation links to evidence and assumptions.
-- No stale recommendation appears current.
-- Resume behavior returns to the correct location.
-
-## 12. Slice 8 — Field workflow: VisitIQ, maps, routes, photos, and voice
-
-### Outcome
-
-A user can plan and complete property visits with weak connectivity.
-
-### Includes
-
-- Directions
-- Multi-property routes
-- Visit schedule/checklist
-- Camera and bulk photo capture
-- Video where appropriate
-- Voice recording and transcription
-- Offline capture
-- Background upload
-- Durable upload queue
-- Geotag controls
-- Visit summary
-- Suggested findings and assumption changes requiring confirmation
-
-### Validation
-
-- Media is not lost on app termination.
-- Failed uploads retry idempotently.
-- Route opens the correct Deal.
-- Voice/photo outputs attach to canonical evidence.
-- Offline changes sync safely.
-
-## 13. Slice 9 — MarketIQ and FinanceIQ
-
-### Outcome
-
-The Deal includes defensible market context and realistic financing structures.
-
-### Includes
-
-- Market/geographic evidence and freshness
-- Population, jobs, supply, vacancy, rent, sales, taxes, hazards, convenience, nuisances, infrastructure, and zoning context
-- Cash, residential, DSCR, commercial, bridge, hard money, construction, seller financing, assumable debt, creative structures where lawful, and multi-tranche financing
-- Debt schedules and constraints
-- Financing comparison
-- Impact on underwriting and strategy ranking
-
-### Validation
-
-- Market conclusions are source-linked.
-- Stale data is labeled.
-- Financing schedules reconcile.
-- No lender approval is implied.
-- Changed financing produces versioned re-underwriting.
-
-## 14. Slice 10 — GovernanceIQ and ContractIQ
-
-### Outcome
-
-A user can upload association and contract documents, understand material terms, create questions, and track deadlines.
-
-### Includes
-
-- PDF, Word, image, scan, email body, and attachments
-- Immutable evidence
-- Source-linked extraction
-- HOA/COA/POA rules, dues, reserves, assessments, rental/parking/pet/renovation restrictions
-- Contract parties, price, earnest money, financing, due diligence, title, survey, association, closing, possession, contingencies, defaults, remedies, deadlines, and amendments
-- Buyer/seller perspective
-- Questions for realtor, attorney, lender, builder, association, and insurer
-- Deadline/task creation
-
-### Validation
-
-- Original documents remain intact.
-- Findings link to pages/sections.
-- Unclear extraction is marked for verification.
-- Restrictions affect strategy compatibility.
-- No legal conclusion or representation is implied.
-
-## 15. Slice 11 — OfferIQ
-
-### Outcome
-
-A user can prepare, compare, revise, and track an offer using canonical underwriting, financing, evidence, and risk.
-
-### Includes
-
-- Price guidance and binding constraint
-- Earnest money
-- Financing
-- Credits
-- Contingencies
-- Dates
-- Escalation
-- Seller financing/creative terms where lawful
-- Residential, commercial LOI, land, and development structures
-- Revisions and counteroffers
-- Status/deadlines
-- Offer summary/export
-
-### Validation
-
-- Maximum offer is explainable.
-- Revisions preserve history.
-- Offer numbers reconcile to underwriting.
-- Status updates the Deal timeline.
-
-## 16. Slice 12 — InspectionIQ and AppraisalIQ
-
-### Outcome
-
-Professional reports can update the same Deal without erasing prior analysis.
-
-### Includes
-
-- Report ingestion
-- Source-linked findings
-- Severity and repair categories
-- Cost ranges and contractor-quote replacement
-- Appraised value, approaches, comps, rent, cap rate, conditions, and limitations
-- Versioned assumption changes
-- Before/after underwriting and recommendation
-
-### Validation
-
-- Findings link to source pages.
-- Inspection costs flow through accepted assumptions.
-- Appraisal does not silently overwrite other value opinions.
-- Conflicts remain visible.
-
-## 17. Slice 13 — Reports, portfolio comparison, sharing, and RELearnIQ
-
-### Outcome
-
-Users can compare opportunities, communicate decisions, and learn in context.
-
-### Includes
-
-- Deal report
-- Underwriting report
-- Strategy comparison
-- Risk/evidence summary
-- Visit/offer/contract/inspection/appraisal reports
-- PDF, Word where needed, spreadsheet, CSV
-- Secure share links
-- Portfolio comparison and visit planning
-- Contextual education for strategies, calculations, risks, and due diligence
-
-### Validation
-
-- Reports reconcile to canonical versions.
-- Shares are scoped and revocable.
-- Exports preserve units and currency.
-- Educational examples reconcile to the engine.
-
-## 18. Slice 14 — Admin, billing, usage, and operations
-
-### Outcome
-
-The platform owner can manage users, plans, limits, billing, usage, failures, and provider cost exposure safely.
-
-### Includes
-
-- User/workspace management
-- Roles and account status
-- Session revocation
-- Password-reset support without password access
-- Plans, trials, entitlements, cancellation, grace period, and reactivation
-- Feature flags and controlled overrides
-- API, AI, storage, processing, maps, and export usage
-- Cost alerts
-- Job queue and retry
-- Audit logs
-- Data deletion status
-- Support notes
-
-### Validation
-
-- Admin access is server-enforced and audited.
-- Entitlements reconcile.
-- Limits are server-enforced.
-- Usage is idempotent.
-- Secrets/passwords are not exposed.
-
-## 19. Slice 15 — Native hardening and Apple release
-
-### Outcome
-
-The native iPhone and iPad applications are production-ready and accepted by App Store Connect validation.
-
-### Includes
-
-- Native SwiftUI refinement
-- Keychain
-- Deep links and Universal Links
-- Camera, microphone, files, Photos, Maps
-- Background upload
-- Offline queue
-- Push notifications where useful
-- Dynamic Type, VoiceOver, Reduce Motion
-- Privacy manifests and permission descriptions
+## 1. Authority and Rules of Engagement
+
+This roadmap controls implementation order. It is governed by:
+
+- `docs/00-START-HERE.md`
+- `docs/01-PRODUCT-CONSTITUTION.md`
+- `docs/02-ENGINEERING-STANDARDS.md`
+- `docs/03-DATA-ARCHITECTURE.md`
+- `docs/04-UI-UX-SYSTEM.md`
+
+Permanent roadmap rules:
+
+1. Build vertical, usable slices rather than disconnected horizontal layers.
+2. Complete and verify each specification before beginning a dependent specification.
+3. Reuse canonical records, services, contracts, components, tasks, evidence, timeline, and calculations.
+4. No chapter is complete when only UI, schema, or mock logic exists.
+5. Every completed slice must save, reopen, recover, integrate, and deploy.
+6. Incomplete capabilities remain hidden behind explicit feature flags.
+7. Later work may introduce shared infrastructure earlier only when required, documented, tested, and not presented as completion of the later capability.
+8. No implementation may weaken the product, engineering, data, UI/UX, security, or verification standards.
+9. Every chapter starts with its Rules of Engagement and ends with Verification, Validation, Integration, and Definition of Done.
+10. The build may not advance when a material dependency is `NOT COMPLETE`.
+
+## 2. Build Strategy
+
+BRIX is rebuilt inside the existing repository while retaining approved infrastructure such as GitHub, Supabase, Vercel, domains, secrets, and Apple project configuration.
+
+Existing application code is reference material unless explicitly accepted during implementation. The rebuild must not inherit architectural debt by default.
+
+Each build slice must produce a working, testable user outcome across the applicable clients and connected systems.
+
+## 3. Stage Gates
+
+Every specification moves through:
+
+1. **Specified** — implementation contract is complete and internally consistent.
+2. **Ready** — dependencies, schemas, contracts, design, tests, and environments are prepared.
+3. **In Progress** — implementation is actively scoped.
+4. **Implemented** — code path exists end to end.
+5. **Verified** — tests and manual checks pass.
+6. **Integrated** — connected modules and clients reconcile.
+7. **Release Ready** — security, performance, accessibility, observability, and deployment gates pass.
+8. **Complete** — evidence is recorded and no material limitation is hidden.
+
+A specification may not skip directly from Specified to Complete.
+
+## 4. Required Build Sequence
+
+### Foundation documents
+
+- `docs/00-START-HERE.md`
+- `docs/01-PRODUCT-CONSTITUTION.md`
+- `docs/02-ENGINEERING-STANDARDS.md`
+- `docs/03-DATA-ARCHITECTURE.md`
+- `docs/04-UI-UX-SYSTEM.md`
+- `docs/05-BUILD-ROADMAP.md`
+
+### Implementation specifications
+
+1. `specs/001-authentication-and-workspaces.md`
+2. `specs/002-dashboard-and-application-shell.md`
+3. `specs/003-deals-and-pdrm-core.md`
+4. `specs/004-property-intake-and-source-tracking.md`
+5. `specs/005-deterministic-underwriting-engine.md`
+6. `specs/006-strategy-intelligence-engine.md`
+7. `specs/007-decision-cockpit.md`
+8. `specs/008-marketiq-and-location-intelligence.md`
+9. `specs/009-financeiq-and-capital-structure.md`
+10. `specs/010-governanceiq-associations-and-restrictions.md`
+11. `specs/011-contractiq-and-real-estate-document-intelligence.md`
+12. `specs/012-offeriq-and-negotiation-management.md`
+13. `specs/013-photoiq-and-visual-evidence.md`
+14. `specs/014-visitiq-maps-routes-and-voice-notes.md`
+15. `specs/015-inspectioniq-and-appraisaliq.md`
+16. `specs/016-evidence-email-files-and-audit.md`
+17. `specs/017-reportiq-sharing-and-portfolio-comparison.md`
+18. `specs/018-relearniq.md`
+19. `specs/019-admin-billing-usage-and-operations.md`
+20. `specs/020-native-iphone-and-ipad-production.md`
+21. `specs/021-ai-orchestration-safety-and-explainability.md`
+22. `specs/022-notifications-tasks-and-deadlines.md`
+23. `specs/023-landing-help-and-conversion.md`
+24. `specs/024-testing-observability-and-release-readiness.md`
+
+The exact later filenames may be refined before creation, but numbering, ownership, and dependencies must remain explicit and non-duplicative.
+
+## 5. Phase 1 — Secure Product Foundation
+
+### 001 Authentication and Workspaces
+
+Delivers:
+
+- Complete account lifecycle
+- Session handling
+- Workspace creation and membership
+- Invitations and roles
+- RLS and storage isolation
+- Native deep links and Keychain storage
 - Account deletion
-- Reviewer access
-- App Store metadata/screenshots
-- Archive, validation, and TestFlight
 
-### Validation
+Gate: A user can securely create an account, create/join a workspace, sign in/out, reset a password, lose access when revoked, and delete the account according to policy.
 
-- Fresh install works.
-- Core Deal journey works on device.
-- Offline capture and sync work.
-- iPhone/iPad layouts are production quality.
-- Archive succeeds.
-- App Store validation succeeds.
-- TestFlight upload succeeds.
+### 002 Dashboard and Application Shell
 
-## 20. Final production release gate
+Delivers:
 
-BRIX may be called production-ready only when:
+- Premium responsive web shell
+- Native iPhone and iPad shells
+- Global navigation and search
+- Deal context preservation
+- Notifications and background-job surfaces
+- Guided/professional mode foundation
 
+Gate: All shell navigation, permissions, deep links, loading states, and device layouts work without dead destinations.
+
+### 003 Deals and PDRM Core
+
+Delivers:
+
+- Canonical Property and Deal records
+- Lifecycle and stage transitions
+- Contacts and relationships
+- Tasks, deadlines, timeline, notes, and activity
+- Archive, restore, and deletion behavior
+- Search and filtering
+
+Gate: A Deal can be created, saved, reopened, updated, searched, archived, restored, and connected to canonical workflow records.
+
+## 6. Phase 2 — Opportunity Intake and Core Analysis
+
+### 004 Property Intake and Source Tracking
+
+Delivers address, listing URL, manual, file/email, share-extension, and package intake with duplicate detection, source classification, conflicts, and preliminary assumptions.
+
+Gate: Intake remains usable when providers fail and never presents estimates as confirmed facts.
+
+### 005 Deterministic Underwriting Engine
+
+Delivers immutable snapshots, versioned formulas, property-type models, scenarios, validation, and authoritative results.
+
+Gate: Golden fixtures reconcile independently and all clients/exports use the same result.
+
+### 006 Strategy Intelligence Engine
+
+Delivers versioned strategy registry, compatibility, disqualifiers, scoring, ranking, confidence, and explanation.
+
+Gate: Ranking is deterministic, hard disqualifiers cannot be hidden, and new evidence causes targeted re-evaluation.
+
+### 007 Decision Cockpit
+
+Delivers the central Deal decision workspace with recommendation, financials, risk, confidence, missing inputs, deadlines, changes, and evidence links.
+
+Gate: A user can understand the current Deal position and next action without navigating through every module.
+
+## 7. Phase 3 — External Context and Transaction Structure
+
+### 008 MarketIQ
+
+Delivers source-linked market, location, convenience, growth, liquidity, hazard, infrastructure, tax, and local-risk context.
+
+Gate: Conclusions disclose geography, timeframe, source, method, confidence, and staleness.
+
+### 009 FinanceIQ
+
+Delivers simple and complex capital structures, debt/equity tranches, lender conditions, feasibility, comparison, and canonical calculation integration.
+
+Gate: Debt schedules and outputs reconcile; financing changes trigger versioned re-underwriting.
+
+### 010 GovernanceIQ
+
+Delivers HOA/COA/POA and private-governance document analysis, restrictions, financial health, parking/trailer, leasing, renovation, insurance, and strategy impact.
+
+Gate: Findings link to source sections and restrictions affect strategy compatibility without becoming legal conclusions.
+
+### 011 ContractIQ
+
+Delivers document intake, source-linked extraction, perspectives, conflicts, deadlines, questions, and explicit accepted changes.
+
+Gate: Originals remain intact, deadlines are deterministic, and no extraction silently mutates the Deal.
+
+## 8. Phase 4 — Offer, Field, and Due Diligence
+
+### 012 OfferIQ
+
+Delivers maximum-offer logic, offer structures, revisions, counters, status, negotiation history, deadlines, and professional-review outputs.
+
+### 013 PhotoIQ
+
+Delivers organized visual evidence, pixel-based observations, confidence, correction, and accepted repair/condition proposals.
+
+### 014 VisitIQ
+
+Delivers maps, multi-property routes, field checklists, offline capture, photos, video, voice, transcription, and visit summaries.
+
+### 015 InspectionIQ and AppraisalIQ
+
+Delivers source-linked professional report intake and controlled proposals into assumptions, risk, value, financing, and recommendation.
+
+Each gate requires offline/retry behavior where applicable, explicit user acceptance before changing canonical assumptions, and before/after recommendation history.
+
+## 9. Phase 5 — Evidence, Reporting, Education, and Portfolio
+
+### 016 Evidence, Email, Files, and Audit
+
+Completes the durable evidence platform, email ingestion, immutable originals, extraction history, conflicts, retention, and audit trail.
+
+### 017 ReportIQ, Sharing, and Portfolio Comparison
+
+Delivers canonical PDF, spreadsheet, CSV, Word where required, secure share links, property comparison, and portfolio pipeline.
+
+### 018 RELearnIQ
+
+Delivers contextual education for strategies, calculations, risks, financing, due diligence, and professional questions.
+
+Gates require canonical reconciliation, source/version disclosure, accessible outputs, and secure sharing.
+
+## 10. Phase 6 — Platform Operations and Native Production
+
+### 019 Admin, Billing, Usage, and Operations
+
+Delivers authorized user/workspace support, plans, entitlements, limits, usage, cost exposure, background-job operations, support notes, and audits.
+
+### 020 Native iPhone and iPad Production
+
+Hardens native clients for camera, voice, files, maps, background upload, offline sync, accessibility, privacy, TestFlight, and App Store review.
+
+### 021 AI Orchestration
+
+Delivers provider routing, workflow/prompt versioning, evidence linkage, safety, cost metering, prompt-injection resistance, and manual fallback.
+
+### 022 Notifications, Tasks, and Deadlines
+
+Completes multi-channel, idempotent, deep-linked, timezone-aware workflow notification behavior.
+
+## 11. Phase 7 — Public Experience and Release
+
+### 023 Landing, Help, and Conversion
+
+Delivers accurate public positioning, product examples, pricing, security, help, legal pages, and signup flow without unsupported claims.
+
+### 024 Testing, Observability, and Release Readiness
+
+Completes critical E2E coverage, monitoring, alerts, backup/restore, incident response, performance, security, privacy, deployment, rollback, and App Store release evidence.
+
+## 12. Vertical Slice Requirements
+
+Each implementation task must include the complete path:
+
+`User action → client validation → authorization → persistence → domain logic → canonical result → event/audit → connected updates → user feedback → save/reopen → recovery`
+
+The task is incomplete if any required link is missing.
+
+## 13. Dependency Rules
+
+- Authentication and workspace security precede workspace data.
+- Canonical Deal and Property precede all Deal modules.
+- Intake precedes authoritative underwriting.
+- Underwriting precedes strategy ranking.
+- Strategy and underwriting precede Decision Cockpit completion.
+- Evidence and versioning patterns apply from the first module, even before the dedicated evidence-hardening phase.
+- FinanceIQ, GovernanceIQ, and ContractIQ must integrate with accepted facts and controlled recalculation.
+- OfferIQ depends on current underwriting, strategy, market, financing, governance, and contract context.
+- Reports may not create independent calculations.
+- Native clients consume the same contracts and backend as web.
+
+## 14. Chapter Start Gate
+
+Before implementation, record:
+
+- Governing files read
+- Exact scope and user outcome
+- Existing implementation accepted or rejected
+- Canonical ownership
+- Dependencies
+- Complete UX and data flow
+- States and failure recovery
+- Files/migrations/functions expected to change
+- Tests required
+- Cross-module effects
+- Rollback or containment plan
+
+## 15. Chapter Completion Gate
+
+Before marking complete, verify:
+
+- Happy path
+- Loading, empty, partial, stale, offline, conflict, permission, retry, and failure states
+- Save and reopen
+- Idempotency
+- RLS and authorization
+- Background-job durability
+- Cross-module event flow
+- Web/iPhone/iPad consistency
+- Report/export consistency
+- Accessibility
+- Performance
+- Production build
+- Exact test commands/results
+- No unrelated changes
+
+## 16. Release Milestones
+
+### Internal Alpha
+
+- Foundation through Decision Cockpit works end to end.
+- Golden calculations pass.
+- Core security and RLS pass.
+- No fake production states.
+
+### Private Beta
+
+- Market, finance, governance, contract, offer, field, and due-diligence flows work.
+- Reports and portfolio comparison reconcile.
+- Native field workflows are reliable.
+- Monitoring and support are active.
+
+### Production Release
+
+- Critical E2E journey passes on all supported clients.
 - P0/P1 defects are closed.
-- Critical E2E journeys pass.
-- Formula golden tests pass.
-- RLS and storage tests pass.
+- Privacy and App Store requirements pass.
 - Backups and restore are tested.
-- Web production build and deployment succeed.
-- Rollback is documented.
-- Monitoring and alerts are active.
-- Provider failures and retry paths are tested.
-- Admin cost visibility is active.
-- Privacy, legal, support, and account deletion paths work.
-- iOS archive, validation, and TestFlight succeed.
-- No dead controls, fake data, disconnected modules, unlabeled stale states, silent failures, or placeholder production behavior remain.
+- Billing/entitlements and cost controls work.
+- Deployment and rollback are proven.
+- No visible incomplete capability remains.
+
+## 17. Verification and Validation
+
+### Sequence verification
+
+- Every current specification exists once, uses the approved filename, and references only authoritative dependencies.
+- No duplicate, premature, or superseded specification remains active.
+- Later work has not bypassed an incomplete dependency.
+
+### Slice verification
+
+- Each completed slice produces a real user outcome.
+- Data persists and reopens.
+- Connected modules update through canonical events.
+- Failures preserve user work and valid prior results.
+- No stale result is presented as current.
+
+### Cross-client verification
+
+- The same Deal can be continued on web, iPhone, and iPad.
+- Reports, exports, shared views, and admin reconcile to the canonical Deal.
+- Deep links and notifications open the correct context.
+
+### Production-readiness verification
+
+- Security, RLS, accessibility, performance, observability, background jobs, backup/restore, deployment, and rollback requirements are met at each relevant milestone.
+
+**DOCUMENT STATUS: REVIEWED AND REPAIRED**
