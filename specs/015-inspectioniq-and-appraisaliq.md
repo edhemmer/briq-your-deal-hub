@@ -2,530 +2,567 @@
 
 ## 1. Authority and Rules of Engagement
 
-This specification is governed by `docs/00-START-HERE.md` through `docs/05-BUILD-ROADMAP.md` and Specifications 001–014.
+This specification is governed by:
 
-Rules:
+- `docs/00-START-HERE.md`
+- `docs/01-PRODUCT-CONSTITUTION.md`
+- `docs/02-ENGINEERING-STANDARDS.md`
+- `docs/03-DATA-ARCHITECTURE.md`
+- `docs/04-UI-UX-SYSTEM.md`
+- `docs/05-BUILD-ROADMAP.md`
+- Specifications `001` through `014`
 
-1. InspectionIQ and AppraisalIQ use the canonical Workspace, Deal, Property, Evidence, task, timeline, contact, underwriting, strategy, financing, offer, contract, report, notification, and audit systems.
-2. Original inspection reports, appraisal reports, addenda, photographs, repair estimates, contractor bids, emails, and supporting documents remain immutable Evidence.
-3. Every material extracted fact, condition, valuation input, adjustment, repair item, or conclusion must link to its source page, section, image, table, exhibit, or other source anchor where possible.
-4. AI may extract, classify, summarize, compare, explain, and propose verification questions. AI may not issue inspection-grade conclusions, certify building condition, perform an appraisal, determine legal compliance, or silently alter canonical values.
-5. InspectionIQ and AppraisalIQ may propose changes to assumptions, values, repair budgets, timelines, tasks, financing, strategy, or recommendation. No proposal becomes canonical without an explicit authorized acceptance workflow.
-6. Prior accepted values, underwriting snapshots, recommendations, and source documents must remain preserved and versioned.
-7. Conflicting inspections, contractor bids, appraisals, market opinions, user assumptions, and public data must remain visible until resolved or explicitly accepted.
-8. No failed reprocessing job may erase or replace a prior valid result.
-9. Web, iPhone, iPad, reports, exports, notifications, and the Decision Cockpit must show the same canonical state.
-10. Every asynchronous operation must expose queued, processing, partial, complete, failed, stale, conflicted, and retry states.
-11. InspectionIQ does not replace a licensed inspector, engineer, architect, contractor, environmental professional, code official, or other qualified specialist.
-12. AppraisalIQ does not replace a licensed or certified appraiser and must never represent its output as an appraisal.
+Codex must re-read the governing documents and all connected specifications before implementation.
 
----
+Rules of engagement:
+
+1. InspectionIQ and AppraisalIQ use the canonical Workspace, Deal, Property, Evidence, contact, task, timeline, underwriting, strategy, financing, contract, offer, photo, visit, report, notification, and audit systems.
+2. Original inspection and appraisal files remain immutable Evidence.
+3. AI may extract, classify, summarize, compare, and propose follow-up questions; AI may not issue final inspection, engineering, appraisal, lending, legal, tax, insurance, or valuation conclusions.
+4. Every material finding must retain source page, section, image, table, addendum, or other source anchor where possible.
+5. Low-confidence, illegible, incomplete, conflicting, estimated, or missing information must be marked for verification.
+6. No extracted finding may silently overwrite canonical Property facts, underwriting assumptions, value opinions, financing inputs, strategy results, OfferIQ terms, ContractIQ terms, tasks, deadlines, or recommendations.
+7. Accepted changes must flow through explicit, versioned proposals and the owning subsystem.
+8. A contractor quote, specialist report, repair invoice, appraisal revision, reconsideration, or new inspection must preserve prior versions and supersession history.
+9. Inspection findings and appraisal opinions are separate evidence classes and must never be merged into one generic risk score.
+10. A failed reprocessing job must preserve the original file and prior valid analysis.
+11. Web, iPhone, iPad, reports, exports, notifications, and Decision Cockpit must display the same canonical state.
+12. This chapter is complete only when the complete source-to-decision workflow saves, reopens, retries, reconciles, and updates connected modules without stale or contradictory state.
 
 ## 2. Mission
 
-InspectionIQ converts professional inspection evidence and property-condition findings into a structured, source-linked due-diligence record that can update repair scope, capital needs, negotiation position, deadlines, risks, and strategy analysis.
+InspectionIQ converts professional inspection and specialist reports into source-linked condition findings, repair needs, risk classifications, cost proposals, verification tasks, and Deal impacts.
 
-AppraisalIQ converts appraisal evidence and valuation inputs into a structured, source-linked valuation record that can update value confidence, financing feasibility, offer strategy, refinance analysis, exit analysis, and strategy ranking.
+AppraisalIQ converts appraisal reports and revisions into source-linked value opinions, comparable evidence, income and cost approach data, appraisal conditions, confidence, financing implications, and Deal impacts.
 
-Together, these subsystems must answer:
+Together they must answer:
 
-1. What evidence was received?
-2. What material facts and findings were identified?
-3. Which findings are confirmed, estimated, inferred, disputed, or missing?
-4. Which issues affect safety, habitability, insurability, financing, operations, repair cost, value, or strategy?
-5. Which values and adjustments drive the appraisal conclusion?
-6. How do inspection and appraisal findings change the Deal?
-7. Which follow-up questions, specialists, bids, repairs, negotiations, or deadlines are required?
-8. What changed from the prior underwriting and recommendation?
+- What was inspected or appraised?
+- Which source document and version controls?
+- What was observed or concluded?
+- What is confirmed, estimated, assumed, incomplete, conflicting, or missing?
+- Which findings change repair assumptions, capital needs, financing, offer position, contract rights, strategy viability, risk, or recommendation?
+- What requires a licensed or specialized professional?
+- What changed from the prior Deal state?
+- What should the investor do next?
 
----
+## 3. Scope Boundaries
 
-## 3. Scope
+### InspectionIQ owns
 
-### 3.1 InspectionIQ
+- Inspection report intake and preservation
+- Condition finding extraction
+- System/component classification
+- Severity, urgency, safety, and specialist-review flags
+- Repair and replacement proposal workflow
+- Contractor quote reconciliation
+- Inspection contingency and repair-negotiation support
+- Inspection follow-up tasks
+- Source-linked inspection summaries
 
-InspectionIQ supports:
+### InspectionIQ does not own
 
-- General residential inspections
-- Commercial property condition assessments
-- Multifamily inspections
-- Roof, HVAC, electrical, plumbing, structural, foundation, environmental, septic, well, sewer, pool, elevator, fire/life-safety, accessibility, mold, radon, lead, termite, pest, drainage, envelope, facade, parking, pavement, and specialist reports
-- Builder punch lists
-- Capital-needs assessments
-- Reserve studies
-- Contractor estimates and repair proposals
-- Repair credits and seller-response documents
-- User field observations from VisitIQ and PhotoIQ
-- Reinspection and completion verification
+- Final engineering conclusions
+- Environmental testing conclusions
+- Insurance coverage conclusions
+- Legal rights under a contract
+- Authoritative repair costs without accepted evidence
+- Underwriting calculations
+- Offer or contract mutation
 
-### 3.2 AppraisalIQ
+### AppraisalIQ owns
 
-AppraisalIQ supports:
+- Appraisal intake and preservation
+- Appraisal report classification and versioning
+- Value opinion extraction
+- Comparable and adjustment extraction
+- Income, sales, and cost approach extraction
+- Appraisal assumptions and limiting conditions
+- Appraisal-required repairs or completion conditions
+- Revision, reconsideration, and dispute workflow
+- Source-linked appraisal summaries
 
-- Residential appraisal reports
-- Commercial appraisal reports
-- Desktop and exterior-only reports where identified
-- Broker price opinions and comparative market analyses as separate non-appraisal classes
-- Appraisal reviews
-- Rent schedules
-- Income-capitalization exhibits
-- Cost-approach exhibits
-- Comparable-sale grids
-- Land and development valuation reports
-- Portfolio and multi-property appraisal packages
-- Appraisal updates, recertifications, reconsideration-of-value packages, and addenda
+### AppraisalIQ does not own
 
----
+- Final lender approval
+- MarketIQ’s broader market model
+- Underwriting calculations
+- Legal property-rights interpretation
+- A universal true-value determination
+- Silent replacement of user, broker, assessor, AVM, or prior appraisal values
 
-## 4. Canonical Ownership
-
-### 4.1 Inspection entities
-
-Required canonical entities:
-
-- `inspection_records`
-- `inspection_sources`
-- `inspection_findings`
-- `inspection_systems`
-- `inspection_recommendations`
-- `inspection_cost_estimates`
-- `inspection_conflicts`
-- `inspection_followups`
-- `inspection_reinspection_events`
-
-Each inspection record must include:
-
-- Workspace, Deal, and Property IDs
-- Inspection type
-- Provider/contact/organization
-- Inspection date
-- Report date
-- Status
-- Scope and limitations
-- Source Evidence IDs
-- Verification state
-- Analysis state
-- Version
-- Superseded/reinspection relationships
-- Created/updated metadata
-
-### 4.2 Appraisal entities
-
-Required canonical entities:
-
-- `appraisal_records`
-- `appraisal_sources`
-- `appraisal_value_conclusions`
-- `appraisal_approaches`
-- `appraisal_comparables`
-- `appraisal_adjustments`
-- `appraisal_income_inputs`
-- `appraisal_cost_inputs`
-- `appraisal_conditions`
-- `appraisal_conflicts`
-- `appraisal_review_items`
-
-Each appraisal record must include:
-
-- Workspace, Deal, and Property IDs
-- Appraisal class and intended use
-- Appraiser/contact/organization
-- Effective date
-- Report date
-- Property rights appraised
-- Intended user/client where available
-- Status
-- Source Evidence IDs
-- Verification and analysis state
-- Version
-- Superseded/update relationships
-- Created/updated metadata
-
-### 4.3 Ownership boundaries
-
-InspectionIQ owns structured condition findings and proposed condition-related changes. It does not own canonical underwriting results, strategy results, contracts, offers, or financing results.
-
-AppraisalIQ owns structured appraisal evidence and valuation conclusions. It does not own the canonical active value assumption unless an authorized user accepts a proposed change through the standard change workflow.
-
----
-
-## 5. InspectionIQ Extraction Contract
-
-InspectionIQ must extract and classify, where applicable:
-
-### 5.1 Report identity and limitations
-
-- Inspector/provider
-- License or credential text where present
-- Inspection date
-- Report date
-- Property address
-- Client
-- Scope
-- Systems excluded
-- Areas inaccessible
-- Weather and occupancy conditions
-- Standards of practice
-- Limitations and disclaimers
-
-### 5.2 System and component findings
-
-At minimum:
-
-- Site and drainage
-- Foundation and structure
-- Exterior and envelope
-- Roof
-- Attic and insulation
-- Interior
-- Windows and doors
-- Electrical
-- Plumbing
-- Water and sewer/septic
-- HVAC and ventilation
-- Fire and life safety
-- Appliances and equipment
-- Garage and parking
-- Accessibility
-- Environmental concerns
-- Common areas and amenities
-- Commercial building systems
-- Deferred maintenance
-- Code or permit observations where explicitly stated
-
-Each finding must preserve:
-
-- System/component
-- Location
-- Observation
-- Reported condition
-- Severity
-- Urgency
-- Safety relevance
-- Functional impact
-- Probable cause only when explicitly stated or clearly labeled as inference
-- Recommended action
-- Recommended specialist
-- Source anchor
-- Confidence
-- Verification state
-- Materiality
-
-### 5.3 Severity and urgency
-
-Supported severity:
-
-- Informational
-- Maintenance
-- Minor defect
-- Material defect
-- Major defect
-- Safety concern
-- Potential immediate hazard
-- Specialist evaluation required
-- Unable to determine
-
-Supported timing:
-
-- Monitor
-- Routine maintenance
-- Before closing
-- Immediate
-- Within 30 days
-- Within 12 months
-- Within 1–3 years
-- Capital planning
-- Unknown
-
-Severity and timing must remain distinct.
-
----
-
-## 6. Inspection Cost and Repair Workflow
+## 4. Supported Inspection Evidence
 
 InspectionIQ must support:
 
-- System-generated preliminary cost ranges clearly labeled as estimates
-- User-entered estimates
-- Inspector estimates
-- Contractor bids
-- Seller credits
-- Repair escrows
-- Insurance-related estimates
-- Capital reserve allocations
+- General home inspection
+- Commercial property condition assessment
+- Multifamily inspection
+- Roof inspection
+- HVAC inspection
+- Plumbing inspection
+- Electrical inspection
+- Structural engineering report
+- Foundation report
+- Sewer scope
+- Septic inspection
+- Well inspection
+- Pool/spa inspection
+- Chimney/fireplace inspection
+- Pest/termite report
+- Mold assessment
+- Radon report
+- Lead/asbestos-related report where lawfully handled
+- Environmental site assessment
+- Fire/life-safety inspection
+- Elevator inspection
+- Accessibility review
+- Energy audit
+- Insurance loss-control report
+- Municipal code or occupancy inspection
+- Contractor estimate
+- Specialist estimate
+- Repair invoice
+- Warranty document
+- Builder punch list
+- Reinspection report
 
-Cost precedence:
+## 5. Supported Appraisal Evidence
 
-1. Accepted executed repair agreement or paid invoice
-2. Accepted contractor bid
-3. Verified specialist estimate
-4. Inspector-provided estimate
-5. User-entered estimate
-6. System preliminary range
+AppraisalIQ must support:
 
-A newer source does not automatically replace a stronger source classification.
+- Residential appraisal
+- Commercial narrative appraisal
+- Restricted appraisal report
+- Desktop appraisal
+- Hybrid appraisal
+- Drive-by/exterior appraisal
+- Land appraisal
+- Agricultural appraisal
+- Multifamily appraisal
+- Income-property appraisal
+- Portfolio appraisal
+- Construction appraisal
+- As-is value
+- As-completed value
+- As-stabilized value
+- Prospective value
+- Retrospective value
+- Appraisal review
+- Appraisal update
+- Reconsideration of value
+- Lender revision request
+- Final completion inspection
 
-For each repair item, store:
+## 6. Intake and Evidence Handling
 
-- Scope
-- Quantity/unit
-- Low/base/high cost
+Supported intake:
+
+- PDF
+- Word
+- Image/scanned report
+- Multi-file report package
+- Email body and attachments
+- iOS share extension
+- Camera capture
+- File picker
+- Drag and drop
+- Forwarded email ingestion
+- Manual structured entry
+
+For every source:
+
+- Preserve original bytes and metadata.
+- Calculate a hash.
+- Record uploader, received date, effective date, report date, provider, and document type.
+- Detect duplicates and likely revisions.
+- Create canonical Evidence.
+- Associate with the correct Deal and Property.
+- Expose upload, queue, processing, partial, review, complete, failed, stale, and superseded states.
+- Allow manual continuation when extraction fails.
+- Never discard a report because parsing is incomplete.
+
+## 7. Canonical Data Model
+
+### `inspection_reports`
+
+Required fields:
+
+- `id`
+- `workspace_id`
+- `deal_id`
+- `property_id`
+- `source_evidence_id`
+- `report_type`
+- `provider_contact_id`
+- `inspection_date`
+- `report_date`
+- `status`
+- `version_number`
+- `supersedes_report_id`
+- `analysis_state`
+- `verification_state`
+- `created_by`
+- `created_at`
+- `updated_at`
+
+### `inspection_findings`
+
+Required fields:
+
+- `id`
+- `inspection_report_id`
+- `system_category`
+- `component`
+- `location`
+- `finding_type`
+- `observation`
+- `suspected_cause`
+- `severity`
+- `urgency`
+- `safety_flag`
+- `specialist_required`
+- `repair_or_replace`
+- `estimated_cost_low`
+- `estimated_cost_high`
+- `currency_code`
+- `source_page`
+- `source_section`
+- `source_anchor`
+- `source_image_id`
+- `confidence`
+- `verification_state`
+- `status`
+- `created_at`
+- `updated_at`
+
+### `inspection_cost_proposals`
+
+Store:
+
+- Finding or grouped findings
+- Proposed scope
+- Cost range
 - Source classification
-- Effective date
-- Included contingency
-- Timing
-- Responsible party
+- Contractor quote linkage
 - Accepted amount
+- Contingency
+- Timing
+- Capital-versus-operating classification
+- Underwriting change proposal
+- OfferIQ repair-credit proposal
+- ContractIQ repair-request linkage
+- Approval/rejection/defer status
+
+### `inspection_followups`
+
+Store:
+
+- Follow-up type
+- Responsible party
+- Specialist role
+- Due date
 - Related finding
-- Related OfferIQ or ContractIQ term
-- Underwriting impact proposal
+- Canonical task ID
+- Resolution state
+- Resolution Evidence
 
-Accepted cost changes must create a new underwriting snapshot and preserve before-and-after results.
+### `appraisal_reports`
 
----
+Required fields:
 
-## 7. Inspection Conflict and Reinspection Logic
+- `id`
+- `workspace_id`
+- `deal_id`
+- `property_id`
+- `source_evidence_id`
+- `appraisal_type`
+- `appraiser_contact_id`
+- `client_name`
+- `intended_user`
+- `intended_use`
+- `effective_date`
+- `report_date`
+- `property_rights_appraised`
+- `value_premise`
+- `currency_code`
+- `status`
+- `version_number`
+- `supersedes_report_id`
+- `analysis_state`
+- `verification_state`
+- `created_at`
+- `updated_at`
 
-The system must detect and preserve conflicts such as:
+### `appraisal_value_opinions`
 
-- Two inspections disagree on severity or existence
-- Contractor bid scope differs from inspector recommendation
-- Seller claims completed repair but no verification exists
-- Reinspection indicates incomplete or failed work
-- PhotoIQ evidence conflicts with report wording
-- User field observation conflicts with professional report
+Store separately:
 
-Resolution states:
-
-- Unresolved
-- Additional evidence required
-- Specialist review required
-- User accepted source A
-- User accepted source B
-- Both retained
-- Superseded by reinspection
-- Closed with rationale
-
-Reinspection must link to the original finding and record whether the item is corrected, partially corrected, unchanged, worsened, inaccessible, or disputed.
-
----
-
-## 8. AppraisalIQ Extraction Contract
-
-AppraisalIQ must extract and classify, where applicable:
-
-### 8.1 Report identity
-
-- Appraiser and firm
-- License/certification text where present
-- Client and intended user
-- Intended use
-- Effective date
-- Report date
-- Property rights appraised
-- Interest appraised
-- Appraisal type and scope
-- Extraordinary assumptions
-- Hypothetical conditions
-- Limiting conditions
-
-### 8.2 Subject property
-
-- Address and parcel identifiers
-- Legal description
-- Property type
-- Site area
-- Building area
-- Unit count
-- Year built/effective age
-- Condition and quality ratings
-- Zoning and use
-- Occupancy
-- Highest and best use conclusion
-- Flood/environmental references
-- Tax and assessment data
-- Lease and rent information
-
-### 8.3 Value conclusions
-
-For every conclusion:
-
-- Value amount
-- Currency
-- Value type
-- Effective date
-- Property rights
-- As-is, prospective, stabilized, completion, liquidation, land, or other condition
-- Approach or reconciliation source
-- Confidence/verification
+- As-is value
+- As-completed value
+- As-stabilized value
+- Prospective value
+- Retrospective value
+- Land value
+- Insurable/replacement value when stated
+- Value date
+- Approach relied upon
+- Reconciliation weight
 - Source anchor
+- Confidence
+- Verification state
 
-The system must support multiple value conclusions in one report and must never flatten them into one unlabeled number.
+### `appraisal_comparables`
 
-### 8.4 Sales comparison approach
+Store:
 
-For each comparable:
-
-- Address/location
-- Sale/list status
-- Sale date
-- Sale price
-- Unit of comparison
-- Property characteristics
-- Distance where available
-- Data source
-- Verification source
+- Comparable address and identifier
+- Sale/lease date
+- Sale price or rent
+- Unit and property characteristics
+- Distance
+- Source
 - Adjustments by category
 - Net and gross adjustment
-- Adjusted price
-- Weight or relevance
-- Appraiser comments
-- Source anchor
+- Adjusted indication
+- Appraiser commentary
+- Source page/table
+- Verification state
 
-### 8.5 Income approach
+### `appraisal_income_approach`
 
-Extract, where applicable:
+Store:
 
 - Market rent
 - Contract rent
+- Vacancy
 - Other income
-- Vacancy and collection loss
-- Effective gross income
 - Operating expenses
 - NOI
 - Cap rate
 - Discount rate
-- Terminal cap rate
-- Growth assumptions
+- Terminal rate
 - DCF period
-- Reserves
-- Direct capitalization value
-- DCF value
-- Rent comparables
+- Stabilization assumptions
+- Value indication
+- Source anchors
 
-### 8.6 Cost approach
+### `appraisal_conditions`
 
-Extract, where applicable:
+Store:
 
-- Land value
-- Replacement or reproduction cost
-- Entrepreneurial incentive
-- Physical depreciation
-- Functional obsolescence
-- External obsolescence
-- Site improvements
-- Cost-approach value
+- Required repair
+- Completion item
+- Documentation condition
+- Inspection condition
+- Lender condition
+- Cost-to-cure
+- Completion deadline
+- Related task
+- Status
+- Evidence of completion
 
----
+### `appraisal_conflicts`
 
-## 9. Appraisal Review and Conflict Logic
+Store conflicts between:
 
-AppraisalIQ must compare appraisal evidence against:
+- Appraisal and current underwriting
+- Appraisal and listing
+- Appraisal and prior appraisal
+- Appraisal and MarketIQ
+- Appraisal and tax assessment
+- Appraisal and broker opinion
+- Comparable data sources
+- Property facts
 
-- Active Deal assumptions
-- MarketIQ data
-- Underwriting income and expenses
-- FinanceIQ lender constraints
-- Contract price and concessions
-- OfferIQ offer terms
-- InspectionIQ condition findings
-- Public and listing data
-- Prior appraisals or broker opinions
+Conflicts remain visible until resolved or accepted.
 
-Potential conflicts include:
+## 8. Inspection Classification Model
 
-- Appraised value differs materially from active value assumption
-- Appraisal uses stale or inconsistent income
-- Rent schedule conflicts with lease evidence
-- Condition rating conflicts with inspection findings
-- Comparable adjustments are unusually high
-- Highest and best use conflicts with GovernanceIQ or zoning evidence
-- Property rights or intended use are inconsistent with the Deal
-- Extraordinary assumptions materially affect value
+Supported system categories include:
 
-The system may identify review items but may not claim an appraisal is invalid or noncompliant unless that conclusion is supplied by a qualified reviewer and preserved as evidence.
+- Site and drainage
+- Foundation and structure
+- Roof
+- Exterior envelope
+- Windows and doors
+- Interior
+- Electrical
+- Plumbing
+- HVAC
+- Fire/life safety
+- Elevators
+- Accessibility
+- Appliances/equipment
+- Pool/spa
+- Sewer/septic/well
+- Environmental
+- Pest
+- Parking and paving
+- Landscaping
+- Common areas
+- Tenant spaces
+- Code/permit concern
+- Deferred maintenance
+- Capital replacement
 
----
+Severity:
 
-## 10. Connected Change Workflow
+- Informational
+- Maintenance
+- Minor
+- Moderate
+- Major
+- Critical
+- Safety Critical
 
-For both subsystems:
+Urgency:
 
-1. Receive and preserve Evidence.
-2. Parse and classify document.
-3. Extract source-linked facts and findings.
-4. Display verification and conflict states.
-5. Create proposed canonical changes.
-6. Authorized user accepts, edits, rejects, or defers each material proposal.
-7. Persist accepted changes in the owning subsystem.
-8. Emit idempotent domain events.
-9. Trigger targeted underwriting recalculation where material.
-10. Trigger strategy re-ranking where material.
-11. Refresh Decision Cockpit, OfferIQ, ContractIQ, FinanceIQ, tasks, timeline, reports, and notifications.
-12. Preserve prior and current versions and explain what changed.
+- Monitor
+- Routine
+- Before occupancy
+- Before closing
+- Immediate
+- Emergency
 
-No source extraction writes directly into authoritative underwriting result tables.
+A finding may be visible without a known cause. Suspected causes must be labeled as inference, not fact.
 
----
+## 9. Inspection Workflow
 
-## 11. User Experience
+1. User uploads or captures report.
+2. System preserves Evidence and creates report record.
+3. Processing extracts sections, photos, findings, costs, and recommendations.
+4. User reviews low-confidence and material findings.
+5. Related PhotoIQ and VisitIQ evidence is displayed for comparison.
+6. Duplicate or overlapping findings are grouped without deleting source distinctions.
+7. User accepts, edits, rejects, or defers repair proposals.
+8. Accepted repair values create versioned underwriting proposals.
+9. Accepted negotiation items connect to OfferIQ and ContractIQ.
+10. Specialist needs and deadlines create canonical tasks.
+11. Underwriting recalculates after accepted canonical changes.
+12. Strategy Engine re-ranks when results materially change.
+13. Decision Cockpit shows before/after recommendation and unresolved risks.
+14. Reports and notifications refresh from canonical state.
 
-### 11.1 Web
+## 10. Appraisal Workflow
 
-InspectionIQ:
+1. User uploads or receives appraisal.
+2. System preserves Evidence and creates appraisal record.
+3. Processing extracts value opinions, approaches, comparables, assumptions, conditions, and limiting language.
+4. User reviews material and low-confidence values.
+5. Appraisal facts are compared to Property, MarketIQ, underwriting, FinanceIQ, listing, and prior values.
+6. Conflicts are displayed without silent overwrite.
+7. User may accept an appraisal value as a scenario input, verified Property fact where appropriate, financing input, or reference-only evidence.
+8. Accepted value changes create a new underwriting assumption version.
+9. Financing feasibility and appraisal contingency status are reevaluated.
+10. Strategy Engine and Decision Cockpit refresh when material.
+11. Appraisal-required repairs create linked tasks and may connect to InspectionIQ.
+12. Revisions, reviews, and reconsiderations preserve history.
+13. Reports show appraisal source, date, premise, property rights, and status.
 
-- Report inventory and processing status
-- System-by-system findings
-- Severity, urgency, cost, and responsibility filters
-- Source viewer with anchored findings
-- Repair-scope builder
-- Contractor-bid comparison
-- Reinspection tracking
-- Proposed underwriting/offer/contract impacts
+## 11. Contractor Quote and Cost Reconciliation
 
-AppraisalIQ:
+InspectionIQ must compare:
 
-- Report inventory and status
-- Value conclusions by type and date
-- Approach summary
-- Comparable grid
-- Income and cost approach detail
-- Assumptions and limiting conditions
-- Conflict and review panel
-- Proposed value/financing/strategy impacts
+- Inspector estimate
+- System default estimate
+- User estimate
+- Contractor quote
+- Specialist quote
+- Invoice
+- Warranty coverage
+- Seller credit
+- Insurance recovery estimate where applicable
 
-### 11.2 iPhone
+Precedence for accepted repair cost:
 
-- Camera, file, email, and share-extension intake
-- Compact critical findings and value summary
-- Source-page navigation
-- Accept/defer proposal actions
-- Task and deadline actions
-- Offline upload queue
-- Reinspection photo capture
+1. Paid invoice or executed contract
+2. Accepted current contractor quote
+3. Verified specialist estimate
+4. Verified inspection estimate
+5. User-approved estimate
+6. External estimate
+7. System default
 
-### 11.3 iPad
+The user controls acceptance. BRIX must show the controlling source and date.
 
-- Side-by-side document and extracted analysis
-- Multi-column findings and comparison
-- Appraisal comparable and adjustment review
-- Drag/drop and keyboard/pointer support
-- Split view with Decision Cockpit or underwriting
+## 12. Appraisal Reconsideration and Revision
 
-### 11.4 Premium UX requirements
+Support:
 
-- Critical safety or financing issues are prominent without using alarmist language.
-- Condition, cost, value, confidence, and verification remain visually distinct.
-- Prior valid results remain visible when new processing fails.
-- Users can trace every material number to source evidence.
-- Long reports support search, filtering, anchored navigation, and progress preservation.
-- No action ends in a dead state; every completion state presents the next logical action.
+- Correction request
+- Missing comparable submission
+- Property fact correction
+- Additional evidence package
+- Reconsideration of value
+- Appraisal review
+- Revised appraisal
+- Final completion certification
 
----
+Rules:
 
-## 12. State Model
+- Preserve original appraisal.
+- Link each request and response.
+- Do not represent that reconsideration will succeed.
+- Distinguish user-provided comparable evidence from appraiser conclusions.
+- Maintain status, deadlines, and responsible contacts.
+- Update canonical value only through explicit acceptance.
 
-Supported states:
+## 13. UI and UX Requirements
+
+### Web
+
+Provide:
+
+- Report inventory and version status
+- Side-by-side source viewer and findings
+- Filters by system, severity, urgency, cost, verification, and status
+- Cost reconciliation workspace
+- Before/after underwriting impact
+- Appraisal value summary
+- Comparable table and adjustment view
+- Income approach summary
+- Conflict center
+- Conditions and follow-up tasks
+- Connected OfferIQ, ContractIQ, FinanceIQ, and Decision Cockpit impacts
+
+### iPhone
+
+Provide:
+
+- Report capture/import
+- Compact finding and value summaries
+- Photo/source-page navigation
+- Accept/edit/defer actions
+- Specialist task creation
+- Offline queue
+- Push/deep-link support
+- One-handed field use
+
+### iPad
+
+Provide:
+
+- Report and analysis side by side
+- Multi-page document navigation
+- Comparable and adjustment table
+- Finding/photo/source comparison
+- Keyboard, pointer, drag-and-drop support
+- Split-view Deal context
+
+### Premium experience requirements
+
+- Decision-changing findings appear before secondary detail.
+- The user always sees current, stale, conflicted, processing, failed, or superseded state.
+- Prior valid analysis remains visible during reprocessing.
+- No generic endless spinner is permitted.
+- Every failure explains what was preserved and how to continue.
+- The user can return to the exact review position.
+- No mobile experience is a compressed desktop table.
+
+## 14. State Model
+
+Inspection and appraisal processing states:
 
 - Draft
 - Uploaded
@@ -536,131 +573,211 @@ Supported states:
 - Current
 - Current with Conflicts
 - Stale
-- Failed with Prior Result
-- Reinspection Required
-- Specialist Review Required
-- Professional Review Recommended
+- Failed with Prior Analysis
 - Superseded
-- Offline Cached
+- Cancelled
+- Offline Pending Upload
 
-The UI must distinguish source upload state, extraction state, verification state, acceptance state, and downstream recalculation state.
+Finding states:
 
----
+- New
+- Needs Review
+- Accepted
+- Rejected
+- Deferred
+- Resolved
+- Superseded
 
-## 13. Domain Events
+Appraisal condition states:
 
-Inspection events:
+- Open
+- In Progress
+- Satisfied
+- Waived by authorized party
+- Failed
+- Expired
+- Superseded
 
-- `inspection.received`
+## 15. Integration Requirements
+
+### Property Intake
+
+- Correct verified property facts through proposals.
+- Preserve source and prior value.
+
+### PhotoIQ and VisitIQ
+
+- Link related images and field observations.
+- Do not collapse professional findings into user observations.
+
+### Underwriting
+
+- Accept only approved, versioned changes.
+- Trigger targeted recalculation.
+- Preserve prior snapshots.
+
+### Strategy Engine
+
+- Reevaluate strategy viability and ranking after material accepted changes.
+
+### FinanceIQ
+
+- Update appraisal value scenarios, LTV, financing conditions, repair reserves, and feasibility after explicit acceptance.
+
+### OfferIQ
+
+- Support repair credits, price changes, contingency actions, and walk-away analysis.
+
+### ContractIQ
+
+- Connect inspection contingency, repair requests, appraisal contingency, notice deadlines, and amendment evidence.
+
+### Decision Cockpit
+
+- Show material findings, value conflicts, changed recommendation, unresolved tasks, and freshness.
+
+### ReportIQ
+
+- Consume canonical findings, values, costs, conflicts, and accepted impacts.
+
+### Notifications and Tasks
+
+- Create only canonical tasks and idempotent notifications.
+
+## 16. Domain Events
+
+InspectionIQ events:
+
+- `inspection.report_received`
 - `inspection.analysis_requested`
 - `inspection.analysis_completed`
 - `inspection.analysis_failed`
-- `inspection.finding_created`
-- `inspection.cost_proposed`
-- `inspection.change_accepted`
-- `inspection.conflict_detected`
-- `inspection.reinspection_recorded`
-- `inspection.superseded`
+- `inspection.finding_proposed`
+- `inspection.finding_accepted`
+- `inspection.cost_accepted`
+- `inspection.followup_created`
+- `inspection.report_superseded`
 
-Appraisal events:
+AppraisalIQ events:
 
-- `appraisal.received`
+- `appraisal.report_received`
 - `appraisal.analysis_requested`
 - `appraisal.analysis_completed`
 - `appraisal.analysis_failed`
-- `appraisal.value_conclusion_created`
-- `appraisal.change_proposed`
-- `appraisal.change_accepted`
+- `appraisal.value_proposed`
+- `appraisal.value_accepted`
 - `appraisal.conflict_detected`
-- `appraisal.review_item_created`
-- `appraisal.superseded`
+- `appraisal.condition_created`
+- `appraisal.reconsideration_started`
+- `appraisal.report_superseded`
 
-Consumers include underwriting, strategy, Decision Cockpit, OfferIQ, ContractIQ, FinanceIQ, tasks, timeline, reports, and notifications.
+Events must be emitted after persistence and consumed idempotently.
 
-All events must be emitted after successful persistence and processed idempotently.
+## 17. Security and Privacy
 
----
+- Workspace and Deal RLS apply to every record.
+- Source files use private authorized storage.
+- Signed URLs are short-lived and scoped.
+- Provider and AI credentials remain server-side.
+- Untrusted report content is protected against prompt injection.
+- Sensitive information must not enter unsafe logs.
+- Sharing and export permissions are explicit.
+- Deletion and retention follow Evidence policy.
+- Admin access is audited.
+- Usage and processing costs are metered.
 
-## 14. Security and Privacy
+## 18. Performance and Reliability
 
-- Enforce Workspace and Deal authorization through RLS and server-side checks.
-- Store private reports and images in authorized private Storage.
-- Keep provider credentials and AI secrets server-side.
-- Treat report contents as untrusted input and defend against prompt injection.
-- Prevent sensitive information from appearing in unsafe logs or analytics.
-- Audit uploads, views where required, accepted changes, exports, shares, deletions, and admin access.
-- Apply rate limits, file limits, malware checks, content validation, and usage/cost metering.
-- Shared reports must be scoped, revocable, expiring where appropriate, and unable to expose unrelated Deal records.
+- Uploads must resume or safely retry.
+- Processing jobs must be idempotent.
+- Large reports must process asynchronously.
+- User navigation must remain responsive during processing.
+- Partial extraction may be displayed only when labeled partial.
+- Previous valid results remain available during reprocessing.
+- Timeouts produce recoverable failure states.
+- Duplicate processing must not create duplicate findings or values.
+- Large comparable and finding sets must paginate or virtualize.
 
----
-
-## 15. Testing Requirements
+## 19. Testing Requirements
 
 Required tests:
 
-- File intake, hashing, duplicate detection, and Storage authorization
-- Extraction fixtures for common residential and commercial reports
-- Source-anchor accuracy
+- Upload, hash, duplicate, and revision detection
+- Inspection extraction fixtures
+- Appraisal extraction fixtures
+- Source-anchor verification
 - Severity and urgency classification
-- Cost-precedence and bid-comparison logic
-- Reinspection and supersession logic
-- Multiple appraisal value conclusions
-- Comparable and adjustment extraction
-- Income and cost approach extraction
-- Conflict detection against MarketIQ, FinanceIQ, InspectionIQ, contracts, and underwriting
-- Accepted-change workflow
-- Targeted recalculation and strategy re-ranking
-- Event idempotency
-- Offline upload and recovery
-- Large-document performance
-- RLS and cross-workspace isolation
-- Prompt-injection and malicious-file handling
-- Web, iPhone, iPad, report, and export reconciliation
-- Accessibility tests
+- Repair-cost precedence
+- Contractor quote reconciliation
+- Appraisal approach and value-premise parsing
+- Comparable adjustment parsing
+- Conflict detection
+- Proposal acceptance/rejection/defer
+- Targeted underwriting recalculation
+- Strategy reranking
+- OfferIQ and ContractIQ integration
+- FinanceIQ appraisal condition integration
+- Task and notification idempotency
+- RLS and storage authorization
+- Prompt-injection defense
+- Offline upload and retry
+- Web/iPhone/iPad/report reconciliation
+- Accessibility and performance with large files
 
----
+## 20. Verification and Validation
 
-## 16. Verification and Validation
+### Functional verification
 
-### 16.1 Functional verification
+- Reports upload, save, reopen, process, retry, supersede, and remain intact.
+- Findings, values, comparables, costs, and conditions link to source anchors.
+- Manual review works after extraction failure.
+- Accepted changes create versioned proposals and canonical updates.
+- Rejected or deferred proposals do not alter authoritative data.
 
-- Inspection and appraisal files upload, save, reopen, process, retry, supersede, and remain intact.
-- Findings, conclusions, comparables, adjustments, costs, and review items link to source evidence.
-- Manual review remains available after extraction failure.
-- Reinspection and appraisal updates preserve prior versions.
+### Integration verification
 
-### 16.2 Accuracy and boundary verification
+- InspectionIQ connects to PhotoIQ, VisitIQ, Underwriting, Strategy Engine, OfferIQ, ContractIQ, Decision Cockpit, tasks, notifications, and reports.
+- AppraisalIQ connects to Property Intake, MarketIQ, FinanceIQ, Underwriting, Strategy Engine, ContractIQ, Decision Cockpit, tasks, notifications, and reports.
+- Domain events fire once and are consumed idempotently.
+- No duplicate task, evidence, value, or repair-cost system is created.
+- No stale recommendation is shown as current.
+- Reports reconcile to the live Deal.
 
-- Observed fact, professional conclusion, system inference, user assumption, and system estimate remain distinct.
-- InspectionIQ does not claim inspection-grade conclusions.
-- AppraisalIQ does not represent itself as an appraisal.
-- Low-confidence, conflicting, stale, and missing information is visible.
-- No silent canonical mutation occurs.
+### Accuracy and boundary verification
 
-### 16.3 Integration verification
+- Professional findings remain distinct from user observations.
+- Appraisal value opinions remain distinct from other value sources.
+- Inferred causes are labeled as inference.
+- Low-confidence and conflicting information remains visible.
+- No inspection, engineering, appraisal, lender, legal, insurance, or tax conclusion is overstated.
 
-- Accepted repair changes update the canonical repair budget through the defined proposal workflow.
-- Accepted appraisal changes update the owning value assumption through the defined proposal workflow.
-- Underwriting recalculates exactly once per accepted material change.
-- Strategy ranking, Decision Cockpit, OfferIQ, ContractIQ, FinanceIQ, tasks, timeline, reports, and notifications refresh from canonical events.
-- No duplicate tasks, findings, value records, calculations, or timeline events are created on retry.
-- Web, iPhone, iPad, reports, and exports display the same values and statuses.
+### UX verification
 
-### 16.4 UX verification
+- Web, iPhone, and iPad workflows are complete.
+- Loading, partial, empty, stale, offline, conflict, permission, retry, and failure states are intentionally designed.
+- The user can resume at the same review position.
+- Critical findings and value conflicts are immediately understandable.
+- Accessibility requirements pass.
 
-- Desktop, iPhone, and iPad workflows are complete and responsive.
-- Loading, empty, partial, stale, offline, conflict, permission, failure, and retry states are intentional and recoverable.
-- Critical findings and value differences are understandable without hiding source detail.
-- Accessibility, keyboard, pointer, VoiceOver, Dynamic Type, and reduced-motion behavior pass.
+### Production readiness
 
-### 16.5 Production readiness
+- No TODOs, placeholders, fake data, dead controls, disconnected screens, or silent failures remain.
+- Logging, telemetry, alerts, retries, and support reference IDs exist.
+- Security, RLS, storage, retention, and sharing are verified.
+- Performance targets are met with realistic large reports.
+- Cross-client and report reconciliation passes.
 
-- No mock data, TODOs, dead controls, placeholder analysis, disconnected modules, or silent background failures.
-- Monitoring, correlation IDs, retries, timeouts, and operational alerts exist.
-- File retention, deletion, backup, and restore behavior are tested.
-- Performance targets are met for realistic large reports and image sets.
-- Security, privacy, RLS, Storage, and audit requirements pass.
+## 21. Definition of Done
 
-## 17. Definition of Done
+Specification 015 is complete only when:
 
-Specification 015 is complete only when a user can ingest inspection and appraisal evidence, trace every material finding and value to source, resolve or preserve conflicts, accept selected changes, trigger accurate re-underwriting and re-ranking, reopen the Deal with the same canonical state, recover from failures and offline interruptions, and produce consistent results across web, iPhone, iPad, reports, exports, tasks, timeline, and the Decision Cockpit without developer intervention.
+1. A user can ingest inspection and appraisal evidence end to end.
+2. Original sources remain intact and source-linked.
+3. Findings, value opinions, comparables, costs, and conditions are reviewable and versioned.
+4. Accepted changes update only the correct canonical owner.
+5. Underwriting, strategies, financing, offers, contracts, tasks, Cockpit, and reports update seamlessly where applicable.
+6. Prior states and recommendations remain auditable.
+7. Failure, offline, stale, conflict, retry, and supersession flows work.
+8. Web, iPhone, and iPad produce consistent canonical results.
+9. Required tests and completion gates pass.
+10. Codex can report `COMPLETE` without any material unverified workflow.
