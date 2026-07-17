@@ -1,220 +1,210 @@
 # BRIX Real Estate — Data Architecture
 
-## 1. Purpose
+## 1. Authority and Rules of Engagement
 
-This document defines the canonical data ownership, entity relationships, versioning, event, evidence, security, and synchronization requirements for the BRIX rebuild.
+This document defines the canonical data architecture for BRIX. It is governed by:
 
-## 2. Canonical entities
+- `docs/00-START-HERE.md`
+- `docs/01-PRODUCT-CONSTITUTION.md`
+- `docs/02-ENGINEERING-STANDARDS.md`
 
-Minimum required entities:
+No subsystem may create a shadow schema, duplicate entity, client-only source of truth, competing lifecycle, or private calculation store that conflicts with this architecture.
 
-- Workspace
-- UserProfile
-- Membership
-- Portfolio
-- Property
-- Parcel
-- Building
-- Unit
-- Deal
-- DealStageHistory
-- Contact
-- Organization
-- Relationship
-- Activity
-- Task
-- Deadline
-- Evidence
-- EvidenceVersion
-- EvidenceFinding
-- AssumptionSet
-- UnderwritingSnapshot
-- UnderwritingResult
-- StrategyDefinition
-- StrategyScenario
-- StrategyResult
-- Recommendation
-- Decision
-- FinancingStructure
-- FinancingVersion
-- Offer
-- OfferVersion
-- Contract
-- ContractVersion
-- ContractFinding
-- Inspection
-- InspectionFinding
-- Appraisal
-- AppraisalFinding
-- GovernanceRecord
-- GovernanceFinding
-- Visit
-- RoutePlan
-- MediaAsset
-- VoiceNote
-- Transcript
-- Report
-- ReportVersion
-- ShareLink
-- DomainEvent
-- BackgroundJob
-- Notification
-- UsageEvent
-- Subscription
-- Entitlement
-- AuditEvent
+Permanent data rules:
 
-## 3. Identity rules
+1. Every workspace-scoped record must carry `workspace_id` and be protected by Row Level Security.
+2. Every property opportunity must use the canonical `property_id` and `deal_id` relationships.
+3. Original evidence is immutable; derived findings and accepted values are versioned separately.
+4. Material facts, assumptions, estimates, inferences, professional opinions, AI observations, unknowns, and conflicts must retain explicit classification.
+5. Material changes preserve history and emit domain events only after successful persistence.
+6. Authoritative financial results come only from immutable underwriting snapshots and a recorded engine version.
+7. Deletes, archives, restores, merges, supersession, and retention behavior must be explicit.
+8. Foreign keys, constraints, indexes, and RLS are part of the feature, not optional hardening.
+9. No client may infer canonical success until the backend confirms persistence.
+10. Every schema change must be introduced through a forward-only migration and validated against current data and connected clients.
 
-- All primary records use immutable UUIDs.
-- `deal_id` identifies one opportunity lifecycle.
-- `property_id` identifies one real-world property.
-- One Property may participate in multiple Deals over time.
-- One Deal may contain multiple Properties for packages, portfolios, assemblages, or development opportunities.
-- External listing IDs, parcel IDs, addresses, and coordinates are identifiers or matching signals, not primary keys.
-- No silent Property merge is permitted.
-- Merge decisions require explicit history and reversible references where practical.
+## 2. Data Ownership Model
 
-## 4. Workspace isolation
+### 2.1 Workspace
 
-Every private record must carry `workspace_id` directly or inherit it through a relationship that can be enforced reliably.
+A Workspace is the security, billing, collaboration, and data-isolation boundary.
 
-Required controls:
+Core entities:
 
-- RLS on private tables
-- Server-side authorization on Edge Functions
-- Storage path isolation
-- Signed/authenticated file access
-- Cross-workspace sharing only through explicit, revocable grants
-- Platform-admin access audited
-- No client-trusted workspace selection without server verification
+- `workspaces`
+- `profiles`
+- `workspace_memberships`
+- `workspace_invitations`
+- `roles`
+- `role_permissions`
+- `workspace_settings`
 
-## 5. Material value model
+A user may belong to multiple workspaces. Access is determined by active membership and server-enforced permissions.
 
-Every material value must retain:
+### 2.2 Property
 
-- Value
-- Unit
-- Currency where applicable
-- Source type
-- Source ID
-- Effective date
-- Retrieved/entered date
+A Property is the durable representation of a real-world asset or asset package.
+
+Core entities:
+
+- `properties`
+- `property_addresses`
+- `parcels`
+- `buildings`
+- `units`
+- `property_identifiers`
+- `property_relationships`
+- `property_merge_candidates`
+
+Property identity may use normalized address, parcel identifiers, coordinates, legal description, unit/building identifiers, listing-source IDs, and project name. Duplicate detection proposes; authorized users decide. Silent merge is prohibited.
+
+### 2.3 Deal
+
+A Deal is one investor opportunity and decision lifecycle.
+
+Core entities:
+
+- `deals`
+- `deal_properties`
+- `deal_stage_history`
+- `deal_status_history`
+- `deal_tags`
+- `deal_assignments`
+- `deal_preferences`
+- `deal_objectives`
+
+A Property may have multiple Deals over time. A Deal may include multiple Properties for portfolio, assemblage, development, or package opportunities.
+
+### 2.4 Evidence
+
+Core entities:
+
+- `evidence`
+- `evidence_files`
+- `evidence_versions`
+- `evidence_findings`
+- `evidence_links`
+- `evidence_conflicts`
+- `extraction_jobs`
+
+Original bytes, hashes, metadata, and source identity remain immutable. Derived extraction may be reprocessed without changing the original.
+
+### 2.5 Facts, assumptions, and accepted values
+
+Core entities:
+
+- `fact_records`
+- `assumption_sets`
+- `assumption_values`
+- `value_proposals`
+- `value_conflicts`
+- `verification_requests`
+
+Each material value should support:
+
+- Canonical subject and field
+- Normalized value
+- Display value
+- Unit and currency
 - Classification
+- Source evidence
+- Effective date
+- Retrieved date
 - Confidence
-- Verification status
-- Entered or produced by
-- Superseded-by relationship where applicable
-- Notes or rationale
-
-Classifications:
-
-- Confirmed fact
-- User-entered fact
-- External estimate
-- System estimate
-- User assumption
-- AI observation
-- Professional opinion
-- Inferred information
-- Unknown
-- Conflict
-
-Null, zero, unavailable, not yet requested, and not applicable must remain distinct.
-
-## 6. Versioning rules
-
-Material records must be immutable snapshots or preserve complete history.
-
-Version at minimum:
-
-- Assumption sets
-- Underwriting inputs and outputs
-- Strategy results
-- Recommendations
-- Decisions
-- Financing
-- Offers and counteroffers
-- Contracts and amendments
-- Inspection findings
-- Appraisal findings
-- Governance findings
-- Reports
-- AI extraction/findings
-- User overrides
-
-Each version must include:
-
-- Version number
-- Created timestamp
-- Created by
-- Source/evidence set
-- Engine/workflow version
-- Supersedes reference
-- Status
-
-## 7. Evidence architecture
-
-Evidence is the immutable source layer. Derived findings do not replace original evidence.
-
-Evidence must support:
-
-- PDF
-- Word
-- Spreadsheet
-- CSV
-- Image
-- Video
-- Audio
-- Email body
-- Email attachment
-- Listing snapshot
-- Public record snapshot
-- User note
-- Voice transcript
-- Professional report
-
-Required evidence metadata:
-
-- Evidence ID
-- Workspace ID
-- Deal ID
-- Property ID where applicable
-- Original filename and media type
-- File hash
-- Storage reference
-- Source type and source identity
-- Received/retrieved/effective dates
-- Uploaded by
-- Processing state
 - Verification state
-- Retention state
-- Related evidence
+- Accepted/superseded state
+- Created by and accepted by
 - Version
 
-## 8. Findings architecture
+### 2.6 Underwriting and strategy
 
-Findings are derived observations connected to evidence.
+Core entities:
 
-A finding must include:
+- `underwriting_snapshots`
+- `underwriting_inputs`
+- `underwriting_results`
+- `underwriting_issues`
+- `calculation_lineage`
+- `strategy_registry`
+- `strategy_scenarios`
+- `strategy_results`
+- `strategy_disqualifiers`
+- `strategy_rankings`
+- `recommendations`
+- `decisions`
 
-- Finding type
-- Statement
-- Source evidence ID
-- Page, section, timestamp, or image region where possible
-- Classification
-- Confidence
-- Severity
-- Verification requirement
-- User acceptance/rejection/correction
-- Related assumption, risk, task, deadline, or strategy
-- Workflow/model metadata for AI-produced findings
+An underwriting snapshot is immutable. A result references the exact snapshot and engine version used.
 
-AI findings cannot silently become confirmed facts.
+### 2.7 Workflow and relationships
 
-## 9. Deal lifecycle
+Core entities:
 
-Supported stages:
+- `contacts`
+- `organizations`
+- `deal_relationships`
+- `activities`
+- `tasks`
+- `deadlines`
+- `task_assignments`
+- `comments`
+- `notes`
+- `domain_events`
+- `audit_events`
+
+One canonical task/deadline system and one canonical timeline must be reused by all modules.
+
+### 2.8 Specialized Deal records
+
+Subsystems extend the Deal through canonical linked entities, including:
+
+- `market_snapshots`
+- `market_findings`
+- `financing_structures`
+- `debt_tranches`
+- `equity_tranches`
+- `financing_conditions`
+- `governance_records`
+- `governance_findings`
+- `contracts`
+- `contract_terms`
+- `contract_deadlines`
+- `offers`
+- `offer_versions`
+- `negotiation_events`
+- `visits`
+- `route_plans`
+- `media_assets`
+- `voice_notes`
+- `photo_findings`
+- `inspections`
+- `inspection_findings`
+- `appraisals`
+- `appraisal_findings`
+- `reports`
+- `share_links`
+- `notifications`
+- `usage_events`
+- `subscriptions`
+- `background_jobs`
+
+## 3. Canonical IDs and Relationships
+
+Canonical IDs must be immutable and globally unique.
+
+Minimum relationship rules:
+
+- Every workspace-owned record references `workspace_id`.
+- Every Deal references its owning workspace.
+- Every Deal-to-Property relationship uses `deal_properties` to support one-to-many and many-to-many cases intentionally.
+- Every evidence item references its workspace and may reference Deal, Property, specialized entity, or multiple targets through `evidence_links`.
+- Every task, deadline, activity, recommendation, decision, report, and notification must reference the canonical Deal when Deal-specific.
+- Specialized entities must not duplicate address, contact, task, evidence, or calculation ownership.
+
+## 4. Lifecycle and Status Standards
+
+### 4.1 Deal stages
+
+Supported canonical stages:
 
 - Lead
 - Screening
@@ -238,145 +228,327 @@ Supported stages:
 - Passed
 - Archived
 
-Transitions must preserve:
+Transitions are explicit, permission-aware, historically preserved, and may have required conditions.
 
-- Prior stage
-- New stage
-- Actor
-- Timestamp
-- Reason
-- Related decision
-- Triggering event
+### 4.2 Generic processing states
 
-## 10. Domain events
+Use a consistent processing model where applicable:
 
-Material changes emit versioned domain events.
+- Draft
+- Queued
+- Uploading
+- Processing
+- Awaiting Verification
+- Complete
+- Partially Complete
+- Failed
+- Retry Scheduled
+- Blocked
+- Conflict
+- Offline
+- Stale
+- Superseded
+- Cancelled
 
-Minimum event types:
+Subsystem-specific states may extend this model but must not redefine common meanings.
 
-- DealCreated
-- DealStageChanged
-- PropertyMatched
-- EvidenceAdded
-- EvidenceProcessed
-- FindingCreated
-- FindingVerified
-- AssumptionSetChanged
-- UnderwritingCompleted
-- StrategyRankingChanged
-- RecommendationChanged
-- DecisionRecorded
-- FinancingChanged
-- OfferCreated
-- OfferRevised
-- OfferStatusChanged
-- ContractAdded
-- ContractDeadlineCreated
-- InspectionAdded
-- AppraisalAdded
-- GovernanceRestrictionFound
-- VisitCreated
-- MediaUploaded
-- VoiceTranscribed
-- ReportGenerated
-- ShareLinkCreated
-- TaskCreated
-- DeadlineChanged
-- BackgroundJobFailed
-- AccountDeleted
+### 4.3 Verification states
 
-Each event includes:
+- Unverified
+- System Checked
+- User Verified
+- Source Verified
+- Professional Review Recommended
+- Professionally Confirmed
+- Rejected
+- Superseded
+
+Verification status must not be inferred solely from confidence.
+
+## 5. Source Classification and Provenance
+
+Required classifications:
+
+- Confirmed fact
+- User-entered fact
+- External estimate
+- System estimate
+- User assumption
+- AI observation
+- Professional opinion
+- Inference
+- Unknown
+- Conflict
+
+Provenance must support:
+
+- Source name and identifier
+- Source URL when permitted
+- Evidence ID
+- Page, section, clause, image region, timestamp, or other anchor
+- Retrieved date
+- Effective date
+- License/use restriction where relevant
+- Extraction provider/model/workflow version where applicable
+- Actor accepting or rejecting the value
+
+## 6. Versioning and History
+
+Versioning is mandatory for:
+
+- Material facts and assumptions
+- Underwriting snapshots and results
+- Strategy scenarios and rankings
+- Recommendations and decisions
+- Financing structures and terms
+- Offers and counteroffers
+- Contracts, addenda, and amendments
+- Governance findings
+- Inspection and appraisal findings
+- Reports and shared outputs
+
+Rules:
+
+- Prior accepted versions remain queryable.
+- Supersession never deletes the prior record.
+- A current pointer may identify the active version but must not replace history.
+- Reprocessing evidence creates new derived output versions.
+- Historical outputs must remain reproducible using stored input and engine/workflow versions.
+
+## 7. Domain Events
+
+`domain_events` is the canonical event ledger for material product changes.
+
+Required fields:
+
+- `id`
+- `event_type`
+- `event_version`
+- `workspace_id`
+- `deal_id`
+- `property_id`
+- `entity_type`
+- `entity_id`
+- `entity_version`
+- `actor_type`
+- `actor_id`
+- `source_client`
+- `correlation_id`
+- `idempotency_key`
+- `payload`
+- `occurred_at`
+- `created_at`
+
+Events are appended only after the described transaction commits. Consumers must be idempotent. Event payloads should reference canonical records rather than duplicate large sensitive content.
+
+Key event families include:
+
+- Property and Deal lifecycle
+- Evidence received and processed
+- Value proposed, accepted, rejected, or conflicted
+- Underwriting requested and completed
+- Strategy ranking changed
+- Recommendation changed
+- Financing changed
+- Governance restriction confirmed
+- Contract term or deadline accepted
+- Offer submitted or countered
+- Visit completed
+- Media synchronized
+- Inspection/appraisal accepted
+- Report generated or shared
+- Task/deadline changed
+- Decision recorded
+- Admin/billing/security action
+
+## 8. Audit Events
+
+`audit_events` records material user, system, and administrative actions.
+
+Minimum fields:
 
 - Event ID
-- Event version
-- Workspace ID
-- Deal ID where applicable
-- Entity type and ID
+- Workspace and Deal scope
 - Actor
-- Timestamp
+- Action
+- Target type and ID
+- Before/after references or safe diff
+- Reason where required
+- Client/IP/device metadata where appropriate and lawful
 - Correlation ID
-- Idempotency key where applicable
-- Before/after references where appropriate
-- Payload contract version
+- Timestamp
 
-Consumers must be idempotent.
+Audit events are append-only and protected from normal user mutation.
 
-## 11. Underwriting dependency graph
+## 9. Row Level Security and Authorization
 
-- AssumptionSet produces UnderwritingSnapshot.
-- UnderwritingSnapshot plus engine version produces UnderwritingResult.
-- StrategyScenario references one UnderwritingResult and strategy definition version.
-- StrategyResult references exact inputs, output, disqualifiers, risk, and confidence.
-- Recommendation references exact StrategyResults, evidence set, and risk state.
-- Decision records whether the user accepted, rejected, or overrode a Recommendation.
-- Reports reference exact versions; reports do not recalculate independently.
+RLS must be enabled on workspace-scoped and sensitive tables.
 
-## 12. Offline and sync architecture
+Policies must enforce:
 
-Native clients may store local drafts and upload queues, but not competing authoritative truth.
+- Active workspace membership
+- Role and permission requirements
+- Record ownership where applicable
+- Share-link scope and expiration
+- Platform-admin separation
+- Deletion/archival restrictions
 
-Requirements:
+Tests must prove:
 
-- Temporary local IDs
-- Idempotent create/upload requests
-- Durable local queue
-- Explicit local/synced/conflict state
-- Version checks before overwrite
-- Safe retry after app termination
-- Preservation of both versions when automatic merge is unsafe
-- User-understandable conflict resolution
-- Server history remains authoritative after successful reconciliation
+- Cross-workspace reads fail.
+- Cross-workspace writes fail.
+- Revoked members lose access.
+- Viewer roles cannot mutate.
+- Admin-only records remain protected.
+- Storage paths cannot be guessed or accessed without authorization.
 
-## 13. Deletion and retention
+Application checks complement RLS; they do not replace it.
 
-Define intentional behavior for:
+## 10. Storage Architecture
 
-- Soft delete
-- Archive
-- Restore
-- User-requested deletion
-- Workspace deletion
-- Evidence retention
-- Legal/audit retention
-- Subscription cancellation
-- Expired share links
+Storage buckets and paths must separate:
 
-Deletion must not leave orphaned storage, jobs, findings, tasks, or relationship records.
+- Original evidence
+- Derived previews
+- Photos and videos
+- Voice recordings
+- Reports and exports
+- Temporary processing artifacts
+- Public marketing assets
 
-## 14. Required indexes
+Private Deal content uses authorized or signed access. Path structure must include workspace and canonical target IDs. File names are not authorization controls.
 
-Index common paths including:
+Required metadata:
 
-- Workspace
-- Deal
-- Property
-- Portfolio
-- Stage/status
-- Created/updated dates
-- External source IDs
-- Normalized address
-- Parcel ID
-- Geospatial coordinates
-- Evidence processing state
-- Background job state
-- Deadline date
-- Contact/organization lookup
-- Strategy ID
-- Report/share status
+- Original filename
+- MIME type
+- Size
+- Hash
+- Storage path
+- Uploaded by
+- Upload state
+- Virus/malware scan state where implemented
+- Retention state
+- Associated evidence ID
 
-Avoid N+1 patterns and full-table client downloads.
+Failed upload or processing must not delete a valid local or previously uploaded source.
 
-## 15. Data validation gate
+## 11. Background Jobs and Idempotency
 
-The data architecture is complete only when:
+`background_jobs` is required for durable asynchronous work.
 
-- Core schemas are explicit.
-- Migrations are version controlled.
-- RLS tests prove isolation.
-- Storage isolation is tested.
-- Duplicate matching is tested.
-- Version history is reproducible.
-- Domain events are idempotent.
-- Offline reconciliation is tested.
-- No module owns shadow Deal, Property, evidence, or calculation truth.
-- Reports and clients reconcile to canonical versions.
+Minimum fields:
+
+- Job ID and type
+- Workspace/Deal/target IDs
+- Status
+- Priority
+- Requested by
+- Correlation and idempotency keys
+- Attempt count
+- Provider/model/workflow version
+- Progress
+- Queued, started, heartbeat, completed, failed, and retry timestamps
+- Safe error category/message
+- Output references
+
+Unique constraints or idempotency records must prevent duplicate canonical effects.
+
+## 12. Indexing and Query Performance
+
+Required index categories:
+
+- Workspace foreign keys
+- Deal and Property foreign keys
+- Active status/stage filters
+- Created/updated timestamps
+- Searchable address and contact fields
+- Parcel and source identifiers
+- Deadline due dates
+- Background-job status and queue ordering
+- Domain-event correlation and target lookup
+- Current-version pointers
+- Full-text or vector indexes only where justified and securely scoped
+
+Every new query pattern must be evaluated for bounded result size and index support.
+
+## 13. Deletion, Archive, Restore, and Retention
+
+- Archive is reversible and preferred for completed Deals.
+- Soft deletion may support recovery and retention workflows.
+- Permanent deletion must respect ownership, legal retention, billing, shared records, and account-deletion policy.
+- Cascades are permitted only where dependent records have no independent audit or legal value.
+- Original evidence and audit history require explicit retention rules.
+- Account deletion must revoke access immediately and complete data disposition through a tracked workflow.
+
+## 14. Migration Standards
+
+Every migration must:
+
+- Be forward-only.
+- Have a clear purpose.
+- Preserve existing production data.
+- Add constraints only after data compatibility is proven.
+- Include required indexes and RLS changes.
+- Be safe under deployment ordering.
+- Be tested from a clean database and from the prior production schema.
+- Document irreversible effects.
+
+No manual production schema drift is allowed.
+
+## 15. Cross-Module Data Flow
+
+A subsystem is complete only when its output participates in the connected Deal flow.
+
+Examples:
+
+- Accepted intake facts feed assumptions.
+- Assumption changes create a new underwriting snapshot.
+- Underwriting results feed strategy ranking and Decision Cockpit.
+- Market, financing, governance, contract, visit, inspection, and appraisal findings may propose versioned changes.
+- Accepted changes trigger targeted recalculation.
+- Recalculation may update recommendations, tasks, notifications, reports, and portfolio views.
+- Every material change appears in the Deal timeline and audit history.
+
+No subsystem may write directly into another subsystem’s owned result table.
+
+## 16. Verification and Validation
+
+### Schema verification
+
+- Every table has a documented owner and purpose.
+- Primary keys, foreign keys, uniqueness constraints, checks, delete behavior, and indexes are intentional.
+- No duplicate canonical entity exists.
+- Current-version pointers cannot orphan history.
+
+### Security verification
+
+- RLS is enabled and tested.
+- Cross-workspace access fails.
+- Storage access is authorized.
+- Platform-admin access is isolated and audited.
+- Service-role access remains server-side.
+
+### Lifecycle verification
+
+- Create, update, archive, restore, supersede, merge-candidate review, and deletion workflows behave intentionally.
+- Material changes preserve history.
+- Domain and audit events are appended once.
+- Retried operations remain idempotent.
+
+### Integration verification
+
+- Intake, underwriting, strategy, cockpit, market, finance, governance, contract, offer, visit, media, inspection, appraisal, reporting, notifications, and admin use canonical IDs and records.
+- No module traps data in a private store.
+- Stale results are marked when dependencies change.
+- Reports, exports, web, iPhone, iPad, and admin reconcile.
+
+### Migration verification
+
+- Clean install succeeds.
+- Upgrade from prior schema succeeds.
+- RLS and indexes exist after migration.
+- Rollback/forward-recovery strategy is documented.
+- Seed and test data do not leak into production.
+
+**DOCUMENT STATUS: REVIEWED AND REPAIRED**
