@@ -1,1018 +1,369 @@
-# Specification 004 — Property Intake and Source Tracking
+# BRIX Specification 004 — Property Intake and Source Tracking
 
-## Authority
+## 1. Authority and Rules of Engagement
 
-This specification is governed by:
-
-- `docs/00-START-HERE.md`
-- `docs/01-PRODUCT-CONSTITUTION.md`
-- `docs/02-ENGINEERING-STANDARDS.md`
-- `docs/03-DATA-ARCHITECTURE.md`
-- `docs/04-UI-UX-SYSTEM.md`
-- `docs/05-BUILD-ROADMAP.md`
-- `specs/001-authentication-and-workspaces.md`
-- `specs/002-dashboard-and-application-shell.md`
-- `specs/003-deals-and-pdrm-core.md`
-
-Codex must re-read the permanent build rules, chapter start protocol, chapter completion gate, premium UI/UX requirements, cross-module connection rules, and stale-state rules before implementation.
-
----
-
-# 1. Mission
-
-Property Intake converts an address, listing URL, shared page, manual entry, email, document, or portfolio package into a canonical BRIX Property and Deal without losing source context, inventing facts, creating duplicates, or blocking the user when external data is unavailable.
-
-The intake workflow must be fast enough for field use and rigorous enough to become the starting point for underwriting, strategy analysis, market research, financing, visits, contracts, inspections, appraisals, reports, and portfolio comparison.
-
-A successful intake produces:
-
-1. One canonical `property_id`
-2. One canonical `deal_id`
-3. A source-linked property profile
-4. A transparent list of facts, estimates, assumptions, unknowns, and conflicts
-5. A preliminary readiness state
-6. A clear next action
-7. Durable background processing status
-8. A complete audit trail
-
-Property Intake must never imply that imported or AI-extracted data has been verified unless the evidence supports that classification.
-
----
-
-# 2. Business Purpose
-
-Investors frequently encounter potential properties through inconsistent channels:
-
-- Listing websites
-- Broker emails
-- Text messages
-- MLS sheets
-- Builder packets
-- County records
-- Auction notices
-- Commercial offering memoranda
-- Land packages
-- Social media links
-- Drive-by discovery
-- Referrals
-- Direct seller conversations
-
-BRIX must turn this fragmented information into one durable Deal record with minimal re-entry and maximum traceability.
-
-The intake subsystem exists to reduce:
-
-- Time from discovery to first analysis
-- Duplicate Deal creation
-- Manual transcription errors
-- Loss of listing evidence
-- Confusion about data source and freshness
-- Conflicting values across modules
-- Incomplete property identity
-- Abandoned opportunities caused by provider failure
-
----
-
-# 3. Scope
-
-## 3.1 Included
-
-- Address-based intake
-- Listing URL intake
-- Manual intake
-- iOS share extension intake
-- Email and attachment intake
-- File-based intake
-- Portfolio and multi-property package intake
-- Duplicate detection
-- Property resolution
-- Listing import
-- Public-record import where available
-- Source tracking
-- Data classification
-- Conflict handling
-- Background processing
-- Preliminary Deal creation
-- Initial strategy intent
-- Initial Deal stage
-- Intake review and correction
-- Save, reopen, retry, and resume
-- Web, iPhone, and iPad UX
-- Offline draft intake
-- Audit and domain events
-
-## 3.2 Not included
-
-This specification does not define the complete logic for:
-
-- Underwriting calculations
-- Strategy ranking
-- MarketIQ conclusions
-- Contract analysis
-- Photo defect analysis
-- Inspection analysis
-- Appraisal analysis
-- Financing approval
-- Legal conclusions
-
-Property Intake may collect inputs required by those systems, but it must not duplicate their authoritative logic.
-
----
-
-# 4. Dependencies
-
-Required completed dependencies:
-
-- Authentication and workspace isolation
-- Application shell and navigation
-- Canonical Property and Deal model
-- Evidence model
-- Activity and audit model
-- Background job status model
-- Storage authorization
-- Domain event infrastructure
-
-Required downstream integrations:
-
-- Underwriting Engine
-- Strategy Intelligence
-- Decision Cockpit
-- MarketIQ
-- GovernanceIQ
-- VisitIQ
-- ReportIQ
-- Admin usage monitoring
-
----
-
-# 5. Canonical Ownership
-
-## 5.1 Canonical owner
-
-The backend owns:
-
-- Property identity
-- Deal identity
-- Source records
-- Imported field values
-- Field classifications
-- Conflict records
-- Duplicate candidates
-- Import job state
-- Data freshness
-- Accepted value history
-- Intake completion state
-
-Clients may create drafts locally when offline, but no local client may become the permanent source of truth.
-
-## 5.2 Canonical data path
-
-`User intake action → client normalization → intake request → authorization → draft or canonical Property resolution → duplicate candidate search → Deal creation/linking → source capture → provider jobs → field classification → conflict detection → user review → accepted values → domain events → preliminary readiness → Deal cockpit`
-
----
-
-# 6. Intake Entry Points
-
-## 6.1 Global Quick Add
-
-Available from:
-
-- Web global action
-- Dashboard
-- iPhone quick action
-- iPad sidebar or command menu
-- Deal pipeline
-
-Options:
-
-- Paste listing URL
-- Enter address
-- Create manually
-- Import email or file
-- Add portfolio/package
-
-## 6.2 iOS Share Extension
-
-The user may share a supported listing page, web URL, PDF, image, or email attachment to BRIX.
-
-Required behavior:
-
-- Authenticate or queue securely when session recovery is possible
-- Allow workspace selection when user belongs to multiple workspaces
-- Show detected address/title/source
-- Allow quick Deal creation with minimal fields
-- Queue full extraction in the background
-- Confirm that the item was saved
-- Deep-link to the new Deal
-- Never lose the shared content if processing fails
-
-## 6.3 Drive-by or field intake
-
-The user may create a Deal from current location or manually entered address.
-
-Required fields should be minimal:
-
-- Address or map pin
-- Optional Deal name
-- Optional asking price
-- Optional intended strategy
-- Optional voice note or photo
-
-The workflow must allow completion in under one minute when connectivity is available.
-
-## 6.4 Email intake
-
-Supported methods:
-
-- Forward to a unique BRIX workspace intake address
-- Drag email file into web/iPad
-- Import email body and attachments
-- Attach an email to an existing Deal
-
-Email intake must retain:
-
-- Sender
-- Recipients
-- Subject
-- Sent/received date
-- Body
-- Attachments
-- Message identifier where available
-- Thread identifier where available
-- Source mailbox method
-- Original file or raw representation when allowed
-
----
-
-# 7. Intake Workflow
-
-## Step 1 — Capture source
-
-The original input must be preserved before extraction begins.
-
-Examples:
-
-- URL
-- Raw email
-- PDF
-- Image
-- Manual entry snapshot
-- Shared-page metadata
-- Map pin
-
-## Step 2 — Normalize location
-
-Attempt to determine:
-
-- Street address
-- Unit
-- City
-- County
-- State/province/region
-- Postal code
-- Country
-- Latitude
-- Longitude
-- Parcel identifier if available
-
-Normalization must preserve the original user-entered or source-provided text.
-
-## Step 3 — Search for duplicate Property candidates
-
-Search within the workspace and canonical property index using:
-
-- Normalized address
-- Parcel number
-- Coordinates
-- Unit identifier
-- Listing source ID
-- Legal description fragments
-- Building/project name
-- Existing evidence references
-
-Do not silently merge.
-
-The user must see:
-
-- Candidate Property
-- Match reasons
-- Confidence
-- Existing Deals tied to the Property
-- Option to link, create separate, or review more detail
-
-## Step 4 — Create or link Property
-
-If no acceptable Property exists, create a canonical Property with a durable `property_id`.
-
-If the user links to an existing Property, preserve the new source as additional evidence.
-
-## Step 5 — Create Deal
-
-Create a Deal with:
-
-- `deal_id`
-- `property_id`
-- `workspace_id`
-- Deal name
-- Intake source
-- Initial stage
-- Intended strategy if supplied
-- Asking price if supplied
-- Assigned user if applicable
-- Created-by identity
-- Created timestamp
-
-Recommended initial stage:
-
-- `lead` for minimal intake
-- `screening` when sufficient intake data is available
-- `research` when user intentionally begins detailed review
-
-## Step 6 — Run source extraction
-
-Extraction may identify:
-
-- Listing title
-- Asking price
-- Property type
-- Beds/baths
-- Square footage
-- Lot size
-- Year built
-- Unit count
-- Parking
-- Taxes
-- HOA/COA indicators
-- Description
-- Listing status
-- Days on market where legitimately available
-- Broker/agent
-- Photos
-- Features
-- Public-record identifiers
-
-Every extracted value must retain source and confidence.
-
-## Step 7 — Retrieve permitted external data
-
-Provider integrations may attempt:
-
-- Geocoding
-- Parcel data
-- Tax data
-- Sale history
-- Assessed value
-- Zoning references
-- Flood/hazard references
-- Permit references
-- Building facts
-- Association indicators
-- Market data references
-
-Provider failure must not block manual continuation.
-
-## Step 8 — Detect conflicts
-
-Examples:
-
-- Listing says 4 bedrooms; county record says 3
-- User says 2,000 square feet; listing says 1,850
-- Two sources disagree on year built
-- Parcel and address do not align
-- Unit count differs across records
-
-BRIX must retain all conflicting values and identify:
-
-- Field
-- Competing values
-- Sources
-- Dates
-- Classifications
-- Confidence
-- Suggested resolution path
-
-## Step 9 — User review
-
-The review screen must prioritize:
-
-1. Property identity
-2. Asking price
-3. Property type
-4. Size/unit count
-5. Intended strategy
-6. Material conflicts
-7. Missing decision-changing inputs
-8. Processing status
-
-The user may accept, edit, reject, or leave unresolved.
-
-## Step 10 — Commit accepted values
-
-Accepted values become canonical current values through a versioned field-value model.
-
-Original evidence and rejected values remain preserved.
-
-## Step 11 — Emit domain events
-
-At minimum:
-
-- `property.intake_started`
-- `property.created`
-- `property.linked_existing`
-- `deal.created`
-- `source.captured`
-- `source.extraction_started`
-- `source.extraction_completed`
-- `source.extraction_failed`
-- `property.duplicate_candidate_detected`
-- `property.conflict_detected`
-- `property.value_accepted`
-- `property.intake_completed`
-- `deal.readiness_changed`
-
-## Step 12 — Route to next action
-
-Possible next actions:
-
-- Complete missing property facts
-- Run preliminary underwriting
-- Review duplicate candidate
-- Resolve conflicts
-- Add financing
-- Schedule visit
-- Upload documents
-- Open Decision Cockpit
-
----
-
-# 8. Data Model Requirements
-
-## 8.1 `property_sources`
-
-Minimum fields:
-
-- `id`
-- `workspace_id`
-- `property_id`
-- `deal_id` nullable
-- `source_type`
-- `source_name`
-- `source_url` nullable
-- `source_external_id` nullable
-- `retrieved_at`
-- `effective_at` nullable
-- `raw_evidence_id`
-- `license_classification` nullable
-- `status`
-- `created_by`
-- timestamps
-
-## 8.2 `property_field_values`
-
-Minimum fields:
-
-- `id`
-- `workspace_id`
-- `property_id`
-- `deal_id` nullable
-- `field_key`
-- `value_json`
-- `normalized_value_json` nullable
-- `classification`
-- `source_id`
-- `confidence` nullable
-- `effective_at` nullable
-- `observed_at`
-- `is_current`
-- `verification_state`
-- `accepted_by` nullable
-- `accepted_at` nullable
-- `supersedes_id` nullable
-- timestamps
-
-## 8.3 `property_conflicts`
-
-Minimum fields:
-
-- `id`
-- `workspace_id`
-- `property_id`
-- `deal_id` nullable
-- `field_key`
-- `status`
-- `severity`
-- `resolution_type` nullable
-- `resolved_value_id` nullable
-- `resolved_by` nullable
-- `resolved_at` nullable
-- timestamps
-
-Conflict candidates should be represented through a relation to the competing field-value IDs.
-
-## 8.4 `property_duplicate_candidates`
-
-Minimum fields:
-
-- `id`
-- `workspace_id`
-- `candidate_property_id`
-- `target_property_id`
-- `match_score`
-- `match_reasons_json`
-- `status`
-- `resolved_by` nullable
-- `resolved_at` nullable
-- timestamps
-
-## 8.5 `intake_jobs`
-
-Minimum fields:
-
-- `id`
-- `workspace_id`
-- `deal_id`
-- `property_id`
-- `job_type`
-- `status`
-- `progress_current` nullable
-- `progress_total` nullable
-- `provider` nullable
-- `attempt_count`
-- `idempotency_key`
-- `input_version`
-- `output_version` nullable
-- `error_code` nullable
-- `error_message_safe` nullable
-- `started_at` nullable
-- `completed_at` nullable
-- `next_retry_at` nullable
-- timestamps
-
----
-
-# 9. Classification Rules
-
-Allowed classifications:
-
-- Confirmed fact
-- User-entered fact
-- External estimate
-- System estimate
-- User assumption
-- AI observation
-- Professional opinion
-- Inferred information
-- Unknown
-- Conflict
+Governed by `docs/00-START-HERE.md` through `docs/05-BUILD-ROADMAP.md` and Specifications 001–003.
 
 Rules:
 
-- Listing data is not automatically a confirmed fact.
-- County data may still be stale or incomplete.
-- User edits must preserve source history.
-- AI extraction must never silently upgrade classification.
-- Professionally issued documents may produce professional opinions but not necessarily confirmed facts.
-- Unknown is preferred over fabricated completion.
+1. Intake must create or link the canonical Property before creating the canonical Deal relationship.
+2. No external provider is a source of truth merely because it returned data.
+3. Every imported value retains source, date, classification, confidence, verification, freshness, and license/use metadata where relevant.
+4. Provider failure may reduce enrichment but may not block manual Deal creation.
+5. Duplicate detection suggests; the user or an approved controlled process decides.
+6. Re-import updates the same source record idempotently and preserves history.
+7. Estimates, inferred values, and AI observations may not be displayed as confirmed facts.
+8. Original listing, email, file, or shared content must be preserved as Evidence when permitted.
+9. Intake may propose assumptions but may not silently accept them into underwriting.
+10. Every asynchronous import exposes durable state, retry, and partial completion.
+11. Intake must work on web, iPhone, iPad, and supported share/email/file paths.
+12. Source conflicts remain visible until explicitly resolved.
 
----
+## 2. Mission
 
-# 10. Source Precedence
+Turn an address, listing link, manual entry, shared item, email, file, or property package into a trustworthy BRIX Property and Deal with transparent source tracking, duplicate protection, preliminary facts, proposed assumptions, conflicts, and clear next actions.
 
-BRIX must not use a simplistic global precedence hierarchy.
+## 3. Intake Entry Points
 
-Precedence is field-specific and context-specific.
+- Address search
+- Listing URL paste
+- Manual property entry
+- iOS share extension
+- Forwarded email
+- Email attachment
+- File upload
+- Camera/document capture
+- Portfolio/package import
+- Duplicate an existing Deal as a new opportunity
+- Create Deal from an existing Property
 
-Examples:
+Every entry point converges on the same canonical intake orchestration.
 
-- Legal description may prioritize recorded documents.
-- Asking price may prioritize current listing evidence.
-- Square footage may remain conflicted between appraisal, public record, and listing.
-- Unit count may require zoning, inspection, and lease evidence.
-- Taxes must retain tax year and jurisdiction context.
+## 4. Intake State Machine
 
-The UI may recommend a preferred value, but the system must show the basis and preserve alternatives.
+- Draft
+- Resolving Location
+- Searching Existing Property
+- Awaiting Match Decision
+- Creating Property
+- Creating Deal
+- Importing Source
+- Enriching
+- Awaiting Verification
+- Partially Complete
+- Complete
+- Failed
+- Retry Scheduled
+- Conflict
+- Cancelled
 
----
+The UI must distinguish Deal creation success from optional enrichment progress.
 
-# 11. API and Service Contracts
+## 5. Canonical Workflow
 
-Required backend capabilities:
+1. Confirm authenticated workspace and create permission.
+2. Capture source and minimum user intent.
+3. Normalize address/location where present.
+4. Search potential Property matches.
+5. Present match evidence and confidence.
+6. User selects existing Property, creates new Property, or marks candidates not duplicate.
+7. Create Deal idempotently.
+8. Preserve original source as Evidence where allowed.
+9. Start source-specific import job.
+10. Retrieve available public/licensed/user-provided data.
+11. Normalize each value without losing raw provenance.
+12. Detect conflicts with accepted values.
+13. Produce proposed facts and preliminary assumptions.
+14. Present missing decision-changing inputs.
+15. User accepts, rejects, edits, or defers proposals.
+16. Emit events and update timeline.
+17. Continue to Decision Cockpit or underwriting setup.
 
-- Start intake
-- Create manual intake draft
-- Resolve address
-- Search duplicate candidates
-- Create/link Property
-- Create Deal
-- Register source
-- Queue extraction
-- Poll or subscribe to job status
-- Return extracted field values
-- Accept/reject/edit value
-- Resolve conflict
-- Retry failed job
-- Cancel permitted job
-- Complete intake
+## 6. Property Matching
 
-All mutation endpoints must support:
+Signals may include:
 
-- Authentication
-- Workspace authorization
-- Idempotency
-- Optimistic concurrency/version checks
-- Structured validation errors
-- Correlation IDs
-- Audit logging
+- Normalized address
+- Parcel ID/APN/PIN
+- Coordinates
+- Unit number
+- Building/project name
+- Legal description
+- Listing-source ID
+- County/municipality identifiers
 
----
+Match result includes:
 
-# 12. Web UX
-
-## 12.1 New Deal modal/page
-
-The first screen must be simple:
-
-- Paste listing URL
-- Enter address
-- Manual entry
-- Import file/email
-- Portfolio/package
-
-Do not ask for every field before creating a Deal.
-
-## 12.2 Processing experience
-
-After submission:
-
-- Immediately confirm source capture
-- Show Deal creation state
-- Show extraction jobs separately
-- Allow user to leave and continue other work
-- Show durable progress in the notification/background-job center
-- Deep-link back to intake review
-
-## 12.3 Review screen
-
-Use a two-level structure:
-
-- Decision-critical summary
-- Expandable source detail
-
-Required sections:
-
-- Identity
-- Pricing
-- Property characteristics
-- Listing details
-- Public data
+- Candidate Property ID
+- Match reasons
 - Conflicts
-- Missing information
-- Sources
-- Processing history
+- Confidence
+- Last updated
+- Existing active Deals
 
-## 12.4 Desktop behavior
+No automatic merge when material ambiguity exists.
 
-Use a wide review layout with:
+## 7. Source Record Model
 
-- Main field review
-- Source/evidence side panel
-- Conflict drawer or panel
-- Sticky save/continue actions
+Each source/import record should include:
 
-## 12.5 Mobile web behavior
+- ID
+- Workspace ID
+- Deal ID
+- Property ID
+- Source type
+- Provider/source name
+- Source URL or identifier
+- Retrieved time
+- Effective time
+- Raw snapshot/evidence reference
+- Import workflow version
+- Status
+- License/use restrictions
+- Error/retry metadata
 
-Use sequential cards with a persistent progress indicator and no forced horizontal tables.
+## 8. Value Proposal Model
 
----
+Each proposed value includes:
 
-# 13. iPhone UX
+- Canonical subject and field
+- Raw value
+- Normalized value
+- Display value
+- Unit/currency
+- Classification
+- Source record/evidence
+- Confidence
+- Verification state
+- Effective date
+- Freshness
+- Conflict references
+- Proposed action: add, update, ignore, verify
 
-Required optimized flows:
+Acceptance creates or updates the canonical fact/assumption through a versioned mutation. Rejection does not delete source evidence.
 
-- Share listing to BRIX
-- Create from current location
-- Paste URL
-- Add quick photo or voice note
-- Review only decision-critical fields first
-- Defer extended review
-- Show offline draft state
-- Show upload/extraction progress
-- Resume from notification
+## 9. Supported Data Categories
 
-The iPhone flow must be completable one-handed.
+Where lawful and available:
 
-No modal stack may trap the user or lose the shared source.
+- Address and geocoding
+- Parcel/legal description
+- Ownership
+- Tax history and assessed value
+- Sale history
+- Listing status, price, description, dates, and photos
+- Building year, area, beds/baths, units, stories, parking
+- Lot/site characteristics
+- Zoning and land use
+- Permits and violations
+- Utilities and broadband
+- Flood and environmental/hazard indicators
+- Schools and convenience context
+- Association indicators
+- Rent indicators
+- Market sale indicators
+- Property-type-specific facts
 
----
+Each category must declare source, geography, date, and confidence.
 
-# 14. iPad UX
+## 10. Listing URL Intake
+
+- Validate supported/unsupported source.
+- Preserve URL and retrieved timestamp.
+- Respect terms, robots, licensing, and provider restrictions.
+- Extract only available permitted data.
+- Preserve source listing ID.
+- Re-import updates the source record and creates new value proposals when changed.
+- Removed/unavailable listing does not erase prior evidence.
+- The user can continue manually when parsing fails.
+
+BRIX must not promise universal listing-site extraction.
+
+## 11. Manual Intake
+
+Minimum fields:
+
+- Address or descriptive location
+- Property type
+- Opportunity name
+- Asking/expected price where known
+- Intended strategy
+- Source/contact where known
+
+Manual values are classified as user-entered facts or assumptions according to meaning. Blank is preferred over fabricated default.
+
+## 12. Email and File Intake
+
+- Preserve original bytes/body and metadata.
+- Calculate hash for duplicate detection.
+- Attempt Deal/Property matching.
+- Queue unmatched evidence for user assignment.
+- Extract suggested values with source anchors.
+- Never silently create accepted Deal facts from email text.
+- Group related email body and attachments when appropriate.
+
+## 13. iOS Share Extension
+
+Share extension supports:
+
+- URL
+- Text
+- Image
+- PDF/file
+
+Requirements:
+
+- Fast capture even when app is not active.
+- User selects existing Deal or creates intake draft.
+- Secure shared-container handling.
+- Offline queue.
+- No loss if upload is interrupted.
+- Canonical sync on next app activation/background opportunity.
+
+## 14. Portfolio and Package Intake
+
+Support multiple Properties under one Deal or multiple Deals under an import batch.
 
 Required:
 
-- Drag and drop URLs, PDFs, images, and email files
-- Split view with source on one side and field review on the other
-- Keyboard shortcuts for accept, reject, next conflict, save, and complete
-- Multi-property package review
-- Bulk source assignment
-- Pointer support
-- Persistent context while switching Deals
-
----
-
-# 15. Offline Behavior
-
-Offline-supported actions:
-
-- Create intake draft
-- Enter address manually
-- Capture photos
-- Record voice note
-- Attach local files
-- Enter asking price and strategy
-- Save locally
-
-Offline drafts must have durable local IDs and a clear unsynced state.
-
-When connectivity returns:
-
-1. Authenticate/refresh session
-2. Upload source evidence
-3. Create canonical Property/Deal
-4. Reconcile duplicates
-5. Preserve local timestamps
-6. Surface conflicts
-7. Mark sync completion
-
-Offline drafts must never silently merge into an existing Property without user confirmation when a duplicate candidate exists.
-
----
-
-# 16. Freshness and Stale-State Rules
-
-Every source-derived value must expose:
-
-- Retrieved date
-- Effective date where available
-- Current/stale state
-- Source
-- Confidence/classification
-
-Re-import behavior:
-
-- Preserve old source
-- Add new source version
-- Compare changed values
-- Mark dependent analysis stale only when affected fields changed
-- Trigger targeted recalculation after accepted changes
-- Do not overwrite accepted values before review unless explicit policy permits
-
-A stale listing status must never display as current without a stale label.
-
----
-
-# 17. Background Jobs
-
-Job categories may include:
-
-- URL fetch
-- Listing extraction
-- OCR
-- Document extraction
-- Image download
-- Geocoding
-- Parcel lookup
-- Tax lookup
-- Hazard lookup
-- Permit lookup
-- Duplicate analysis
-
-Each job must support:
-
-- Durable status
-- Idempotency
-- Retry with bounded backoff
-- Timeout
-- Cancellation where safe
-- Dead-letter/failure review
-- Provider-safe error mapping
-- Usage metering
-- Correlation ID
-- Admin visibility
-
-No job may remain indefinitely in `processing` without timeout or escalation.
-
----
-
-# 18. Error Handling
-
-Required distinct errors:
-
-- Unsupported URL
-- Source blocked or unavailable
-- Authentication expired
-- Workspace permission denied
-- Address unresolved
-- Duplicate candidate requires review
-- File too large
-- Unsupported file type
-- Provider timeout
-- Provider rate limit
-- Extraction failure
-- Partial extraction
-- Conflict detected
-- Offline save only
-- Sync conflict
-- Storage failure
-- Internal failure
-
-Every error must state:
-
-- What failed
-- What was preserved
-- Whether Deal creation succeeded
-- Whether analysis is affected
-- What the user can do next
-- Support reference ID where appropriate
+- Batch identity
+- Row/item status
+- Duplicate handling per Property
+- Shared package evidence
+- Item-level errors and retry
+- No all-or-nothing loss when one row fails
+
+## 15. Conflict Handling
+
+Conflicts may involve:
+
+- Address/parcel mismatch
+- Different building size/year/unit count
+- Different taxes/assessment
+- Different listing price/status
+- User value versus provider value
+- Two provider values
+
+Conflict UI shows:
+
+- Current accepted value
+- Proposed values
+- Sources/dates
+- Confidence
+- Decision impact
+- Accept/keep/edit/defer actions
+
+Material conflicts remain visible in Decision Cockpit until resolved or intentionally deferred.
+
+## 16. Preliminary Analysis
+
+Intake may trigger preliminary analysis only when required minimum inputs exist.
+
+Preliminary output must:
+
+- Be clearly labeled preliminary.
+- Show assumed/default inputs.
+- Show missing decision-changing inputs.
+- Avoid final recommendation language.
+- Reference canonical engine if calculations are performed.
 
----
+## 17. Web UX
+
+- Quick intake modal/page.
+- Address/listing/manual tabs or context-aware flow.
+- Duplicate candidate comparison.
+- Import progress and partial completion.
+- Source/conflict review.
+- Proposed-value acceptance.
+- Clear continue-to-underwriting action.
+
+## 18. iPhone UX
+
+- Quick Add Deal.
+- Paste/share URL.
+- Camera/file intake.
+- Minimal required fields.
+- Offline draft and queued upload.
+- Resume interrupted import.
+
+## 19. iPad UX
+
+- Multi-column source review.
+- Drag/drop files and URLs.
+- Batch/portfolio intake.
+- Candidate and source comparison alongside Deal context.
+
+## 20. Security and Provider Boundaries
+
+- Provider secrets remain server-side.
+- Inputs/URLs are validated.
+- Files are scanned/validated where implemented.
+- Imports are rate-limited.
+- Provider responses are treated as untrusted input.
+- Workspace scope and RLS apply to every source/evidence/proposal record.
+- Sensitive source content is absent from unsafe logs.
+
+## 21. Domain Events
+
+- `intake.created`
+- `intake.source_received`
+- `property.match_candidates_found`
+- `property.match_resolved`
+- `property.created`
+- `deal.created`
+- `source.import_started`
+- `source.import_completed`
+- `source.import_failed`
+- `value.proposed`
+- `value.accepted`
+- `value.rejected`
+- `value.conflict_detected`
+- `intake.completed`
+
+Consumers include timeline, Decision Cockpit, underwriting readiness, tasks, and notifications.
+
+## 22. Testing Requirements
+
+- Address normalization/match tests.
+- Duplicate and no-match tests.
+- Listing/manual/email/file/share-extension integration tests.
+- Idempotent re-import tests.
+- Provider outage/timeout/rate-limit tests.
+- Partial batch failure tests.
+- Conflict acceptance/rejection tests.
+- RLS/storage tests.
+- Web/iOS E2E and offline resume tests.
+- Accessibility and performance tests.
 
-# 19. Security and Privacy
+## 23. Verification and Validation
 
-- All source evidence is workspace-isolated.
-- Storage access requires authorized signed or authenticated access.
-- Raw emails and documents are sensitive by default.
-- Service-role keys remain server-side.
-- URL fetchers must protect against SSRF and unsafe redirects.
-- File uploads must validate type, size, extension, content signature, and malware policy.
-- HTML extraction must sanitize untrusted content.
-- Prompt injection in source content must not alter authorization or system rules.
-- Personally identifiable information must be minimized in logs.
-- Deletion and retention follow workspace/account policy.
+### Functional verification
 
----
+- Every intake entry creates or links the correct Property and Deal.
+- Manual continuation works when enrichment fails.
+- Imports save, reopen, retry, and preserve original source.
+- Re-import does not duplicate canonical records.
 
-# 20. Performance Targets
+### Data verification
 
-Targets under normal operating conditions:
+- Every imported value retains provenance, classification, date, confidence, verification, freshness, and history.
+- No estimate or AI observation becomes a confirmed fact without explicit acceptance.
+- No orphan source/evidence/proposal records remain.
 
-- Deal shell created or confirmed within 2 seconds after valid submission
-- UI acknowledgement within 150 ms
-- Address candidate response within 2 seconds when provider is healthy
-- Background processing can continue without blocking navigation
-- Intake list and Deal reopening within 2 seconds for typical records
-- Large source packages process asynchronously
-- Progress updates should appear without aggressive polling
+### Integration verification
 
-Targets are objectives, not permission to fake completion.
+- Accepted facts feed canonical assumptions/readiness.
+- Underwriting and strategy use accepted values only.
+- Conflicts and missing inputs appear in Decision Cockpit.
+- Timeline, tasks, notifications, reports, web, iPhone, and iPad reconcile.
 
----
+### UX verification
 
-# 21. Analytics and Usage
+- Loading, matching, partial, stale, offline, conflict, permission, retry, unsupported-source, and provider-failure states are clear.
+- No dead end exists after provider failure.
 
-Track without exposing sensitive content:
+### Definition of Done
 
-- Intake started
-- Intake method
-- Intake completed
-- Intake abandoned
-- Duplicate detected
-- Duplicate linked/new Property chosen
-- Extraction succeeded/failed/partial
-- Conflict count
-- Time to Deal creation
-- Time to intake completion
-- Provider usage and cost
-- Retry count
-- Manual correction rate
-- Offline draft sync success
+Complete only when realistic address, listing, manual, file/email, mobile share, and package workflows preserve source truth and connect seamlessly into the canonical Deal.
 
----
-
-# 22. Notifications
-
-Notify when useful:
-
-- Extraction complete
-- Extraction partially complete
-- Extraction failed
-- Duplicate review required
-- Material conflict requires review
-- Intake ready for underwriting
-- Offline draft synced
-- Portfolio package processing complete
-
-Notifications must open the exact Deal and relevant intake state.
-
----
-
-# 23. Reports and Downstream Consumption
-
-Property Intake outputs are consumed by:
-
-- Deal Cockpit
-- Underwriting
-- Strategy Engine
-- MarketIQ
-- GovernanceIQ
-- VisitIQ
-- Reports
-- Portfolio comparison
-
-Downstream systems must consume accepted canonical values and may inspect unresolved alternatives.
-
-No report may present an unresolved conflict as a confirmed value without labeling it.
-
----
-
-# 24. Acceptance Tests
-
-## 24.1 Address intake
-
-Given a valid address, the system creates or links a Property, creates a Deal, preserves the entered source, and opens the review workflow.
-
-## 24.2 Listing URL intake
-
-Given a supported listing URL, the system captures the URL, creates the Deal immediately, processes extraction asynchronously, and shows durable status.
-
-## 24.3 Unsupported URL
-
-Given an unsupported or blocked URL, the system preserves the URL and allows manual continuation.
-
-## 24.4 Duplicate candidate
-
-Given an address matching an existing Property, the system presents match reasons and does not silently merge.
-
-## 24.5 Conflicting facts
-
-Given two sources with different square footage, both values remain available and a conflict is created.
-
-## 24.6 Re-import
-
-Given a new version of the same listing, the system preserves the earlier source, identifies changes, and does not duplicate the Deal.
-
-## 24.7 Offline intake
-
-Given no connectivity, the iPhone user can save an intake draft with photo and voice note, then sync later without data loss.
-
-## 24.8 Provider failure
-
-Given geocoding or public-record provider failure, the Deal remains usable and the user can continue manually.
-
-## 24.9 Permission isolation
-
-A user from another workspace cannot view, update, or download the intake source or Property data.
-
-## 24.10 Cross-client consistency
-
-The same accepted Property facts, conflicts, and processing states appear on web, iPhone, and iPad.
-
----
-
-# 25. Regression Tests
-
-- Repeated submission with same idempotency key does not create duplicate Deal
-- Browser refresh during extraction preserves status
-- App termination during upload preserves retry state
-- Session refresh does not duplicate jobs
-- Rejected value does not become current
-- Accepted value remains after reopen
-- Conflict resolution preserves competing source history
-- Archive/restore Deal preserves intake evidence
-- Deleting permitted draft does not delete shared canonical Property incorrectly
-- Listing image failure does not fail the entire intake
-- Background timeout transitions to visible failure
-- Notification opens correct Deal
-- Report uses accepted values
-- Offline sync conflict does not overwrite newer canonical edits silently
-
----
-
-# 26. Definition of Done
-
-This specification is complete only when:
-
-- Every intake method works end to end
-- Property and Deal identity are canonical
-- Duplicate detection is implemented and tested
-- Original source evidence is preserved
-- Field classifications and source lineage are visible
-- Conflicts are durable and resolvable
-- Background jobs expose complete status and retry
-- Manual continuation works when providers fail
-- Web, iPhone, and iPad workflows are complete
-- Offline drafts sync safely
-- No stale data is represented as current
-- All visible controls work
-- RLS and storage isolation tests pass
-- Acceptance and regression tests pass
-- Exact verification commands and results are recorded
-- No unrelated files are changed
-
-Codex must end implementation with either:
-
-`CHAPTER COMPLETE`
-
-or
-
-`CHAPTER NOT COMPLETE`
-
-A partial intake UI, a URL parser without persistence, or a Deal record without source lineage does not satisfy this specification.
+**SPECIFICATION STATUS: REVIEWED AND REPAIRED**
