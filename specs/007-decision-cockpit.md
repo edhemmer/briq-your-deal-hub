@@ -1,894 +1,343 @@
-# 007 — Decision Cockpit
+# BRIX Specification 007 — Decision Cockpit
 
-## Authority
+## 1. Authority and Rules of Engagement
 
-This specification is subordinate to the BRIX product constitution, engineering standards, data architecture, UI/UX system, build roadmap, and all previously completed specifications. It governs the implementation of the central Deal workspace and decision experience.
+Governed by `docs/00-START-HERE.md` through `docs/05-BUILD-ROADMAP.md` and Specifications 001–006.
 
-Codex must re-read the permanent build rules before implementation. This feature must not create duplicate Deal state, duplicate calculations, duplicate recommendations, or client-specific truth.
+Rules:
 
----
+1. The Decision Cockpit is the central operating view for one canonical Deal.
+2. It reads canonical outputs; it does not create duplicate calculations, risk systems, tasks, evidence, or recommendations.
+3. Current recommendation, user decision, selected strategy, and strongest system-ranked strategy remain distinct.
+4. Stale, processing, incomplete, conflicted, and failed states must be visible.
+5. Prior valid results remain available during recalculation or provider failure.
+6. Every summary must drill into its assumptions, calculations, findings, and evidence.
+7. The user must understand what changed and why.
+8. The next action must be clear and permission-aware.
+9. Web, iPhone, iPad, reports, and shared views must reconcile to the same canonical state.
+10. No module badge, count, warning, or freshness indicator may be client-local or fabricated.
+11. Guided and professional modes use the same underlying result.
+12. Cockpit actions must connect to complete workflows, never dead ends.
 
-## Mission
+## 2. Mission
 
-The Decision Cockpit is the primary operating surface for BRIX. It must allow an investor to understand the current condition of a Deal, evaluate the strongest strategies, see the numbers that matter, identify material risks, understand what is missing, act on deadlines, and make a documented decision without searching across disconnected modules.
+Give an investor a calm, trustworthy, decision-first view of the current opportunity: what BRIX recommends, which strategy is strongest, what the numbers say, what risks or missing information matter, what changed, and what should happen next.
 
-The Cockpit is not a generic dashboard. It is a decision system built around one canonical Deal.
+## 3. Priority Hierarchy
 
----
+1. Current recommendation
+2. Deal stage and status
+3. Strongest viable strategy
+4. User-selected strategy
+5. Key financial outputs
+6. Material risks and hard disqualifiers
+7. Confidence and freshness
+8. Missing decision-changing information
+9. Critical deadlines and tasks
+10. Next recommended action
+11. Changes since prior result
+12. Supporting assumptions, calculations, evidence, and activity
 
-## User Outcomes
+## 4. Canonical Inputs
 
-The user must be able to answer, within seconds:
+- Deal and Property
+- Active underwriting result
+- Strategy ranking
+- Recommendation history
+- User decision history
+- MarketIQ findings
+- FinanceIQ structure/feasibility
+- GovernanceIQ restrictions
+- ContractIQ terms/deadlines
+- OfferIQ status
+- Visit/photo/voice findings
+- Inspection/appraisal findings
+- Tasks/deadlines
+- Evidence and conflicts
+- Background jobs
 
-1. What Deal am I viewing?
-2. What stage is it in?
-3. What is BRIX currently recommending?
-4. Which strategy is strongest and why?
-5. What are the key financial results?
-6. What risks could materially change the decision?
-7. What information is missing or stale?
-8. What deadlines or tasks require attention?
-9. What changed since the last review?
-10. What should I do next?
-11. What evidence supports the recommendation?
-12. Can I proceed, negotiate, monitor, or pass?
+The Cockpit stores presentation preferences only; it does not duplicate source records.
 
----
+## 5. Recommendation Contract
 
-## Dependencies
+Display:
 
-Required completed or contractually stable systems:
-
-- Authentication and workspaces
-- Dashboard and application shell
-- Deals and PDRM core
-- Property intake and source tracking
-- Deterministic underwriting engine
-- Strategy intelligence engine
-
-Future modules must plug into the Cockpit through canonical contracts:
-
-- MarketIQ
-- FinanceIQ
-- GovernanceIQ
-- ContractIQ
-- OfferIQ
-- VisitIQ
-- PhotoIQ
-- InspectionIQ
-- AppraisalIQ
-- ReportIQ
-- RELearnIQ
-- Notifications
-
-The Cockpit must render incomplete future modules through explicit availability, not dead navigation or fake results.
-
----
-
-## Canonical Ownership
-
-The Cockpit owns presentation and workflow composition only.
-
-It does not own:
-
-- Property facts
-- Deal lifecycle truth
-- Underwriting formulas
-- Strategy ranking logic
-- Financing calculations
-- Contract findings
-- Inspection findings
-- Appraisal values
-- Governance restrictions
-- Market data
-- AI-generated truth
-
-All displayed values must be retrieved from canonical domain records and versioned outputs.
-
----
-
-## Canonical Data Inputs
-
-The Cockpit consumes, at minimum:
-
-- `workspace`
-- `portfolio`
-- `property`
-- `deal`
-- `deal_stage_history`
-- `deal_members`
-- `assumption_set`
-- `underwriting_snapshot`
-- `underwriting_result`
-- `strategy_scenario`
-- `strategy_ranking`
-- `recommendation`
-- `decision`
-- `risk_finding`
-- `evidence`
-- `evidence_finding`
-- `task`
-- `deadline`
-- `activity`
-- `domain_event`
-- `financing_structure`
-- `offer`
-- `contract`
-- `inspection`
-- `appraisal`
-- `governance_record`
-- `visit`
-- `report`
-- `background_job`
-
-No client-side aggregate may become canonical.
-
----
-
-## Primary Screen Hierarchy
-
-The Cockpit must present information in this order:
-
-1. Deal identity and status
-2. Current recommendation
-3. Strongest strategy and selected strategy
-4. Key financial results
-5. Material risks and blockers
-6. Confidence and freshness
-7. Missing decision-changing information
-8. Tasks and deadlines
-9. What changed
-10. Supporting modules and evidence
-11. Full history and technical detail
-
-The user must not be forced to open multiple modules to understand the current decision.
-
----
-
-## Deal Header
-
-The persistent Deal header must include:
-
-- Property address or Deal title
-- Property type
-- Deal stage
-- Listing or acquisition status where applicable
-- Current owner/assignee
-- Active portfolio
-- Selected strategy
-- Current recommendation state
-- Last successful analysis time
-- Stale/conflict/offline indicators
-- Quick actions
-
-### Quick actions
-
-At minimum:
-
-- Edit Deal
-- Add evidence
-- Add note
-- Add photo
-- Record voice note
-- Add task
-- Run or refresh analysis
-- Compare strategies
-- Prepare offer
-- Generate report
-- Get directions
-- Share
-- Archive or pass
-
-Actions must be permission-aware and hidden when unavailable.
-
----
-
-## Recommendation Panel
-
-The recommendation panel must show:
-
-- Current system recommendation
-- User decision, if different
-- Recommendation status
-- Recommendation date/time
-- Inputs version
-- Engine version
-- Strategy ranking version
-- Confidence level
-- Material assumptions
+- Recommendation state
+- Recommended action
+- Rationale
+- Active strategy
 - Binding constraints
-- Main reasons
-- Conditions required to proceed
-- Reasons to pass
-- Next recommended action
+- Hard disqualifiers
+- Confidence
+- Freshness/as-of time
+- Missing information
+- Professional-review needs
+- Prior recommendation comparison
 
-### Recommendation states
+Recommendation states may include:
 
 - Research
 - Visit
 - Monitor
 - Negotiate
-- Prepare offer
-- Submit offer
-- Proceed with conditions
+- Prepare Offer
+- Submit Offer
+- Proceed with Conditions
 - Hold
 - Pass
 - Acquire
 - Refinance
 - Sell
 
-The system recommendation and user decision must remain separate and historically preserved.
+## 6. Key Financial Summary
 
----
+Show property/strategy-appropriate metrics, such as:
 
-## Key Financial Metrics
-
-Display only metrics applicable to the active property type and strategy.
-
-Potential metrics:
-
-- Purchase price
-- Total acquisition cost
+- Price
 - Total project cost
 - Cash required
-- Loan amount
-- Monthly debt service
-- Gross income
-- Effective gross income
-- Operating expenses
+- Monthly/annual cash flow
 - NOI
-- Monthly and annual cash flow
 - Cap rate
-- Cash-on-cash return
-- DSCR
-- Break-even occupancy
-- IRR
+- Cash-on-cash
+- DSCR/debt yield
+- IRR/XIRR
 - Equity multiple
 - Profit margin
-- Return on cost
-- Refinance proceeds
-- Maximum allowable offer
+- Maximum offer
 
-### Metric rules
+Requirements:
 
-- Show units and currency.
-- Show source scenario.
-- Show freshness.
-- Show assumptions behind the value.
-- Distinguish current, baseline, conservative, and optimistic scenarios.
-- Never show unsupported zeroes as actual values.
-- Unknown values display as unknown, not blank or zero.
-- Material warnings must appear beside affected metrics.
+- Units, currency, period, scenario, and freshness visible.
+- Click/tap opens calculation lineage and assumptions.
+- No client-side authoritative recalculation.
+- Missing/unavailable metrics are explained rather than shown as zero.
 
----
+## 7. Risk and Constraint Model
 
-## Strategy Summary and Comparison
+Separate:
 
-The Cockpit must display:
-
-- Selected strategy
-- Strongest strategy
-- Highest cash-flow strategy
-- Lowest-risk strategy
-- Lowest-capital strategy
-- Highest-confidence strategy
-- Disqualified strategies
-- Alternative strategies worth review
-
-For each visible strategy:
-
-- Rank
-- Score
-- Confidence
-- Required cash
-- Key return metrics
-- Major risks
 - Hard disqualifiers
-- Missing inputs
-- Why it ranks where it does
+- Confirmed material risks
+- Potential concerns
+- Missing evidence
+- Conflicts
+- Informational observations
 
-The user must be able to open full strategy comparison without losing Deal context.
+Each item includes:
 
----
-
-## Risk Center
-
-Risks must be grouped by domain:
-
-- Property condition
-- Financial
-- Financing
-- Market
-- Legal/contract
-- Governance/association
-- Title/survey
-- Inspection
-- Appraisal
-- Environmental
-- Insurance
-- Zoning/permits
-- Tenant/lease
-- Construction/development
-- Operational
-- Liquidity/exit
-- Data quality
-
-### Risk classes
-
-- Confirmed blocker
-- Material risk
-- Potential concern
-- Verification required
-- Informational observation
-
-Each risk must include:
-
-- Summary
 - Severity
-- Confidence
+- Category
 - Source
-- Source date
-- Affected strategy
-- Affected calculation or recommendation
-- Required verification
-- Suggested responsible party
-- Resolution state
+- Confidence
+- Verification state
+- Decision impact
+- Suggested action
+- Connected module
 
-No AI observation may be presented as a confirmed professional finding.
+## 8. Missing Information and Readiness
 
----
+Identify inputs that could materially change:
 
-## Confidence and Freshness
+- Underwriting
+- Strategy ranking
+- Financing feasibility
+- Maximum offer
+- Contract decision
+- Visit priority
+- Closing readiness
 
-The Cockpit must distinguish confidence from freshness.
+Each missing item provides:
 
-### Confidence domains
-
-- Property facts
-- Market
-- Financial assumptions
-- Financing
-- Documents
-- Governance
-- Inspection
-- Appraisal
-- Strategy fit
-- Overall decision
-
-### Freshness states
-
-- Current
-- Current with pending evidence
-- Recalculation required
-- Processing
-- Stale
-- Conflicted
-- Failed
-- Offline local changes
-
-A recommendation based on superseded assumptions must remain visible but be marked stale and non-current.
-
----
-
-## Missing Information Queue
-
-Display only missing items that could materially affect the Deal.
-
-Each item must include:
-
-- Missing field or evidence
 - Why it matters
-- Affected calculation
-- Affected strategy
-- Severity
-- Suggested source
-- Suggested responsible party
-- Suggested next action
-- Due date if applicable
+- Required source/action
+- Owner/assignee
+- Due date where relevant
+- Link to complete it
 
-The user must be able to convert an item into a task, upload request, question, or professional referral.
+## 9. Next Action Engine
 
----
-
-## Tasks and Deadlines
-
-The Cockpit must show:
-
-- Overdue
-- Due today
-- Due soon
-- Upcoming critical
-- Assigned to user
-- Waiting on others
-- Blocked
-- Completed recently
-
-Deadlines created from documents must retain source references and verification status.
-
-The Cockpit must never imply that a document-extracted deadline is legally verified when it is not.
-
----
-
-## Change Intelligence
-
-The Cockpit must show what changed since the user's last meaningful review.
+Next actions are deterministic/rule-based recommendations derived from canonical state. AI may explain them.
 
 Examples:
 
-- Purchase price changed
-- Financing changed
-- Inspection added repair costs
-- Appraisal changed value confidence
-- Contract introduced deadline
-- Governance restriction disqualified strategy
-- Market data updated
-- Strategy rank changed
-- Recommendation changed
-- Task became overdue
+- Complete missing assumptions
+- Verify rent/taxes/insurance
+- Schedule visit
+- Upload association documents
+- Compare financing
+- Prepare offer
+- Review contract deadline
+- Obtain specialist inspection
+- Update repair estimate
+- Record pass/acquire decision
 
-Each change record must show:
+User may dismiss, defer, complete, or select a different action where allowed. History remains.
 
-- Before
-- After
-- Time
-- Source
-- Actor
-- Affected outputs
-- Whether recalculation completed
+## 10. Change Summary
 
----
+Show material changes since the prior accepted result:
 
-## Module Navigation
+- Changed facts/assumptions
+- New evidence
+- Financial deltas
+- Strategy ranking changes
+- Added/removed disqualifiers
+- Confidence changes
+- Recommendation change
+- Deadline/task changes
 
-Required Deal modules:
+Changes link to canonical history and source evidence.
 
-- Overview
-- Property
-- Underwriting
+## 11. Cockpit Sections
+
+- Executive Decision
+- Key Numbers
 - Strategies
-- Market
+- Risks and Constraints
+- Missing Information
 - Financing
-- Visits
-- Photos and media
-- Documents
+- Market/Location
 - Governance
-- Offer
-- Contract
-- Inspection
-- Appraisal
-- Tasks and deadlines
-- Contacts
-- Activity and history
+- Contract/Offer
+- Visit/Photo/Inspection/Appraisal
+- Tasks and Deadlines
+- Recent Changes
+- Evidence
 - Reports
 - Education
 
-### Navigation rules
+Sections use progressive disclosure and consistent status badges.
 
-- Preserve active Deal.
-- Preserve last meaningful location.
-- Deep links must reopen correct module and record.
-- Unavailable modules must be hidden or explicitly labeled unavailable.
-- Module badges must reflect canonical outstanding work.
-- No module may maintain private counts that disagree with the server.
+## 12. Web UX
 
----
+- Decision summary above fold where practical.
+- Stable Deal navigation.
+- Responsive grid without excessive nested cards.
+- Side panel/drawer for evidence or lineage when useful.
+- Keyboard navigation and shortcuts.
+- Scenario/version comparison.
+- Sticky context for long analysis.
 
-## Web UX
+## 13. iPhone UX
 
-### Desktop
+- Compact decision summary.
+- Swipe/tap-friendly prioritized sections.
+- Fast next action.
+- Current Deal and directions/visit access.
+- Cached read-only view offline.
+- Queued notes/tasks/evidence actions where allowed.
 
-Use a responsive multi-column layout:
+## 14. iPad UX
 
-- Persistent Deal navigation
-- Central decision content
-- Optional contextual rail for tasks, processing, or evidence
+- Multi-column summary/detail.
+- Comparison and source document coexistence.
+- Keyboard/pointer support.
+- No stretched phone layout.
 
-The layout must support dense professional review without visual clutter.
+## 15. State Model
 
-### Tablet web
-
-Collapse secondary rails while preserving recommendation and next action.
-
-### Mobile web
-
-Use a stacked priority order. Do not attempt to reproduce desktop tables unchanged.
-
----
-
-## Native iPhone UX
-
-The iPhone Cockpit must prioritize field decisions.
-
-Required behavior:
-
-- One-handed navigation
-- Recommendation summary above fold
-- Key metrics in horizontally scrollable or stacked native cards
-- Risk count and next action immediately visible
-- Quick photo, voice note, task, and directions actions
-- Offline status
-- Background upload status
-- Resume last Deal context
-- Native sheets for quick edits
-- No overloaded desktop-style grids
-
----
-
-## Native iPad UX
-
-The iPad Cockpit must use native multi-column layouts.
-
-Required behavior:
-
-- Deal list, Cockpit, and contextual detail may coexist
-- Compare scenarios side by side
-- Review document and Cockpit simultaneously
-- Drag evidence into Deal modules
-- Keyboard shortcuts
-- Pointer support
-- Resizable panes where practical
-- No stretched iPhone layout
-
----
-
-## Guided and Professional Modes
-
-Both modes use the same canonical outputs.
-
-### Guided mode
-
-- Plain-language explanations
-- Contextual RELearnIQ links
-- Suggested next steps
-- Definitions for financial metrics
-- Clear warnings when professional review is appropriate
-
-### Professional mode
-
-- Higher information density
-- Direct access to assumptions
-- Formula traceability
-- Source details
-- Scenario controls
-- Advanced filters
-
-Switching modes must not alter calculations or hide material risk.
-
----
-
-## Loading, Empty, Partial, and Failure States
-
-Every Cockpit section must define:
-
-- Initial loading
-- Incremental loading
-- Empty but valid
-- Not yet configured
+- No underwriting yet
+- Incomplete/blocking
 - Processing
-- Partially complete
+- Current
+- Current with warnings
 - Stale
 - Conflict
-- Offline
-- Permission denied
-- Failed
-- Retry scheduled
+- Partial module availability
+- Failed recalculation with prior result
+- Offline cached
+- Permission restricted
+- Archived/closed Deal
 
-A section must not show a perpetual spinner.
+The screen must never imply a stale recommendation is current.
 
-If a dependent provider fails, prior valid output remains visible with clear freshness and failure status.
+## 16. Actions and Permissions
 
----
+Potential actions:
 
-## Background Jobs
+- Run/re-run underwriting
+- Compare strategies
+- Accept/edit assumption proposal
+- Create/complete task
+- Schedule visit
+- Add evidence
+- Open FinanceIQ/GovernanceIQ/ContractIQ/OfferIQ
+- Generate report
+- Record decision
+- Archive/pass
 
-The Cockpit must expose durable status for:
+Every action checks server-side permission and opens a complete connected workflow.
 
-- Property import
-- Source refresh
+## 17. Domain Events Consumed
+
+- Deal lifecycle
+- Value acceptance/conflict
 - Underwriting
 - Strategy ranking
-- Document extraction
-- Photo analysis
-- Voice transcription
-- Inspection extraction
-- Appraisal extraction
-- Report generation
-- Export
-- Notifications
-- Sync
-
-Each job must include:
-
-- Job ID
-- Type
-- State
-- Progress where reliable
-- Started time
-- Last update
-- Retry count
-- Error category
-- User recovery action
-
-Retries must be idempotent.
-
----
-
-## Offline and Sync Behavior
-
-The user may:
-
-- View last synced Deal
-- Add notes
-- Capture photos
-- Record voice notes
-- Create tasks
-- Edit permitted draft fields
-
-Offline changes must be clearly labeled and queued.
-
-The system must:
-
-- Preserve local work
-- Sync when connectivity returns
-- Detect version conflict
-- Avoid silent overwrite
-- Show unresolved conflicts
-- Retain prior server state
-- Allow manual resolution where needed
-
-Canonical financial results must not be recalculated locally unless explicitly designed as non-authoritative previews.
-
----
-
-## Performance Requirements
-
-Targets under normal production conditions:
-
-- Cockpit shell interactive within 2 seconds on supported broadband
-- Cached Deal shell visible within 500 ms where safe
-- Primary recommendation and metrics prioritized before secondary history
-- Navigation response under 100 ms perceived latency where possible
-- Large lists paginated or virtualized
-- Heavy analysis asynchronous
-- No full-page blocking for noncritical jobs
-
-Performance targets must be measured, not assumed.
-
----
-
-## Accessibility
-
-Required:
-
-- WCAG 2.2 AA web compliance
-- Logical heading structure
-- Keyboard navigation
-- Visible focus
-- Screen-reader labels
-- Non-color status indicators
-- Accessible charts and metric summaries
-- Dynamic Type support
-- VoiceOver support
-- Reduce Motion support
-- Minimum touch targets
-- Error announcements
-
----
-
-## Permissions
-
-At minimum:
-
-- View Deal
-- Edit Deal
-- Change stage
-- Edit assumptions
-- Run analysis
-- Override recommendation
-- Create decision
-- Add evidence
-- Manage tasks
-- Share report
-- Archive Deal
-- Delete Deal
-
-Permissions must be enforced server-side.
-
----
-
-## Domain Events Consumed
-
-Examples:
-
-- `deal.created`
-- `deal.updated`
-- `deal.stage_changed`
-- `property.updated`
-- `assumption_set.activated`
-- `underwriting.completed`
-- `underwriting.failed`
-- `strategy_ranking.completed`
-- `recommendation.changed`
-- `decision.recorded`
-- `evidence.added`
-- `risk.created`
-- `risk.resolved`
-- `task.created`
-- `task.completed`
-- `deadline.created`
-- `financing.updated`
-- `offer.updated`
-- `contract.analyzed`
-- `inspection.analyzed`
-- `appraisal.analyzed`
-- `governance.analyzed`
-- `background_job.failed`
-
----
-
-## Domain Events Emitted
-
-Examples:
-
-- `cockpit.viewed`
-- `recommendation.opened`
-- `strategy_comparison.opened`
-- `decision.requested`
-- `decision.recorded`
-- `task.created_from_missing_information`
-- `analysis_refresh_requested`
-- `report_requested`
-- `deal_shared`
-
-Analytics events must not replace domain events.
-
----
-
-## API and Query Contracts
-
-Provide a canonical Cockpit query or composed backend endpoint that returns:
-
-- Deal identity
-- Current stage
-- Current recommendation
-- Current decision
-- Current underwriting result
-- Strategy summary
-- Risks
-- Confidence
-- Freshness
-- Missing information
+- Market/finance/governance/contract/offer
+- Visit/media/inspection/appraisal
 - Tasks/deadlines
-- Recent changes
-- Module statuses
+- Reports
+- Decisions
 - Background jobs
 
-The response must include version identifiers and timestamps sufficient to detect stale client data.
+Cockpit projections update idempotently and show source event time.
 
-Avoid excessive client-side fan-out that creates inconsistent partial state.
+## 18. Performance
 
----
+- Load core decision summary first.
+- Lazy-load secondary modules.
+- Cache with explicit Deal/version keys.
+- Cancel stale requests after Deal switch.
+- Paginate history/evidence.
+- Avoid blocking entire Cockpit for noncritical provider work.
 
-## Audit Requirements
+## 19. Security
 
-Audit:
+- Workspace/Deal permission enforced on every query/action.
+- Sensitive source snippets shown only to authorized users.
+- Share views use explicit scoped projections.
+- No admin-only data leaks into normal Cockpit.
 
-- Recommendation override
-- User decision
-- Stage change
-- Assumption change
-- Analysis refresh
-- Share action
-- Archive/pass
-- Risk resolution
-- Deadline change
-- Permission-sensitive access
+## 20. Testing Requirements
 
-Audit records must identify actor, time, Deal, prior value, new value, and source where applicable.
+- Component tests for all sections and state variants.
+- Integration tests for each upstream event family.
+- E2E journey from new Deal through recommendation and decision.
+- Stale/failed recalculation tests.
+- Cross-client reconciliation tests.
+- Accessibility/keyboard/Dynamic Type/VoiceOver tests.
+- Performance tests with large evidence/timeline volume.
 
----
+## 21. Verification and Validation
 
-## Analytics
+### Functional verification
 
-Measure:
+- A realistic Deal can be understood and acted upon from the Cockpit.
+- Every summary links to the correct source/detail.
+- Every visible action works end to end.
+- User decisions and system recommendations remain distinct.
 
-- Time from Deal creation to first analysis
-- Time from analysis to decision
-- Most viewed risks
-- Missing information resolution rate
-- Recommendation override rate
-- Reopen frequency
-- Module usage
-- Failed workflow rate
-- Background-job failure rate
-- Time spent in guided vs professional mode
+### Integration verification
 
-Analytics may not expose sensitive Deal data unnecessarily.
+- Underwriting and strategy values reconcile.
+- Market, finance, governance, contract, offer, visit, inspection, and appraisal updates propagate correctly.
+- Tasks, deadlines, timeline, notifications, reports, and portfolio views remain synchronized.
 
----
+### State verification
 
-## Acceptance Tests
+- Current, stale, processing, incomplete, conflict, partial, failed, offline, and permission states are accurate.
+- Prior valid results remain visible during failure.
 
-### Core flow
+### UX verification
 
-1. User opens an existing Deal.
-2. Cockpit loads canonical Deal context.
-3. Current underwriting and strategy ranking display.
-4. Recommendation displays with reasons and confidence.
-5. Risks, missing information, tasks, and deadlines display.
-6. User opens a risk and reaches its evidence.
-7. User creates a task from missing information.
-8. User changes an assumption.
-9. Cockpit marks prior recommendation stale.
-10. Recalculation completes.
-11. Updated recommendation appears with change history.
-12. User records a decision.
-13. Decision persists after reload and app relaunch.
+- Decision, risks, missing information, deadlines, and next action are immediately clear.
+- Web, iPhone, and iPad layouts are intentional and accessible.
+- No dead end, fake badge, contradictory number, or unlabeled stale state remains.
 
-### Failure flow
+### Definition of Done
 
-1. Underwriting refresh fails.
-2. Prior valid output remains visible.
-3. Failure state and retry action display.
-4. Retry does not create duplicate results.
-5. Successful retry replaces stale status through a new version.
+Complete only when the Cockpit supports a full Deal journey and every connected module can update it through canonical records/events without duplicate logic.
 
-### Offline flow
-
-1. User opens previously synced Deal offline.
-2. Adds note, task, and photo.
-3. Relaunches app while offline.
-4. Work remains available.
-5. Connectivity returns.
-6. Sync completes without duplicate records.
-7. Conflict is surfaced when server version changed.
-
-### Cross-client flow
-
-1. User records decision on web.
-2. iPhone displays same decision.
-3. iPad displays same decision.
-4. PDF report displays same recommendation and metrics.
-5. Admin view shows same canonical status.
-
----
-
-## Regression Tests
-
-- No Deal data leaks across workspaces.
-- Recommendation does not remain current after accepted assumptions change.
-- Background job failure does not erase prior result.
-- Deep link opens correct Deal and module.
-- Archived Deal cannot appear active without restore.
-- Duplicate taps do not create duplicate decision or task records.
-- Guided mode and professional mode show same canonical outputs.
-- Reports reconcile to displayed results.
-- Offline sync does not overwrite newer server changes silently.
-
----
-
-## Definition of Done
-
-This specification is complete only when:
-
-- The Cockpit works end to end on web, iPhone, and iPad.
-- All visible controls are connected.
-- Recommendation, decision, metrics, risks, confidence, freshness, tasks, and changes are canonical.
-- Save, reopen, refresh, relaunch, offline, retry, and conflict flows work.
-- No stale output is presented as current.
-- No module remains an isolated feature island.
-- Cross-client values reconcile.
-- Accessibility checks pass.
-- Required unit, integration, E2E, RLS, and native tests pass.
-- Exact verification commands and results are recorded.
-- No unrelated files are changed.
-
-Codex must finish implementation with either:
-
-`CHAPTER COMPLETE`
-
-or
-
-`CHAPTER NOT COMPLETE`
-
-A partial UI, mock data, disconnected cards, or unverified workflow is not complete.
+**SPECIFICATION STATUS: REVIEWED AND REPAIRED**
