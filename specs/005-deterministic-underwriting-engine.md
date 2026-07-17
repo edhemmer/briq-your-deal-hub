@@ -1,867 +1,433 @@
-# Specification 005 — Deterministic Underwriting Engine
+# BRIX Specification 005 — Deterministic Underwriting Engine
 
-## Authority
+## 1. Authority and Rules of Engagement
 
-This specification is part of the BRIX production build package. It governs the only authoritative underwriting engine used by the web application, native iPhone application, native iPad application, reports, spreadsheet exports, portfolio comparisons, OfferIQ, FinanceIQ, Strategy Intelligence, Admin analytics, and any future BRIX client.
+Governed by `docs/00-START-HERE.md` through `docs/05-BUILD-ROADMAP.md` and Specifications 001–004.
 
-Codex must re-read `docs/00-START-HERE.md`, `docs/01-PRODUCT-CONSTITUTION.md`, `docs/02-ENGINEERING-STANDARDS.md`, `docs/03-DATA-ARCHITECTURE.md`, `docs/04-UI-UX-SYSTEM.md`, `docs/05-BUILD-ROADMAP.md`, and all prior specifications before implementing this subsystem.
+Rules:
 
-## Mission
+1. This is the single authoritative financial engine for BRIX.
+2. Web, iPhone, iPad, reports, exports, admin, strategy ranking, FinanceIQ, and OfferIQ must consume the same engine outputs.
+3. AI may explain results but may not calculate or overwrite authoritative outputs.
+4. Each calculation uses an immutable input snapshot and recorded engine version.
+5. Identical inputs, currency/unit rules, and engine version must produce identical outputs.
+6. No client may independently recalculate authoritative downstream metrics.
+7. Internal precision, rounding, date conventions, and sign conventions must be explicit.
+8. Unsupported or insufficient data must return structured validation, not fabricated values.
+9. Prior valid results remain available and become stale when accepted dependencies change.
+10. Property-type models must be explicit; generic support may not masquerade as complete support.
+11. Material formulas require independent golden fixtures.
+12. Every output must be traceable to inputs, formulas, assumptions, and validation issues.
 
-Create a deterministic, versioned, backend-owned underwriting engine that transforms canonical Deal inputs into reproducible financial outputs, warnings, sensitivities, and strategy-ready results.
+## 2. Mission
 
-The engine must be accurate enough that an investor can rely on it for real property analysis while still seeing every assumption, source, uncertainty, conflict, and limitation that affects the result.
+Provide reliable, reproducible underwriting across residential, multifamily, commercial, mixed-use, land, development, and specialty real estate so investors can compare scenarios, understand cash and risk, inspect calculation lineage, and make defensible decisions.
 
-## Non-Negotiable Rules
+## 3. Canonical Input Contract
 
-1. There is one authoritative underwriting engine.
-2. Authoritative calculations do not run independently in presentation components.
-3. AI may explain outputs but may not produce authoritative numbers.
-4. Identical normalized inputs plus identical engine version must produce identical outputs.
-5. Every result must identify its input snapshot, engine version, calculation timestamp, currency, units, rounding rules, and validation state.
-6. Every material assumption must retain source, classification, confidence, effective date, and user acceptance state.
-7. Historical underwriting snapshots and results must remain reproducible.
-8. No later recalculation may silently overwrite the prior result.
-9. Web, iPhone, iPad, PDF, Word, spreadsheet, portfolio comparison, OfferIQ, and Admin must consume the same canonical result.
-10. Stale underwriting must be labeled immediately when an accepted input changes.
-11. A failed recalculation must not erase the last valid result.
-12. The engine must support simple and complex Deal structures without forcing every user through irrelevant inputs.
+Each `underwriting_snapshot` includes:
 
----
+- Snapshot ID
+- Workspace ID
+- Deal ID
+- Property IDs
+- Strategy scenario ID
+- Financing structure ID where applicable
+- Assumption set/version
+- Evidence/fact versions
+- Currency
+- Unit system
+- Valuation date
+- Hold period
+- Engine version requested
+- Created by/time
+- Snapshot hash
 
-# 1. Scope
+Snapshots are immutable after creation.
 
-## Included
+## 4. Canonical Output Contract
 
-- Acquisition underwriting
-- Hold underwriting
-- Renovation and value-add underwriting
-- Flip underwriting
-- Refinance underwriting
-- Development underwriting
-- Land underwriting
-- Commercial and multifamily underwriting
-- Multiple income streams
-- Multiple expense categories
-- Multiple financing tranches
-- Investor equity and partner contributions
-- Scenario comparison
-- Sensitivity analysis
-- Break-even analysis
-- Maximum offer analysis
-- Risk and validation outputs
-- Result versioning
-- Audit trail
-- Cross-client result delivery
-- Report and spreadsheet reconciliation
+Each `underwriting_result` includes:
 
-## Excluded from this specification
+- Result ID
+- Snapshot ID
+- Engine version
+- Status
+- Property/strategy model
+- Calculation start/end
+- Output values
+- Periodic cash flows
+- Validation issues
+- Calculation lineage
+- Sensitivity/scenario references
+- Confidence inputs
+- Freshness state
+- Created time
 
-- Strategy ranking logic, except the normalized outputs required by Strategy Intelligence
-- Legal conclusions
-- Tax advice
-- Final lender approval
-- Final appraisal conclusions
-- Final inspection conclusions
-- Market data acquisition
-- Contract term extraction
+Output values must retain units, currency, period, precision, and formula/version references.
 
-Those capabilities consume or update canonical underwriting inputs through their own specifications.
+## 5. Input Classification and Precedence
 
----
+The engine receives accepted inputs only. Source precedence does not silently resolve conflicts; accepted canonical values determine the snapshot.
 
-# 2. Canonical Data Ownership
+Suggested precedence for review:
 
-## Canonical entities
+1. Professionally confirmed or executed source
+2. Source-verified fact
+3. User-verified fact
+4. User-entered fact
+5. User assumption
+6. External estimate
+7. System estimate/default
 
-At minimum:
+The snapshot records the controlling classification and source. Missing required inputs cause blocking errors or explicit incomplete outputs.
 
-- `underwriting_models`
-- `underwriting_input_snapshots`
-- `underwriting_input_values`
-- `underwriting_runs`
-- `underwriting_results`
-- `underwriting_metrics`
-- `underwriting_warnings`
-- `underwriting_sensitivities`
-- `underwriting_cash_flows`
-- `underwriting_debt_schedules`
-- `underwriting_scenario_sets`
-- `underwriting_scenarios`
-- `underwriting_overrides`
-- `underwriting_engine_versions`
-- `assumption_sets`
-- `assumptions`
-- `financing_structures`
-- `financing_tranches`
+## 6. Validation Severity
 
-Final table names may differ only if the same ownership boundaries remain explicit.
+- **Blocking Error** — authoritative calculation cannot proceed or result is invalid.
+- **Material Warning** — calculation can proceed but decision reliability may be affected.
+- **Informational Notice** — context, assumption, or model limitation.
 
-## Required identifiers
+Each issue includes:
 
-Every run must include:
+- Code
+- Severity
+- Field/entity
+- Plain-language message
+- Why it matters
+- Whether calculation continued
+- Resolution guidance
 
-- `workspace_id`
-- `deal_id`
-- `property_id`
-- `strategy_scenario_id` where applicable
-- `assumption_set_id`
-- `input_snapshot_id`
-- `underwriting_run_id`
-- `engine_version`
-- `model_id`
-- `model_version`
-- `currency_code`
-- `measurement_system`
-- `created_by`
-- `created_at`
+## 7. Core Acquisition and Project Calculations
 
-## Snapshot immutability
-
-An accepted input snapshot is immutable. Any change creates a new snapshot.
-
-A result may never point to mutable live form state.
-
-## Input value metadata
-
-Each material input must support:
-
-- Canonical field ID
-- Value
-- Data type
-- Unit
-- Currency where applicable
-- Source type
-- Source reference
-- Classification
-- Confidence
-- Effective date
-- Retrieved date
-- User acceptance state
-- Verification state
-- Conflict state
-- Override reason
-- Prior value reference
-
----
-
-# 3. Underwriting Model Registry
-
-Every model must have a permanent identifier and version.
-
-Minimum model families:
-
-- `UW-RES-LTR`
-- `UW-RES-MTR`
-- `UW-RES-STR`
-- `UW-RES-FLIP`
-- `UW-RES-BRRRR`
-- `UW-MF-STABILIZED`
-- `UW-MF-VALUE-ADD`
-- `UW-COM-OFFICE`
-- `UW-COM-RETAIL`
-- `UW-COM-INDUSTRIAL`
-- `UW-COM-FLEX`
-- `UW-COM-MIXED-USE`
-- `UW-COM-MEDICAL`
-- `UW-COM-NNN`
-- `UW-COM-HOSPITALITY`
-- `UW-COM-SELF-STORAGE`
-- `UW-COM-MHP`
-- `UW-COM-RV-PARK`
-- `UW-LAND-HOLD`
-- `UW-LAND-ENTITLEMENT`
-- `UW-LAND-SUBDIVISION`
-- `UW-DEV-HORIZONTAL`
-- `UW-DEV-VERTICAL`
-- `UW-DEV-BTR`
-- `UW-PORTFOLIO`
-
-Each model definition must include:
-
-- Supported asset types
-- Supported strategies
-- Required inputs
-- Optional inputs
-- Default rules
-- Formula registry
-- Validation rules
-- Output registry
-- Sensitivity dimensions
-- Unsupported conditions
-- Test fixtures
-
-No model may infer unsupported formulas from free-form text at runtime.
-
----
-
-# 4. Input Architecture
-
-## Input groups
-
-### Property and acquisition
+Where applicable:
 
 - Purchase price
-- Contract price
-- Current asking price
-- Earnest money
 - Closing costs
-- Transfer taxes
-- Legal costs
-- Due diligence costs
-- Financing costs
-- Initial reserves
-- Immediate repairs
-- Renovation budget
+- Financing fees
+- Initial repairs/renovation
+- Capital improvements
+- Furnishing/equipment
+- Reserves
 - Contingency
-- Furniture, fixtures, and equipment
-- Lease-up costs
-- Developer fee where applicable
-- Other acquisition costs
+- Carrying costs
+- Total acquisition cost
+- Total project cost
+- Total sources and uses
+- Funding gap/surplus
+- Total cash required at closing and through stabilization
 
-### Income
+Credits and reimbursements must not be double-counted.
 
-- Unit or space schedule
-- Current rent
-- Market rent
-- Other recurring income
-- Reimbursements
-- Utility income
-- Parking
-- Storage
-- Laundry
-- Pet income
-- Service income
-- Short-term rental nightly rate
-- Occupancy
-- Seasonality
-- Concessions
-- Credit loss
+## 8. Income Calculations
+
+Where applicable:
+
+- Unit/lease/space-level rent
+- Gross potential rent
+- Other income
 - Vacancy
-- Growth assumptions
+- Credit loss
+- Concessions
+- Bad debt
+- Turnover downtime
+- Economic occupancy
+- Effective gross income
+- Short-term rental ADR/occupancy/fees
+- Commercial reimbursements
+- Percentage rent
+- Parking/storage/laundry/utility income
+- Development sales or lease-up income
 
-### Operating expenses
+Income assumptions must identify period, escalation, seasonality, stabilization, and source.
+
+## 9. Operating Expenses
+
+Where applicable:
 
 - Property taxes
 - Insurance
 - Utilities
 - Repairs and maintenance
-- Property management
 - Payroll
-- Landscaping
-- Snow removal
-- Association dues
-- Administrative
-- Marketing
-- Security
-- Pest control
-- Turnover
+- Management
+- Leasing/turnover
+- HOA/COA/POA dues
+- Landscaping/snow
+- Pest/trash/security
+- Administrative/legal/accounting
 - Replacement reserves
-- Capital reserves
-- Contract services
-- Franchise or platform fees
-- Other expenses
-- Expense growth
+- Capital expenditure treatment
+- Commercial CAM/nonrecoverable expenses
+- Development carrying and operating costs
 
-### Financing
+The engine must distinguish operating expense, capital expenditure, financing cost, and one-time project cost.
 
-- Loan amount
-- LTV
-- LTC
-- Interest rate
-- Rate type
-- Index
-- Margin
-- Amortization
-- Term
+## 10. NOI and Cash Flow
+
+- NOI before debt
+- Debt service
+- Cash flow before tax
+- Cash flow after planned capital expenditures where modeled
+- Monthly/annual/periodic cash flows
+- Stabilized versus in-place results
+- Levered and unlevered views
+
+Taxes on investor income are outside authoritative scope unless a separately approved tax model is built and clearly bounded.
+
+## 11. Debt and Financing Calculations
+
+FinanceIQ defines financing records; this engine calculates:
+
+- Fixed/variable rate payments
+- Amortization schedule
 - Interest-only period
-- Balloon
-- Points
-- Origination fee
-- Closing fees
-- Prepayment
-- Recourse
-- Draw schedule
-- Retainage
-- Reserve requirements
-- Extension terms
-- Multiple tranches
-
-### Exit and hold
-
-- Hold period
-- Exit cap rate
-- Exit price
-- Selling costs
-- Appreciation
-- Rent growth
-- Expense growth
-- Refinance date
-- Refinance value
-- Refinance LTV
-- Refinance rate
-- Tax assumptions only when explicitly supported and labeled
-
-### Development
-
-- Land basis
-- Hard costs
-- Soft costs
-- Permits
-- Impact fees
-- Architecture and engineering
-- Financing carry
-- Construction schedule
-- Draw timing
-- Absorption
-- Unit delivery schedule
-- Sales pace
-- Lease-up pace
-- Developer fee
-- Contingency
-- Stabilized value
-
-## Input precedence
-
-When multiple values exist, the engine must use a documented precedence policy. Suggested default:
-
-1. User-confirmed professional document value
-2. User-confirmed contract value
-3. User-entered confirmed fact
-4. Verified external fact
-5. User-approved estimate
-6. System estimate
-7. Unaccepted extracted value
-
-The active value and rejected alternatives must remain visible.
-
----
-
-# 5. Calculation Contract
-
-## Acquisition calculations
-
-At minimum:
-
-- Purchase basis
-- Total acquisition costs
-- Total renovation costs
-- Total project cost
-- Total cash required
-- Sources and uses
-- Initial loan proceeds
-- Initial equity requirement
-
-## Income calculations
-
-At minimum:
-
-- Gross potential rent
-- Gross potential income
-- Vacancy loss
-- Credit loss
-- Concessions
-- Effective gross income
-- Other income
-- Stabilized income
-
-## Expense calculations
-
-At minimum:
-
-- Operating expense total
-- Expense ratio
-- Replacement reserves
-- Capital reserves
-- Stabilized expenses
-- Expense growth schedule
-
-## Net operating income
-
-`NOI = Effective Gross Income - Operating Expenses`
-
-Debt service, depreciation, income tax, owner distributions, and capital expenditures must not be included in NOI unless a model explicitly labels a different metric.
-
-## Debt calculations
-
-At minimum:
-
-- Periodic debt payment
-- Interest component
-- Principal component
-- Remaining balance
-- Interest-only payment
-- Balloon balance
-- Debt service by tranche
-- Total debt service
-- Debt yield where applicable
-- LTV
-- LTC
+- Balloon/maturity balance
+- Points and fees
+- Multiple debt tranches
+- Draw schedules
+- Interest reserve
+- Prepayment costs where modeled
+- Blended cost
+- Annual debt service
 - DSCR
+- Debt yield
+- LTV/LTC
+- Coverage and covenant tests
+- Refinance proceeds and payoff
 
-## Return calculations
+Finance terms and calculations remain linked but owned separately.
 
-At minimum where applicable:
+## 12. Return Metrics
+
+Where model-appropriate:
 
 - Cap rate
 - Cash-on-cash return
 - Return on cost
-- Gross rent multiplier
-- Debt yield
-- DSCR
-- Break-even occupancy
-- Profit
+- Development yield
 - Profit margin
-- ROI
+- Break-even occupancy
+- Break-even rent
 - IRR
 - XIRR
 - NPV
 - Equity multiple
-- Payback period
-- Development yield
-- Yield on cost
-- Refinance proceeds
-- Cash returned at refinance
-- Remaining equity invested
+- Unlevered return
+- Levered return
+- Refinance cash-out
+- Sale proceeds
+- Maximum allowable offer
 
-## Maximum offer
+Metrics must define exact numerator, denominator, period, timing, and inclusion/exclusion rules.
 
-Maximum offer must be derived from explicit investor constraints and identify the binding constraint.
+## 13. Exit Calculations
 
-Possible constraints:
-
-- Minimum cash-on-cash
-- Minimum DSCR
-- Minimum IRR
-- Minimum equity multiple
-- Maximum total cash required
-- Maximum LTV or LTC
-- Maximum monthly loss
-- Required profit margin
-- Required development spread
-- Required reserve balance
-
-The engine must not output one maximum offer without identifying:
-
-- Strategy
-- Scenario
-- Constraints used
-- Binding constraint
-- Assumptions
-- Confidence
-- Material missing information
-
-## Time convention
-
-Every model must define:
-
-- Monthly or annual period basis
-- Timing of cash flows
-- Beginning or end-of-period convention
-- Day-count convention where relevant
-- Date handling for XIRR
-- Partial-period behavior
-
-## Rounding
-
-- Calculations must use high precision internally.
-- Rounding occurs only at defined output boundaries.
-- Currency display defaults to two decimals unless whole-dollar display is intentionally selected.
-- Percentages must define stored precision and display precision.
-- Reports, exports, and clients must use the same rounding policy.
-
----
-
-# 6. Scenario and Sensitivity Engine
-
-## Required scenarios
-
-At minimum:
-
-- Base
-- Conservative
-- Optimistic
-- User-defined
-
-Scenario changes must create explicit deltas from the baseline assumption set.
-
-## Sensitivity dimensions
-
-Support model-appropriate changes to:
-
-- Purchase price
-- Rent
-- Occupancy
-- Vacancy
-- Operating expenses
-- Renovation costs
-- Interest rate
-- Loan proceeds
-- Exit cap rate
-- Exit price
 - Hold period
-- Construction cost
-- Schedule delay
-- Absorption
+- Exit NOI or comparable value basis
+- Exit cap rate/multiple
+- Sale price
+- Selling costs
+- Loan payoff/prepayment
+- Taxes only if explicitly modeled and bounded
+- Net sale proceeds
+- Investor distributions where supported
 
-## Output
+Exit assumptions must remain visible and sensitivity-tested.
 
-Sensitivity results must show:
+## 14. Property-Type Models
 
-- Changed variable
-- Range
-- Step
-- Output metric
-- Break-even point
-- Threshold violation
-- Best/worst result
-- Current Deal position
+At minimum, versioned models for:
 
-Do not generate decorative charts without the exact underlying table values.
+- Residential rental
+- Medium/short-term rental
+- Multifamily
+- Office
+- Retail
+- Industrial/flex
+- Mixed use
+- Self-storage
+- Hospitality
+- Mobile-home/RV park
+- Land hold
+- Development
+- Fix-and-flip/renovation
+- Specialty assets through approved extensions
 
----
+Each model defines required inputs, formula differences, output availability, and unsupported cases.
 
-# 7. Validation and Warning Engine
-
-## Severity
-
-- Blocking error
-- Material warning
-- Informational notice
-
-## Required validation categories
-
-- Missing required input
-- Invalid range
-- Unit mismatch
-- Currency mismatch
-- Contradictory values
-- Unsupported model
-- Impossible loan terms
-- Negative or zero denominator
-- Insufficient cash flow series
-- Invalid dates
-- Stale source
-- Unaccepted estimate
-- Low-confidence material input
-- Material conflict
-- Model-specific concern
-
-Every validation item must include:
-
-- Code
-- Severity
-- Field or entity
-- Plain-language explanation
-- Why it matters
-- Whether calculation continued
-- Recommended correction
-- Source or rule reference
-
-The engine must not hide warnings merely because a numeric result was produced.
-
----
-
-# 8. Execution Architecture
-
-## Canonical execution flow
-
-1. User changes or accepts an input.
-2. Input is validated client-side for usability only.
-3. Canonical input is persisted.
-4. A new immutable snapshot is created or queued.
-5. Domain event marks prior result stale.
-6. Underwriting run is created with idempotency key.
-7. Backend engine validates normalized input.
-8. Engine calculates outputs.
-9. Results, warnings, cash flows, and debt schedules are persisted transactionally.
-10. Run status becomes complete or failed.
-11. Clients receive updated status.
-12. Decision Cockpit and Strategy Intelligence consume the new result.
-13. Audit history records the change.
-
-## Run states
-
-- Draft
-- Queued
-- Validating
-- Calculating
-- Complete
-- Complete with warnings
-- Failed
-- Cancelled
-- Superseded
-
-A run must not remain indefinitely in a processing state. Timeouts and recovery rules are required.
-
-## Idempotency
-
-The same snapshot, model, and engine version must not create duplicate authoritative results.
-
-## Concurrency
-
-A slower older run must never overwrite a newer completed run.
-
-## Failure behavior
-
-- Preserve the last valid result.
-- Mark it stale if inputs changed.
-- Show the failed run separately.
-- Provide retry.
-- Preserve correlation ID.
-- Never claim current analysis is complete when the newest run failed.
-
----
-
-# 9. API and Contract Requirements
-
-Minimum contracts:
-
-- Create/update assumption draft
-- Accept/reject input value
-- Create input snapshot
-- Start underwriting run
-- Get run status
-- Get current authoritative result
-- Get historical result
-- Compare results
-- Get debt schedule
-- Get cash-flow series
-- Get sensitivity result
-- Get warnings
-- Export normalized result
-
-Every response must use versioned schemas.
-
-Clients must not reconstruct financial logic from raw values.
-
----
-
-# 10. UI and UX Requirements
-
-## Underwriting workspace
-
-Required sections:
-
-- Summary
-- Acquisition
-- Income
-- Expenses
-- Financing
-- Renovation or development
-- Exit
-- Assumptions
-- Scenarios
-- Sensitivity
-- Warnings
-- Calculation details
-- History
-
-## Premium design rules
-
-- Summary first, detail second.
-- Show current result status and `as of` time.
-- Show stale state immediately.
-- Clearly distinguish facts, estimates, and assumptions.
-- Show source and confidence without cluttering every field.
-- Use progressive disclosure for advanced inputs.
-- Provide a compact professional mode and guided mode using the same data.
-- Use tabular numerals and aligned financial columns.
-- Never rely on color alone.
-- Allow comparison of scenarios without losing the baseline.
-- Show what changed after each recalculation.
-
-## Forms
-
-- Autosave drafts.
-- Preserve incomplete values without treating them as accepted.
-- Show units and currency.
-- Validate inline.
-- Explain dependencies.
-- Support bulk unit/space schedules.
-- Support keyboard-first entry on web and iPad.
-- Provide mobile-appropriate editors on iPhone.
-
-## iPhone
-
-Prioritize:
-
-- Summary
-- Key assumptions
-- Warnings
-- Scenario switcher
-- Quick edit of common inputs
-- Voice note or evidence link
-- Recalculate status
-
-Complex schedules may use focused editors rather than compressed desktop tables.
-
-## iPad
+## 15. Scenario and Sensitivity Engine
 
 Support:
 
-- Split-view input and result
-- Scenario comparison
-- Spreadsheet-like schedules
-- Keyboard shortcuts
-- Document reference beside assumptions
+- Baseline
+- Downside
+- Upside
+- User-defined scenarios
+- One-variable sensitivity
+- Two-variable matrices where useful
+- Rate, value, rent, vacancy, expense, cost, timing, exit, and financing sensitivities
 
-## Empty, loading, stale, conflict, and failure states
+Scenarios reference the same base snapshot and explicit overrides. They must not create disconnected assumptions.
 
-Every state must be intentionally designed. A spinner alone is not sufficient.
+## 16. Maximum Offer Contract
 
----
+Maximum offer may be constrained by:
 
-# 11. Cross-Module Connections
+- Target cash-on-cash
+- Target IRR/equity multiple
+- Minimum DSCR/debt yield
+- Maximum cash required
+- Financing proceeds/LTV/LTC
+- Repair/development budget
+- Required margin
+- Appraised or market value
+- Exit assumptions
+- Investor risk limit
 
-## Inputs from
+The result must identify the binding constraint and all relevant assumptions. It is not a guarantee of value or acceptance.
 
-- Property Intake
-- MarketIQ
-- FinanceIQ
-- GovernanceIQ
-- ContractIQ
-- InspectionIQ
-- AppraisalIQ
-- PhotoIQ after user confirmation
-- OfferIQ
-- User assumptions
+## 17. Rounding, Dates, Currency, and Units
 
-## Outputs to
+- Use decimal-safe money math.
+- Preserve full internal precision.
+- Display rounding occurs only at presentation/export based on documented rules.
+- Rates retain enough precision to reproduce schedules.
+- Cash-flow dates use explicit time zone/calendar conventions.
+- XIRR uses actual dates.
+- Currency conversion is not implicit; conversion requires source rate/date and separate specification.
+- Units are stored and converted explicitly.
 
-- Strategy Intelligence
-- Decision Cockpit
-- OfferIQ
-- ReportIQ
-- Portfolio comparison
-- Admin usage and operational metrics
-- RELearnIQ explanations
+## 18. Calculation Lineage
 
-## Required domain events
+For every material output, lineage must identify:
 
-Examples:
+- Formula ID/version
+- Input fields and versions
+- Intermediate values where useful
+- Property/strategy model
+- Financing structure version
+- Rounding/display rule
+- Validation issues
 
-- `assumption.changed`
-- `assumption.accepted`
-- `underwriting.stale`
-- `underwriting.run_requested`
+The UI need not show all lineage at once, but professional users must be able to inspect it.
+
+## 19. API Contract
+
+A privileged calculation endpoint accepts a validated snapshot reference or creates one transactionally from accepted canonical values.
+
+Required behaviors:
+
+- Auth and workspace permission
+- Idempotency
+- Snapshot hash deduplication where safe
+- Engine version selection
+- Timeout/background-job handling
+- Structured validation response
+- Durable result persistence
+- Domain events after completion
+- Safe retry
+
+Large portfolio/scenario runs execute asynchronously.
+
+## 20. User Experience
+
+### Guided mode
+
+- Minimum necessary inputs
+- Clear defaults and assumptions
+- Plain-language validation
+- Explanation of outputs
+- Missing-information prompts
+
+### Professional mode
+
+- Detailed assumptions
+- Periodic schedules
+- Scenario/version comparison
+- Formula lineage
+- Export-ready tables
+
+### States
+
+- No assumptions
+- Incomplete/blocking
+- Ready to calculate
+- Queued/processing
+- Complete/current
+- Complete with warnings
+- Stale
+- Failed with prior valid result
+- Conflict
+- Offline viewing of cached result
+
+Clients may queue a request offline but cannot claim calculation completion until server result exists.
+
+## 21. Domain Events
+
+- `underwriting.snapshot_created`
+- `underwriting.requested`
 - `underwriting.completed`
 - `underwriting.completed_with_warnings`
 - `underwriting.failed`
-- `underwriting.superseded`
-- `underwriting.material_change_detected`
+- `underwriting.result_stale`
+- `underwriting.active_result_changed`
 
-Every consumer must be idempotent.
+Consumers include Strategy Intelligence, Decision Cockpit, FinanceIQ, OfferIQ, reports, portfolio, tasks, and notifications.
 
----
+## 22. Security and Audit
 
-# 12. Security and Authorization
+- Calculation inputs/results are workspace-scoped.
+- Only authorized users may create/activate snapshots.
+- Engine internals do not expose secrets.
+- Result activation and manual overrides are audited.
+- Expensive runs are rate-limited and usage-metered.
 
-- All data is workspace-scoped.
-- RLS applies to inputs, runs, results, schedules, scenarios, and exports.
-- Viewers cannot modify assumptions.
-- Contributors may modify only within granted permissions.
-- Overrides require permission and reason.
-- Engine execution occurs in trusted backend context.
-- Service credentials never ship to clients.
-- Audit logs record material changes and overrides.
-- Export access follows Deal permissions.
+## 23. Testing Requirements
 
----
+- Unit tests for every formula family.
+- Golden fixtures independently reconciled.
+- Property-type model fixtures.
+- Debt schedule and multiple-tranche tests.
+- Rounding/precision/date tests.
+- Missing/invalid input tests.
+- Scenario/sensitivity tests.
+- Snapshot immutability/idempotency tests.
+- API/integration tests.
+- Web/iOS/report/export reconciliation tests.
+- Performance tests for complex and portfolio scenarios.
 
-# 13. Performance and Reliability
+## 24. Verification and Validation
 
-Targets should be measured with realistic data.
+### Calculation verification
 
-- Common residential calculation: near-interactive completion.
-- Complex multifamily/commercial calculation: visible queued/progress state.
-- Large schedule rendering must use virtualization or pagination.
-- Results must be cacheable by immutable snapshot and engine version.
-- Cache invalidation must be explicit.
-- Engine failures must be observable.
-- Metrics must include run duration, failure rate, warning rate, retry rate, and cost where applicable.
+- Identical snapshot and engine version produce identical result.
+- Golden fixtures reconcile independently.
+- No client performs authoritative recalculation.
+- Reports and exports reconcile exactly to the canonical result.
 
----
+### Data verification
 
-# 14. Testing Requirements
+- Snapshots are immutable.
+- Results retain engine/version/lineage.
+- Prior results remain reproducible.
+- Stale state appears when accepted dependencies change.
 
-## Unit tests
+### Integration verification
 
-- Every formula
-- Every rounding rule
-- Every validation rule
-- Every model-specific branch
-- Every edge case
+- Intake accepted values flow into snapshots.
+- Strategy consumes authoritative outputs.
+- Decision Cockpit shows current/stale state correctly.
+- FinanceIQ and OfferIQ use the same debt and maximum-offer outputs.
+- Reports/portfolio/native/web reconcile.
 
-## Golden fixtures
+### UX verification
 
-Create independently verified fixtures for at least:
+- Blocking, warning, ready, processing, current, stale, failed, conflict, and offline-view states are clear.
+- Users can inspect assumptions and binding constraints.
 
-- Simple residential rental
-- Residential flip
-- BRRRR
-- Small multifamily
-- Commercial NNN
-- Mixed-use property
-- Land hold
-- Development project
-- Multiple debt tranches
-- Refinance scenario
+### Definition of Done
 
-Each fixture must define exact inputs and expected outputs.
+Complete only when supported property models, golden fixtures, cross-client reconciliation, versioning, stale propagation, security, and end-to-end calculation workflows pass.
 
-## Integration tests
-
-- Snapshot creation
-- Run creation
-- Idempotency
-- Persistence
-- Supersession
-- Failure recovery
-- RLS
-- Cross-module event delivery
-
-## End-to-end tests
-
-- Create Deal
-- Enter assumptions
-- Run analysis
-- Review warnings
-- Change input
-- Observe stale state
-- Recalculate
-- Compare results
-- Reopen Deal
-- Export PDF and spreadsheet
-- Confirm reconciliation
-
-## Cross-client tests
-
-The same fixture must produce identical material values on web, iPhone, iPad, PDF, spreadsheet, and portfolio comparison.
-
----
-
-# 15. Definition of Done
-
-This specification is implemented only when:
-
-1. One backend engine owns all authoritative calculations.
-2. All required models have registered versions.
-3. Immutable input snapshots exist.
-4. Results are reproducible.
-5. Historical results remain accessible.
-6. Stale-state behavior works.
-7. Failed runs preserve prior valid results.
-8. Idempotency and supersession work.
-9. Required calculations and warnings are implemented.
-10. Web, iPhone, and iPad consume the same contracts.
-11. Reports and spreadsheets reconcile exactly.
-12. Golden fixtures pass.
-13. RLS tests pass.
-14. Accessibility and premium UI states are complete.
-15. No client contains a competing authoritative calculator.
-16. No dead controls, fake values, or disconnected outputs remain.
-17. Exact verification commands and results are recorded.
-18. Known limitations are documented.
-19. Unrelated files were not changed.
-20. Codex reports `CHAPTER COMPLETE` only after all gates pass.
+**SPECIFICATION STATUS: REVIEWED AND REPAIRED**
