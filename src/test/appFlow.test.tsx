@@ -11,8 +11,13 @@ const mocks = vi.hoisted(() => ({
   session: { value: { user: { id: "user-1" } } as { user: { id: string } } | null },
   user: { value: { id: "user-1", email: "edhemmer@gmail.com" } as { id: string; email: string } | null },
   remoteDeals: { value: [] as Array<Record<string, unknown>> },
+  workspaceContext: { value: { profile_id: "user-1", workspace_id: "workspace-1", workspace_name: "edhemmer's BRIX Workspace", role_id: "owner" } as Record<string, string> },
   authChangeCallback: { value: null as null | ((_event: string, session: { user: { id: string } } | null) => void) },
   queriedOwnerIds: { value: [] as string[] },
+  rpc: vi.fn(async (name: string) => {
+    if (name === "ensure_workspace_context") return { data: [mocks.workspaceContext.value], error: null };
+    return { data: null, error: null };
+  }),
   upsert: vi.fn((row: Record<string, unknown>) => ({
     select: vi.fn(() => ({
       single: vi.fn(async () => ({ data: { ...row, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }, error: null })),
@@ -73,6 +78,7 @@ vi.mock("../core/supabase", () => ({
       }
       return {};
     }),
+    rpc: mocks.rpc,
     functions: { invoke: vi.fn(async () => ({ data: {}, error: null })) },
   },
 }));
@@ -120,6 +126,7 @@ describe("BRIX app module flow", () => {
     mocks.session.value = { user: { id: "user-1" } };
     mocks.user.value = { id: "user-1", email: "edhemmer@gmail.com" };
     mocks.remoteDeals.value = [];
+    mocks.workspaceContext.value = { profile_id: "user-1", workspace_id: "workspace-1", workspace_name: "edhemmer's BRIX Workspace", role_id: "owner" };
     mocks.authChangeCallback.value = null;
     mocks.queriedOwnerIds.value = [];
     vi.clearAllMocks();
@@ -528,5 +535,25 @@ describe("BRIX app module flow", () => {
 
     await screen.findByRole("heading", { name: "FindIQ" });
     await waitFor(() => expect(mocks.queriedOwnerIds.value).toContain("user-1"));
+  });
+
+  it("mocked: authenticated sessions establish workspace context before cloud deals are shown", async () => {
+    mocks.remoteDeals.value = [remoteDealRow("workspace-deal", "user-1", "Workspace Loaded Deal")];
+    render(<App />);
+
+    expect(await screen.findByText("Workspace Loaded Deal")).toBeInTheDocument();
+    expect(mocks.rpc).toHaveBeenCalledWith("ensure_workspace_context");
+    expect(screen.getByText("edhemmer's BRIX Workspace")).toBeInTheDocument();
+    expect(mocks.queriedOwnerIds.value).toEqual(["user-1"]);
+  });
+
+  it("mocked: workspace bootstrap failure blocks cloud deal loading", async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: null, error: new Error("workspace unavailable") });
+    mocks.remoteDeals.value = [remoteDealRow("blocked-deal", "user-1", "Blocked Cloud Deal")];
+    render(<App />);
+
+    expect(await screen.findByText(/Could not prepare your BRIX workspace: workspace unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText("Blocked Cloud Deal")).not.toBeInTheDocument();
+    expect(mocks.queriedOwnerIds.value).toEqual([]);
   });
 });

@@ -36,9 +36,13 @@ button:disabled { cursor: not-allowed; opacity: .55; filter: saturate(.7); }
 .nav-item small { display: block; margin-top: 2px; color: #7285a3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nav-item.active { color: white; background: #10203a; border-color: #25436f; }
 
-.workspace { padding: 28px; max-width: 1480px; width: 100%; margin: 0 auto; }
-.topbar { display: flex; justify-content: space-between; align-items: start; gap: 18px; margin-bottom: 26px; }
-.eyebrow { margin: 0 0 8px; color: #5ea0ff; text-transform: uppercase; letter-spacing: .2em; font-weight: 800; font-size: 12px; }
+  .workspace { padding: 28px; max-width: 1480px; width: 100%; margin: 0 auto; }
+  .topbar { display: flex; justify-content: space-between; align-items: start; gap: 18px; margin-bottom: 26px; }
+  .workspace-pill { min-width: 180px; border: 1px solid #263956; background: #080f1d; border-radius: 14px; padding: 10px 14px; color: #9bb4d4; }
+  .workspace-pill span { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; color: #5ea0ff; }
+  .workspace-pill strong { display: block; margin-top: 4px; color: white; font-size: 14px; }
+  .workspace-pill.danger { border-color: rgba(241,92,92,.5); background: rgba(241,92,92,.1); }
+  .eyebrow { margin: 0 0 8px; color: #5ea0ff; text-transform: uppercase; letter-spacing: .2em; font-weight: 800; font-size: 12px; }
 h1, h2, h3, p { margin-top: 0; }
 h1 { font-size: clamp(34px, 4vw, 56px); margin-bottom: 0; letter-spacing: 0; }
 h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; }

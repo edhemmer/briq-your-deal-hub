@@ -12,6 +12,7 @@ import { requestAccountDeletion } from "./core/authActions";
 import { reviewContractText } from "./core/contractReview";
 import { buildOfferStructures, offerSummary } from "./core/offerEngine";
 import { portfolioMetrics } from "./core/portfolioEngine";
+import { ensureWorkspaceContext, type WorkspaceContext } from "./core/workspace";
 
 type Module = "find" | "deal" | "contract" | "pipeline" | "offer" | "portfolio" | "reports" | "account";
 
@@ -71,6 +72,8 @@ function BrixApp() {
   const [authReady, setAuthReady] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [hasAnonymousDrafts, setHasAnonymousDrafts] = useState(false);
+  const [workspaceContext, setWorkspaceContext] = useState<WorkspaceContext | null>(null);
+  const [workspaceStatus, setWorkspaceStatus] = useState<"loading" | "ready" | "failed" | "signed_out">("loading");
   const isAuthenticated = Boolean(authUserId);
   const selectedDeal = deals.find((deal) => deal.id === selectedId) ?? deals[0];
 
@@ -85,6 +88,14 @@ function BrixApp() {
     setHasAnonymousDrafts(anonymousDeals.length > 0);
     return anonymousDeals;
   }, []);
+
+  async function prepareWorkspaceForCloudAction() {
+    if (!authUserId || workspaceStatus === "ready") return;
+    setWorkspaceStatus("loading");
+    const context = await ensureWorkspaceContext();
+    setWorkspaceContext(context);
+    setWorkspaceStatus("ready");
+  }
 
   const restoreAnonymousDrafts = useCallback(() => {
     const anonymousDeals = anonymousDraftsOnDevice();
@@ -108,14 +119,19 @@ function BrixApp() {
         setAuthUserId(userId);
         setAuthReady(true);
         if (!userId) {
+          setWorkspaceContext(null);
+          setWorkspaceStatus("signed_out");
           restoreAnonymousDrafts();
         } else {
+          setWorkspaceStatus("loading");
           anonymousDraftsOnDevice();
         }
       })
       .catch(() => {
         setAuthUserId(null);
         setAuthReady(true);
+        setWorkspaceContext(null);
+        setWorkspaceStatus("signed_out");
         setDeals([]);
         setSelectedId(null);
         setSyncMessage("Sign in from Account when you are ready to save across devices.");
@@ -127,8 +143,11 @@ function BrixApp() {
       setAuthUserId(userId);
       setAuthReady(true);
       if (!userId) {
+        setWorkspaceContext(null);
+        setWorkspaceStatus("signed_out");
         restoreAnonymousDrafts();
       } else {
+        setWorkspaceStatus("loading");
         anonymousDraftsOnDevice();
       }
     });
@@ -143,7 +162,15 @@ function BrixApp() {
     let isCurrent = true;
     setDeals([]);
     setSelectedId(null);
-    loadRemoteDeals(authUserId)
+    setWorkspaceContext(null);
+    setWorkspaceStatus("loading");
+    ensureWorkspaceContext()
+      .then((context) => {
+        if (!isCurrent) return [];
+        setWorkspaceContext(context);
+        setWorkspaceStatus("ready");
+        return loadRemoteDeals(authUserId);
+      })
       .then((remoteDeals) => {
         if (!isCurrent) return;
         setDeals(remoteDeals);
@@ -152,7 +179,9 @@ function BrixApp() {
       })
       .catch((error) => {
         if (!isCurrent) return;
-        setSyncMessage(`Could not load cloud records: ${error.message ?? "check your connection."}`);
+        setWorkspaceContext(null);
+        setWorkspaceStatus("failed");
+        setSyncMessage(`Could not prepare your BRIX workspace: ${error.message ?? "check your connection."}`);
       });
     return () => {
       isCurrent = false;
@@ -161,6 +190,7 @@ function BrixApp() {
 
   async function createDeal(deal: DealFacts) {
     try {
+      await prepareWorkspaceForCloudAction();
       const confirmedDeal = authUserId ? await persistRemoteDeal(deal, authUserId) : deal;
       setDeals((current) => [confirmedDeal, ...current.filter((item) => item.id !== confirmedDeal.id)]);
       setSelectedId(confirmedDeal.id);
@@ -183,7 +213,7 @@ function BrixApp() {
     setSelectedId(next.id);
   }
 
-  function upsertDeal(next: DealFacts) {
+  async function upsertDeal(next: DealFacts) {
     if (!authUserId) {
       putDealInState(next);
       setHasAnonymousDrafts(true);
@@ -191,15 +221,17 @@ function BrixApp() {
       return;
     }
     setSyncMessage("Saving deal to BRIX cloud...");
-    persistRemoteDeal(next, authUserId)
-      .then((confirmedDeal) => {
-        putDealInState(confirmedDeal);
-        setSyncMessage(null);
-      })
-      .catch((error) => setSyncMessage(`Deal was not saved: ${error.message ?? "check your connection."}`));
+    try {
+      await prepareWorkspaceForCloudAction();
+      const confirmedDeal = await persistRemoteDeal(next, authUserId);
+      putDealInState(confirmedDeal);
+      setSyncMessage(null);
+    } catch (error) {
+      setSyncMessage(`Deal was not saved: ${error instanceof Error ? error.message : "check your connection."}`);
+    }
   }
 
-  function deleteDeal(id: string) {
+  async function deleteDeal(id: string) {
     if (!authUserId) {
       setDeals((current) => {
         const next = current.filter((deal) => deal.id !== id);
@@ -211,16 +243,18 @@ function BrixApp() {
       return;
     }
     setSyncMessage("Deleting deal from BRIX cloud...");
-    softDeleteRemoteDeal(id, authUserId)
-      .then(() => {
-        setDeals((current) => {
-          const next = current.filter((deal) => deal.id !== id);
-          setSelectedId((currentId) => currentId === id ? next[0]?.id ?? null : currentId);
-          return next;
-        });
-        setSyncMessage(null);
-      })
-      .catch((error) => setSyncMessage(`Deal was not deleted: ${error.message ?? "check your connection."}`));
+    try {
+      await prepareWorkspaceForCloudAction();
+      await softDeleteRemoteDeal(id, authUserId);
+      setDeals((current) => {
+        const next = current.filter((deal) => deal.id !== id);
+        setSelectedId((currentId) => currentId === id ? next[0]?.id ?? null : currentId);
+        return next;
+      });
+      setSyncMessage(null);
+    } catch (error) {
+      setSyncMessage(`Deal was not deleted: ${error instanceof Error ? error.message : "check your connection."}`);
+    }
   }
 
   return (
@@ -255,6 +289,12 @@ function BrixApp() {
             <p className="eyebrow">BRIX Real Estate</p>
             <h1>{titleFor(module)}</h1>
           </div>
+          {isAuthenticated && (
+            <div className={workspaceStatus === "failed" ? "workspace-pill danger" : "workspace-pill"}>
+              <span>{workspaceStatus === "ready" ? "Workspace" : "Preparing workspace"}</span>
+              <strong>{workspaceContext?.workspaceName ?? "BRIX Account"}</strong>
+            </div>
+          )}
           <DealSwitcher deals={deals} selectedId={selectedDeal?.id} onSelect={setSelectedId} />
         </header>
 
@@ -279,11 +319,15 @@ function BrixApp() {
           setSelectedId(null);
           setAuthUserId(userId);
           setAuthReady(true);
+          setWorkspaceContext(null);
+          setWorkspaceStatus(userId ? "loading" : "signed_out");
           if (userId) anonymousDraftsOnDevice();
           setModule("find");
         }} onSignedOut={() => {
           setAuthUserId(null);
           setAuthReady(true);
+          setWorkspaceContext(null);
+          setWorkspaceStatus("signed_out");
           restoreAnonymousDrafts();
           setModule("find");
         }} />}
