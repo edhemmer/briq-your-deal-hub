@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent } from "react";
+import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch, Eye, EyeOff, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
 import { createDealFromInput, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
@@ -8,11 +9,11 @@ import { supabase } from "./core/supabase";
 import { downloadDecisionPdf, downloadWorkbook } from "./core/reportExports";
 import { analyzePhotoEvidence } from "./core/photoAnalysis";
 import { areaSearchUrl, ownerOccupiedConveniences, taxSearchUrl } from "./core/areaAndTax";
-import { requestAccountDeletion } from "./core/authActions";
 import { reviewContractText } from "./core/contractReview";
 import { buildOfferStructures, offerSummary } from "./core/offerEngine";
 import { portfolioMetrics } from "./core/portfolioEngine";
 import { ensureWorkspaceContext, type WorkspaceContext } from "./core/workspace";
+import { isSessionFailure, safeAuthError, validateAuthInput, type AuthMode } from "./core/authLifecycle";
 
 type Module = "find" | "deal" | "contract" | "pipeline" | "offer" | "portfolio" | "reports" | "account";
 
@@ -74,6 +75,8 @@ function BrixApp() {
   const [hasAnonymousDrafts, setHasAnonymousDrafts] = useState(false);
   const [workspaceContext, setWorkspaceContext] = useState<WorkspaceContext | null>(null);
   const [workspaceStatus, setWorkspaceStatus] = useState<"loading" | "ready" | "failed" | "signed_out">("loading");
+  const [authLifecycle, setAuthLifecycle] = useState<"restoring" | "signed_out" | "bootstrapping" | "ready" | "failed" | "signing_out" | "expired">("restoring");
+  const [workspaceRetryKey, setWorkspaceRetryKey] = useState(0);
   const isAuthenticated = Boolean(authUserId);
   const selectedDeal = deals.find((deal) => deal.id === selectedId) ?? deals[0];
 
@@ -103,6 +106,22 @@ function BrixApp() {
     setSelectedId(anonymousDeals[0]?.id ?? null);
   }, [anonymousDraftsOnDevice]);
 
+  const clearProtectedState = useCallback(() => {
+    setDeals([]);
+    setSelectedId(null);
+    setWorkspaceContext(null);
+    setWorkspaceStatus("signed_out");
+  }, []);
+
+  function retryWorkspaceBootstrap() {
+    if (!authUserId) {
+      setModule("account");
+      return;
+    }
+    setSyncMessage(null);
+    setWorkspaceRetryKey((current) => current + 1);
+  }
+
   useEffect(() => {
     if (!authReady || authUserId) return;
     saveAnonymousDeals(deals);
@@ -111,18 +130,18 @@ function BrixApp() {
   useEffect(() => {
     const onPopState = () => setModuleState(moduleFromPath());
     window.addEventListener("popstate", onPopState);
+    setAuthLifecycle("restoring");
     supabase.auth.getSession()
       .then(({ data }) => {
         const userId = data.session?.user?.id ?? null;
-        setDeals([]);
-        setSelectedId(null);
+        clearProtectedState();
         setAuthUserId(userId);
         setAuthReady(true);
         if (!userId) {
-          setWorkspaceContext(null);
-          setWorkspaceStatus("signed_out");
+          setAuthLifecycle("signed_out");
           restoreAnonymousDrafts();
         } else {
+          setAuthLifecycle("bootstrapping");
           setWorkspaceStatus("loading");
           anonymousDraftsOnDevice();
         }
@@ -130,23 +149,21 @@ function BrixApp() {
       .catch(() => {
         setAuthUserId(null);
         setAuthReady(true);
-        setWorkspaceContext(null);
-        setWorkspaceStatus("signed_out");
-        setDeals([]);
-        setSelectedId(null);
-        setSyncMessage("Sign in from Account when you are ready to save across devices.");
+        clearProtectedState();
+        restoreAnonymousDrafts();
+        setAuthLifecycle("expired");
+        setSyncMessage("Your session could not be restored. Sign in again to continue.");
       });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       const userId = session?.user?.id ?? null;
-      setDeals([]);
-      setSelectedId(null);
+      clearProtectedState();
       setAuthUserId(userId);
       setAuthReady(true);
       if (!userId) {
-        setWorkspaceContext(null);
-        setWorkspaceStatus("signed_out");
+        setAuthLifecycle("signed_out");
         restoreAnonymousDrafts();
       } else {
+        setAuthLifecycle("bootstrapping");
         setWorkspaceStatus("loading");
         anonymousDraftsOnDevice();
       }
@@ -155,20 +172,21 @@ function BrixApp() {
       window.removeEventListener("popstate", onPopState);
       listener.subscription.unsubscribe();
     };
-  }, [anonymousDraftsOnDevice, restoreAnonymousDrafts]);
+  }, [anonymousDraftsOnDevice, clearProtectedState, restoreAnonymousDrafts]);
 
   useEffect(() => {
     if (!authUserId) return;
     let isCurrent = true;
-    setDeals([]);
-    setSelectedId(null);
+    clearProtectedState();
     setWorkspaceContext(null);
     setWorkspaceStatus("loading");
+    setAuthLifecycle("bootstrapping");
     ensureWorkspaceContext()
       .then((context) => {
         if (!isCurrent) return [];
         setWorkspaceContext(context);
         setWorkspaceStatus("ready");
+        setAuthLifecycle("ready");
         return loadRemoteDeals(authUserId);
       })
       .then((remoteDeals) => {
@@ -179,14 +197,23 @@ function BrixApp() {
       })
       .catch((error) => {
         if (!isCurrent) return;
+        if (isSessionFailure(error)) {
+          setAuthUserId(null);
+          clearProtectedState();
+          restoreAnonymousDrafts();
+          setAuthLifecycle("expired");
+          setSyncMessage("Your session has expired. Sign in again to continue.");
+          return;
+        }
         setWorkspaceContext(null);
         setWorkspaceStatus("failed");
-        setSyncMessage(`Could not prepare your BRIX workspace: ${error.message ?? "check your connection."}`);
+        setAuthLifecycle("failed");
+        setSyncMessage(safeAuthError(error).message);
       });
     return () => {
       isCurrent = false;
     };
-  }, [authUserId]);
+  }, [authUserId, clearProtectedState, restoreAnonymousDrafts, workspaceRetryKey]);
 
   async function createDeal(deal: DealFacts) {
     try {
@@ -298,7 +325,21 @@ function BrixApp() {
           <DealSwitcher deals={deals} selectedId={selectedDeal?.id} onSelect={setSelectedId} />
         </header>
 
-        {syncMessage && <div className={isAuthenticated ? "callout danger-callout" : "callout"}><strong>{isAuthenticated ? "Sync needs attention" : "Account"}</strong><span>{syncMessage}</span></div>}
+        {!authReady && (
+          <div className="callout" role="status" aria-live="polite">
+            <strong>Restoring session</strong>
+            <span>BRIX is checking whether this browser already has a valid account session.</span>
+          </div>
+        )}
+        {syncMessage && (
+          <div className={isAuthenticated ? "callout danger-callout" : "callout"} role={isAuthenticated ? "alert" : "status"} aria-live="polite">
+            <strong>{authLifecycle === "expired" ? "Sign in required" : isAuthenticated ? "Workspace needs attention" : "Account"}</strong>
+            <span>{syncMessage}</span>
+            {(workspaceStatus === "failed" || authLifecycle === "expired") && (
+              <button className="secondary compact-button" onClick={retryWorkspaceBootstrap}>{authLifecycle === "expired" ? "Sign in" : "Retry setup"}</button>
+            )}
+          </div>
+        )}
         {isAuthenticated && hasAnonymousDrafts && (
           <div className="callout">
             <strong>Local drafts</strong>
@@ -314,20 +355,25 @@ function BrixApp() {
         {module === "offer" && <OfferIQ deal={selectedDeal} />}
         {module === "portfolio" && <PortfolioIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
         {module === "reports" && <Reports deal={selectedDeal} />}
-        {module === "account" && <Account onAuthChanged={(userId) => {
+        {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceName={workspaceContext?.workspaceName} onAuthChanged={(userId) => {
           setDeals([]);
           setSelectedId(null);
           setAuthUserId(userId);
           setAuthReady(true);
           setWorkspaceContext(null);
           setWorkspaceStatus(userId ? "loading" : "signed_out");
+          setAuthLifecycle(userId ? "bootstrapping" : "signed_out");
           if (userId) anonymousDraftsOnDevice();
           setModule("find");
+        }} onSigningOut={() => {
+          setAuthLifecycle("signing_out");
+          clearProtectedState();
         }} onSignedOut={() => {
           setAuthUserId(null);
           setAuthReady(true);
           setWorkspaceContext(null);
           setWorkspaceStatus("signed_out");
+          setAuthLifecycle("signed_out");
           restoreAnonymousDrafts();
           setModule("find");
         }} />}
@@ -690,118 +736,166 @@ function Reports({ deal }: { deal?: DealFacts }) {
   );
 }
 
-function Account({ onAuthChanged, onSignedOut }: { onAuthChanged: (userId: string) => void; onSignedOut?: () => void }) {
+function Account({
+  isAuthenticated,
+  workspaceName,
+  onAuthChanged,
+  onSigningOut,
+  onSignedOut,
+}: {
+  isAuthenticated: boolean;
+  workspaceName?: string;
+  onAuthChanged: (userId: string) => void;
+  onSigningOut?: () => void;
+  onSignedOut?: () => void;
+}) {
+  const [mode, setMode] = useState<AuthMode>("sign_in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [message, setMessage] = useState<{ tone: "success" | "error" | "info"; text: string } | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<"email" | "password" | "fullName", string>>>({});
+  const [summary, setSummary] = useState<string[]>([]);
   const [isWorking, setIsWorking] = useState(false);
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
+  const authSubmitInFlightRef = useRef(false);
 
-  async function signIn() {
+  function resetFeedback() {
+    setMessage(null);
+    setFieldErrors({});
+    setSummary([]);
+  }
+
+  async function submitAuth(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    if (isWorking || authSubmitInFlightRef.current) return;
     const cleanEmail = email.trim();
-    if (!cleanEmail || !password) {
-      setMessage("Enter your email and password.");
+    const validation = validateAuthInput({ email: cleanEmail, password, fullName }, mode);
+    setFieldErrors(validation.fields);
+    setSummary(validation.summary);
+    setMessage(null);
+    if (!validation.isValid) {
+      setMessage({ tone: "error", text: "Fix the highlighted fields and try again." });
+      window.setTimeout(() => errorSummaryRef.current?.focus(), 0);
       return;
     }
+    authSubmitInFlightRef.current = true;
     setIsWorking(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+      const response = mode === "sign_in"
+        ? await supabase.auth.signInWithPassword({ email: cleanEmail, password })
+        : await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+          options: { data: { full_name: fullName.trim() } },
+        });
+      const { data, error } = response;
       const userId = data.session?.user?.id;
       if (error) {
-        setMessage(error.message);
+        const safe = safeAuthError(error);
+        setMessage({ tone: "error", text: safe.message });
       } else if (userId) {
-        setMessage("Signed in.");
+        setMessage({ tone: "success", text: mode === "sign_in" ? "Signed in. Preparing your workspace." : "Account created. Preparing your workspace." });
         onAuthChanged(userId);
       } else {
-        setMessage("Sign in did not return an active session. Check your email confirmation status and try again.");
+        setMessage({ tone: "info", text: "Check your email to finish account activation, then sign in." });
       }
     } catch {
-      setMessage("Sign in failed. Check your connection and try again.");
+      setMessage({ tone: "error", text: safeAuthError(new Error("network failure")).message });
     } finally {
-      setIsWorking(false);
-    }
-  }
-
-  async function signUp() {
-    const cleanEmail = email.trim();
-    if (!cleanEmail || !password) {
-      setMessage("Enter your email and password.");
-      return;
-    }
-    setIsWorking(true);
-    try {
-      const { data, error } = await supabase.auth.signUp({ email: cleanEmail, password });
-      const userId = data.session?.user?.id;
-      if (error) {
-        setMessage(error.message);
-      } else if (userId) {
-        setMessage("Account created and signed in.");
-        onAuthChanged(userId);
-      } else {
-        setMessage("Account created. Confirm your email before signing in.");
-      }
-    } catch {
-      setMessage("Account creation failed. Check your connection and try again.");
-    } finally {
-      setIsWorking(false);
-    }
-  }
-
-  async function reset() {
-    const cleanEmail = email.trim();
-    if (!cleanEmail) {
-      setMessage("Enter your email before requesting a reset link.");
-      return;
-    }
-    setIsWorking(true);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo: `${window.location.origin}/account` });
-      setMessage(error ? error.message : "Password reset email sent.");
-    } catch {
-      setMessage("Password reset failed. Check your connection and try again.");
-    } finally {
-      setIsWorking(false);
-    }
-  }
-
-  async function deleteAccount() {
-    try {
-      setIsWorking(true);
-      await requestAccountDeletion();
-      setMessage("Account deletion request recorded.");
-    } catch {
-      setMessage("Account deletion request failed. Sign in and try again.");
-    } finally {
+      authSubmitInFlightRef.current = false;
       setIsWorking(false);
     }
   }
 
   async function signOut() {
+    if (isWorking || authSubmitInFlightRef.current) return;
+    authSubmitInFlightRef.current = true;
     setIsWorking(true);
+    onSigningOut?.();
     try {
-      await supabase.auth.signOut();
-      setMessage("Signed out.");
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setMessage({ tone: "success", text: "Signed out." });
       onSignedOut?.();
     } catch {
-      setMessage("Sign out failed. Check your connection and try again.");
+      setMessage({ tone: "error", text: "BRIX could not sign you out. Check your connection and try again." });
     } finally {
+      authSubmitInFlightRef.current = false;
       setIsWorking(false);
     }
   }
 
   return (
-    <section className="panel account-panel">
-      <p className="eyebrow">Account</p>
-      <label className="field"><span>Email</span><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-      <label className="field"><span>Password</span><input value={password} type="password" onChange={(event) => setPassword(event.target.value)} /></label>
-      <div className="button-row">
-        <button className="primary" onClick={signIn} disabled={isWorking}>Sign in</button>
-        <button className="secondary" onClick={signUp} disabled={isWorking}>Create account</button>
-        <button className="secondary" onClick={reset} disabled={isWorking}>Reset password</button>
-        <button className="secondary" onClick={signOut} disabled={isWorking}><LogOut size={16} /> Sign out</button>
-        <button className="danger" onClick={deleteAccount} disabled={isWorking}>Request account deletion</button>
+    <section className="auth-stage" aria-labelledby="auth-title">
+      <div className="auth-card">
+        <div className="auth-copy">
+          <p className="eyebrow">Secure BRIX access</p>
+          <h2 id="auth-title">{isAuthenticated ? "Account ready" : mode === "sign_in" ? "Sign in to BRIX" : "Create your BRIX account"}</h2>
+          <p className="quiet">
+            {isAuthenticated
+              ? `You are signed in${workspaceName ? ` to ${workspaceName}` : ""}.`
+              : "Use one secure account to keep your workspace, deal files, evidence, and decisions separated from local device drafts."}
+          </p>
+        </div>
+
+        {!isAuthenticated && (
+          <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
+            <button type="button" role="tab" aria-selected={mode === "sign_in"} className={mode === "sign_in" ? "active" : ""} onClick={() => { setMode("sign_in"); resetFeedback(); }}>Sign in</button>
+            <button type="button" role="tab" aria-selected={mode === "sign_up"} className={mode === "sign_up" ? "active" : ""} onClick={() => { setMode("sign_up"); resetFeedback(); }}>Create account</button>
+          </div>
+        )}
+
+        {summary.length > 0 && (
+          <div className="auth-summary" role="alert" tabIndex={-1} ref={errorSummaryRef}>
+            <AlertTriangle size={18} />
+            <div>
+              <strong>Check these fields</strong>
+              <ul>{summary.map((item) => <li key={item}>{item}</li>)}</ul>
+            </div>
+          </div>
+        )}
+
+        {message && (
+          <div className={`auth-message ${message.tone}`} role={message.tone === "error" ? "alert" : "status"} aria-live="polite">
+            {message.tone === "success" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+            <span>{message.text}</span>
+          </div>
+        )}
+
+        {!isAuthenticated ? (
+          <form className="auth-form" onSubmit={submitAuth} noValidate>
+            {mode === "sign_up" && (
+              <label className="field" htmlFor="auth-full-name">
+                <span>Name</span>
+                <input id="auth-full-name" autoComplete="name" value={fullName} aria-invalid={Boolean(fieldErrors.fullName)} aria-describedby={fieldErrors.fullName ? "auth-full-name-error" : undefined} onChange={(event) => setFullName(event.target.value)} />
+                {fieldErrors.fullName && <small className="field-error" id="auth-full-name-error">{fieldErrors.fullName}</small>}
+              </label>
+            )}
+            <label className="field" htmlFor="auth-email">
+              <span>Email</span>
+              <input id="auth-email" type="email" autoComplete="email" value={email} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? "auth-email-error" : undefined} onChange={(event) => setEmail(event.target.value)} />
+              {fieldErrors.email && <small className="field-error" id="auth-email-error">{fieldErrors.email}</small>}
+            </label>
+            <label className="field" htmlFor="auth-password">
+              <span>Password</span>
+              <span className="password-control">
+                <input id="auth-password" value={password} type={showPassword ? "text" : "password"} autoComplete={mode === "sign_in" ? "current-password" : "new-password"} aria-invalid={Boolean(fieldErrors.password)} aria-describedby={fieldErrors.password ? "auth-password-error" : undefined} onChange={(event) => setPassword(event.target.value)} />
+                <button type="button" className="icon-button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((current) => !current)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+              </span>
+              {fieldErrors.password && <small className="field-error" id="auth-password-error">{fieldErrors.password}</small>}
+            </label>
+            <button className="primary wide-button" type="submit" disabled={isWorking}>
+              {isWorking ? mode === "sign_in" ? "Signing in" : "Creating account" : mode === "sign_in" ? "Sign in to BRIX" : "Create BRIX account"}
+            </button>
+          </form>
+        ) : (
+          <div className="auth-actions">
+            <button className="secondary" onClick={signOut} disabled={isWorking}><LogOut size={16} /> {isWorking ? "Signing out" : "Sign out"}</button>
+          </div>
+        )}
       </div>
-      {message && <p className="quiet">{message}</p>}
-      <div className="callout"><strong>Privacy controls</strong><span>Account deletion, data export, and billing controls are part of the BRIX account system.</span></div>
     </section>
   );
 }

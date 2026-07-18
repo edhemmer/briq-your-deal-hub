@@ -2,7 +2,6 @@ import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
-import { requestAccountDeletion } from "../core/authActions";
 import { downloadDecisionPdf, downloadWorkbook } from "../core/reportExports";
 import { loadAnonymousDeals, loadRemoteDeals, normalizeDealRecord, normalizeDealRow, persistRemoteDeal, saveAnonymousDeals } from "../core/store";
 import type { DealFacts } from "../core/types";
@@ -34,17 +33,16 @@ const mocks = vi.hoisted(() => ({
   })),
   signInWithPassword: vi.fn(async () => ({ data: { session: mocks.session.value }, error: null })),
   signUp: vi.fn(async () => ({ data: { session: mocks.session.value }, error: null })),
-  resetPasswordForEmail: vi.fn(async () => ({ error: null })),
   signOut: vi.fn(async () => ({ error: null })),
+  getSession: vi.fn(async () => ({ data: { session: mocks.session.value } })),
   downloadDecisionPdf: vi.fn(async () => undefined),
   downloadWorkbook: vi.fn(async () => undefined),
-  requestAccountDeletion: vi.fn(async () => undefined),
 }));
 
 vi.mock("../core/supabase", () => ({
   supabase: {
     auth: {
-      getSession: vi.fn(async () => ({ data: { session: mocks.session.value } })),
+      getSession: mocks.getSession,
       onAuthStateChange: vi.fn((callback: (_event: string, session: { user: { id: string } } | null) => void) => {
         mocks.authChangeCallback.value = callback;
         return { data: { subscription: { unsubscribe: vi.fn() } } };
@@ -52,7 +50,6 @@ vi.mock("../core/supabase", () => ({
       getUser: vi.fn(async () => ({ data: { user: mocks.user.value } })),
       signInWithPassword: mocks.signInWithPassword,
       signUp: mocks.signUp,
-      resetPasswordForEmail: mocks.resetPasswordForEmail,
       signOut: mocks.signOut,
     },
     from: vi.fn((table: string) => {
@@ -86,10 +83,6 @@ vi.mock("../core/supabase", () => ({
 vi.mock("../core/reportExports", () => ({
   downloadDecisionPdf: mocks.downloadDecisionPdf,
   downloadWorkbook: mocks.downloadWorkbook,
-}));
-
-vi.mock("../core/authActions", () => ({
-  requestAccountDeletion: mocks.requestAccountDeletion,
 }));
 
 function draftDeal(id: string, address: string): DealFacts {
@@ -130,6 +123,8 @@ describe("BRIX app module flow", () => {
     mocks.authChangeCallback.value = null;
     mocks.queriedOwnerIds.value = [];
     vi.clearAllMocks();
+    mocks.getSession.mockImplementation(async () => ({ data: { session: mocks.session.value } }));
+    Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
   });
 
   it("creates a deal in FindIQ and opens every connected module without a dead end", async () => {
@@ -186,29 +181,28 @@ describe("BRIX app module flow", () => {
     await waitFor(() => expect(screen.queryByText(/Sync needs attention/i)).not.toBeInTheDocument());
   }, 10000);
 
-  it("handles account sign-in, reset, and deletion request wiring", async () => {
+  it("handles account sign-in and sign-out without exposing reset or deletion flows", async () => {
     mocks.session.value = null;
     mocks.signInWithPassword.mockResolvedValueOnce({ data: { session: { user: { id: "user-1" } } }, error: null });
     window.history.replaceState({}, "", "/account");
 
     render(<App />);
 
-    await screen.findByRole("heading", { name: "Account" });
+    await screen.findByRole("heading", { name: "Sign in to BRIX" });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "edhemmer@gmail.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "inlight" } });
-    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in to BRIX" }));
 
     await waitFor(() => expect(mocks.signInWithPassword).toHaveBeenCalledWith({ email: "edhemmer@gmail.com", password: "inlight" }));
     expect(window.location.pathname).toBe("/findiq");
 
     fireEvent.click(screen.getByRole("button", { name: /Account/i }));
-    await screen.findByRole("heading", { name: "Account" });
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "edhemmer@gmail.com" } });
-    fireEvent.click(screen.getByRole("button", { name: /Reset password/i }));
-    await waitFor(() => expect(mocks.resetPasswordForEmail).toHaveBeenCalled());
-
-    fireEvent.click(screen.getByRole("button", { name: /Request account deletion/i }));
-    await waitFor(() => expect(requestAccountDeletion).toHaveBeenCalled());
+    await screen.findByRole("heading", { name: "Account ready" });
+    expect(screen.queryByRole("button", { name: /Reset password/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Request account deletion/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Sign out/i }));
+    await waitFor(() => expect(mocks.signOut).toHaveBeenCalled());
+    expect(await screen.findByRole("heading", { name: "FindIQ" })).toBeInTheDocument();
   });
 
   it("normalizes older or sparse remote deal rows before modules consume them", () => {
@@ -324,10 +318,10 @@ describe("BRIX app module flow", () => {
     window.history.replaceState({}, "", "/account");
     render(<App />);
 
-    await screen.findByRole("heading", { name: "Account" });
+    await screen.findByRole("heading", { name: "Sign in to BRIX" });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "edhemmer@gmail.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "inlight" } });
-    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in to BRIX" }));
 
     expect(await screen.findByText("Cloud After Sign In")).toBeInTheDocument();
     expect(screen.queryByText("Preserved Anonymous Draft")).not.toBeInTheDocument();
@@ -521,13 +515,173 @@ describe("BRIX app module flow", () => {
     window.history.replaceState({}, "", "/account");
     render(<App />);
 
-    await screen.findByRole("heading", { name: "Account" });
+    await screen.findByRole("heading", { name: "Sign in to BRIX" });
+    fireEvent.click(screen.getByRole("tab", { name: "Create account" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Confirm User" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "confirm@example.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password123" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create BRIX account" }));
 
-    expect(await screen.findByText(/Confirm your email before signing in/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Check your email to finish account activation/i)).toBeInTheDocument();
     expect(window.location.pathname).toBe("/account");
+  });
+
+  it("creates an account and hands the signed-in user into workspace bootstrap when Supabase returns a session", async () => {
+    mocks.session.value = null;
+    mocks.user.value = null;
+    mocks.signUp.mockImplementationOnce(async () => {
+      mocks.session.value = { user: { id: "new-user" } };
+      mocks.user.value = { id: "new-user", email: "new@example.com" };
+      return { data: { session: { user: { id: "new-user" } } }, error: null };
+    });
+    mocks.workspaceContext.value = { profile_id: "new-user", workspace_id: "workspace-new", workspace_name: "New User BRIX Workspace", role_id: "owner" };
+    mocks.remoteDeals.value = [remoteDealRow("new-user-cloud", "new-user", "New User Cloud Deal")];
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in to BRIX" });
+    fireEvent.click(screen.getByRole("tab", { name: "Create account" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "New User" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "new@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create BRIX account" }));
+
+    await waitFor(() => expect(mocks.signUp).toHaveBeenCalledWith({
+      email: "new@example.com",
+      password: "password123",
+      options: { data: { full_name: "New User" } },
+    }));
+    expect(await screen.findByText("New User Cloud Deal")).toBeInTheDocument();
+    expect(mocks.rpc).toHaveBeenCalledWith("ensure_workspace_context");
+    expect(window.location.pathname).toBe("/findiq");
+  });
+
+  it("validates sign-up inputs before calling Supabase", async () => {
+    mocks.session.value = null;
+    mocks.user.value = null;
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in to BRIX" });
+    fireEvent.click(screen.getByRole("tab", { name: "Create account" }));
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "not-an-email" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "short" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create BRIX account" }));
+
+    expect(await screen.findByText("Check these fields")).toBeInTheDocument();
+    expect(screen.getAllByText("Enter your name.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Enter a valid email address.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Use at least 8 characters.").length).toBeGreaterThan(0);
+    expect(mocks.signUp).not.toHaveBeenCalled();
+  });
+
+  it("prevents duplicate sign-in submissions while authentication is in flight", async () => {
+    mocks.session.value = null;
+    mocks.user.value = null;
+    let resolveSignIn: (value: { data: { session: { user: { id: string } } }; error: null }) => void = () => undefined;
+    mocks.signInWithPassword.mockImplementationOnce(async () => new Promise((resolve) => {
+      resolveSignIn = resolve;
+    }));
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in to BRIX" });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "edhemmer@gmail.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "inlight" } });
+    const submit = screen.getByRole("button", { name: "Sign in to BRIX" });
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+
+    expect(mocks.signInWithPassword).toHaveBeenCalledTimes(1);
+    resolveSignIn({ data: { session: { user: { id: "user-1" } } }, error: null });
+    expect(await screen.findByRole("heading", { name: "FindIQ" })).toBeInTheDocument();
+  });
+
+  it("shows safe authentication errors for invalid credentials, rate limits, and offline attempts", async () => {
+    mocks.session.value = null;
+    mocks.user.value = null;
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in to BRIX" });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "edhemmer@gmail.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrongpassword" } });
+    mocks.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: new Error("Invalid login credentials") });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in to BRIX" }));
+    expect(await screen.findByText("Email or password is incorrect.")).toBeInTheDocument();
+    expect(screen.queryByText(/Invalid login credentials/i)).not.toBeInTheDocument();
+
+    mocks.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: new Error("429 rate limit exceeded") });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in to BRIX" }));
+    expect(await screen.findByText("Too many attempts. Wait a few minutes, then try again.")).toBeInTheDocument();
+
+    Object.defineProperty(window.navigator, "onLine", { value: false, configurable: true });
+    mocks.signInWithPassword.mockRejectedValueOnce(new Error("Failed to fetch auth service"));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in to BRIX" }));
+    expect(await screen.findByText(/You appear to be offline/i)).toBeInTheDocument();
+  });
+
+  it("shows session restoration state before the initial auth check resolves", async () => {
+    let resolveSession: (value: { data: { session: null } }) => void = () => undefined;
+    mocks.session.value = null;
+    mocks.user.value = null;
+    mocks.getSession.mockImplementationOnce(async () => new Promise((resolve) => {
+      resolveSession = resolve;
+    }));
+    render(<App />);
+
+    expect(await screen.findByText("Restoring session")).toBeInTheDocument();
+    resolveSession({ data: { session: null } });
+    expect(await screen.findByRole("heading", { name: "FindIQ" })).toBeInTheDocument();
+  });
+
+  it("allows retry after workspace bootstrap fails without loading cloud deals first", async () => {
+    mocks.rpc
+      .mockResolvedValueOnce({ data: null, error: new Error("workspace unavailable") })
+      .mockResolvedValueOnce({ data: [mocks.workspaceContext.value], error: null });
+    mocks.remoteDeals.value = [remoteDealRow("retry-cloud", "user-1", "Retry Cloud Deal")];
+    render(<App />);
+
+    expect(await screen.findByText(/BRIX could not prepare your workspace/i)).toBeInTheDocument();
+    expect(screen.queryByText("Retry Cloud Deal")).not.toBeInTheDocument();
+    expect(mocks.queriedOwnerIds.value).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: "Retry setup" }));
+
+    expect(await screen.findByText("Retry Cloud Deal")).toBeInTheDocument();
+    expect(mocks.queriedOwnerIds.value).toEqual(["user-1"]);
+  });
+
+  it("fails closed when a restored authenticated session is expired or revoked", async () => {
+    localStorage.setItem("brix.deals", JSON.stringify([draftDeal("anon-after-expire", "Anonymous After Expire")]));
+    mocks.rpc.mockResolvedValueOnce({ data: null, error: Object.assign(new Error("JWT expired"), { status: 401 }) });
+    mocks.remoteDeals.value = [remoteDealRow("expired-cloud", "user-1", "Expired Cloud Deal")];
+    render(<App />);
+
+    expect(await screen.findByText(/Your session has expired. Sign in again to continue./i)).toBeInTheDocument();
+    expect(screen.queryByText("Expired Cloud Deal")).not.toBeInTheDocument();
+    expect(await screen.findByText("Anonymous After Expire")).toBeInTheDocument();
+    expect(mocks.queriedOwnerIds.value).toEqual([]);
+  });
+
+  it("keeps sensitive auth failures out of console output", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    mocks.session.value = null;
+    mocks.user.value = null;
+    mocks.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: new Error("Invalid login credentials: leaked provider detail") });
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in to BRIX" });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "edhemmer@gmail.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrongpassword" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in to BRIX" }));
+
+    expect(await screen.findByText("Email or password is incorrect.")).toBeInTheDocument();
+    expect(consoleError).not.toHaveBeenCalled();
+    expect(consoleWarn).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+    consoleWarn.mockRestore();
   });
 
   it("mocked: remote loading is scoped to the current authenticated user", async () => {
@@ -552,7 +706,7 @@ describe("BRIX app module flow", () => {
     mocks.remoteDeals.value = [remoteDealRow("blocked-deal", "user-1", "Blocked Cloud Deal")];
     render(<App />);
 
-    expect(await screen.findByText(/Could not prepare your BRIX workspace: workspace unavailable/i)).toBeInTheDocument();
+    expect(await screen.findByText(/BRIX could not prepare your workspace/i)).toBeInTheDocument();
     expect(screen.queryByText("Blocked Cloud Deal")).not.toBeInTheDocument();
     expect(mocks.queriedOwnerIds.value).toEqual([]);
   });
