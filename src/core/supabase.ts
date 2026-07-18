@@ -1,7 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 
-export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? "https://luwaqrkhmxcqsozmilbw.supabase.co";
-export const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f";
+function requiredEnvValue(value: unknown, fallback: string) {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
+}
+
+export const supabaseUrl = requiredEnvValue(import.meta.env.VITE_SUPABASE_URL, "https://luwaqrkhmxcqsozmilbw.supabase.co");
+export const supabaseAnonKey = requiredEnvValue(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, "sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f");
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
