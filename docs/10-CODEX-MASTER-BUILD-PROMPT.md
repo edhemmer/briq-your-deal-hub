@@ -82,8 +82,9 @@ For each numbered specification:
 5. Verify the full end-to-end path.
 6. Repair failures before proceeding.
 7. Commit the completed slice with a precise message.
-8. Record completion evidence.
-9. Move to the next slice only when the current gate is `COMPLETE`.
+8. Push the commit to `main`.
+9. Record completion evidence.
+10. Move to the next slice only when the current gate is `COMPLETE`.
 
 The vertical path is always:
 
@@ -247,6 +248,13 @@ Calculation reconciliation, source provenance, freshness, confidence, conflicts,
 ### Security Verification
 Authorization, RLS, storage isolation, audit, secrets, privacy, and abuse controls.
 
+### Git and Deployment Verification
+- Exact commit SHA.
+- Confirmation that the commit was pushed to `main`.
+- Supabase migration, function, storage, RLS, seed, or type-generation actions performed.
+- Confirmation that deployed Supabase state matches committed migration and configuration files.
+- Exact production or staging verification performed after the push.
+
 ### Unrelated Changes
 Confirm none, or list and justify them.
 
@@ -256,11 +264,83 @@ Use exactly one:
 - `COMPLETE` — every applicable gate passed.
 - `NOT COMPLETE` — identify the exact unresolved gate and continue repair before moving forward.
 
-## 12. First Build Instruction
+## 12. Repository, Supabase, and Environment Execution Protocol
+
+### Git is mandatory
+
+- Work against the repository default branch, `main`.
+- Before editing, confirm the repository, branch, remote, and working tree.
+- Use `git status --short --branch` and `git remote -v` before the first change.
+- Pull or fetch only when it is safe and required. Never discard uncommitted user work.
+- Every completed vertical slice must be committed with a precise message and pushed to `origin/main`.
+- Do not leave completed work only inside a sandbox, temporary filesystem, detached HEAD, unpushed branch, patch file, or chat response.
+- After push, verify the remote commit exists and that the pushed SHA matches the reported SHA.
+- Never claim a push succeeded based only on a local commit.
+
+### Supabase is part of the implementation
+
+When a slice requires database, authentication, storage, RLS, Edge Function, trigger, scheduled job, realtime, secret, or generated-type changes:
+
+1. Create the required migration and configuration files in the repository first.
+2. Keep migrations deterministic, ordered, reversible where practical, and safe to rerun according to the documented migration contract.
+3. Apply the changes to the connected Supabase project using the available authenticated Supabase tooling.
+4. Deploy Edge Functions and required configuration when the slice depends on them.
+5. Verify tables, indexes, constraints, RLS policies, grants, storage policies, triggers, functions, and realtime behavior against the specification.
+6. Regenerate and commit database types when schema changes affect client contracts.
+7. Confirm the remote Supabase state matches the committed repository state.
+8. Never use an untracked dashboard-only SQL change as the final implementation.
+9. Never mark the slice complete when migrations exist locally but were not applied and verified remotely.
+10. Never place production secrets in Git, logs, screenshots, test fixtures, or client bundles.
+
+### Do not rely on known-broken sandbox shims
+
+- Do not assume the environment-provided shim, wrapper, or convenience launcher works.
+- Do not repeatedly retry the same failed shim command.
+- Do not waste time trying to repair a disposable shim when a direct executable or supported alternative is available.
+- Inspect the actual environment first with commands such as `pwd`, `command -v node`, `command -v npm`, `command -v npx`, `command -v pnpm`, `command -v bun`, `command -v git`, `command -v supabase`, and `printf '%s\n' "$PATH"`.
+- A missing command in `PATH` does not prove the tool is absent. Check standard and environment-specific installation paths before concluding it is unavailable.
+- Prefer the repository-declared package manager and lockfile. Do not switch package managers casually.
+- Invoke a verified absolute executable path when the binary exists but `PATH` is incomplete.
+- Where appropriate, use `corepack`, the package manager's direct binary, or a repository-local executable from `node_modules/.bin` instead of a broken global shim.
+- Do not use `npx` as a universal fallback when npm itself is unavailable or the command would download an unpinned package.
+- Do not modify the repository merely to accommodate a temporary sandbox PATH defect.
+- Do not add fake scripts, duplicate lockfiles, vendored runtimes, or permanent workaround code for a one-session environment problem.
+
+### Command fallback discipline
+
+Use this order:
+
+1. Read the repository lockfile and package-manager declaration.
+2. Locate the actual runtime and package-manager binaries.
+3. Use the verified direct binary or repository-local binary.
+4. Use an approved connector or deployment integration when local CLI access is unavailable.
+5. Report a true external permission or credential blocker only after the viable direct paths have been checked.
+
+When a command fails:
+
+- Capture the exact command and error.
+- Identify whether the failure is repository code, dependency installation, PATH, permissions, missing credentials, network restriction, or sandbox policy.
+- Change approach once the failure class is known.
+- Do not repeat an approach already proven broken.
+- Continue all work that is not blocked by that specific failure.
+- Never fabricate test, migration, deployment, commit, or push results.
+
+### Environment completion gate
+
+A slice is not `COMPLETE` until:
+
+- Repository changes are committed.
+- The commit is pushed to `origin/main`.
+- Required Supabase changes are applied and verified.
+- Required generated artifacts and types are committed.
+- Tests were run through a verified executable path.
+- The final report lists exact commands, results, commit SHA, push confirmation, Supabase actions, and any genuine remaining blocker.
+
+## 13. First Build Instruction
 
 Begin at the first incomplete roadmap stage. Do not start by redesigning the landing page, building isolated UI, or generating broad scaffolding.
 
-Read the governing documents, inspect the repository, identify the first incomplete vertical slice, and provide the required Start Report. Then implement, test, repair, commit, and verify that slice before proceeding.
+Read the governing documents, inspect the repository, identify the first incomplete vertical slice, and provide the required Start Report. Then implement, test, repair, commit, push to `main`, apply and verify Supabase changes when required, and verify that slice before proceeding.
 
 Continue in exact order until the full product passes Specification 024 and the Apple client passes `docs/09-APPLE-PLATFORM-COMPLIANCE.md`.
 
