@@ -33,8 +33,11 @@ const mocks = vi.hoisted(() => ({
   })),
   signInWithPassword: vi.fn(async () => ({ data: { session: mocks.session.value }, error: null })),
   signUp: vi.fn(async () => ({ data: { session: mocks.session.value }, error: null })),
+  resetPasswordForEmail: vi.fn(async () => ({ data: {}, error: null })),
+  updateUser: vi.fn(async () => ({ data: { user: mocks.user.value }, error: null })),
   signOut: vi.fn(async () => ({ error: null })),
   getSession: vi.fn(async () => ({ data: { session: mocks.session.value } })),
+  insert: vi.fn(async () => ({ data: null, error: null })),
   downloadDecisionPdf: vi.fn(async () => undefined),
   downloadWorkbook: vi.fn(async () => undefined),
 }));
@@ -50,6 +53,8 @@ vi.mock("../core/supabase", () => ({
       getUser: vi.fn(async () => ({ data: { user: mocks.user.value } })),
       signInWithPassword: mocks.signInWithPassword,
       signUp: mocks.signUp,
+      resetPasswordForEmail: mocks.resetPasswordForEmail,
+      updateUser: mocks.updateUser,
       signOut: mocks.signOut,
     },
     from: vi.fn((table: string) => {
@@ -73,7 +78,10 @@ vi.mock("../core/supabase", () => ({
           update: mocks.update,
         };
       }
-      return {};
+      if (table === "audit_events" || table === "domain_events") {
+        return { insert: mocks.insert };
+      }
+      return { insert: mocks.insert };
     }),
     rpc: mocks.rpc,
     functions: { invoke: vi.fn(async () => ({ data: {}, error: null })) },
@@ -181,7 +189,7 @@ describe("BRIX app module flow", () => {
     await waitFor(() => expect(screen.queryByText(/Sync needs attention/i)).not.toBeInTheDocument());
   }, 10000);
 
-  it("handles account sign-in and sign-out without exposing reset or deletion flows", async () => {
+  it("handles account sign-in, password reset entry, and sign-out", async () => {
     mocks.session.value = null;
     mocks.signInWithPassword.mockResolvedValueOnce({ data: { session: { user: { id: "user-1" } } }, error: null });
     window.history.replaceState({}, "", "/account");
@@ -198,11 +206,96 @@ describe("BRIX app module flow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Account/i }));
     await screen.findByRole("heading", { name: "Account ready" });
-    expect(screen.queryByRole("button", { name: /Reset password/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Request account deletion/i })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Sign out/i }));
     await waitFor(() => expect(mocks.signOut).toHaveBeenCalled());
     expect(await screen.findByRole("heading", { name: "FindIQ" })).toBeInTheDocument();
+  });
+
+  it("requests a password reset with a safe response and recovery redirect", async () => {
+    mocks.session.value = null;
+    mocks.user.value = null;
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in to BRIX" });
+    fireEvent.click(screen.getByRole("button", { name: /Forgot password/i }));
+    expect(await screen.findByRole("heading", { name: "Reset your password" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "investor@example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send reset link" }));
+
+    await waitFor(() => expect(mocks.resetPasswordForEmail).toHaveBeenCalledWith("investor@example.com", {
+      redirectTo: "http://localhost:3000/account?flow=reset-password",
+    }));
+    expect(await screen.findByText("If that email has a BRIX account, a password reset link has been sent.")).toBeInTheDocument();
+  });
+
+  it("validates reset completion passwords before updating Supabase Auth", async () => {
+    mocks.session.value = { user: { id: "user-1" } };
+    window.history.replaceState({}, "", "/account?flow=reset-password");
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Set a new password" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("New password"), { target: { value: "newpassword1" } });
+    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "differentpass" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update password" }));
+
+    expect((await screen.findAllByText("Passwords must match.")).length).toBeGreaterThan(1);
+    expect(mocks.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("completes password recovery, records security events, and returns to the workspace", async () => {
+    mocks.session.value = { user: { id: "user-1" } };
+    mocks.user.value = { id: "user-1", email: "edhemmer@gmail.com" };
+    window.history.replaceState({}, "", "/account?flow=reset-password");
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Set a new password" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("New password"), { target: { value: "newpassword1" } });
+    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "newpassword1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update password" }));
+
+    await waitFor(() => expect(mocks.updateUser).toHaveBeenCalledWith({ password: "newpassword1" }));
+    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ action: "account.password_updated" }));
+    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ event_type: "account.password_updated" }));
+    expect(await screen.findByRole("heading", { name: "FindIQ" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/findiq");
+  });
+
+  it("changes password for a signed-in user after current password reauthentication", async () => {
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Account ready" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Change password" }));
+    expect(await screen.findByRole("heading", { name: "Change password" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Current password"), { target: { value: "oldpassword1" } });
+    fireEvent.change(screen.getByLabelText("New password"), { target: { value: "newpassword1" } });
+    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "newpassword1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update password" }));
+
+    await waitFor(() => expect(mocks.signInWithPassword).toHaveBeenCalledWith({ email: "edhemmer@gmail.com", password: "oldpassword1" }));
+    expect(mocks.updateUser).toHaveBeenCalledWith({ password: "newpassword1" });
+    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ action: "account.password_updated" }));
+    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ event_type: "account.password_updated" }));
+    expect(await screen.findByText("Password updated.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Account ready" })).toBeInTheDocument();
+  });
+
+  it("does not update a signed-in password when current password verification fails", async () => {
+    mocks.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: new Error("Invalid login credentials") });
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Account ready" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Change password" }));
+    fireEvent.change(screen.getByLabelText("Current password"), { target: { value: "wrongpassword" } });
+    fireEvent.change(screen.getByLabelText("New password"), { target: { value: "newpassword1" } });
+    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "newpassword1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update password" }));
+
+    expect(await screen.findByText("Current password is incorrect.")).toBeInTheDocument();
+    expect(mocks.updateUser).not.toHaveBeenCalled();
   });
 
   it("normalizes older or sparse remote deal rows before modules consume them", () => {

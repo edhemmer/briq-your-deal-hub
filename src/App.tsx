@@ -76,6 +76,7 @@ function BrixApp() {
   const [workspaceContext, setWorkspaceContext] = useState<WorkspaceContext | null>(null);
   const [workspaceStatus, setWorkspaceStatus] = useState<"loading" | "ready" | "failed" | "signed_out">("loading");
   const [authLifecycle, setAuthLifecycle] = useState<"restoring" | "signed_out" | "bootstrapping" | "ready" | "failed" | "signing_out" | "expired">("restoring");
+  const [passwordRecoveryActive, setPasswordRecoveryActive] = useState(() => new URLSearchParams(window.location.search).get("flow") === "reset-password");
   const [workspaceRetryKey, setWorkspaceRetryKey] = useState(0);
   const isAuthenticated = Boolean(authUserId);
   const selectedDeal = deals.find((deal) => deal.id === selectedId) ?? deals[0];
@@ -154,8 +155,12 @@ function BrixApp() {
         setAuthLifecycle("expired");
         setSyncMessage("Your session could not be restored. Sign in again to continue.");
       });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       const userId = session?.user?.id ?? null;
+      if (event === "PASSWORD_RECOVERY") {
+        setPasswordRecoveryActive(true);
+        setModule("account");
+      }
       clearProtectedState();
       setAuthUserId(userId);
       setAuthReady(true);
@@ -356,7 +361,7 @@ function BrixApp() {
         {module === "offer" && <OfferIQ deal={selectedDeal} />}
         {module === "portfolio" && <PortfolioIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
         {module === "reports" && <Reports deal={selectedDeal} />}
-        {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceName={workspaceContext?.workspaceName} onAuthChanged={(userId) => {
+        {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceName={workspaceContext?.workspaceName} recoveryActive={passwordRecoveryActive} onAuthChanged={(userId) => {
           setDeals([]);
           setSelectedId(null);
           setAuthUserId(userId);
@@ -366,6 +371,11 @@ function BrixApp() {
           setAuthLifecycle(userId ? "bootstrapping" : "signed_out");
           if (userId) anonymousDraftsOnDevice();
           setModule("find");
+        }} onRecoveryCompleted={() => {
+          setPasswordRecoveryActive(false);
+          if (window.location.pathname === "/account" && window.location.search) {
+            window.history.replaceState({}, "", "/account");
+          }
         }} onSigningOut={() => {
           setAuthLifecycle("signing_out");
           clearProtectedState();
@@ -740,27 +750,42 @@ function Reports({ deal }: { deal?: DealFacts }) {
 function Account({
   isAuthenticated,
   workspaceName,
+  recoveryActive,
   onAuthChanged,
+  onRecoveryCompleted,
   onSigningOut,
   onSignedOut,
 }: {
   isAuthenticated: boolean;
   workspaceName?: string;
+  recoveryActive?: boolean;
   onAuthChanged: (userId: string) => void;
+  onRecoveryCompleted?: () => void;
   onSigningOut?: () => void;
   onSignedOut?: () => void;
 }) {
-  const [mode, setMode] = useState<AuthMode>("sign_in");
+  const [mode, setMode] = useState<AuthMode>(() => recoveryActive ? "reset_complete" : "sign_in");
   const [email, setEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error" | "info"; text: string } | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Partial<Record<"email" | "password" | "fullName", string>>>({});
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<"email" | "currentPassword" | "password" | "passwordConfirm" | "fullName", string>>>({});
   const [summary, setSummary] = useState<string[]>([]);
   const [isWorking, setIsWorking] = useState(false);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const authSubmitInFlightRef = useRef(false);
+
+  useEffect(() => {
+    if (!recoveryActive) return;
+    setMode("reset_complete");
+    setCurrentPassword("");
+    setPassword("");
+    setPasswordConfirm("");
+    resetFeedback();
+  }, [recoveryActive]);
 
   function resetFeedback() {
     setMessage(null);
@@ -768,8 +793,172 @@ function Account({
     setSummary([]);
   }
 
+  function changeMode(nextMode: AuthMode) {
+    setMode(nextMode);
+    setCurrentPassword("");
+    setPassword("");
+    setPasswordConfirm("");
+    resetFeedback();
+  }
+
+  function recoveryRedirectUrl() {
+    return `${window.location.origin}/account?flow=reset-password`;
+  }
+
+  async function recordPasswordSecurityEvent() {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+      if (!userId) return;
+      await supabase.from("audit_events").insert({
+        actor_id: userId,
+        action: "account.password_updated",
+        target_table: "profiles",
+        target_id: userId,
+        metadata: { source_client: "web" },
+      });
+      await supabase.from("domain_events").insert({
+        actor_id: userId,
+        event_type: "account.password_updated",
+        payload: { source_client: "web" },
+      });
+    } catch {
+      // Password changes remain owned by Supabase Auth; audit write failure must not expose internals to the user.
+    }
+  }
+
+  async function submitPasswordResetRequest() {
+    if (isWorking || authSubmitInFlightRef.current) return;
+    const cleanEmail = email.trim();
+    const validation = validateAuthInput({ email: cleanEmail, password: "" }, "reset_request");
+    setFieldErrors(validation.fields);
+    setSummary(validation.summary);
+    setMessage(null);
+    if (!validation.isValid) {
+      setMessage({ tone: "error", text: "Fix the highlighted fields and try again." });
+      window.setTimeout(() => errorSummaryRef.current?.focus(), 0);
+      return;
+    }
+
+    authSubmitInFlightRef.current = true;
+    setIsWorking(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo: recoveryRedirectUrl() });
+      if (error) {
+        const safe = safeAuthError(error);
+        setMessage({ tone: "error", text: safe.message });
+      } else {
+        setMessage({ tone: "success", text: "If that email has a BRIX account, a password reset link has been sent." });
+      }
+    } catch {
+      setMessage({ tone: "error", text: safeAuthError(new Error("network failure")).message });
+    } finally {
+      authSubmitInFlightRef.current = false;
+      setIsWorking(false);
+    }
+  }
+
+  async function submitPasswordUpdate() {
+    if (isWorking || authSubmitInFlightRef.current) return;
+    const validation = validateAuthInput({ email: "", password, passwordConfirm }, "reset_complete");
+    setFieldErrors(validation.fields);
+    setSummary(validation.summary);
+    setMessage(null);
+    if (!validation.isValid) {
+      setMessage({ tone: "error", text: "Fix the highlighted fields and try again." });
+      window.setTimeout(() => errorSummaryRef.current?.focus(), 0);
+      return;
+    }
+
+    authSubmitInFlightRef.current = true;
+    setIsWorking(true);
+    try {
+      const { data, error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        const safe = safeAuthError(error);
+        setMessage({ tone: "error", text: safe.kind === "session_expired" ? "This reset link is expired or already used. Request a new password reset link." : safe.message });
+      } else {
+        await recordPasswordSecurityEvent();
+        setPassword("");
+        setPasswordConfirm("");
+        setMessage({ tone: "success", text: "Password updated. Your BRIX workspace is ready." });
+        onRecoveryCompleted?.();
+        if (data.user?.id) onAuthChanged(data.user.id);
+      }
+    } catch (error) {
+      const safe = safeAuthError(error);
+      setMessage({ tone: "error", text: safe.kind === "network" ? safe.message : "This reset link could not be used. Request a new password reset link." });
+    } finally {
+      authSubmitInFlightRef.current = false;
+      setIsWorking(false);
+    }
+  }
+
+  async function submitAuthenticatedPasswordChange() {
+    if (isWorking || authSubmitInFlightRef.current) return;
+    const validation = validateAuthInput({ email: "", currentPassword, password, passwordConfirm }, "change_password");
+    setFieldErrors(validation.fields);
+    setSummary(validation.summary);
+    setMessage(null);
+    if (!validation.isValid) {
+      setMessage({ tone: "error", text: "Fix the highlighted fields and try again." });
+      window.setTimeout(() => errorSummaryRef.current?.focus(), 0);
+      return;
+    }
+
+    authSubmitInFlightRef.current = true;
+    setIsWorking(true);
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      const accountEmail = userData.user?.email;
+      if (userError || !accountEmail) {
+        setMessage({ tone: "error", text: "Sign in again before changing your password." });
+        return;
+      }
+
+      const { error: reauthError } = await supabase.auth.signInWithPassword({ email: accountEmail, password: currentPassword });
+      if (reauthError) {
+        const safe = safeAuthError(reauthError);
+        setMessage({ tone: "error", text: safe.kind === "invalid_credentials" ? "Current password is incorrect." : safe.message });
+        return;
+      }
+
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        const safe = safeAuthError(error);
+        setMessage({ tone: "error", text: safe.kind === "session_expired" ? "Your session has expired. Sign in again before changing your password." : safe.message });
+        return;
+      }
+
+      await recordPasswordSecurityEvent();
+      setCurrentPassword("");
+      setPassword("");
+      setPasswordConfirm("");
+      setMode("sign_in");
+      setMessage({ tone: "success", text: "Password updated." });
+    } catch (error) {
+      const safe = safeAuthError(error);
+      setMessage({ tone: "error", text: safe.message });
+    } finally {
+      authSubmitInFlightRef.current = false;
+      setIsWorking(false);
+    }
+  }
+
   async function submitAuth(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
+    if (mode === "reset_request") {
+      await submitPasswordResetRequest();
+      return;
+    }
+    if (mode === "reset_complete") {
+      await submitPasswordUpdate();
+      return;
+    }
+    if (mode === "change_password") {
+      await submitAuthenticatedPasswordChange();
+      return;
+    }
     if (isWorking || authSubmitInFlightRef.current) return;
     const cleanEmail = email.trim();
     const validation = validateAuthInput({ email: cleanEmail, password, fullName }, mode);
@@ -833,18 +1022,24 @@ function Account({
       <div className="auth-card">
         <div className="auth-copy">
           <p className="eyebrow">Secure BRIX access</p>
-          <h2 id="auth-title">{isAuthenticated ? "Account ready" : mode === "sign_in" ? "Sign in to BRIX" : "Create your BRIX account"}</h2>
+          <h2 id="auth-title">{mode === "change_password" ? "Change password" : isAuthenticated && mode !== "reset_complete" ? "Account ready" : mode === "sign_up" ? "Create your BRIX account" : mode === "reset_request" ? "Reset your password" : mode === "reset_complete" ? "Set a new password" : "Sign in to BRIX"}</h2>
           <p className="quiet">
-            {isAuthenticated
+            {mode === "change_password"
+              ? "Confirm your current password, then choose a new one."
+              : mode === "reset_request"
+              ? "Enter your account email. BRIX will send a secure reset link if the account exists."
+              : mode === "reset_complete"
+                ? "Choose a new password for your BRIX account."
+                : isAuthenticated
               ? `You are signed in${workspaceName ? ` to ${workspaceName}` : ""}.`
               : "Use one secure account to keep your workspace, deal files, evidence, and decisions separated from local device drafts."}
           </p>
         </div>
 
-        {!isAuthenticated && (
+        {!isAuthenticated && mode !== "reset_complete" && (
           <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
-            <button type="button" role="tab" aria-selected={mode === "sign_in"} className={mode === "sign_in" ? "active" : ""} onClick={() => { setMode("sign_in"); resetFeedback(); }}>Sign in</button>
-            <button type="button" role="tab" aria-selected={mode === "sign_up"} className={mode === "sign_up" ? "active" : ""} onClick={() => { setMode("sign_up"); resetFeedback(); }}>Create account</button>
+            <button type="button" role="tab" aria-selected={mode === "sign_in"} className={mode === "sign_in" ? "active" : ""} onClick={() => changeMode("sign_in")}>Sign in</button>
+            <button type="button" role="tab" aria-selected={mode === "sign_up"} className={mode === "sign_up" ? "active" : ""} onClick={() => changeMode("sign_up")}>Create account</button>
           </div>
         )}
 
@@ -865,7 +1060,7 @@ function Account({
           </div>
         )}
 
-        {!isAuthenticated ? (
+        {!isAuthenticated || mode === "reset_complete" || mode === "change_password" ? (
           <form className="auth-form" onSubmit={submitAuth} noValidate>
             {mode === "sign_up" && (
               <label className="field" htmlFor="auth-full-name">
@@ -874,25 +1069,55 @@ function Account({
                 {fieldErrors.fullName && <small className="field-error" id="auth-full-name-error">{fieldErrors.fullName}</small>}
               </label>
             )}
-            <label className="field" htmlFor="auth-email">
-              <span>Email</span>
-              <input id="auth-email" type="email" autoComplete="email" value={email} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? "auth-email-error" : undefined} onChange={(event) => setEmail(event.target.value)} />
-              {fieldErrors.email && <small className="field-error" id="auth-email-error">{fieldErrors.email}</small>}
-            </label>
-            <label className="field" htmlFor="auth-password">
-              <span>Password</span>
-              <span className="password-control">
-                <input id="auth-password" value={password} type={showPassword ? "text" : "password"} autoComplete={mode === "sign_in" ? "current-password" : "new-password"} aria-invalid={Boolean(fieldErrors.password)} aria-describedby={fieldErrors.password ? "auth-password-error" : undefined} onChange={(event) => setPassword(event.target.value)} />
-                <button type="button" className="icon-button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((current) => !current)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
-              </span>
-              {fieldErrors.password && <small className="field-error" id="auth-password-error">{fieldErrors.password}</small>}
-            </label>
+            {mode !== "reset_complete" && mode !== "change_password" && (
+              <label className="field" htmlFor="auth-email">
+                <span>Email</span>
+                <input id="auth-email" type="email" autoComplete="email" value={email} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? "auth-email-error" : undefined} onChange={(event) => setEmail(event.target.value)} />
+                {fieldErrors.email && <small className="field-error" id="auth-email-error">{fieldErrors.email}</small>}
+              </label>
+            )}
+            {mode === "change_password" && (
+              <label className="field" htmlFor="auth-current-password">
+                <span>Current password</span>
+                <input id="auth-current-password" value={currentPassword} type="password" autoComplete="current-password" aria-invalid={Boolean(fieldErrors.currentPassword)} aria-describedby={fieldErrors.currentPassword ? "auth-current-password-error" : undefined} onChange={(event) => setCurrentPassword(event.target.value)} />
+                {fieldErrors.currentPassword && <small className="field-error" id="auth-current-password-error">{fieldErrors.currentPassword}</small>}
+              </label>
+            )}
+            {mode !== "reset_request" && (
+              <label className="field" htmlFor="auth-password">
+                <span>{mode === "reset_complete" || mode === "change_password" ? "New password" : "Password"}</span>
+                <span className="password-control">
+                  <input id="auth-password" value={password} type={showPassword ? "text" : "password"} autoComplete={mode === "sign_in" ? "current-password" : "new-password"} aria-invalid={Boolean(fieldErrors.password)} aria-describedby={fieldErrors.password ? "auth-password-error" : undefined} onChange={(event) => setPassword(event.target.value)} />
+                  <button type="button" className="icon-button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((current) => !current)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+                </span>
+                {fieldErrors.password && <small className="field-error" id="auth-password-error">{fieldErrors.password}</small>}
+              </label>
+            )}
+            {(mode === "reset_complete" || mode === "change_password") && (
+              <label className="field" htmlFor="auth-password-confirm">
+                <span>Confirm new password</span>
+                <input id="auth-password-confirm" value={passwordConfirm} type={showPassword ? "text" : "password"} autoComplete="new-password" aria-invalid={Boolean(fieldErrors.passwordConfirm)} aria-describedby={fieldErrors.passwordConfirm ? "auth-password-confirm-error" : undefined} onChange={(event) => setPasswordConfirm(event.target.value)} />
+                {fieldErrors.passwordConfirm && <small className="field-error" id="auth-password-confirm-error">{fieldErrors.passwordConfirm}</small>}
+              </label>
+            )}
             <button className="primary wide-button" type="submit" disabled={isWorking}>
-              {isWorking ? mode === "sign_in" ? "Signing in" : "Creating account" : mode === "sign_in" ? "Sign in to BRIX" : "Create BRIX account"}
+              {isWorking
+                ? mode === "sign_in" ? "Signing in" : mode === "sign_up" ? "Creating account" : mode === "reset_request" ? "Sending reset link" : "Updating password"
+                : mode === "sign_in" ? "Sign in to BRIX" : mode === "sign_up" ? "Create BRIX account" : mode === "reset_request" ? "Send reset link" : "Update password"}
             </button>
+            {mode === "sign_in" && (
+              <button className="link-button" type="button" onClick={() => changeMode("reset_request")}>Forgot password?</button>
+            )}
+            {mode === "reset_request" && (
+              <button className="link-button" type="button" onClick={() => changeMode("sign_in")}>Back to sign in</button>
+            )}
+            {mode === "change_password" && (
+              <button className="link-button" type="button" onClick={() => changeMode("sign_in")}>Cancel</button>
+            )}
           </form>
         ) : (
           <div className="auth-actions">
+            <button className="secondary" onClick={() => changeMode("change_password")} disabled={isWorking}>Change password</button>
             <button className="secondary" onClick={signOut} disabled={isWorking}><LogOut size={16} /> {isWorking ? "Signing out" : "Sign out"}</button>
           </div>
         )}
