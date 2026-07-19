@@ -101,6 +101,8 @@ export function isSessionFailure(error: unknown) {
     rawMessage.includes("revoked") ||
     rawMessage.includes("refresh token") ||
     rawMessage.includes("sign in before") ||
+    rawMessage.includes("violates foreign key constraint") ||
+    rawMessage.includes("auth.users") ||
     rawMessage.includes("session changed")
   );
 }

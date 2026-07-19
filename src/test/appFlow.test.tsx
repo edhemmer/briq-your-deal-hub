@@ -663,6 +663,19 @@ describe("BRIX app module flow", () => {
     expect(mocks.queriedOwnerIds.value).toEqual([]);
   });
 
+  it("treats deleted-user workspace bootstrap failures as expired sessions", async () => {
+    localStorage.setItem("brix.deals", JSON.stringify([draftDeal("anon-after-deleted-user", "Anonymous After Deleted User")]));
+    mocks.rpc.mockResolvedValueOnce({ data: null, error: new Error("insert or update on table \"profiles\" violates foreign key constraint \"profiles_id_fkey\" because auth.users is missing") });
+    mocks.remoteDeals.value = [remoteDealRow("deleted-user-cloud", "user-1", "Deleted User Cloud Deal")];
+    render(<App />);
+
+    expect(await screen.findByText(/Your session has expired. Sign in again to continue./i)).toBeInTheDocument();
+    expect(mocks.signOut).toHaveBeenCalled();
+    expect(screen.queryByText("Deleted User Cloud Deal")).not.toBeInTheDocument();
+    expect(await screen.findByText("Anonymous After Deleted User")).toBeInTheDocument();
+    expect(mocks.queriedOwnerIds.value).toEqual([]);
+  });
+
   it("keeps sensitive auth failures out of console output", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => undefined);

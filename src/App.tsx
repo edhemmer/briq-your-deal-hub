@@ -198,6 +198,7 @@ function BrixApp() {
       .catch((error) => {
         if (!isCurrent) return;
         if (isSessionFailure(error)) {
+          void supabase.auth.signOut();
           setAuthUserId(null);
           clearProtectedState();
           restoreAnonymousDrafts();
