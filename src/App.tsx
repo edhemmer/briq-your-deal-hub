@@ -14,6 +14,16 @@ import { buildOfferStructures, offerSummary } from "./core/offerEngine";
 import { portfolioMetrics } from "./core/portfolioEngine";
 import { ensureWorkspaceContext, type WorkspaceContext } from "./core/workspace";
 import { isSessionFailure, safeAuthError, validateAuthInput, type AuthMode } from "./core/authLifecycle";
+import {
+  acceptWorkspaceInvitation,
+  createWorkspaceInvitation,
+  invitationTokenFromLocation,
+  listWorkspaceInvitations,
+  resendWorkspaceInvitation,
+  revokeWorkspaceInvitation,
+  type WorkspaceInvitation,
+  type WorkspaceInvitationRole,
+} from "./core/invitations";
 
 type Module = "find" | "deal" | "contract" | "pipeline" | "offer" | "portfolio" | "reports" | "account";
 
@@ -77,7 +87,10 @@ function BrixApp() {
   const [workspaceStatus, setWorkspaceStatus] = useState<"loading" | "ready" | "failed" | "signed_out">("loading");
   const [authLifecycle, setAuthLifecycle] = useState<"restoring" | "signed_out" | "bootstrapping" | "ready" | "failed" | "signing_out" | "expired">("restoring");
   const [passwordRecoveryActive, setPasswordRecoveryActive] = useState(() => new URLSearchParams(window.location.search).get("flow") === "reset-password");
+  const [invitationToken, setInvitationToken] = useState<string | null>(() => invitationTokenFromLocation());
+  const [invitationMessage, setInvitationMessage] = useState<string | null>(null);
   const [workspaceRetryKey, setWorkspaceRetryKey] = useState(0);
+  const recentCloudCreatesRef = useRef<Map<string, { ownerId: string; deal: DealFacts }>>(new Map());
   const isAuthenticated = Boolean(authUserId);
   const selectedDeal = deals.find((deal) => deal.id === selectedId) ?? deals[0];
 
@@ -107,6 +120,18 @@ function BrixApp() {
     setSelectedId(anonymousDeals[0]?.id ?? null);
   }, [anonymousDraftsOnDevice]);
 
+  const restoreRecentCloudCreates = useCallback((userId: string) => {
+    const recentDealsForUser = Array.from(recentCloudCreatesRef.current.values())
+      .filter((entry) => entry.ownerId === userId)
+      .map((entry) => entry.deal);
+    if (recentDealsForUser.length === 0) return;
+    setDeals((current) => {
+      const currentIds = new Set(current.map((deal) => deal.id));
+      return [...recentDealsForUser.filter((deal) => !currentIds.has(deal.id)), ...current];
+    });
+    setSelectedId((currentId) => currentId ?? recentDealsForUser[0]?.id ?? null);
+  }, []);
+
   const clearProtectedState = useCallback(() => {
     setDeals([]);
     setSelectedId(null);
@@ -121,6 +146,14 @@ function BrixApp() {
     }
     setSyncMessage(null);
     setWorkspaceRetryKey((current) => current + 1);
+  }
+
+  function clearInvitationFromUrl() {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("invite")) return;
+    url.searchParams.delete("invite");
+    const nextSearch = url.searchParams.toString();
+    window.history.replaceState({}, "", `${url.pathname}${nextSearch ? `?${nextSearch}` : ""}`);
   }
 
   useEffect(() => {
@@ -145,6 +178,7 @@ function BrixApp() {
           setAuthLifecycle("bootstrapping");
           setWorkspaceStatus("loading");
           anonymousDraftsOnDevice();
+          restoreRecentCloudCreates(userId);
         }
       })
       .catch(() => {
@@ -161,6 +195,7 @@ function BrixApp() {
         setPasswordRecoveryActive(true);
         setModule("account");
       }
+      if (window.location.pathname === "/account") setInvitationToken(invitationTokenFromLocation());
       clearProtectedState();
       setAuthUserId(userId);
       setAuthReady(true);
@@ -171,13 +206,14 @@ function BrixApp() {
         setAuthLifecycle("bootstrapping");
         setWorkspaceStatus("loading");
         anonymousDraftsOnDevice();
+        restoreRecentCloudCreates(userId);
       }
     });
     return () => {
       window.removeEventListener("popstate", onPopState);
       listener.subscription.unsubscribe();
     };
-  }, [anonymousDraftsOnDevice, clearProtectedState, restoreAnonymousDrafts]);
+  }, [anonymousDraftsOnDevice, clearProtectedState, restoreAnonymousDrafts, restoreRecentCloudCreates]);
 
   useEffect(() => {
     if (!authUserId) return;
@@ -186,7 +222,16 @@ function BrixApp() {
     setWorkspaceContext(null);
     setWorkspaceStatus("loading");
     setAuthLifecycle("bootstrapping");
-    ensureWorkspaceContext()
+    const pendingInvitationToken = invitationToken;
+    (async () => {
+      if (pendingInvitationToken) {
+        await acceptWorkspaceInvitation(pendingInvitationToken);
+        setInvitationToken(null);
+        clearInvitationFromUrl();
+        setInvitationMessage("Workspace invitation accepted.");
+      }
+      return ensureWorkspaceContext();
+    })()
       .then((context) => {
         if (!isCurrent) return [];
         setWorkspaceContext(context);
@@ -196,8 +241,18 @@ function BrixApp() {
       })
       .then((remoteDeals) => {
         if (!isCurrent) return;
-        setDeals(remoteDeals);
-        setSelectedId(remoteDeals[0]?.id ?? null);
+        const recentDealsForUser = Array.from(recentCloudCreatesRef.current.values())
+          .filter((entry) => entry.ownerId === authUserId)
+          .map((entry) => entry.deal);
+        setDeals((current) => {
+          const remoteIds = new Set(remoteDeals.map((deal) => deal.id));
+          const inFlightCreatedDeals = [
+            ...recentDealsForUser,
+            ...current,
+          ].filter((deal, index, allDeals) => !remoteIds.has(deal.id) && allDeals.findIndex((item) => item.id === deal.id) === index);
+          return [...inFlightCreatedDeals, ...remoteDeals];
+        });
+        setSelectedId((currentId) => currentId ?? recentDealsForUser[0]?.id ?? remoteDeals[0]?.id ?? null);
         setSyncMessage(null);
       })
       .catch((error) => {
@@ -214,21 +269,45 @@ function BrixApp() {
         setWorkspaceContext(null);
         setWorkspaceStatus("failed");
         setAuthLifecycle("failed");
-        setSyncMessage(safeAuthError(error).message);
+        setSyncMessage(pendingInvitationToken ? safeAuthError(error).message : safeAuthError(error).message);
       });
     return () => {
       isCurrent = false;
     };
-  }, [authUserId, clearProtectedState, restoreAnonymousDrafts, workspaceRetryKey]);
+  }, [authUserId, clearProtectedState, invitationToken, restoreAnonymousDrafts, workspaceRetryKey]);
 
   async function createDeal(deal: DealFacts) {
     try {
-      await prepareWorkspaceForCloudAction();
-      const confirmedDeal = authUserId ? await persistRemoteDeal(deal, authUserId) : deal;
-      setDeals((current) => [confirmedDeal, ...current.filter((item) => item.id !== confirmedDeal.id)]);
+      let effectiveUserId = authUserId;
+      if (!authReady) {
+        const { data } = await supabase.auth.getSession();
+        effectiveUserId = data.session?.user?.id ?? null;
+        setAuthUserId(effectiveUserId);
+        setAuthReady(true);
+        if (effectiveUserId) {
+          setAuthLifecycle("bootstrapping");
+          setWorkspaceStatus("loading");
+          anonymousDraftsOnDevice();
+        } else {
+          setAuthLifecycle("signed_out");
+        }
+      }
+      if (effectiveUserId) {
+        await prepareWorkspaceForCloudAction();
+      }
+      const confirmedDeal = effectiveUserId ? await persistRemoteDeal(deal, effectiveUserId) : deal;
+      if (effectiveUserId) recentCloudCreatesRef.current.set(confirmedDeal.id, { ownerId: effectiveUserId, deal: confirmedDeal });
+      if (!effectiveUserId) {
+        const savedDeals = [confirmedDeal, ...loadAnonymousDeals().filter((item) => item.id !== confirmedDeal.id)];
+        saveAnonymousDeals(savedDeals);
+      }
+      setDeals((current) => {
+        const next = [confirmedDeal, ...current.filter((item) => item.id !== confirmedDeal.id)];
+        return next;
+      });
       setSelectedId(confirmedDeal.id);
-      if (!authUserId) setHasAnonymousDrafts(true);
-      setSyncMessage(isAuthenticated ? null : "Deal created on this device. Sign in from Account to keep it across devices.");
+      if (!effectiveUserId) setHasAnonymousDrafts(true);
+      setSyncMessage(effectiveUserId ? null : "Deal created on this device. Sign in from Account to keep it across devices.");
       setModule("deal");
       return true;
     } catch (error) {
@@ -346,6 +425,12 @@ function BrixApp() {
             )}
           </div>
         )}
+        {invitationMessage && (
+          <div className="callout" role="status" aria-live="polite">
+            <strong>Invitation accepted</strong>
+            <span>{invitationMessage}</span>
+          </div>
+        )}
         {isAuthenticated && hasAnonymousDrafts && (
           <div className="callout">
             <strong>Local drafts</strong>
@@ -361,7 +446,7 @@ function BrixApp() {
         {module === "offer" && <OfferIQ deal={selectedDeal} />}
         {module === "portfolio" && <PortfolioIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
         {module === "reports" && <Reports deal={selectedDeal} />}
-        {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceName={workspaceContext?.workspaceName} recoveryActive={passwordRecoveryActive} onAuthChanged={(userId) => {
+        {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceContext={workspaceContext} invitationToken={invitationToken} recoveryActive={passwordRecoveryActive} onAuthChanged={(userId) => {
           setDeals([]);
           setSelectedId(null);
           setAuthUserId(userId);
@@ -749,7 +834,8 @@ function Reports({ deal }: { deal?: DealFacts }) {
 
 function Account({
   isAuthenticated,
-  workspaceName,
+  workspaceContext,
+  invitationToken,
   recoveryActive,
   onAuthChanged,
   onRecoveryCompleted,
@@ -757,7 +843,8 @@ function Account({
   onSignedOut,
 }: {
   isAuthenticated: boolean;
-  workspaceName?: string;
+  workspaceContext?: WorkspaceContext | null;
+  invitationToken?: string | null;
   recoveryActive?: boolean;
   onAuthChanged: (userId: string) => void;
   onRecoveryCompleted?: () => void;
@@ -775,8 +862,15 @@ function Account({
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<"email" | "currentPassword" | "password" | "passwordConfirm" | "fullName", string>>>({});
   const [summary, setSummary] = useState<string[]>([]);
   const [isWorking, setIsWorking] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRoleId, setInviteRoleId] = useState<WorkspaceInvitationRole>("viewer");
+  const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
+  const [invitationResult, setInvitationResult] = useState<WorkspaceInvitation | null>(null);
+  const [invitationError, setInvitationError] = useState("");
+  const [isInvitationWorking, setIsInvitationWorking] = useState(false);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const authSubmitInFlightRef = useRef(false);
+  const canInvite = isAuthenticated && Boolean(workspaceContext?.workspaceId) && (workspaceContext?.roleId === "owner" || workspaceContext?.roleId === "admin");
 
   useEffect(() => {
     if (!recoveryActive) return;
@@ -786,6 +880,24 @@ function Account({
     setPasswordConfirm("");
     resetFeedback();
   }, [recoveryActive]);
+
+  useEffect(() => {
+    if (!canInvite || !workspaceContext?.workspaceId) {
+      setInvitations([]);
+      return;
+    }
+    let isCurrent = true;
+    listWorkspaceInvitations(workspaceContext.workspaceId)
+      .then((items) => {
+        if (isCurrent) setInvitations(items);
+      })
+      .catch(() => {
+        if (isCurrent) setInvitationError("BRIX could not load current invitations.");
+      });
+    return () => {
+      isCurrent = false;
+    };
+  }, [canInvite, workspaceContext?.workspaceId]);
 
   function resetFeedback() {
     setMessage(null);
@@ -803,6 +915,66 @@ function Account({
 
   function recoveryRedirectUrl() {
     return `${window.location.origin}/account?flow=reset-password`;
+  }
+
+  async function submitInvitation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!workspaceContext?.workspaceId || isInvitationWorking) return;
+    setInvitationError("");
+    setInvitationResult(null);
+    if (!inviteEmail.trim()) {
+      setInvitationError("Enter the teammate email to invite.");
+      return;
+    }
+    setIsInvitationWorking(true);
+    try {
+      const invitation = await createWorkspaceInvitation(workspaceContext.workspaceId, inviteEmail, inviteRoleId);
+      setInvitationResult(invitation);
+      if (invitation.status === "already_member") {
+        setInvitationError("That email already has access to this workspace.");
+      } else {
+        setInviteEmail("");
+        const current = await listWorkspaceInvitations(workspaceContext.workspaceId);
+        setInvitations(current);
+      }
+    } catch (error) {
+      setInvitationError(safeAuthError(error).message);
+    } finally {
+      setIsInvitationWorking(false);
+    }
+  }
+
+  async function resendInvitation(invitationId: string) {
+    if (!workspaceContext?.workspaceId || isInvitationWorking) return;
+    setInvitationError("");
+    setInvitationResult(null);
+    setIsInvitationWorking(true);
+    try {
+      const invitation = await resendWorkspaceInvitation(invitationId);
+      setInvitationResult(invitation);
+      const current = await listWorkspaceInvitations(workspaceContext.workspaceId);
+      setInvitations(current);
+    } catch (error) {
+      setInvitationError(safeAuthError(error).message);
+    } finally {
+      setIsInvitationWorking(false);
+    }
+  }
+
+  async function revokeInvitation(invitationId: string) {
+    if (!workspaceContext?.workspaceId || isInvitationWorking) return;
+    setInvitationError("");
+    setInvitationResult(null);
+    setIsInvitationWorking(true);
+    try {
+      await revokeWorkspaceInvitation(invitationId);
+      const current = await listWorkspaceInvitations(workspaceContext.workspaceId);
+      setInvitations(current);
+    } catch (error) {
+      setInvitationError(safeAuthError(error).message);
+    } finally {
+      setIsInvitationWorking(false);
+    }
   }
 
   async function recordPasswordSecurityEvent() {
@@ -1031,10 +1203,17 @@ function Account({
               : mode === "reset_complete"
                 ? "Choose a new password for your BRIX account."
                 : isAuthenticated
-              ? `You are signed in${workspaceName ? ` to ${workspaceName}` : ""}.`
+              ? `You are signed in${workspaceContext?.workspaceName ? ` to ${workspaceContext.workspaceName}` : ""}.`
               : "Use one secure account to keep your workspace, deal files, evidence, and decisions separated from local device drafts."}
           </p>
         </div>
+
+        {invitationToken && !isAuthenticated && (
+          <div className="auth-message info" role="status">
+            <CheckCircle2 size={18} />
+            <span>Sign in or create an account with the invited email address to join the workspace.</span>
+          </div>
+        )}
 
         {!isAuthenticated && mode !== "reset_complete" && (
           <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
@@ -1120,6 +1299,56 @@ function Account({
             <button className="secondary" onClick={() => changeMode("change_password")} disabled={isWorking}>Change password</button>
             <button className="secondary" onClick={signOut} disabled={isWorking}><LogOut size={16} /> {isWorking ? "Signing out" : "Sign out"}</button>
           </div>
+        )}
+
+        {canInvite && (
+          <section className="invitation-panel" aria-labelledby="workspace-invitations-title">
+            <div>
+              <p className="eyebrow">Workspace invitations</p>
+              <h3 id="workspace-invitations-title">Invite a teammate</h3>
+              <p className="quiet">Invitations are email-scoped, expiring, single-use links. BRIX stores only a token hash.</p>
+            </div>
+            <form className="invitation-form" onSubmit={submitInvitation}>
+              <label className="field" htmlFor="invite-email">
+                <span>Email</span>
+                <input id="invite-email" type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} />
+              </label>
+              <label className="field" htmlFor="invite-role">
+                <span>Role</span>
+                <select id="invite-role" value={inviteRoleId} onChange={(event) => setInviteRoleId(event.target.value as WorkspaceInvitationRole)}>
+                  <option value="viewer">Viewer</option>
+                  <option value="member">Member</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </label>
+              <button className="primary" type="submit" disabled={isInvitationWorking}>{isInvitationWorking ? "Working" : "Create invitation"}</button>
+            </form>
+            {invitationError && <p className="error">{invitationError}</p>}
+            {invitationResult?.invitationLink && (
+              <label className="field" htmlFor="invitation-link">
+                <span>Invitation link</span>
+                <input id="invitation-link" readOnly value={invitationResult.invitationLink} onFocus={(event) => event.currentTarget.select()} />
+              </label>
+            )}
+            {invitations.length > 0 && (
+              <div className="invitation-list">
+                {invitations.map((invitation) => (
+                  <article key={invitation.id || invitation.email} className="invitation-row">
+                    <div>
+                      <strong>{invitation.email}</strong>
+                      <span>{invitation.roleId} - {invitation.status}</span>
+                    </div>
+                    {invitation.status === "pending" && invitation.id && (
+                      <div className="row-actions">
+                        <button className="secondary compact-button" type="button" disabled={isInvitationWorking} onClick={() => resendInvitation(invitation.id)}>Resend</button>
+                        <button className="secondary compact-button" type="button" disabled={isInvitationWorking} onClick={() => revokeInvitation(invitation.id)}>Revoke</button>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
         )}
       </div>
     </section>

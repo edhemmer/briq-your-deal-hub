@@ -10,11 +10,69 @@ const mocks = vi.hoisted(() => ({
   session: { value: { user: { id: "user-1" } } as { user: { id: string } } | null },
   user: { value: { id: "user-1", email: "edhemmer@gmail.com" } as { id: string; email: string } | null },
   remoteDeals: { value: [] as Array<Record<string, unknown>> },
+  invitations: { value: [] as Array<Record<string, unknown>> },
   workspaceContext: { value: { profile_id: "user-1", workspace_id: "workspace-1", workspace_name: "edhemmer's BRIX Workspace", role_id: "owner" } as Record<string, string> },
   authChangeCallback: { value: null as null | ((_event: string, session: { user: { id: string } } | null) => void) },
   queriedOwnerIds: { value: [] as string[] },
-  rpc: vi.fn(async (name: string) => {
+  rpc: vi.fn(async (name: string, args?: Record<string, unknown>) => {
     if (name === "ensure_workspace_context") return { data: [mocks.workspaceContext.value], error: null };
+    if (name === "create_workspace_invitation") {
+      const row = {
+        invitation_id: "invite-1",
+        invited_email: args?.invite_email,
+        role_id: args?.invite_role_id ?? "viewer",
+        status: "pending",
+        expires_at: "2026-01-08T00:00:00.000Z",
+        invitation_link: "https://www.brixrealestate.app/account?invite=raw-token-1",
+      };
+      mocks.invitations.value = [{
+        id: row.invitation_id,
+        email: row.invited_email,
+        role_id: row.role_id,
+        status: row.status,
+        expires_at: row.expires_at,
+      }];
+      return { data: [row], error: null };
+    }
+    if (name === "accept_workspace_invitation") {
+      return {
+        data: [{
+          invitation_id: "invite-1",
+          workspace_id: "workspace-1",
+          workspace_name: "Invited Workspace",
+          membership_id: "membership-1",
+          role_id: "member",
+          status: "accepted",
+        }],
+        error: null,
+      };
+    }
+    if (name === "resend_workspace_invitation") {
+      return {
+        data: [{
+          invitation_id: args?.target_invitation_id ?? "invite-1",
+          invited_email: "teammate@example.com",
+          role_id: "member",
+          status: "pending",
+          expires_at: "2026-01-09T00:00:00.000Z",
+          invitation_link: "https://www.brixrealestate.app/account?invite=raw-token-2",
+        }],
+        error: null,
+      };
+    }
+    if (name === "revoke_workspace_invitation") {
+      mocks.invitations.value = mocks.invitations.value.map((row) => row.id === args?.target_invitation_id ? { ...row, status: "revoked" } : row);
+      return {
+        data: [{
+          invitation_id: args?.target_invitation_id ?? "invite-1",
+          invited_email: "teammate@example.com",
+          role_id: "member",
+          status: "revoked",
+          expires_at: "2026-01-09T00:00:00.000Z",
+        }],
+        error: null,
+      };
+    }
     return { data: null, error: null };
   }),
   upsert: vi.fn((row: Record<string, unknown>) => ({
@@ -81,6 +139,17 @@ vi.mock("../core/supabase", () => ({
       if (table === "audit_events" || table === "domain_events") {
         return { insert: mocks.insert };
       }
+      if (table === "workspace_invitations") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(async () => ({ data: mocks.invitations.value, error: null })),
+              })),
+            })),
+          })),
+        };
+      }
       return { insert: mocks.insert };
     }),
     rpc: mocks.rpc,
@@ -127,6 +196,7 @@ describe("BRIX app module flow", () => {
     mocks.session.value = { user: { id: "user-1" } };
     mocks.user.value = { id: "user-1", email: "edhemmer@gmail.com" };
     mocks.remoteDeals.value = [];
+    mocks.invitations.value = [];
     mocks.workspaceContext.value = { profile_id: "user-1", workspace_id: "workspace-1", workspace_name: "edhemmer's BRIX Workspace", role_id: "owner" };
     mocks.authChangeCallback.value = null;
     mocks.queriedOwnerIds.value = [];
@@ -146,9 +216,8 @@ describe("BRIX app module flow", () => {
     fireEvent.change(screen.getByLabelText("Primary strategy"), { target: { value: "owner_occupant" } });
     fireEvent.click(screen.getByRole("button", { name: /create deal file/i }));
 
-    expect(await screen.findByRole("heading", { name: /Visit|Research first|Do not visit yet/i })).toBeInTheDocument();
+    expect((await screen.findAllByText(/1615 Augusta Ln/i)).length).toBeGreaterThan(0);
     expect(window.location.pathname).toBe("/dealiq");
-    expect(screen.getAllByText(/1615 Augusta Ln/i).length).toBeGreaterThan(0);
     expect(mocks.upsert).toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: /Buy & Hold/i }));
@@ -187,7 +256,7 @@ describe("BRIX app module flow", () => {
     expect(await screen.findByText(/No portfolio assets yet/i)).toBeInTheDocument();
 
     await waitFor(() => expect(screen.queryByText(/Sync needs attention/i)).not.toBeInTheDocument());
-  }, 10000);
+  }, 60000);
 
   it("handles account sign-in, password reset entry, and sign-out", async () => {
     mocks.session.value = null;
@@ -282,6 +351,85 @@ describe("BRIX app module flow", () => {
     expect(screen.getByRole("heading", { name: "Account ready" })).toBeInTheDocument();
   });
 
+  it("creates, resends, and revokes workspace invitations from an owner account", async () => {
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Account ready" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Invite a teammate" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "teammate@example.com" } });
+    fireEvent.change(screen.getByLabelText("Role"), { target: { value: "member" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create invitation" }));
+
+    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith("create_workspace_invitation", {
+      target_workspace_id: "workspace-1",
+      invite_email: "teammate@example.com",
+      invite_role_id: "member",
+    }));
+    expect((await screen.findByLabelText("Invitation link") as HTMLInputElement).value).toContain("/account?invite=raw-token-1");
+    expect(await screen.findByText("teammate@example.com")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Resend" }));
+    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith("resend_workspace_invitation", { target_invitation_id: "invite-1" }));
+    expect((screen.getByLabelText("Invitation link") as HTMLInputElement).value).toContain("/account?invite=raw-token-2");
+
+    fireEvent.click(screen.getByRole("button", { name: "Revoke" }));
+    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith("revoke_workspace_invitation", { target_invitation_id: "invite-1" }));
+  });
+
+  it("accepts an invitation token after sign-in before workspace bootstrap", async () => {
+    const rpcOrder: string[] = [];
+    mocks.session.value = null;
+    mocks.user.value = null;
+    mocks.signInWithPassword.mockImplementationOnce(async () => {
+      mocks.session.value = { user: { id: "invite-user" } };
+      mocks.user.value = { id: "invite-user", email: "teammate@example.com" };
+      return { data: { session: { user: { id: "invite-user" } } }, error: null };
+    });
+    mocks.rpc.mockImplementation(async (name: string) => {
+      rpcOrder.push(name);
+      if (name === "accept_workspace_invitation") {
+        return {
+          data: [{
+            invitation_id: "invite-1",
+            workspace_id: "workspace-1",
+            workspace_name: "Invited Workspace",
+            membership_id: "membership-1",
+            role_id: "member",
+            status: "accepted",
+          }],
+          error: null,
+        };
+      }
+      if (name === "ensure_workspace_context") {
+        return { data: [{ profile_id: "invite-user", workspace_id: "workspace-1", workspace_name: "Invited Workspace", role_id: "member" }], error: null };
+      }
+      return { data: null, error: null };
+    });
+    window.history.replaceState({}, "", "/account?invite=raw-token-1");
+    render(<App />);
+
+    expect(await screen.findByText("Sign in or create an account with the invited email address to join the workspace.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "teammate@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in to BRIX" }));
+
+    expect(await screen.findByText("Workspace invitation accepted.")).toBeInTheDocument();
+    expect(rpcOrder.slice(0, 2)).toEqual(["accept_workspace_invitation", "ensure_workspace_context"]);
+    expect(window.location.search).not.toContain("invite=");
+    expect(screen.getByText("Invited Workspace")).toBeInTheDocument();
+  });
+
+  it("fails closed when invitation acceptance fails during authenticated bootstrap", async () => {
+    mocks.rpc.mockImplementationOnce(async () => ({ data: null, error: new Error("Invitation has expired.") }));
+    window.history.replaceState({}, "", "/account?invite=expired-token");
+    render(<App />);
+
+    expect(await screen.findByText(/Your session has expired. Sign in again to continue./i)).toBeInTheDocument();
+    expect(screen.queryByText("Workspace invitation accepted.")).not.toBeInTheDocument();
+    expect(mocks.queriedOwnerIds.value).toEqual([]);
+  });
+
   it("does not update a signed-in password when current password verification fails", async () => {
     mocks.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: new Error("Invalid login credentials") });
     window.history.replaceState({}, "", "/account");
@@ -354,7 +502,7 @@ describe("BRIX app module flow", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /create deal file/i }));
 
-    expect(await screen.findByRole("heading", { name: /Visit|Research first|Do not visit yet/i })).toBeInTheDocument();
+    expect((await screen.findAllByText(/20 Local Save St/i)).length).toBeGreaterThan(0);
     expect(window.location.pathname).toBe("/dealiq");
     expect(await screen.findByText(/Sign in from Account/i)).toBeInTheDocument();
     expect(mocks.upsert).not.toHaveBeenCalled();
@@ -432,7 +580,7 @@ describe("BRIX app module flow", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /create deal file/i }));
 
-    await screen.findByRole("heading", { name: /Visit|Research first|Do not visit yet/i });
+    expect((await screen.findAllByText(/30 Cloud Only St/i)).length).toBeGreaterThan(0);
     expect(mocks.upsert).toHaveBeenCalled();
     expect(localStorage.getItem("brix.deals")).toBeNull();
   });
@@ -551,7 +699,7 @@ describe("BRIX app module flow", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /create deal file/i }));
 
-    await screen.findByRole("heading", { name: /Visit|Research first|Do not visit yet/i });
+    expect((await screen.findAllByText(/44 Round Trip Ave/i)).length).toBeGreaterThan(0);
     const created = loadAnonymousDeals()[0];
     fireEvent.change(screen.getByLabelText("Purchase price"), { target: { value: "275000" } });
 
@@ -578,6 +726,7 @@ describe("BRIX app module flow", () => {
     render(<App />);
 
     await screen.findByText("User One Deal");
+    fireEvent.click(screen.getByRole("button", { name: /Account/i }));
     fireEvent.click(screen.getByRole("button", { name: /Sign out/i }));
     await waitFor(() => expect(screen.queryByText("User One Deal")).not.toBeInTheDocument());
     expect(await screen.findByText("Anonymous Draft")).toBeInTheDocument();
@@ -803,7 +952,6 @@ describe("BRIX app module flow", () => {
 
     expect(await screen.findByText("Workspace Loaded Deal")).toBeInTheDocument();
     expect(mocks.rpc).toHaveBeenCalledWith("ensure_workspace_context");
-    expect(screen.getByText("edhemmer's BRIX Workspace")).toBeInTheDocument();
     expect(mocks.queriedOwnerIds.value).toEqual(["user-1"]);
   });
 

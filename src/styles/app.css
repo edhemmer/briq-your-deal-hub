@@ -149,6 +149,14 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .wide-button { width: 100%; margin-top: 8px; }
 .compact-button { min-height: 36px; padding: 0 12px; border-radius: 10px; justify-self: start; }
 .auth-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.invitation-panel { display: grid; gap: 16px; border: 1px solid rgba(59,130,246,.26); border-radius: 18px; background: rgba(8,15,29,.62); padding: 18px; }
+.invitation-panel h3 { margin: 0; font-size: 20px; }
+.invitation-form { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(150px, .7fr) auto; gap: 12px; align-items: end; }
+.invitation-list { display: grid; gap: 10px; }
+.invitation-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 14px; background: rgba(13,24,42,.78); padding: 12px; }
+.invitation-row div:first-child { display: grid; gap: 2px; }
+.invitation-row span { color: var(--muted); font-size: 13px; font-weight: 800; text-transform: capitalize; }
+.row-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .landing { min-height: 100vh; padding: 54px; display: grid; align-content: center; gap: 28px; max-width: 1180px; margin: 0 auto; }
 .landing-hero { display: grid; gap: 22px; max-width: 820px; }
 .landing-hero h1 { font-size: clamp(46px, 7vw, 82px); line-height: .95; }
@@ -167,10 +175,13 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 
 @media (max-width: 640px) {
   .workspace, .rail { padding: 16px; }
-  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail { grid-template-columns: 1fr; }
+  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form { grid-template-columns: 1fr; }
   .topbar { display: grid; }
   .table-row { grid-template-columns: 1fr; }
   .landing { padding: 22px; }
   .workflow-strip { margin-top: 0; }
   .focus-panel { min-height: auto; }
+  .invitation-row { align-items: stretch; flex-direction: column; }
+  .row-actions { justify-content: stretch; }
+  .row-actions button { flex: 1; }
 }
