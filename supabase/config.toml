@@ -1,1 +1,12 @@
 project_id = "luwaqrkhmxcqsozmilbw"
+
+[auth]
+site_url = "https://www.brixrealestate.app"
+additional_redirect_urls = [
+  "https://www.brixrealestate.app/account",
+  "https://www.brixrealestate.app/account?flow=reset-password",
+  "https://brixrealestate.app/account",
+  "https://brixrealestate.app/account?flow=reset-password",
+  "http://localhost:3000/account",
+  "http://localhost:3000/account?flow=reset-password",
+]
