@@ -1543,9 +1543,9 @@ function Account({
                 <input id="invitation-link" readOnly value={invitationResult.invitationLink} onFocus={(event) => event.currentTarget.select()} />
               </label>
             )}
-            {invitations.length > 0 && (
+            {pendingInvitations.length > 0 && (
               <div className="invitation-list">
-                {invitations.map((invitation) => (
+                {pendingInvitations.map((invitation) => (
                   <article key={invitation.id || invitation.email} className="invitation-row">
                     <div>
                       <strong>{invitation.email}</strong>
