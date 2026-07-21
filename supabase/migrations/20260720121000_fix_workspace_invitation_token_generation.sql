@@ -1,44 +1,4 @@
-create extension if not exists pgcrypto;
-
-alter table public.workspace_invitations
-  add column if not exists normalized_email text,
-  add column if not exists token_hash text,
-  add column if not exists accepted_by uuid references auth.users(id) on delete set null,
-  add column if not exists revoked_at timestamptz,
-  add column if not exists resent_at timestamptz;
-
-update public.workspace_invitations
-set normalized_email = lower(trim(email))
-where normalized_email is null;
-
-create unique index if not exists workspace_invitations_one_pending_email
-  on public.workspace_invitations (workspace_id, normalized_email)
-  where status = 'pending';
-
-create index if not exists workspace_invitations_token_hash_idx
-  on public.workspace_invitations (token_hash)
-  where token_hash is not null;
-
-create index if not exists workspace_invitations_workspace_status_idx
-  on public.workspace_invitations (workspace_id, status, created_at desc);
-
-create or replace function public.normalize_invitation_email(invite_email text)
-returns text
-language sql
-immutable
-set search_path = public
-as $$
-  select lower(trim(coalesce(invite_email, '')));
-$$;
-
-create or replace function public.hash_invitation_token(invitation_token text)
-returns text
-language sql
-immutable
-set search_path = public
-as $$
-  select encode(extensions.digest(convert_to(coalesce(invitation_token, ''), 'UTF8'), 'sha256'), 'hex');
-$$;
+-- Repair production function after security-definer search_path excluded pgcrypto random bytes.
 
 create or replace function public.create_workspace_invitation(
   target_workspace_id uuid,
@@ -263,11 +223,11 @@ begin
 
   insert into public.workspace_memberships (workspace_id, user_id, role_id, status)
   values (invitation_record.workspace_id, current_user_id, invitation_record.role_id, 'active')
-  on conflict on constraint workspace_memberships_workspace_id_user_id_key do update set
+  on conflict (workspace_id, user_id) do update set
     role_id = excluded.role_id,
     status = 'active',
     updated_at = now()
-  returning public.workspace_memberships.id, public.workspace_memberships.role_id
+  returning id, public.workspace_memberships.role_id
   into inserted_membership_id, inserted_role_id;
 
   update public.workspace_invitations
@@ -394,8 +354,3 @@ begin
   from public.create_workspace_invitation(invitation_record.workspace_id, invitation_record.normalized_email, invitation_record.role_id);
 end;
 $$;
-
-grant execute on function public.create_workspace_invitation(uuid, text, text) to authenticated;
-grant execute on function public.accept_workspace_invitation(text) to authenticated;
-grant execute on function public.revoke_workspace_invitation(uuid) to authenticated;
-grant execute on function public.resend_workspace_invitation(uuid) to authenticated;

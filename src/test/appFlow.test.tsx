@@ -375,6 +375,7 @@ describe("BRIX app module flow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Revoke" }));
     await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith("revoke_workspace_invitation", { target_invitation_id: "invite-1" }));
+    expect(await screen.findByText("Invitation revoked.")).toBeInTheDocument();
   });
 
   it("accepts an invitation token after sign-in before workspace bootstrap", async () => {

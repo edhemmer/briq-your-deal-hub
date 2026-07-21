@@ -867,6 +867,7 @@ function Account({
   const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
   const [invitationResult, setInvitationResult] = useState<WorkspaceInvitation | null>(null);
   const [invitationError, setInvitationError] = useState("");
+  const [invitationStatus, setInvitationStatus] = useState("");
   const [isInvitationWorking, setIsInvitationWorking] = useState(false);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const authSubmitInFlightRef = useRef(false);
@@ -921,6 +922,7 @@ function Account({
     event.preventDefault();
     if (!workspaceContext?.workspaceId || isInvitationWorking) return;
     setInvitationError("");
+    setInvitationStatus("");
     setInvitationResult(null);
     if (!inviteEmail.trim()) {
       setInvitationError("Enter the teammate email to invite.");
@@ -947,6 +949,7 @@ function Account({
   async function resendInvitation(invitationId: string) {
     if (!workspaceContext?.workspaceId || isInvitationWorking) return;
     setInvitationError("");
+    setInvitationStatus("");
     setInvitationResult(null);
     setIsInvitationWorking(true);
     try {
@@ -964,12 +967,14 @@ function Account({
   async function revokeInvitation(invitationId: string) {
     if (!workspaceContext?.workspaceId || isInvitationWorking) return;
     setInvitationError("");
+    setInvitationStatus("");
     setInvitationResult(null);
     setIsInvitationWorking(true);
     try {
       await revokeWorkspaceInvitation(invitationId);
       const current = await listWorkspaceInvitations(workspaceContext.workspaceId);
       setInvitations(current);
+      setInvitationStatus("Invitation revoked.");
     } catch (error) {
       setInvitationError(safeAuthError(error).message);
     } finally {
@@ -1324,6 +1329,7 @@ function Account({
               <button className="primary" type="submit" disabled={isInvitationWorking}>{isInvitationWorking ? "Working" : "Create invitation"}</button>
             </form>
             {invitationError && <p className="error">{invitationError}</p>}
+            {invitationStatus && <p className="success">{invitationStatus}</p>}
             {invitationResult?.invitationLink && (
               <label className="field" htmlFor="invitation-link">
                 <span>Invitation link</span>
