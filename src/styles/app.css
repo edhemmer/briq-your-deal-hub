@@ -149,6 +149,24 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .wide-button { width: 100%; margin-top: 8px; }
 .compact-button { min-height: 36px; padding: 0 12px; border-radius: 10px; justify-self: start; }
 .auth-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.section-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.section-heading h3 { margin: 0; font-size: 20px; }
+.access-panel { display: grid; gap: 16px; border: 1px solid rgba(59,130,246,.26); border-radius: 18px; background: rgba(8,15,29,.62); padding: 18px; }
+.access-owner-card { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; align-items: center; border: 1px solid rgba(34,197,94,.24); border-radius: 14px; background: rgba(34,197,94,.07); padding: 12px; }
+.access-owner-card svg { color: var(--green); }
+.access-owner-card div, .empty-mini, .access-person, .access-role-summary, .access-readonly, .pending-access { display: grid; gap: 4px; }
+.access-owner-card span, .access-person span, .access-person small, .access-role-summary span, .access-readonly span, .pending-access span, .empty-mini span { color: var(--muted); }
+.empty-mini { justify-items: start; border: 1px dashed rgba(148,163,184,.28); border-radius: 14px; padding: 16px; color: #dbeafe; }
+.empty-mini svg { color: var(--blue); }
+.access-list { display: grid; gap: 10px; }
+.access-row { display: grid; grid-template-columns: minmax(180px, 1.1fr) minmax(180px, 1fr) minmax(150px, .8fr) auto; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 14px; background: rgba(13,24,42,.78); padding: 12px; }
+.access-person strong, .access-role-summary strong, .access-readonly strong { color: white; }
+.access-role-summary span { font-size: 13px; line-height: 1.45; }
+.access-role-field { margin: 0; }
+.access-role-field select { min-height: 40px; padding: 9px 12px; }
+.access-readonly { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: rgba(8,15,29,.8); }
+.danger-button { border-color: rgba(241,92,92,.42); color: #fecaca; }
+.pending-access { border: 1px solid rgba(245,158,11,.24); border-radius: 14px; background: rgba(245,158,11,.07); padding: 12px; }
 .invitation-panel { display: grid; gap: 16px; border: 1px solid rgba(59,130,246,.26); border-radius: 18px; background: rgba(8,15,29,.62); padding: 18px; }
 .invitation-panel h3 { margin: 0; font-size: 20px; }
 .invitation-form { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(150px, .7fr) auto; gap: 12px; align-items: end; }
@@ -175,12 +193,13 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 
 @media (max-width: 640px) {
   .workspace, .rail { padding: 16px; }
-  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form { grid-template-columns: 1fr; }
+  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row { grid-template-columns: 1fr; }
   .topbar { display: grid; }
   .table-row { grid-template-columns: 1fr; }
   .landing { padding: 22px; }
   .workflow-strip { margin-top: 0; }
   .focus-panel { min-height: auto; }
+  .section-heading { flex-direction: column; }
   .invitation-row { align-items: stretch; flex-direction: column; }
   .row-actions { justify-content: stretch; }
   .row-actions button { flex: 1; }

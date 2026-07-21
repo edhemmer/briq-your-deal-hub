@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { downloadDecisionPdf, downloadWorkbook } from "../core/reportExports";
@@ -11,11 +11,80 @@ const mocks = vi.hoisted(() => ({
   user: { value: { id: "user-1", email: "edhemmer@gmail.com" } as { id: string; email: string } | null },
   remoteDeals: { value: [] as Array<Record<string, unknown>> },
   invitations: { value: [] as Array<Record<string, unknown>> },
+  accessRoles: { value: [
+    { role_id: "admin", role_name: "Administrator", role_description: "Can manage workspace settings, invitations, members, and deal work." },
+    { role_id: "analyst", role_name: "Analyst", role_description: "Can review deal information and run analysis without managing workspace access." },
+    { role_id: "contributor", role_name: "Contributor", role_description: "Can add and update deal work without managing workspace access." },
+    { role_id: "viewer", role_name: "Viewer", role_description: "Can view workspace information without changing deal work or access." },
+    { role_id: "billing_admin", role_name: "Billing Administrator", role_description: "Can manage billing-related settings without managing deal work or access." },
+  ] as Array<Record<string, unknown>> },
+  workspaceMembers: { value: [
+    {
+      membership_id: "membership-owner",
+      workspace_id: "workspace-1",
+      user_id: "user-1",
+      email: "edhemmer@gmail.com",
+      full_name: "Ed Hemmer",
+      role_id: "owner",
+      role_name: "Owner",
+      role_description: "Full workspace ownership and billing authority.",
+      status: "active",
+      joined_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+      can_change_role: false,
+      can_revoke: false,
+    },
+  ] as Array<Record<string, unknown>> },
   workspaceContext: { value: { profile_id: "user-1", workspace_id: "workspace-1", workspace_name: "edhemmer's BRIX Workspace", role_id: "owner" } as Record<string, string> },
   authChangeCallback: { value: null as null | ((_event: string, session: { user: { id: string } } | null) => void) },
   queriedOwnerIds: { value: [] as string[] },
   rpc: vi.fn(async (name: string, args?: Record<string, unknown>) => {
     if (name === "ensure_workspace_context") return { data: [mocks.workspaceContext.value], error: null };
+    if (name === "list_workspace_access_roles") return { data: mocks.accessRoles.value, error: null };
+    if (name === "list_workspace_memberships") return { data: mocks.workspaceMembers.value, error: null };
+    if (name === "change_workspace_member_role") {
+      const updatedAt = "2026-01-02T00:00:00.000Z";
+      mocks.workspaceMembers.value = mocks.workspaceMembers.value.map((row) => row.membership_id === args?.target_membership_id ? {
+        ...row,
+        role_id: args?.new_role_id,
+        role_name: mocks.accessRoles.value.find((role) => role.role_id === args?.new_role_id)?.role_name,
+        role_description: mocks.accessRoles.value.find((role) => role.role_id === args?.new_role_id)?.role_description,
+        updated_at: updatedAt,
+      } : row);
+      return {
+        data: [{
+          membership_id: args?.target_membership_id,
+          workspace_id: "workspace-1",
+          user_id: "user-2",
+          role_id: args?.new_role_id,
+          status: "active",
+          updated_at: updatedAt,
+        }],
+        error: null,
+      };
+    }
+    if (name === "revoke_workspace_member") {
+      const updatedAt = "2026-01-03T00:00:00.000Z";
+      mocks.workspaceMembers.value = mocks.workspaceMembers.value.map((row) => row.membership_id === args?.target_membership_id ? {
+        ...row,
+        status: "revoked",
+        revoked_at: updatedAt,
+        updated_at: updatedAt,
+        can_change_role: false,
+        can_revoke: false,
+      } : row);
+      return {
+        data: [{
+          membership_id: args?.target_membership_id,
+          workspace_id: "workspace-1",
+          user_id: "user-2",
+          role_id: "viewer",
+          status: "revoked",
+          updated_at: updatedAt,
+        }],
+        error: null,
+      };
+    }
     if (name === "create_workspace_invitation") {
       const row = {
         invitation_id: "invite-1",
@@ -162,6 +231,115 @@ vi.mock("../core/reportExports", () => ({
   downloadWorkbook: mocks.downloadWorkbook,
 }));
 
+function installDefaultRpcMock() {
+  mocks.rpc.mockImplementation(async (name: string, args?: Record<string, unknown>) => {
+    if (name === "ensure_workspace_context") return { data: [mocks.workspaceContext.value], error: null };
+    if (name === "list_workspace_access_roles") return { data: mocks.accessRoles.value, error: null };
+    if (name === "list_workspace_memberships") return { data: mocks.workspaceMembers.value, error: null };
+    if (name === "change_workspace_member_role") {
+      const updatedAt = "2026-01-02T00:00:00.000Z";
+      mocks.workspaceMembers.value = mocks.workspaceMembers.value.map((row) => row.membership_id === args?.target_membership_id ? {
+        ...row,
+        role_id: args?.new_role_id,
+        role_name: mocks.accessRoles.value.find((role) => role.role_id === args?.new_role_id)?.role_name,
+        role_description: mocks.accessRoles.value.find((role) => role.role_id === args?.new_role_id)?.role_description,
+        updated_at: updatedAt,
+      } : row);
+      return {
+        data: [{
+          membership_id: args?.target_membership_id,
+          workspace_id: "workspace-1",
+          user_id: "user-2",
+          role_id: args?.new_role_id,
+          status: "active",
+          updated_at: updatedAt,
+        }],
+        error: null,
+      };
+    }
+    if (name === "revoke_workspace_member") {
+      const updatedAt = "2026-01-03T00:00:00.000Z";
+      mocks.workspaceMembers.value = mocks.workspaceMembers.value.map((row) => row.membership_id === args?.target_membership_id ? {
+        ...row,
+        status: "revoked",
+        revoked_at: updatedAt,
+        updated_at: updatedAt,
+        can_change_role: false,
+        can_revoke: false,
+      } : row);
+      return {
+        data: [{
+          membership_id: args?.target_membership_id,
+          workspace_id: "workspace-1",
+          user_id: "user-2",
+          role_id: "viewer",
+          status: "revoked",
+          updated_at: updatedAt,
+        }],
+        error: null,
+      };
+    }
+    if (name === "create_workspace_invitation") {
+      const row = {
+        invitation_id: "invite-1",
+        invited_email: args?.invite_email,
+        role_id: args?.invite_role_id ?? "viewer",
+        status: "pending",
+        expires_at: "2026-01-08T00:00:00.000Z",
+        invitation_link: "https://www.brixrealestate.app/account?invite=raw-token-1",
+      };
+      mocks.invitations.value = [{
+        id: row.invitation_id,
+        email: row.invited_email,
+        role_id: row.role_id,
+        status: row.status,
+        expires_at: row.expires_at,
+      }];
+      return { data: [row], error: null };
+    }
+    if (name === "accept_workspace_invitation") {
+      return {
+        data: [{
+          invitation_id: "invite-1",
+          workspace_id: "workspace-1",
+          workspace_name: "Invited Workspace",
+          membership_id: "membership-1",
+          role_id: "member",
+          status: "accepted",
+        }],
+        error: null,
+      };
+    }
+    if (name === "resend_workspace_invitation") {
+      return {
+        data: [{
+          invitation_id: args?.target_invitation_id ?? "invite-1",
+          invited_email: "teammate@example.com",
+          role_id: "member",
+          status: "pending",
+          expires_at: "2026-01-09T00:00:00.000Z",
+          invitation_link: "https://www.brixrealestate.app/account?invite=raw-token-2",
+        }],
+        error: null,
+      };
+    }
+    if (name === "revoke_workspace_invitation") {
+      mocks.invitations.value = mocks.invitations.value.map((row) => row.id === args?.target_invitation_id ? { ...row, status: "revoked" } : row);
+      return {
+        data: [{
+          invitation_id: args?.target_invitation_id ?? "invite-1",
+          invited_email: "teammate@example.com",
+          role_id: "member",
+          status: "revoked",
+          expires_at: "2026-01-09T00:00:00.000Z",
+        }],
+        error: null,
+      };
+    }
+    return { data: null, error: null };
+  });
+}
+
 function draftDeal(id: string, address: string): DealFacts {
   return {
     id,
@@ -197,10 +375,27 @@ describe("BRIX app module flow", () => {
     mocks.user.value = { id: "user-1", email: "edhemmer@gmail.com" };
     mocks.remoteDeals.value = [];
     mocks.invitations.value = [];
+    mocks.workspaceMembers.value = [{
+      membership_id: "membership-owner",
+      workspace_id: "workspace-1",
+      user_id: "user-1",
+      email: "edhemmer@gmail.com",
+      full_name: "Ed Hemmer",
+      role_id: "owner",
+      role_name: "Owner",
+      role_description: "Full workspace ownership and billing authority.",
+      status: "active",
+      joined_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+      can_change_role: false,
+      can_revoke: false,
+    }];
     mocks.workspaceContext.value = { profile_id: "user-1", workspace_id: "workspace-1", workspace_name: "edhemmer's BRIX Workspace", role_id: "owner" };
     mocks.authChangeCallback.value = null;
     mocks.queriedOwnerIds.value = [];
     vi.clearAllMocks();
+    installDefaultRpcMock();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     mocks.getSession.mockImplementation(async () => ({ data: { session: mocks.session.value } }));
     Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
   });
@@ -356,15 +551,15 @@ describe("BRIX app module flow", () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "Account ready" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "Invite a teammate" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Invite a collaborator" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "teammate@example.com" } });
-    fireEvent.change(screen.getByLabelText("Role"), { target: { value: "member" } });
+    fireEvent.change(screen.getByLabelText("Access level"), { target: { value: "contributor" } });
     fireEvent.click(screen.getByRole("button", { name: "Create invitation" }));
 
     await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith("create_workspace_invitation", {
       target_workspace_id: "workspace-1",
       invite_email: "teammate@example.com",
-      invite_role_id: "member",
+      invite_role_id: "contributor",
     }));
     expect((await screen.findByLabelText("Invitation link") as HTMLInputElement).value).toContain("/account?invite=raw-token-1");
     expect(await screen.findByText("teammate@example.com")).toBeInTheDocument();
@@ -376,6 +571,159 @@ describe("BRIX app module flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Revoke" }));
     await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith("revoke_workspace_invitation", { target_invitation_id: "invite-1" }));
     expect(await screen.findByText("Invitation revoked.")).toBeInTheDocument();
+  });
+
+  it("shows workspace access and lets an owner change an eligible collaborator role", async () => {
+    mocks.workspaceMembers.value = [
+      ...mocks.workspaceMembers.value,
+      {
+        membership_id: "membership-partner",
+        workspace_id: "workspace-1",
+        user_id: "user-2",
+        email: "partner@example.com",
+        full_name: "Partner Investor",
+        role_id: "viewer",
+        role_name: "Viewer",
+        role_description: "Can view workspace information without changing deal work or access.",
+        status: "active",
+        joined_at: "2026-01-02T00:00:00.000Z",
+        updated_at: "2026-01-02T00:00:00.000Z",
+        can_change_role: true,
+        can_revoke: true,
+      },
+    ];
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "People with access" })).toBeInTheDocument();
+    const partnerRow = screen.getByText("Partner Investor").closest("article");
+    expect(partnerRow).not.toBeNull();
+    fireEvent.change(within(partnerRow as HTMLElement).getByLabelText("Access level"), { target: { value: "analyst" } });
+    fireEvent.click(within(partnerRow as HTMLElement).getByRole("button", { name: "Change" }));
+
+    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith("change_workspace_member_role", {
+      target_membership_id: "membership-partner",
+      new_role_id: "analyst",
+      expected_updated_at: "2026-01-02T00:00:00.000Z",
+    }));
+    expect(await screen.findByText("Access level updated.")).toBeInTheDocument();
+    expect((await screen.findAllByText("Analyst")).length).toBeGreaterThan(0);
+  });
+
+  it("does not expose role mutation controls to collaborators without member-management permission", async () => {
+    mocks.workspaceContext.value = { profile_id: "user-2", workspace_id: "workspace-1", workspace_name: "Shared Workspace", role_id: "analyst" };
+    mocks.workspaceMembers.value = [
+      {
+        membership_id: "membership-owner",
+        workspace_id: "workspace-1",
+        user_id: "user-1",
+        email: "owner@example.com",
+        full_name: "Owner User",
+        role_id: "owner",
+        role_name: "Owner",
+        role_description: "Full workspace ownership and billing authority.",
+        status: "active",
+        joined_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:00.000Z",
+        can_change_role: false,
+        can_revoke: false,
+      },
+      {
+        membership_id: "membership-analyst",
+        workspace_id: "workspace-1",
+        user_id: "user-2",
+        email: "analyst@example.com",
+        full_name: "Analyst User",
+        role_id: "analyst",
+        role_name: "Analyst",
+        role_description: "Can review deal information and run analysis without managing workspace access.",
+        status: "active",
+        joined_at: "2026-01-02T00:00:00.000Z",
+        updated_at: "2026-01-02T00:00:00.000Z",
+        can_change_role: false,
+        can_revoke: false,
+      },
+    ];
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "People with access" })).toBeInTheDocument();
+    expect(screen.getByText("Only the owner or an administrator can change workspace access.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Change" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Remove access/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Invite a collaborator" })).not.toBeInTheDocument();
+  });
+
+  it("removes eligible collaborator access without deleting the user or workspace data", async () => {
+    mocks.workspaceMembers.value = [
+      ...mocks.workspaceMembers.value,
+      {
+        membership_id: "membership-partner",
+        workspace_id: "workspace-1",
+        user_id: "user-2",
+        email: "partner@example.com",
+        full_name: "Partner Investor",
+        role_id: "viewer",
+        role_name: "Viewer",
+        role_description: "Can view workspace information without changing deal work or access.",
+        status: "active",
+        joined_at: "2026-01-02T00:00:00.000Z",
+        updated_at: "2026-01-02T00:00:00.000Z",
+        can_change_role: true,
+        can_revoke: true,
+      },
+    ];
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    const partnerRow = (await screen.findByText("Partner Investor")).closest("article");
+    expect(partnerRow).not.toBeNull();
+    fireEvent.click(within(partnerRow as HTMLElement).getByRole("button", { name: /Remove access/i }));
+
+    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith("revoke_workspace_member", {
+      target_membership_id: "membership-partner",
+      expected_updated_at: "2026-01-02T00:00:00.000Z",
+      revoke_reason: "Removed from workspace access screen",
+    }));
+    expect(await screen.findByText("Workspace access removed.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Delete user/i })).not.toBeInTheDocument();
+  });
+
+  it("surfaces stale workspace-access failures with a safe retry message", async () => {
+    mocks.workspaceMembers.value = [
+      ...mocks.workspaceMembers.value,
+      {
+        membership_id: "membership-partner",
+        workspace_id: "workspace-1",
+        user_id: "user-2",
+        email: "partner@example.com",
+        full_name: "Partner Investor",
+        role_id: "viewer",
+        role_name: "Viewer",
+        role_description: "Can view workspace information without changing deal work or access.",
+        status: "active",
+        joined_at: "2026-01-02T00:00:00.000Z",
+        updated_at: "2026-01-02T00:00:00.000Z",
+        can_change_role: true,
+        can_revoke: true,
+      },
+    ];
+    mocks.rpc.mockImplementation(async (name: string, args?: Record<string, unknown>) => {
+      if (name === "ensure_workspace_context") return { data: [mocks.workspaceContext.value], error: null };
+      if (name === "list_workspace_access_roles") return { data: mocks.accessRoles.value, error: null };
+      if (name === "list_workspace_memberships") return { data: mocks.workspaceMembers.value, error: null };
+      if (name === "change_workspace_member_role") return { data: null, error: new Error("Workspace access changed. Refresh and try again.") };
+      return { data: null, error: null };
+    });
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    const partnerRow = (await screen.findByText("Partner Investor")).closest("article");
+    expect(partnerRow).not.toBeNull();
+    fireEvent.change(within(partnerRow as HTMLElement).getByLabelText("Access level"), { target: { value: "analyst" } });
+    fireEvent.click(within(partnerRow as HTMLElement).getByRole("button", { name: "Change" }));
+
+    expect(await screen.findByText("Workspace access changed. Refresh and try again.")).toBeInTheDocument();
   });
 
   it("accepts an invitation token after sign-in before workspace bootstrap", async () => {

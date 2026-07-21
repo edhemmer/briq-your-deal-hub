@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch, Eye, EyeOff, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch, Eye, EyeOff, AlertTriangle, CheckCircle2, Users, UserMinus } from "lucide-react";
 import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
 import { createDealFromInput, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
@@ -24,6 +24,14 @@ import {
   type WorkspaceInvitation,
   type WorkspaceInvitationRole,
 } from "./core/invitations";
+import {
+  changeWorkspaceMemberRole,
+  listWorkspaceAccessMembers,
+  listWorkspaceAccessRoles,
+  revokeWorkspaceMemberAccess,
+  type WorkspaceAccessMember,
+  type WorkspaceAccessRole,
+} from "./core/workspaceAccess";
 
 type Module = "find" | "deal" | "contract" | "pipeline" | "offer" | "portfolio" | "reports" | "account";
 
@@ -869,9 +877,19 @@ function Account({
   const [invitationError, setInvitationError] = useState("");
   const [invitationStatus, setInvitationStatus] = useState("");
   const [isInvitationWorking, setIsInvitationWorking] = useState(false);
+  const [accessRoles, setAccessRoles] = useState<WorkspaceAccessRole[]>([]);
+  const [accessMembers, setAccessMembers] = useState<WorkspaceAccessMember[]>([]);
+  const [accessStatus, setAccessStatus] = useState<"idle" | "loading" | "ready" | "permission_denied" | "offline" | "failed">("idle");
+  const [accessMessage, setAccessMessage] = useState("");
+  const [accessError, setAccessError] = useState("");
+  const [workingMembershipId, setWorkingMembershipId] = useState<string | null>(null);
+  const [selectedRoleByMembership, setSelectedRoleByMembership] = useState<Record<string, string>>({});
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const authSubmitInFlightRef = useRef(false);
   const canInvite = isAuthenticated && Boolean(workspaceContext?.workspaceId) && (workspaceContext?.roleId === "owner" || workspaceContext?.roleId === "admin");
+  const activeCollaborators = accessMembers.filter((member) => member.status === "active" && member.roleId !== "owner");
+  const ownerMember = accessMembers.find((member) => member.roleId === "owner");
+  const pendingInvitations = invitations.filter((invitation) => invitation.status === "pending");
 
   useEffect(() => {
     if (!recoveryActive) return;
@@ -899,6 +917,49 @@ function Account({
       isCurrent = false;
     };
   }, [canInvite, workspaceContext?.workspaceId]);
+
+  const loadWorkspaceAccess = useCallback(async (shouldUpdate: () => boolean = () => true) => {
+    if (!workspaceContext?.workspaceId) return;
+    setAccessStatus("loading");
+    setAccessError("");
+    try {
+      const [roles, members] = await Promise.all([
+        listWorkspaceAccessRoles(),
+        listWorkspaceAccessMembers(workspaceContext.workspaceId),
+      ]);
+      if (!shouldUpdate()) return;
+      setAccessRoles(roles);
+      setAccessMembers(members);
+      setSelectedRoleByMembership(Object.fromEntries(members.map((member) => [member.membershipId, member.roleId])));
+      if (roles.some((role) => role.id === "viewer")) setInviteRoleId("viewer");
+      else if (roles[0]) setInviteRoleId(roles[0].id);
+      setAccessStatus("ready");
+    } catch (error) {
+      if (!shouldUpdate()) return;
+      const safe = safeAuthError(error);
+      setAccessStatus(safe.kind === "offline" ? "offline" : safe.kind === "session_expired" ? "permission_denied" : "failed");
+      setAccessError(safe.kind === "offline"
+        ? safe.message
+        : safe.kind === "session_expired"
+          ? "Your access changed. Sign in again to refresh your workspace."
+          : "BRIX could not load workspace access. Retry when your connection is stable.");
+    }
+  }, [workspaceContext?.workspaceId]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !workspaceContext?.workspaceId) {
+      setAccessRoles([]);
+      setAccessMembers([]);
+      setSelectedRoleByMembership({});
+      setAccessStatus("idle");
+      return;
+    }
+    let isCurrent = true;
+    loadWorkspaceAccess(() => isCurrent);
+    return () => {
+      isCurrent = false;
+    };
+  }, [isAuthenticated, loadWorkspaceAccess, workspaceContext?.workspaceId]);
 
   function resetFeedback() {
     setMessage(null);
@@ -979,6 +1040,50 @@ function Account({
       setInvitationError(safeAuthError(error).message);
     } finally {
       setIsInvitationWorking(false);
+    }
+  }
+
+  async function changeAccessRole(member: WorkspaceAccessMember) {
+    if (workingMembershipId) return;
+    const nextRoleId = selectedRoleByMembership[member.membershipId] ?? member.roleId;
+    if (nextRoleId === member.roleId) {
+      setAccessMessage("No access-level change is needed.");
+      return;
+    }
+    const role = accessRoles.find((item) => item.id === nextRoleId);
+    const memberLabel = member.fullName || member.email || "this collaborator";
+    const confirmed = window.confirm(`Change ${memberLabel}'s access level to ${role?.name ?? nextRoleId}?`);
+    if (!confirmed) return;
+    setWorkingMembershipId(member.membershipId);
+    setAccessError("");
+    setAccessMessage("");
+    try {
+      await changeWorkspaceMemberRole(member.membershipId, nextRoleId, member.updatedAt);
+      setAccessMessage("Access level updated.");
+      await loadWorkspaceAccess();
+    } catch (error) {
+      setAccessError(workspaceAccessError(error));
+    } finally {
+      setWorkingMembershipId(null);
+    }
+  }
+
+  async function removeAccess(member: WorkspaceAccessMember) {
+    if (workingMembershipId) return;
+    const memberLabel = member.fullName || member.email || "this collaborator";
+    const confirmed = window.confirm(`Remove workspace access for ${memberLabel}? They will no longer be able to view this BRIX workspace.`);
+    if (!confirmed) return;
+    setWorkingMembershipId(member.membershipId);
+    setAccessError("");
+    setAccessMessage("");
+    try {
+      await revokeWorkspaceMemberAccess(member.membershipId, member.updatedAt);
+      setAccessMessage("Workspace access removed.");
+      await loadWorkspaceAccess();
+    } catch (error) {
+      setAccessError(workspaceAccessError(error));
+    } finally {
+      setWorkingMembershipId(null);
     }
   }
 
@@ -1306,12 +1411,115 @@ function Account({
           </div>
         )}
 
+        {isAuthenticated && workspaceContext?.workspaceId && (
+          <section className="access-panel" aria-labelledby="workspace-access-title">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Workspace access</p>
+                <h3 id="workspace-access-title">People with access</h3>
+                <p className="quiet">Give trusted collaborators only the access level they need.</p>
+              </div>
+              <button className="secondary compact-button" type="button" onClick={() => loadWorkspaceAccess()} disabled={accessStatus === "loading" || Boolean(workingMembershipId)}>
+                {accessStatus === "loading" ? "Loading" : "Retry"}
+              </button>
+            </div>
+
+            {accessStatus === "loading" && <p className="quiet" role="status">Loading workspace access.</p>}
+            {accessStatus === "offline" && <p className="error">{accessError}</p>}
+            {accessStatus === "permission_denied" && <p className="error">{accessError}</p>}
+            {accessStatus === "failed" && <p className="error">{accessError}</p>}
+            {accessMessage && <p className="success">{accessMessage}</p>}
+            {accessError && accessStatus === "ready" && <p className="error">{accessError}</p>}
+
+            {ownerMember && (
+              <article className="access-owner-card">
+                <ShieldCheck size={18} />
+                <div>
+                  <strong>{ownerMember.fullName || ownerMember.email || "Workspace owner"}</strong>
+                  <span>Owner access cannot be removed or changed here.</span>
+                </div>
+              </article>
+            )}
+
+            {accessStatus === "ready" && activeCollaborators.length === 0 && (
+              <div className="empty-mini">
+                <Users size={22} />
+                <strong>No collaborators yet</strong>
+                <span>Invite a trusted partner, advisor, or assistant when you are ready to share this workspace.</span>
+              </div>
+            )}
+
+            {activeCollaborators.length > 0 && (
+              <div className="access-list">
+                {activeCollaborators.map((member) => {
+                  const selectedRoleId = selectedRoleByMembership[member.membershipId] ?? member.roleId;
+                  const isRowWorking = workingMembershipId === member.membershipId;
+                  const roleOptions = accessRoles.some((role) => role.id === member.roleId)
+                    ? accessRoles
+                    : [{ id: member.roleId, name: member.roleName, description: member.roleDescription }, ...accessRoles];
+                  return (
+                    <article className="access-row" key={member.membershipId}>
+                      <div className="access-person">
+                        <strong>{member.fullName || member.email || "Collaborator"}</strong>
+                        <span>{member.email || "Email unavailable"}</span>
+                        <small>{member.status === "active" ? `Joined ${formatShortDate(member.joinedAt)}` : `Removed ${formatShortDate(member.revokedAt)}`}</small>
+                      </div>
+                      <div className="access-role-summary">
+                        <strong>{member.roleName}</strong>
+                        <span>{member.roleDescription}</span>
+                      </div>
+                      {member.canChangeRole ? (
+                        <label className="field access-role-field" htmlFor={`access-role-${member.membershipId}`}>
+                          <span>Access level</span>
+                          <select
+                            id={`access-role-${member.membershipId}`}
+                            value={selectedRoleId}
+                            disabled={isRowWorking}
+                            onChange={(event) => setSelectedRoleByMembership((current) => ({ ...current, [member.membershipId]: event.target.value }))}
+                          >
+                            {roleOptions.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
+                          </select>
+                        </label>
+                      ) : (
+                        <div className="access-readonly"><span>Access level</span><strong>{member.roleName}</strong></div>
+                      )}
+                      <div className="row-actions">
+                        {member.canChangeRole && (
+                          <button className="secondary compact-button" type="button" disabled={isRowWorking || selectedRoleId === member.roleId} onClick={() => changeAccessRole(member)}>
+                            {isRowWorking ? "Saving" : "Change"}
+                          </button>
+                        )}
+                        {member.canRevoke && (
+                          <button className="secondary compact-button danger-button" type="button" disabled={isRowWorking} onClick={() => removeAccess(member)}>
+                            <UserMinus size={15} /> Remove access
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+
+            {!canInvite && accessStatus === "ready" && (
+              <p className="quiet">Only the owner or an administrator can change workspace access.</p>
+            )}
+
+            {pendingInvitations.length > 0 && (
+              <div className="pending-access">
+                <strong>Pending invitations</strong>
+                <span>{pendingInvitations.length} invitation{pendingInvitations.length === 1 ? "" : "s"} waiting for acceptance.</span>
+              </div>
+            )}
+          </section>
+        )}
+
         {canInvite && (
           <section className="invitation-panel" aria-labelledby="workspace-invitations-title">
             <div>
               <p className="eyebrow">Workspace invitations</p>
-              <h3 id="workspace-invitations-title">Invite a teammate</h3>
-              <p className="quiet">Invitations are email-scoped, expiring, single-use links. BRIX stores only a token hash.</p>
+              <h3 id="workspace-invitations-title">Invite a collaborator</h3>
+              <p className="quiet">Send an expiring invitation to someone you trust with this workspace.</p>
             </div>
             <form className="invitation-form" onSubmit={submitInvitation}>
               <label className="field" htmlFor="invite-email">
@@ -1319,14 +1527,13 @@ function Account({
                 <input id="invite-email" type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} />
               </label>
               <label className="field" htmlFor="invite-role">
-                <span>Role</span>
-                <select id="invite-role" value={inviteRoleId} onChange={(event) => setInviteRoleId(event.target.value as WorkspaceInvitationRole)}>
-                  <option value="viewer">Viewer</option>
-                  <option value="member">Member</option>
-                  <option value="admin">Admin</option>
+                <span>Access level</span>
+                <select id="invite-role" value={inviteRoleId} disabled={accessRoles.length === 0} onChange={(event) => setInviteRoleId(event.target.value as WorkspaceInvitationRole)}>
+                  {accessRoles.length === 0 && <option value="viewer">Loading access levels</option>}
+                  {accessRoles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
                 </select>
               </label>
-              <button className="primary" type="submit" disabled={isInvitationWorking}>{isInvitationWorking ? "Working" : "Create invitation"}</button>
+              <button className="primary" type="submit" disabled={isInvitationWorking || accessRoles.length === 0}>{isInvitationWorking ? "Working" : "Create invitation"}</button>
             </form>
             {invitationError && <p className="error">{invitationError}</p>}
             {invitationStatus && <p className="success">{invitationStatus}</p>}
@@ -1342,7 +1549,7 @@ function Account({
                   <article key={invitation.id || invitation.email} className="invitation-row">
                     <div>
                       <strong>{invitation.email}</strong>
-                      <span>{invitation.roleId} - {invitation.status}</span>
+                      <span>{roleLabel(accessRoles, invitation.roleId)} - {invitation.status}</span>
                     </div>
                     {invitation.status === "pending" && invitation.id && (
                       <div className="row-actions">
@@ -1359,6 +1566,29 @@ function Account({
       </div>
     </section>
   );
+}
+
+function roleLabel(roles: WorkspaceAccessRole[], roleId: string) {
+  return roles.find((role) => role.id === roleId)?.name ?? roleId.replace(/_/g, " ");
+}
+
+function formatShortDate(value?: string) {
+  if (!value) return "date unavailable";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "date unavailable";
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function workspaceAccessError(error: unknown) {
+  const safe = safeAuthError(error);
+  const raw = error instanceof Error ? error.message.toLowerCase() : typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string" ? (error as { message: string }).message.toLowerCase() : "";
+  if (safe.kind === "offline") return safe.message;
+  if (raw.includes("refresh") || raw.includes("changed")) return "Workspace access changed. Refresh and try again.";
+  if (raw.includes("permission") || raw.includes("access") || raw.includes("42501")) return "You do not have permission to change workspace access.";
+  if (raw.includes("owner")) return "The workspace owner cannot be changed or removed here.";
+  if (raw.includes("role") || raw.includes("access level")) return "That access level is not available for this workspace.";
+  if (raw.includes("active")) return "Only active workspace access can be changed.";
+  return "BRIX could not update workspace access. Retry when your connection is stable.";
 }
 
 function DealSwitcher({ deals, selectedId, onSelect }: { deals: DealFacts[]; selectedId?: string; onSelect: (id: string) => void }) {

@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 
-export type WorkspaceInvitationRole = "admin" | "member" | "viewer";
+export type WorkspaceInvitationRole = string;
 
 export type WorkspaceInvitation = {
   id: string;
@@ -115,7 +115,7 @@ function normalizeInvitationRow(row: unknown): WorkspaceInvitation | null {
   return {
     id,
     email,
-    roleId: isWorkspaceInvitationRole(roleId) ? roleId : "viewer",
+    roleId: roleId || "viewer",
     status,
     expiresAt: value.expires_at ?? undefined,
     invitationLink: value.invitation_link ?? undefined,
@@ -131,7 +131,7 @@ function normalizeRevocationRow(row: unknown): WorkspaceInvitation | null {
   return {
     id,
     email: value.invited_email ?? value.email ?? "",
-    roleId: isWorkspaceInvitationRole(value.role_id ?? "") ? value.role_id as WorkspaceInvitationRole : "viewer",
+    roleId: value.role_id || "viewer",
     status,
     expiresAt: value.expires_at ?? undefined,
     invitationLink: value.invitation_link ?? undefined,
@@ -161,8 +161,4 @@ function normalizeAcceptanceRow(row: unknown): InvitationAcceptance | null {
 
 function isInvitationStatus(value: string): value is WorkspaceInvitation["status"] {
   return value === "pending" || value === "accepted" || value === "revoked" || value === "expired" || value === "already_member";
-}
-
-function isWorkspaceInvitationRole(value: string): value is WorkspaceInvitationRole {
-  return value === "admin" || value === "member" || value === "viewer";
 }
