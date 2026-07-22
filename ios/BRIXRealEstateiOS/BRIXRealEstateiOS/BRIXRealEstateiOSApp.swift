@@ -7,6 +7,9 @@ struct BRIXRealEstateiOSApp: App {
         WindowGroup {
             AppView()
                 .environmentObject(state)
+                .onOpenURL { url in
+                    state.handleIncomingURL(url)
+                }
         }
     }
 }

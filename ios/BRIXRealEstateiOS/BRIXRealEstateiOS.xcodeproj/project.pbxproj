@@ -26,6 +26,7 @@
 		1A0000010000000000000017 /* OfferIQView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000017 /* OfferIQView.swift */; };
 		1A0000010000000000000018 /* ListingTextParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000018 /* ListingTextParser.swift */; };
 		1A0000010000000000000019 /* ContractIQView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000019 /* ContractIQView.swift */; };
+		1A0000010000000000000020 /* AuthContinuity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0001010000000000000020 /* AuthContinuity.swift */; };
 		1A0000020000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A0001020000000000000001 /* Assets.xcassets */; };
 		1A0000020000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1A0001020000000000000002 /* PrivacyInfo.xcprivacy */; };
 		1A0000020000000000000003 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 1A0001020000000000000005 /* LaunchScreen.storyboard */; };
@@ -52,6 +53,7 @@
 		1A0001010000000000000017 /* OfferIQView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfferIQView.swift; sourceTree = "<group>"; };
 		1A0001010000000000000018 /* ListingTextParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListingTextParser.swift; sourceTree = "<group>"; };
 		1A0001010000000000000019 /* ContractIQView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContractIQView.swift; sourceTree = "<group>"; };
+		1A0001010000000000000020 /* AuthContinuity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthContinuity.swift; sourceTree = "<group>"; };
 		1A0001020000000000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1A0001020000000000000002 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		1A0001020000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -100,6 +102,7 @@
 				1A0001010000000000000017 /* OfferIQView.swift */,
 				1A0001010000000000000018 /* ListingTextParser.swift */,
 				1A0001010000000000000019 /* ContractIQView.swift */,
+				1A0001010000000000000020 /* AuthContinuity.swift */,
 				1A0001020000000000000001 /* Assets.xcassets */,
 				1A0001020000000000000002 /* PrivacyInfo.xcprivacy */,
 				1A0001020000000000000003 /* Info.plist */,
@@ -207,6 +210,7 @@
 				1A0000010000000000000017 /* OfferIQView.swift in Sources */,
 				1A0000010000000000000018 /* ListingTextParser.swift in Sources */,
 				1A0000010000000000000019 /* ContractIQView.swift in Sources */,
+				1A0000010000000000000020 /* AuthContinuity.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -8,12 +8,13 @@ final class AppState: ObservableObject {
     @Published var selectedDealID: UUID?
     @Published var email = ""
     @Published var authMessage = ""
-    @Published var accessToken = "" {
-        didSet { UserDefaults.standard.set(accessToken, forKey: "brix.accessToken") }
-    }
-    @Published var refreshToken = "" {
-        didSet { UserDefaults.standard.set(refreshToken, forKey: "brix.refreshToken") }
-    }
+    @Published private(set) var accessToken = ""
+    @Published private(set) var refreshToken = ""
+    @Published var authStatus: NativeAuthStatus = .restoring
+    @Published var pendingAuthDestination: NativeAuthDestination?
+
+    private let sessionStore: AuthSessionStoring
+    private let anonymousDraftsKey = "brix.anonymousDrafts"
 
     var selectedDeal: Deal? {
         get { deals.first { $0.id == selectedDealID } ?? deals.first }
@@ -30,7 +31,10 @@ final class AppState: ObservableObject {
         }
     }
 
-    init() { load() }
+    init(sessionStore: AuthSessionStoring = KeychainAuthSessionStore()) {
+        self.sessionStore = sessionStore
+        load()
+    }
 
     func createDeal(from input: String, strategy: StrategyId) async {
         var deal = ListingTextParser.parse(input, strategy: strategy)
@@ -42,7 +46,7 @@ final class AppState: ObservableObject {
                 deals.insert(deal, at: 0)
             }
             selectedDealID = deal.id
-            save()
+            saveAnonymousDrafts()
             authMessage = "Deal created on this device. Sign in from Account to keep it across devices."
             tab = .deal
             return
@@ -55,7 +59,6 @@ final class AppState: ObservableObject {
                 deals.insert(deal, at: 0)
             }
             selectedDealID = deal.id
-            save()
             authMessage = ""
             tab = .deal
         } catch {
@@ -67,7 +70,7 @@ final class AppState: ObservableObject {
         guard let selectedDealID else { return }
         deals.removeAll { $0.id == selectedDealID }
         self.selectedDealID = deals.first?.id
-        save()
+        if accessToken.isEmpty { saveAnonymousDrafts() }
         syncDelete(selectedDealID)
     }
 
@@ -79,32 +82,65 @@ final class AppState: ObservableObject {
     }
 
     func completeAuthentication(session: BRIXAuthSession, message: String) {
-        accessToken = session.accessToken
-        refreshToken = session.refreshToken
+        guard !session.accessToken.isEmpty else {
+            authStatus = .authRequired
+            authMessage = message
+            tab = .account
+            return
+        }
+        setSession(session)
         authMessage = message
-        Task { await loadCloudDeals() }
+        authStatus = .refreshing
+        clearProtectedDealState()
+        Task { await restoreAuthenticatedContext() }
     }
 
     func signOut() {
-        accessToken = ""
-        refreshToken = ""
+        clearSessionMaterial()
+        clearProtectedDealState()
+        loadAnonymousDrafts()
+        authStatus = .signedOut
         authMessage = "Signed out."
-        UserDefaults.standard.removeObject(forKey: "brix.accessToken")
-        UserDefaults.standard.removeObject(forKey: "brix.refreshToken")
     }
 
     func loadCloudDeals() async {
         guard !accessToken.isEmpty else { return }
         do {
+            try await BRIXService.validateSession(accessToken: accessToken)
             let remoteDeals = try await BRIXService.fetchDeals(accessToken: accessToken)
-            if !remoteDeals.isEmpty {
-                deals = remoteDeals
-                selectedDealID = remoteDeals.first?.id
-                save()
-            }
+            deals = remoteDeals
+            selectedDealID = remoteDeals.first?.id
+            authStatus = .ready
         } catch {
-            authMessage = "Could not sync deal files. Check network access."
+            failClosedAfterAuthenticatedLoad(error)
         }
+    }
+
+    func handleIncomingURL(_ url: URL) {
+        guard let destination = NativeDeepLinkRouter.destination(from: url) else {
+            authMessage = "This BRIX link could not be opened safely."
+            return
+        }
+
+        pendingAuthDestination = destination
+        switch destination {
+        case .passwordRecovery:
+            authStatus = .recoveryValidating
+            authMessage = "Open the secure password reset from your BRIX account screen."
+            tab = .account
+        case .invitation:
+            authStatus = accessToken.isEmpty ? .authRequired : .invitationValidating
+            authMessage = accessToken.isEmpty ? "Sign in with the invited email address to accept this workspace invitation." : "Workspace invitation ready for secure validation."
+            tab = .account
+        case .account:
+            authStatus = accessToken.isEmpty ? .authRequired : .ready
+            tab = .account
+        }
+    }
+
+    func retrySessionRestore() {
+        authStatus = .retrying
+        Task { await restoreAuthenticatedContext() }
     }
 
     func analysis(for deal: Deal) -> DealAnalysis {
@@ -328,36 +364,56 @@ final class AppState: ObservableObject {
     }
 
     func save() {
+        if accessToken.isEmpty { saveAnonymousDrafts() }
+    }
+
+    private func saveAnonymousDrafts() {
         if let encoded = try? JSONEncoder().encode(deals) {
-            UserDefaults.standard.set(encoded, forKey: "brix.deals")
+            UserDefaults.standard.set(encoded, forKey: anonymousDraftsKey)
         }
     }
 
     private func load() {
-        accessToken = UserDefaults.standard.string(forKey: "brix.accessToken") ?? ""
-        refreshToken = UserDefaults.standard.string(forKey: "brix.refreshToken") ?? ""
-        if let data = UserDefaults.standard.data(forKey: "brix.deals"),
-           let decoded = try? JSONDecoder().decode([Deal].self, from: data) {
-            deals = decoded
-            selectedDealID = decoded.first?.id
+        removeLegacyTokenStorage()
+        do {
+            if let session = try sessionStore.loadSession() {
+                accessToken = session.accessToken
+                refreshToken = session.refreshToken
+                authStatus = .restoring
+                clearProtectedDealState()
+                Task { await refreshAndLoadCloudDeals() }
+                return
+            }
+        } catch {
+            authStatus = .expired
+            authMessage = "Secure session storage needs a fresh sign in."
         }
-        if !refreshToken.isEmpty {
-            Task { await refreshAndLoadCloudDeals() }
-        } else if !accessToken.isEmpty {
-            Task { await loadCloudDeals() }
-        }
+        loadAnonymousDrafts()
+        authStatus = .signedOut
     }
 
     private func refreshAndLoadCloudDeals() async {
         do {
             let session = try await BRIXService.refreshSession(refreshToken: refreshToken)
-            accessToken = session.accessToken
-            if !session.refreshToken.isEmpty { refreshToken = session.refreshToken }
-            await loadCloudDeals()
+            setSession(session)
+            await restoreAuthenticatedContext()
         } catch {
-            accessToken = ""
-            refreshToken = ""
-            authMessage = "Please sign in again."
+            clearSessionMaterial()
+            clearProtectedDealState()
+            loadAnonymousDrafts()
+            authStatus = isOfflineError(error) ? .offlineUnavailable : .expired
+            authMessage = authStatus.userMessage
+        }
+    }
+
+    private func restoreAuthenticatedContext() async {
+        guard !accessToken.isEmpty else {
+            authStatus = .signedOut
+            return
+        }
+        await loadCloudDeals()
+        if pendingAuthDestination?.requiresAuthentication == true, authStatus == .ready {
+            authMessage = "Authenticated return complete."
         }
     }
 
@@ -381,5 +437,83 @@ final class AppState: ObservableObject {
                 authMessage = "Deal removed on this device. Cloud sync needs attention."
             }
         }
+    }
+
+    private func setSession(_ session: BRIXAuthSession) {
+        accessToken = session.accessToken
+        refreshToken = session.refreshToken
+        do {
+            try sessionStore.saveSession(session)
+        } catch {
+            authStatus = .bootstrapFailed
+            authMessage = "BRIX could not save secure session access. Sign in again."
+        }
+    }
+
+    private func clearSessionMaterial() {
+        accessToken = ""
+        refreshToken = ""
+        try? sessionStore.clearSession()
+        removeLegacyTokenStorage()
+    }
+
+    private func clearProtectedDealState() {
+        deals = []
+        selectedDealID = nil
+    }
+
+    private func loadAnonymousDrafts() {
+        if let data = UserDefaults.standard.data(forKey: anonymousDraftsKey),
+           let decoded = try? JSONDecoder().decode([Deal].self, from: data) {
+            deals = decoded
+            selectedDealID = decoded.first?.id
+        } else {
+            deals = []
+            selectedDealID = nil
+        }
+    }
+
+    private func removeLegacyTokenStorage() {
+        UserDefaults.standard.removeObject(forKey: "brix.accessToken")
+        UserDefaults.standard.removeObject(forKey: "brix.refreshToken")
+    }
+
+    private func failClosedAfterAuthenticatedLoad(_ error: Error) {
+        if let serviceError = error as? BRIXServiceError, serviceError == .accessRevoked {
+            clearSessionMaterial()
+            clearProtectedDealState()
+            loadAnonymousDrafts()
+            authStatus = .revokedWorkspace
+            authMessage = authStatus.userMessage
+            tab = .account
+            return
+        }
+        if isAuthError(error) {
+            clearSessionMaterial()
+            clearProtectedDealState()
+            loadAnonymousDrafts()
+            authStatus = .expired
+            authMessage = authStatus.userMessage
+            tab = .account
+            return
+        }
+        if isOfflineError(error) {
+            authStatus = refreshToken.isEmpty ? .offlineUnavailable : .offlineRecoverable
+            authMessage = authStatus.userMessage
+            return
+        }
+        authStatus = .bootstrapFailed
+        authMessage = "Could not prepare your BRIX workspace. Retry when your connection is stable."
+    }
+
+    private func isAuthError(_ error: Error) -> Bool {
+        if let serviceError = error as? BRIXServiceError, serviceError == .authenticationRequired { return true }
+        let code = (error as? URLError)?.code
+        return code == .userAuthenticationRequired || code == .userCancelledAuthentication
+    }
+
+    private func isOfflineError(_ error: Error) -> Bool {
+        let code = (error as? URLError)?.code
+        return code == .notConnectedToInternet || code == .networkConnectionLost || code == .cannotFindHost || code == .timedOut
     }
 }

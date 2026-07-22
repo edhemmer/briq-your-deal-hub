@@ -1,8 +1,14 @@
 import Foundation
 
-struct BRIXAuthSession {
+struct BRIXAuthSession: Codable, Equatable {
     let accessToken: String
     let refreshToken: String
+}
+
+enum BRIXServiceError: Error, Equatable {
+    case authenticationRequired
+    case accessRevoked
+    case badResponse(Int)
 }
 
 enum BRIXService {
@@ -37,7 +43,21 @@ enum BRIXService {
     }
 
     static func resetPassword(email: String) async throws {
-        _ = try await auth(endpoint: "/auth/v1/recover", body: ["email": email])
+        _ = try await auth(
+            endpoint: "/auth/v1/recover",
+            body: [
+                "email": email,
+                "redirect_to": "https://brixrealestate.app/account?flow=reset-password"
+            ]
+        )
+    }
+
+    static func validateSession(accessToken: String) async throws {
+        var request = URLRequest(url: supabaseURL.appendingPathComponent("auth/v1/user"))
+        request.httpMethod = "GET"
+        authorize(&request, accessToken: accessToken)
+        let (_, response) = try await URLSession.shared.data(for: request)
+        try validateHTTP(response)
     }
 
     static func fetchDeals(accessToken: String) async throws -> [Deal] {
@@ -51,9 +71,7 @@ enum BRIXService {
         request.httpMethod = "GET"
         authorize(&request, accessToken: accessToken)
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try validateHTTP(response)
         let rows = (try JSONSerialization.jsonObject(with: data)) as? [[String: Any]] ?? []
         return rows.map(dealFromRow)
     }
@@ -67,9 +85,7 @@ enum BRIXService {
         request.setValue("resolution=merge-duplicates,return=minimal", forHTTPHeaderField: "Prefer")
         request.httpBody = try JSONSerialization.data(withJSONObject: rowPayload(for: deal, accessToken: accessToken))
         let (_, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try validateHTTP(response)
     }
 
     static func softDeleteDeal(id: UUID, accessToken: String) async throws {
@@ -80,9 +96,7 @@ enum BRIXService {
         authorize(&request, accessToken: accessToken)
         request.httpBody = try JSONSerialization.data(withJSONObject: ["deleted_at": ISO8601DateFormatter().string(from: Date())])
         let (_, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try validateHTTP(response)
     }
 
     static func requestAccountDeletion(accessToken: String) async throws {
@@ -93,9 +107,7 @@ enum BRIXService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = Data("{}".utf8)
         let (_, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.userAuthenticationRequired)
-        }
+        try validateHTTP(response)
     }
 
     private static func auth(endpoint: String, body: [String: Any]) async throws -> BRIXAuthSession {
@@ -104,9 +116,7 @@ enum BRIXService {
         authorize(&request, accessToken: publishableKey)
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.userAuthenticationRequired)
-        }
+        try validateHTTP(response)
         let parsed = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         return BRIXAuthSession(
             accessToken: parsed?["access_token"] as? String ?? "",
@@ -118,6 +128,13 @@ enum BRIXService {
         request.setValue(publishableKey, forHTTPHeaderField: "apikey")
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    }
+
+    private static func validateHTTP(_ response: URLResponse) throws {
+        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+        if http.statusCode == 401 { throw BRIXServiceError.authenticationRequired }
+        if http.statusCode == 403 { throw BRIXServiceError.accessRevoked }
+        guard (200..<300).contains(http.statusCode) else { throw BRIXServiceError.badResponse(http.statusCode) }
     }
 
     private static func rowPayload(for deal: Deal, accessToken: String) throws -> [String: Any] {

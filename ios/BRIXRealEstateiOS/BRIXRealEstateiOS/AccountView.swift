@@ -15,6 +15,7 @@ struct AccountView: View {
                     BrixCard {
                         VStack(alignment: .leading, spacing: 14) {
                             Text("Account").font(.largeTitle.bold())
+                            authStateView
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Email").font(.caption).foregroundStyle(Brix.muted)
                                 TextField("", text: $state.email)
@@ -89,6 +90,48 @@ struct AccountView: View {
 
     private var canSubmitCredentials: Bool {
         !state.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !password.isEmpty
+    }
+
+    @ViewBuilder
+    private var authStateView: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: iconName)
+                .foregroundStyle(state.authStatus == .ready ? Brix.green : Brix.blue)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(statusTitle).font(.headline)
+                Text(state.authStatus.userMessage).font(.caption).foregroundStyle(Brix.muted)
+                if state.authStatus == .bootstrapFailed || state.authStatus == .offlineRecoverable {
+                    Button("Retry") { state.retrySessionRestore() }
+                        .buttonStyle(.bordered)
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Brix.panel.opacity(0.72))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var iconName: String {
+        switch state.authStatus {
+        case .ready: return "checkmark.seal.fill"
+        case .expired, .revokedUser, .revokedWorkspace: return "exclamationmark.triangle.fill"
+        case .restoring, .refreshing, .retrying: return "arrow.triangle.2.circlepath"
+        default: return "lock.shield"
+        }
+    }
+
+    private var statusTitle: String {
+        switch state.authStatus {
+        case .ready: return "Secure access active"
+        case .recoveryValidating: return "Password reset"
+        case .invitationValidating: return "Workspace invitation"
+        case .expired: return "Sign in required"
+        case .revokedUser, .revokedWorkspace: return "Access changed"
+        case .offlineRecoverable, .offlineUnavailable: return "Connection needed"
+        default: return "Secure account access"
+        }
     }
 
     private func run(_ action: () async throws -> Void) async {
