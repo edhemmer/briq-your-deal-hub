@@ -2,7 +2,9 @@
 
 ## 1. Authority and Rules of Engagement
 
-Governed by `docs/00-START-HERE.md` through `docs/05-BUILD-ROADMAP.md` and `specs/001-authentication-and-workspaces.md`.
+Governed by `docs/00-START-HERE.md` through `docs/05-BUILD-ROADMAP.md`, `docs/12-INDIVIDUAL-INVESTOR-PRODUCT-REALIGNMENT.md`, and `specs/001-authentication-and-workspaces.md`.
+
+Document 12 controls the product presentation of this shell: `workspace_id` remains the required tenancy and RLS boundary, but ordinary navigation should feel like an individual investor's BRIX account. Workspace switchers, collaborator controls, and access administration are secondary Settings surfaces unless the user explicitly needs them.
 
 Rules:
 
@@ -26,7 +28,7 @@ Create the premium BRIX operating environment that helps the user understand wha
 - Authenticated application shell
 - Global navigation
 - Dashboard
-- Workspace switcher
+- Personal account context and technical workspace switcher when multiple authorized workspaces exist
 - Deal switcher/recent Deals
 - Global search
 - Quick actions
@@ -34,7 +36,7 @@ Create the premium BRIX operating environment that helps the user understand wha
 - Background-job center
 - Offline/sync status
 - Help and RELearnIQ entry
-- Account/workspace menu
+- Settings menu for account, privacy, billing, and optional trusted access
 - Authorized admin entry
 - Deep links
 - Responsive and native layout behavior
@@ -192,7 +194,7 @@ Prior valid results remain available during reprocessing or failure.
 
 ## 13. Workspace and Deal Context
 
-- Active workspace is always visible or easily discoverable.
+- Active personal BRIX context is visible or easily discoverable; technical workspace naming is avoided unless needed to resolve multi-workspace access.
 - Workspace switching clears/re-scopes caches and in-flight requests.
 - Active Deal is visible in Deal workflows.
 - Deal navigation retains current Deal ID.

@@ -150,6 +150,8 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .compact-button { min-height: 36px; padding: 0 12px; border-radius: 10px; justify-self: start; }
 .auth-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .account-ready-actions { display: grid; gap: 16px; }
+.trusted-access-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; border: 1px solid rgba(59,130,246,.28); border-radius: 16px; background: linear-gradient(145deg, rgba(59,130,246,.1), rgba(32,211,194,.05)); padding: 16px; }
+.trusted-access-entry h3 { margin: 0; font-size: 18px; }
 .account-danger-zone { display: grid; gap: 12px; border: 1px solid rgba(241,92,92,.32); border-radius: 16px; background: rgba(127,29,29,.12); padding: 16px; }
 .account-danger-zone h3 { margin: 0; font-size: 18px; }
 .section-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
@@ -196,7 +198,7 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 
 @media (max-width: 640px) {
   .workspace, .rail { padding: 16px; }
-  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row { grid-template-columns: 1fr; }
+  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row, .trusted-access-entry { grid-template-columns: 1fr; }
   .topbar { display: grid; }
   .table-row { grid-template-columns: 1fr; }
   .landing { padding: 22px; }

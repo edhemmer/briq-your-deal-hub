@@ -2,7 +2,9 @@
 
 ## 1. Authority and Rules of Engagement
 
-This specification is governed by all files in `docs/00-START-HERE.md` through `docs/05-BUILD-ROADMAP.md`.
+This specification is governed by all files in `docs/00-START-HERE.md` through `docs/05-BUILD-ROADMAP.md` and is interpreted through `docs/12-INDIVIDUAL-INVESTOR-PRODUCT-REALIGNMENT.md`.
+
+Document 12 controls the product interpretation of this specification: workspace, membership, role, invitation, and revocation records remain required security and tenancy infrastructure, but the normal user experience is an individual investor's BRIX account with automatic personal workspace bootstrap. Trusted access is optional and secondary.
 
 Before implementation, Codex must inspect the existing Supabase Auth configuration, redirect URLs, RLS policies, profile and membership tables, Vercel environments, iOS bundle configuration, Keychain usage, deep links, and current account-deletion behavior.
 
@@ -23,7 +25,7 @@ Non-negotiable rules:
 
 ## 2. Mission
 
-Provide secure, understandable account and workspace access so users can create or join a BRIX workspace, maintain sessions across supported clients, collaborate under explicit roles, recover access, revoke access, and delete accounts without compromising canonical Deal data or security.
+Provide secure, understandable BRIX account access so individual investors can sign in, recover access, maintain sessions across supported clients, receive an automatic personal workspace, optionally share trusted access under explicit roles, revoke access, and delete accounts without compromising canonical Deal data or security.
 
 ## 3. Scope
 
@@ -37,13 +39,13 @@ Included:
 - Session refresh and restoration
 - Expired/revoked-session handling
 - Profile creation and update
-- Workspace creation and switching
-- Invitations
-- Membership lifecycle
-- Roles and permissions
+- Automatic personal workspace creation and safe technical workspace switching
+- Optional trusted-access invitations
+- Membership lifecycle for personal tenancy and optional trusted access
+- Roles and permissions as backend authorization contracts
 - Session revocation
 - Account deletion
-- Workspace ownership transfer or deletion
+- Workspace ownership transfer or deletion where required by account-deletion policy or explicit trusted-access administration
 - Native deep links and Keychain
 - Security and audit events
 - Reviewer/demo access support

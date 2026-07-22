@@ -44,7 +44,7 @@ const nav: Array<{ id: Module; label: string; icon: typeof Search; purpose: stri
   { id: "offer", label: "OfferIQ", icon: FilePenLine, purpose: "Plan pursuit and terms" },
   { id: "portfolio", label: "PortfolioIQ", icon: Building2, purpose: "Monitor owned assets" },
   { id: "reports", label: "Reports", icon: ShieldCheck, purpose: "Export decision memos" },
-  { id: "account", label: "Account", icon: UserCircle, purpose: "Profile, billing, privacy" },
+  { id: "account", label: "Settings", icon: UserCircle, purpose: "My account and trusted access" },
 ];
 
 export default function App() {
@@ -237,7 +237,7 @@ function BrixApp() {
         await acceptWorkspaceInvitation(pendingInvitationToken);
         setInvitationToken(null);
         clearInvitationFromUrl();
-        setInvitationMessage("Workspace invitation accepted.");
+        setInvitationMessage("Trusted access accepted.");
       }
       return ensureWorkspaceContext();
     })()
@@ -316,7 +316,7 @@ function BrixApp() {
       });
       setSelectedId(confirmedDeal.id);
       if (!effectiveUserId) setHasAnonymousDrafts(true);
-      setSyncMessage(effectiveUserId ? null : "Deal created on this device. Sign in from Account to keep it across devices.");
+      setSyncMessage(effectiveUserId ? null : "Deal created on this device. Sign in from Settings to keep it across devices.");
       setModule("deal");
       return true;
     } catch (error) {
@@ -338,7 +338,7 @@ function BrixApp() {
     if (!authUserId) {
       putDealInState(next);
       setHasAnonymousDrafts(true);
-      setSyncMessage("Deal updated on this device. Sign in from Account to keep it across devices.");
+      setSyncMessage("Deal updated on this device. Sign in from Settings to keep it across devices.");
       return;
     }
     setSyncMessage("Saving deal to BRIX cloud...");
@@ -412,8 +412,8 @@ function BrixApp() {
           </div>
           {isAuthenticated && (
             <div className={workspaceStatus === "failed" ? "workspace-pill danger" : "workspace-pill"}>
-              <span>{workspaceStatus === "ready" ? "Workspace" : "Preparing workspace"}</span>
-              <strong>{workspaceContext?.workspaceName ?? "BRIX Account"}</strong>
+              <span>{workspaceStatus === "ready" ? "My BRIX" : "Preparing account"}</span>
+              <strong>{workspaceContext?.workspaceName ?? "Personal account"}</strong>
             </div>
           )}
           <DealSwitcher deals={deals} selectedId={selectedDeal?.id} onSelect={setSelectedId} />
@@ -427,7 +427,7 @@ function BrixApp() {
         )}
         {syncMessage && (
           <div className={isAuthenticated ? "callout danger-callout" : "callout"} role={isAuthenticated ? "alert" : "status"} aria-live="polite">
-            <strong>{authLifecycle === "expired" ? "Sign in required" : isAuthenticated ? "Workspace needs attention" : "Account"}</strong>
+            <strong>{authLifecycle === "expired" ? "Sign in required" : isAuthenticated ? "Account needs attention" : "Account"}</strong>
             <span>{syncMessage}</span>
             {(workspaceStatus === "failed" || authLifecycle === "expired") && (
               <button className="secondary compact-button" onClick={retryWorkspaceBootstrap}>{authLifecycle === "expired" ? "Sign in" : "Retry setup"}</button>
@@ -888,8 +888,10 @@ function Account({
   const [accessError, setAccessError] = useState("");
   const [workingMembershipId, setWorkingMembershipId] = useState<string | null>(null);
   const [selectedRoleByMembership, setSelectedRoleByMembership] = useState<Record<string, string>>({});
+  const [showTrustedAccess, setShowTrustedAccess] = useState(false);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const authSubmitInFlightRef = useRef(false);
+  const canUseTrustedAccess = isAuthenticated && Boolean(workspaceContext?.workspaceId);
   const canInvite = isAuthenticated && Boolean(workspaceContext?.workspaceId) && (workspaceContext?.roleId === "owner" || workspaceContext?.roleId === "admin");
   const activeCollaborators = accessMembers.filter((member) => member.status === "active" && member.roleId !== "owner");
   const ownerMember = accessMembers.find((member) => member.roleId === "owner");
@@ -905,7 +907,7 @@ function Account({
   }, [recoveryActive]);
 
   useEffect(() => {
-    if (!canInvite || !workspaceContext?.workspaceId) {
+    if (!showTrustedAccess || !canInvite || !workspaceContext?.workspaceId) {
       setInvitations([]);
       return;
     }
@@ -915,12 +917,12 @@ function Account({
         if (isCurrent) setInvitations(items);
       })
       .catch(() => {
-        if (isCurrent) setInvitationError("BRIX could not load current invitations.");
+        if (isCurrent) setInvitationError("BRIX could not load current trusted invitations.");
       });
     return () => {
       isCurrent = false;
     };
-  }, [canInvite, workspaceContext?.workspaceId]);
+  }, [canInvite, showTrustedAccess, workspaceContext?.workspaceId]);
 
   const loadWorkspaceAccess = useCallback(async (shouldUpdate: () => boolean = () => true) => {
     if (!workspaceContext?.workspaceId) return;
@@ -945,13 +947,13 @@ function Account({
       setAccessError(safe.kind === "offline"
         ? safe.message
         : safe.kind === "session_expired"
-          ? "Your access changed. Sign in again to refresh your workspace."
-          : "BRIX could not load workspace access. Retry when your connection is stable.");
+          ? "Your access changed. Sign in again to refresh your account."
+          : "BRIX could not load trusted access. Retry when your connection is stable.");
     }
   }, [workspaceContext?.workspaceId]);
 
   useEffect(() => {
-    if (!isAuthenticated || !workspaceContext?.workspaceId) {
+    if (!showTrustedAccess || !isAuthenticated || !workspaceContext?.workspaceId) {
       setAccessRoles([]);
       setAccessMembers([]);
       setSelectedRoleByMembership({});
@@ -963,7 +965,11 @@ function Account({
     return () => {
       isCurrent = false;
     };
-  }, [isAuthenticated, loadWorkspaceAccess, workspaceContext?.workspaceId]);
+  }, [isAuthenticated, loadWorkspaceAccess, showTrustedAccess, workspaceContext?.workspaceId]);
+
+  useEffect(() => {
+    if (!canUseTrustedAccess) setShowTrustedAccess(false);
+  }, [canUseTrustedAccess]);
 
   function resetFeedback() {
     setMessage(null);
@@ -998,7 +1004,7 @@ function Account({
       const invitation = await createWorkspaceInvitation(workspaceContext.workspaceId, inviteEmail, inviteRoleId);
       setInvitationResult(invitation);
       if (invitation.status === "already_member") {
-        setInvitationError("That email already has access to this workspace.");
+        setInvitationError("That email already has access to this BRIX account.");
       } else {
         setInviteEmail("");
         const current = await listWorkspaceInvitations(workspaceContext.workspaceId);
@@ -1075,14 +1081,14 @@ function Account({
   async function removeAccess(member: WorkspaceAccessMember) {
     if (workingMembershipId) return;
     const memberLabel = member.fullName || member.email || "this collaborator";
-    const confirmed = window.confirm(`Remove workspace access for ${memberLabel}? They will no longer be able to view this BRIX workspace.`);
+    const confirmed = window.confirm(`Remove BRIX access for ${memberLabel}? They will no longer be able to view this account.`);
     if (!confirmed) return;
     setWorkingMembershipId(member.membershipId);
     setAccessError("");
     setAccessMessage("");
     try {
       await revokeWorkspaceMemberAccess(member.membershipId, member.updatedAt);
-      setAccessMessage("Workspace access removed.");
+      setAccessMessage("Trusted access removed.");
       await loadWorkspaceAccess();
     } catch (error) {
       setAccessError(workspaceAccessError(error));
@@ -1167,7 +1173,7 @@ function Account({
         await recordPasswordSecurityEvent();
         setPassword("");
         setPasswordConfirm("");
-        setMessage({ tone: "success", text: "Password updated. Your BRIX workspace is ready." });
+        setMessage({ tone: "success", text: "Password updated. Your BRIX account is ready." });
         onRecoveryCompleted?.();
         if (data.user?.id) onAuthChanged(data.user.id);
       }
@@ -1272,7 +1278,7 @@ function Account({
         const safe = safeAuthError(error);
         setMessage({ tone: "error", text: safe.message });
       } else if (userId) {
-        setMessage({ tone: "success", text: mode === "sign_in" ? "Signed in. Preparing your workspace." : "Account created. Preparing your workspace." });
+        setMessage({ tone: "success", text: mode === "sign_in" ? "Signed in. Preparing your account." : "Account created. Preparing your account." });
         onAuthChanged(userId);
       } else {
         setMessage({ tone: "info", text: "Check your email to finish account activation, then sign in." });
@@ -1325,7 +1331,7 @@ function Account({
       <div className="auth-card">
         <div className="auth-copy">
           <p className="eyebrow">Secure BRIX access</p>
-          <h2 id="auth-title">{mode === "change_password" ? "Change password" : isAuthenticated && mode !== "reset_complete" ? "Account ready" : mode === "sign_up" ? "Create your BRIX account" : mode === "reset_request" ? "Reset your password" : mode === "reset_complete" ? "Set a new password" : "Sign in to BRIX"}</h2>
+          <h2 id="auth-title">{mode === "change_password" ? "Change password" : isAuthenticated && mode !== "reset_complete" ? "My Account" : mode === "sign_up" ? "Create your BRIX account" : mode === "reset_request" ? "Reset your password" : mode === "reset_complete" ? "Set a new password" : "Sign in to BRIX"}</h2>
           <p className="quiet">
             {mode === "change_password"
               ? "Confirm your current password, then choose a new one."
@@ -1334,15 +1340,15 @@ function Account({
               : mode === "reset_complete"
                 ? "Choose a new password for your BRIX account."
                 : isAuthenticated
-              ? `You are signed in${workspaceContext?.workspaceName ? ` to ${workspaceContext.workspaceName}` : ""}.`
-              : "Use one secure account to keep your workspace, deal files, evidence, and decisions separated from local device drafts."}
+              ? "You are signed in. Your deal files, evidence, and decisions stay tied to your BRIX account."
+              : "Use one secure account to keep your deal files, evidence, and decisions separated from local device drafts."}
           </p>
         </div>
 
         {invitationToken && !isAuthenticated && (
           <div className="auth-message info" role="status">
             <CheckCircle2 size={18} />
-            <span>Sign in or create an account with the invited email address to join the workspace.</span>
+            <span>Sign in or create an account with the invited email address to accept trusted access.</span>
           </div>
         )}
 
@@ -1431,11 +1437,23 @@ function Account({
               <button className="secondary" onClick={() => changeMode("change_password")} disabled={isWorking}>Change password</button>
               <button className="secondary" onClick={signOut} disabled={isWorking}><LogOut size={16} /> {isWorking ? "Signing out" : "Sign out"}</button>
             </div>
+            {canUseTrustedAccess && (
+              <section className="trusted-access-entry" aria-labelledby="trusted-access-entry-title">
+                <div>
+                  <p className="eyebrow">Optional sharing</p>
+                  <h3 id="trusted-access-entry-title">Trusted Access</h3>
+                  <p className="quiet">Share BRIX only when a spouse, partner, advisor, or assistant needs access to your deal work.</p>
+                </div>
+                <button className="secondary" type="button" onClick={() => setShowTrustedAccess((current) => !current)}>
+                  {showTrustedAccess ? "Hide Trusted Access" : "Open Trusted Access"}
+                </button>
+              </section>
+            )}
             <section className="account-danger-zone" aria-labelledby="account-deletion-title">
               <div>
                 <p className="eyebrow">Account deletion</p>
                 <h3 id="account-deletion-title">Delete account request</h3>
-                <p className="quiet">Request deletion of your BRIX account and personal account data. Workspace business records may be retained when required for ownership, audit, or legal obligations.</p>
+                <p className="quiet">Request deletion of your BRIX account and personal account data. Deal, audit, or legal records may be retained only where required.</p>
               </div>
               <button className="secondary danger-button" type="button" onClick={submitAccountDeletionRequest} disabled={isDeletionWorking}>
                 <Trash2 size={16} /> {isDeletionWorking ? "Recording request" : "Request account deletion"}
@@ -1446,20 +1464,20 @@ function Account({
           </div>
         )}
 
-        {isAuthenticated && workspaceContext?.workspaceId && (
-          <section className="access-panel" aria-labelledby="workspace-access-title">
+        {showTrustedAccess && isAuthenticated && workspaceContext?.workspaceId && (
+          <section className="access-panel" aria-labelledby="trusted-access-title">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Workspace access</p>
-                <h3 id="workspace-access-title">People with access</h3>
-                <p className="quiet">Give trusted collaborators only the access level they need.</p>
+                <p className="eyebrow">Trusted access</p>
+                <h3 id="trusted-access-title">People with access</h3>
+                <p className="quiet">Give trusted people only the access level they need.</p>
               </div>
               <button className="secondary compact-button" type="button" onClick={() => loadWorkspaceAccess()} disabled={accessStatus === "loading" || Boolean(workingMembershipId)}>
                 {accessStatus === "loading" ? "Loading" : "Retry"}
               </button>
             </div>
 
-            {accessStatus === "loading" && <p className="quiet" role="status">Loading workspace access.</p>}
+            {accessStatus === "loading" && <p className="quiet" role="status">Loading trusted access.</p>}
             {accessStatus === "offline" && <p className="error">{accessError}</p>}
             {accessStatus === "permission_denied" && <p className="error">{accessError}</p>}
             {accessStatus === "failed" && <p className="error">{accessError}</p>}
@@ -1470,7 +1488,7 @@ function Account({
               <article className="access-owner-card">
                 <ShieldCheck size={18} />
                 <div>
-                  <strong>{ownerMember.fullName || ownerMember.email || "Workspace owner"}</strong>
+                  <strong>{ownerMember.fullName || ownerMember.email || "Account owner"}</strong>
                   <span>Owner access cannot be removed or changed here.</span>
                 </div>
               </article>
@@ -1480,7 +1498,7 @@ function Account({
               <div className="empty-mini">
                 <Users size={22} />
                 <strong>No collaborators yet</strong>
-                <span>Invite a trusted partner, advisor, or assistant when you are ready to share this workspace.</span>
+                <span>Invite a trusted partner, advisor, or assistant when you are ready to share BRIX.</span>
               </div>
             )}
 
@@ -1537,7 +1555,7 @@ function Account({
             )}
 
             {!canInvite && accessStatus === "ready" && (
-              <p className="quiet">Only the owner or an administrator can change workspace access.</p>
+              <p className="quiet">Only the account owner or an administrator can change trusted access.</p>
             )}
 
             {pendingInvitations.length > 0 && (
@@ -1549,12 +1567,12 @@ function Account({
           </section>
         )}
 
-        {canInvite && (
-          <section className="invitation-panel" aria-labelledby="workspace-invitations-title">
+        {showTrustedAccess && canInvite && (
+          <section className="invitation-panel" aria-labelledby="trusted-invitations-title">
             <div>
-              <p className="eyebrow">Workspace invitations</p>
-              <h3 id="workspace-invitations-title">Invite a collaborator</h3>
-              <p className="quiet">Send an expiring invitation to someone you trust with this workspace.</p>
+              <p className="eyebrow">Trusted invitation</p>
+              <h3 id="trusted-invitations-title">Share access</h3>
+              <p className="quiet">Send an expiring invitation to someone you trust with your BRIX deal work.</p>
             </div>
             <form className="invitation-form" onSubmit={submitInvitation}>
               <label className="field" htmlFor="invite-email">
@@ -1568,7 +1586,7 @@ function Account({
                   {accessRoles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
                 </select>
               </label>
-              <button className="primary" type="submit" disabled={isInvitationWorking || accessRoles.length === 0}>{isInvitationWorking ? "Working" : "Create invitation"}</button>
+              <button className="primary" type="submit" disabled={isInvitationWorking || accessRoles.length === 0}>{isInvitationWorking ? "Working" : "Send invite"}</button>
             </form>
             {invitationError && <p className="error">{invitationError}</p>}
             {invitationStatus && <p className="success">{invitationStatus}</p>}
@@ -1618,12 +1636,12 @@ function workspaceAccessError(error: unknown) {
   const safe = safeAuthError(error);
   const raw = error instanceof Error ? error.message.toLowerCase() : typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string" ? (error as { message: string }).message.toLowerCase() : "";
   if (safe.kind === "offline") return safe.message;
-  if (raw.includes("refresh") || raw.includes("changed")) return "Workspace access changed. Refresh and try again.";
-  if (raw.includes("permission") || raw.includes("access") || raw.includes("42501")) return "You do not have permission to change workspace access.";
-  if (raw.includes("owner")) return "The workspace owner cannot be changed or removed here.";
-  if (raw.includes("role") || raw.includes("access level")) return "That access level is not available for this workspace.";
-  if (raw.includes("active")) return "Only active workspace access can be changed.";
-  return "BRIX could not update workspace access. Retry when your connection is stable.";
+  if (raw.includes("refresh") || raw.includes("changed")) return "Trusted access changed. Refresh and try again.";
+  if (raw.includes("permission") || raw.includes("access") || raw.includes("42501")) return "You do not have permission to change trusted access.";
+  if (raw.includes("owner")) return "The account owner cannot be changed or removed here.";
+  if (raw.includes("role") || raw.includes("access level")) return "That access level is not available for this account.";
+  if (raw.includes("active")) return "Only active trusted access can be changed.";
+  return "BRIX could not update trusted access. Retry when your connection is stable.";
 }
 
 function DealSwitcher({ deals, selectedId, onSelect }: { deals: DealFacts[]; selectedId?: string; onSelect: (id: string) => void }) {
