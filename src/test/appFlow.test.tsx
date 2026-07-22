@@ -465,12 +465,28 @@ describe("BRIX app module flow", () => {
     expect(within(primaryNav).queryByRole("button", { name: /PortfolioIQ/i })).not.toBeInTheDocument();
     expect(within(primaryNav).queryByRole("button", { name: /Reports/i })).not.toBeInTheDocument();
     expect(screen.getByText("No saved Deals yet")).toBeInTheDocument();
-    expect(screen.getByText(/will not display fabricated deal counts/i)).toBeInTheDocument();
+    expect(screen.getByText(/only shows records that exist/i)).toBeInTheDocument();
     expect(screen.getByText("Loading")).toBeInTheDocument();
     expect(screen.getByText("Recoverable")).toBeInTheDocument();
 
     await waitFor(() => expect(screen.queryByText(/Sync needs attention/i)).not.toBeInTheDocument());
   }, 60000);
+
+  it("redirects unfinished legacy module routes to safe shell destinations", async () => {
+    window.history.replaceState({}, "", "/findiq");
+    const first = render(<App />);
+
+    await screen.findByRole("heading", { name: "Home" });
+    await waitFor(() => expect(window.location.pathname).toBe("/app"));
+    first.unmount();
+
+    window.history.replaceState({}, "", "/contractiq");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Home" });
+    await waitFor(() => expect(window.location.pathname).toBe("/app"));
+    expect(screen.queryByRole("button", { name: /ContractIQ/i })).not.toBeInTheDocument();
+  });
 
   it("handles account sign-in, password reset entry, and sign-out", async () => {
     mocks.session.value = null;

@@ -100,6 +100,13 @@ function BrixApp() {
   const isAuthenticated = Boolean(authUserId);
   const selectedDeal = deals.find((deal) => deal.id === selectedId) ?? deals[0];
 
+  useEffect(() => {
+    const safePath = pathForModule(moduleFromPath());
+    if (window.location.pathname !== safePath) {
+      window.history.replaceState({}, "", `${safePath}${window.location.search}${window.location.hash}`);
+    }
+  }, []);
+
   function setModule(next: Module) {
     setModuleState(next);
     setNavOpen(false);
@@ -572,7 +579,7 @@ function HomeSurface({
       ) : (
         <EmptyState
           title="No saved Deals yet"
-          text="When canonical Deal creation is available, new property work will appear here. This shell will not display fabricated deal counts, alerts, or market stats."
+          text="Saved Deal work appears here after a Deal is created or imported. The shell only shows records that exist in your account or on this device."
           actionLabel={isAuthenticated ? "Review account settings" : "Sign in"}
           onAction={onOpenSettings}
         />
@@ -584,7 +591,7 @@ function HomeSurface({
         <StatePrimitive title="Offline" text="Connection loss is visible before cloud actions." />
         <StatePrimitive title="Recoverable" text="Retry actions are shown when setup can be retried." />
         <StatePrimitive title="Permission" text="Access changes fail closed and clear protected state." />
-        <StatePrimitive title="Stale" text="Stale or partial data must be labeled before release use." />
+        <StatePrimitive title="Stale" text="Stale or partial data must be labeled before decisions rely on it." />
       </section>
     </section>
   );
