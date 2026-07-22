@@ -346,6 +346,37 @@ function installDefaultRpcMock() {
   });
 }
 
+function installDefaultSupabaseMocks() {
+  installDefaultRpcMock();
+  mocks.upsert.mockImplementation((row: Record<string, unknown>) => ({
+    select: vi.fn(() => ({
+      single: vi.fn(async () => ({ data: { ...row, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }, error: null })),
+    })),
+  }));
+  mocks.update.mockImplementation(() => ({
+    eq: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(async () => ({ data: { id: "deleted-id" }, error: null })),
+        })),
+      })),
+    })),
+  }));
+  mocks.signInWithPassword.mockImplementation(async () => ({ data: { session: mocks.session.value }, error: null }));
+  mocks.signUp.mockImplementation(async () => ({ data: { session: mocks.session.value }, error: null }));
+  mocks.resetPasswordForEmail.mockImplementation(async () => ({ data: {}, error: null }));
+  mocks.updateUser.mockImplementation(async () => ({ data: { user: mocks.user.value }, error: null }));
+  mocks.signOut.mockImplementation(async () => ({ error: null }));
+  mocks.getSession.mockImplementation(async () => ({ data: { session: mocks.session.value } }));
+  mocks.insert.mockImplementation(async () => ({ data: null, error: null }));
+  mocks.invokeFunction.mockImplementation(async (_name: string, _options?: { body?: unknown }) => ({
+    data: { ok: true, requestId: "delete-request-1", status: "requested", requestedAt: "2026-01-04T00:00:00.000Z" },
+    error: null,
+  }));
+  mocks.downloadDecisionPdf.mockImplementation(async () => undefined);
+  mocks.downloadWorkbook.mockImplementation(async () => undefined);
+}
+
 function draftDeal(id: string, address: string): DealFacts {
   return {
     id,
@@ -400,61 +431,43 @@ describe("BRIX app module flow", () => {
     mocks.authChangeCallback.value = null;
     mocks.queriedOwnerIds.value = [];
     vi.clearAllMocks();
-    installDefaultRpcMock();
+    mocks.rpc.mockReset();
+    mocks.upsert.mockReset();
+    mocks.update.mockReset();
+    mocks.signInWithPassword.mockReset();
+    mocks.signUp.mockReset();
+    mocks.resetPasswordForEmail.mockReset();
+    mocks.updateUser.mockReset();
+    mocks.signOut.mockReset();
+    mocks.getSession.mockReset();
+    mocks.insert.mockReset();
+    mocks.invokeFunction.mockReset();
+    mocks.downloadDecisionPdf.mockReset();
+    mocks.downloadWorkbook.mockReset();
+    installDefaultSupabaseMocks();
     vi.spyOn(window, "confirm").mockReturnValue(true);
-    mocks.getSession.mockImplementation(async () => ({ data: { session: mocks.session.value } }));
     Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
   });
 
-  it("creates a deal in FindIQ and opens every connected module without a dead end", async () => {
+  it("renders the verified shell with only safe primary destinations", async () => {
     render(<App />);
 
-    await screen.findByRole("heading", { name: "FindIQ" });
+    await screen.findByRole("heading", { name: "Home" });
     expect(window.location.pathname).toBe("/app");
-    fireEvent.change(screen.getByLabelText("Address, listing URL, or listing text"), {
-      target: { value: "https://example.com/homedetails/1615-Augusta-Ln-Shorewood-IL-60404/63210803_zpid/ $399000 4 bed 2 bath Taxes $9000 HOA $250" },
-    });
-    fireEvent.change(screen.getByLabelText("Primary strategy"), { target: { value: "owner_occupant" } });
-    fireEvent.click(screen.getByRole("button", { name: /create deal file/i }));
-
-    expect((await screen.findAllByText(/1615 Augusta Ln/i)).length).toBeGreaterThan(0);
-    expect(window.location.pathname).toBe("/dealiq");
-    expect(mocks.upsert).toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole("button", { name: /Buy & Hold/i }));
-    await waitFor(() => expect(mocks.upsert).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText(/Buy & Hold:/i)).toBeInTheDocument();
-    expect(screen.getByText(/Top fit/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /ContractIQ/i }));
-    expect(window.location.pathname).toBe("/contractiq");
-    expect(await screen.findByRole("heading", { name: /1615 Augusta Ln/i })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Paste contract text or key clauses"), {
-      target: { value: "As-is purchase with inspection, financing, HOA, appraisal, earnest money, and tax proration." },
-    });
-    expect(await screen.findByText(/As-is condition/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /OfferIQ/i }));
-    expect(window.location.pathname).toBe("/offeriq");
-    expect(await screen.findByText(/Conservative:/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /PipelineIQ/i }));
-    expect(window.location.pathname).toBe("/pipelineiq");
-    expect(await screen.findByText("New")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /Reports/i }));
-    expect(window.location.pathname).toBe("/reports");
-    await screen.findByText("Recommendation");
-    expect(screen.getAllByText(/What must be true/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Decision memo/i).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: /Download PDF/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Download XLS/i }));
-    expect(downloadDecisionPdf).toHaveBeenCalled();
-    expect(downloadWorkbook).toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole("button", { name: /PortfolioIQ/i }));
-    expect(window.location.pathname).toBe("/portfolioiq");
-    expect(await screen.findByText(/No portfolio assets yet/i)).toBeInTheDocument();
+    const primaryNav = screen.getByRole("navigation", { name: "Primary" });
+    expect(within(primaryNav).getByRole("button", { name: /Home Resume your BRIX account/i })).toBeInTheDocument();
+    expect(within(primaryNav).getByRole("button", { name: /Deals Review saved deal work/i })).toBeInTheDocument();
+    expect(within(primaryNav).getByRole("button", { name: /Settings Account and access/i })).toBeInTheDocument();
+    expect(within(primaryNav).queryByRole("button", { name: /FindIQ/i })).not.toBeInTheDocument();
+    expect(within(primaryNav).queryByRole("button", { name: /ContractIQ/i })).not.toBeInTheDocument();
+    expect(within(primaryNav).queryByRole("button", { name: /PipelineIQ/i })).not.toBeInTheDocument();
+    expect(within(primaryNav).queryByRole("button", { name: /OfferIQ/i })).not.toBeInTheDocument();
+    expect(within(primaryNav).queryByRole("button", { name: /PortfolioIQ/i })).not.toBeInTheDocument();
+    expect(within(primaryNav).queryByRole("button", { name: /Reports/i })).not.toBeInTheDocument();
+    expect(screen.getByText("No saved Deals yet")).toBeInTheDocument();
+    expect(screen.getByText(/will not display fabricated deal counts/i)).toBeInTheDocument();
+    expect(screen.getByText("Loading")).toBeInTheDocument();
+    expect(screen.getByText("Recoverable")).toBeInTheDocument();
 
     await waitFor(() => expect(screen.queryByText(/Sync needs attention/i)).not.toBeInTheDocument());
   }, 60000);
@@ -472,16 +485,16 @@ describe("BRIX app module flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign in to BRIX" }));
 
     await waitFor(() => expect(mocks.signInWithPassword).toHaveBeenCalledWith({ email: "edhemmer@gmail.com", password: "inlight" }));
-    expect(window.location.pathname).toBe("/findiq");
+    expect(window.location.pathname).toBe("/app");
 
-    fireEvent.click(screen.getByRole("button", { name: /Settings My account and trusted access/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Settings Account and access/i }));
     await screen.findByRole("heading", { name: "My Account" });
     fireEvent.click(screen.getByRole("button", { name: /Request account deletion/i }));
     await waitFor(() => expect(mocks.invokeFunction).toHaveBeenCalledWith("request-account-deletion", { body: {} }));
     expect(await screen.findByText(/Account deletion request requested/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Sign out/i }));
     await waitFor(() => expect(mocks.signOut).toHaveBeenCalled());
-    expect(await screen.findByRole("heading", { name: "FindIQ" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Home" })).toBeInTheDocument();
   });
 
   it("requests a password reset with a safe response and recovery redirect", async () => {
@@ -530,8 +543,8 @@ describe("BRIX app module flow", () => {
     await waitFor(() => expect(mocks.updateUser).toHaveBeenCalledWith({ password: "newpassword1" }));
     expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ action: "account.password_updated" }));
     expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ event_type: "account.password_updated" }));
-    expect(await screen.findByRole("heading", { name: "FindIQ" })).toBeInTheDocument();
-    expect(window.location.pathname).toBe("/findiq");
+    expect(await screen.findByRole("heading", { name: "Home" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/app");
   });
 
   it("changes password for a signed-in user after current password reauthentication", async () => {
@@ -792,7 +805,8 @@ describe("BRIX app module flow", () => {
     window.history.replaceState({}, "", "/account?invite=expired-token");
     render(<App />);
 
-    expect(await screen.findByText(/Your session has expired. Sign in again to continue./i)).toBeInTheDocument();
+    expect(await screen.findByText("Sign in required")).toBeInTheDocument();
+    expect(screen.getByText(/Your session has expired. Sign in again to continue./i)).toBeInTheDocument();
     expect(screen.queryByText("Trusted access accepted.")).not.toBeInTheDocument();
     expect(mocks.queriedOwnerIds.value).toEqual([]);
   });
@@ -830,22 +844,13 @@ describe("BRIX app module flow", () => {
     expect(deal?.photoUrls).toEqual([]);
   });
 
-  it("does not open DealIQ when cloud deal creation is rejected", async () => {
-    mocks.upsert.mockReturnValueOnce({
-      select: vi.fn(() => ({
-        single: vi.fn(async () => ({ data: null, error: new Error("free deal limit reached") })),
-      })),
-    });
+  it("does not expose hidden deal-creation controls from the first shell", async () => {
     render(<App />);
 
-    await screen.findByRole("heading", { name: "FindIQ" });
-    fireEvent.change(screen.getByLabelText("Address, listing URL, or listing text"), {
-      target: { value: "10 Failed Save St, Test, IL 60000 $250000 3 bed 2 bath" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /create deal file/i }));
-
-    await screen.findByText(/BRIX could not save this deal/i);
-    expect(window.location.pathname).toBe("/findiq");
+    await screen.findByRole("heading", { name: "Home" });
+    expect(screen.queryByLabelText("Address, listing URL, or listing text")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /create deal file/i })).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe("/app");
     expect(screen.queryByRole("heading", { name: /Visit|Research first|Do not visit yet/i })).not.toBeInTheDocument();
   });
 
@@ -854,24 +859,17 @@ describe("BRIX app module flow", () => {
     mocks.user.value = null;
     render(<App />);
 
-    await screen.findByRole("heading", { name: "FindIQ" });
+    await screen.findByRole("heading", { name: "Home" });
     expect(window.location.pathname).toBe("/app");
   });
 
-  it("creates a device-local deal when signed out and sends the user into DealIQ", async () => {
+  it("keeps signed-out shell local without writing cloud deal records", async () => {
     mocks.session.value = null;
     mocks.user.value = null;
     render(<App />);
 
-    await screen.findByRole("heading", { name: "FindIQ" });
-    fireEvent.change(screen.getByLabelText("Address, listing URL, or listing text"), {
-      target: { value: "20 Local Save St, Test, IL 60000 $250000 3 bed 2 bath" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /create deal file/i }));
-
-    expect((await screen.findAllByText(/20 Local Save St/i)).length).toBeGreaterThan(0);
-    expect(window.location.pathname).toBe("/dealiq");
-    expect(await screen.findByText(/Sign in from Settings/i)).toBeInTheDocument();
+    await screen.findByRole("heading", { name: "Home" });
+    expect(screen.getByText(/Local drafts stay on this device/i)).toBeInTheDocument();
     expect(mocks.upsert).not.toHaveBeenCalled();
   });
 
@@ -938,17 +936,12 @@ describe("BRIX app module flow", () => {
     expect(mocks.upsert).not.toHaveBeenCalledWith(expect.objectContaining({ id: "anon-preserved" }));
   });
 
-  it("mocked: does not write authenticated cloud deals to the shared anonymous browser key", async () => {
+  it("mocked: authenticated shell does not write cloud deals to the shared anonymous browser key", async () => {
+    mocks.remoteDeals.value = [remoteDealRow("cloud-only-shell", "user-1", "Cloud Only Shell Deal")];
     render(<App />);
 
-    await screen.findByRole("heading", { name: "FindIQ" });
-    fireEvent.change(screen.getByLabelText("Address, listing URL, or listing text"), {
-      target: { value: "30 Cloud Only St, Test, IL 60000 $300000 3 bed 2 bath" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /create deal file/i }));
-
-    expect((await screen.findAllByText(/30 Cloud Only St/i)).length).toBeGreaterThan(0);
-    expect(mocks.upsert).toHaveBeenCalled();
+    expect(await screen.findByText("Cloud Only Shell Deal")).toBeInTheDocument();
+    expect(mocks.upsert).not.toHaveBeenCalled();
     expect(localStorage.getItem("brix.deals")).toBeNull();
   });
 
@@ -992,7 +985,7 @@ describe("BRIX app module flow", () => {
     mocks.user.value = null;
     render(<App />);
 
-    expect(await screen.findByRole("heading", { name: "FindIQ" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Home" })).toBeInTheDocument();
     expect(loadAnonymousDeals()).toEqual([]);
   });
 
@@ -1014,7 +1007,7 @@ describe("BRIX app module flow", () => {
     render(<App />);
 
     expect(await screen.findByText("Delete This Deal")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /DealIQ/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
     fireEvent.click(screen.getByRole("button", { name: /Delete deal/i }));
 
     await waitFor(() => expect(screen.queryByText("Delete This Deal")).not.toBeInTheDocument());
@@ -1037,7 +1030,7 @@ describe("BRIX app module flow", () => {
     render(<App />);
 
     expect(await screen.findByText("Still Visible Deal")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /DealIQ/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
     fireEvent.click(screen.getByRole("button", { name: /Delete deal/i }));
 
     expect(await screen.findByText(/Deal was not deleted: delete failed/i)).toBeInTheDocument();
@@ -1055,35 +1048,21 @@ describe("BRIX app module flow", () => {
     expect(records.map((deal) => deal.address)).toEqual(["Active Cloud Deal"]);
   });
 
-  it("create, reopen, edit, save, and reopen again keeps the canonical anonymous record", async () => {
+  it("reopens an existing anonymous record from local storage without cloud writes", async () => {
     mocks.session.value = null;
     mocks.user.value = null;
+    localStorage.setItem("brix.deals", JSON.stringify([{ ...draftDeal("roundtrip-existing", "44 Round Trip Ave"), listPrice: 250000 }]));
     const first = render(<App />);
 
-    await screen.findByRole("heading", { name: "FindIQ" });
-    fireEvent.change(screen.getByLabelText("Address, listing URL, or listing text"), {
-      target: { value: "44 Round Trip Ave, Test, IL 60000 $250000 3 bed 2 bath" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /create deal file/i }));
-
     expect((await screen.findAllByText(/44 Round Trip Ave/i)).length).toBeGreaterThan(0);
-    const created = loadAnonymousDeals()[0];
-    fireEvent.change(screen.getByLabelText("Purchase price"), { target: { value: "275000" } });
-
-    await waitFor(() => {
-      expect(loadAnonymousDeals()[0].listPrice).toBe(275000);
-      expect(loadAnonymousDeals()[0].updatedAt).not.toBe(created.updatedAt);
-    });
-    const edited = loadAnonymousDeals()[0];
-    expect(edited.id).toBe(created.id);
-    expect(edited.createdAt).toBe(created.createdAt);
+    expect(mocks.upsert).not.toHaveBeenCalled();
 
     first.unmount();
     render(<App />);
 
     expect((await screen.findAllByText(/44 Round Trip Ave/i)).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: /DealIQ/i }));
-    expect((screen.getByLabelText("Purchase price") as HTMLInputElement).value).toBe("275000");
+    fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
+    expect((screen.getByLabelText("Purchase price") as HTMLInputElement).value).toBe("250000");
   });
 
   it("mocked: sign out clears authenticated deals and can show preserved anonymous records only", async () => {
@@ -1092,8 +1071,10 @@ describe("BRIX app module flow", () => {
     window.history.replaceState({}, "", "/account");
     render(<App />);
 
-    await screen.findByText("User One Deal");
-    fireEvent.click(screen.getByRole("button", { name: /Settings My account and trusted access/i }));
+    await screen.findByRole("heading", { name: "My Account" });
+    fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
+    expect((await screen.findAllByText("User One Deal")).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /Settings Account and access/i }));
     fireEvent.click(screen.getByRole("button", { name: /Sign out/i }));
     await waitFor(() => expect(screen.queryByText("User One Deal")).not.toBeInTheDocument());
     expect(await screen.findByText("Anonymous Draft")).toBeInTheDocument();
@@ -1162,7 +1143,7 @@ describe("BRIX app module flow", () => {
     }));
     expect(await screen.findByText("New User Cloud Deal")).toBeInTheDocument();
     expect(mocks.rpc).toHaveBeenCalledWith("ensure_workspace_context");
-    expect(window.location.pathname).toBe("/findiq");
+    expect(window.location.pathname).toBe("/app");
   });
 
   it("validates sign-up inputs before calling Supabase", async () => {
@@ -1203,7 +1184,7 @@ describe("BRIX app module flow", () => {
 
     expect(mocks.signInWithPassword).toHaveBeenCalledTimes(1);
     resolveSignIn({ data: { session: { user: { id: "user-1" } } }, error: null });
-    expect(await screen.findByRole("heading", { name: "FindIQ" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Home" })).toBeInTheDocument();
   });
 
   it("shows safe authentication errors for invalid credentials, rate limits, and offline attempts", async () => {
@@ -1241,7 +1222,7 @@ describe("BRIX app module flow", () => {
 
     expect(await screen.findByText("Restoring session")).toBeInTheDocument();
     resolveSession({ data: { session: null } });
-    expect(await screen.findByRole("heading", { name: "FindIQ" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Home" })).toBeInTheDocument();
   });
 
   it("allows retry after workspace bootstrap fails without loading cloud deals first", async () => {
@@ -1266,7 +1247,8 @@ describe("BRIX app module flow", () => {
     mocks.remoteDeals.value = [remoteDealRow("expired-cloud", "user-1", "Expired Cloud Deal")];
     render(<App />);
 
-    expect(await screen.findByText(/Your session has expired. Sign in again to continue./i)).toBeInTheDocument();
+    expect(await screen.findByText("Sign in required")).toBeInTheDocument();
+    expect(screen.getByText(/Your session has expired. Sign in again to continue./i)).toBeInTheDocument();
     expect(screen.queryByText("Expired Cloud Deal")).not.toBeInTheDocument();
     expect(await screen.findByText("Anonymous After Expire")).toBeInTheDocument();
     expect(mocks.queriedOwnerIds.value).toEqual([]);
@@ -1278,7 +1260,8 @@ describe("BRIX app module flow", () => {
     mocks.remoteDeals.value = [remoteDealRow("deleted-user-cloud", "user-1", "Deleted User Cloud Deal")];
     render(<App />);
 
-    expect(await screen.findByText(/Your session has expired. Sign in again to continue./i)).toBeInTheDocument();
+    expect(await screen.findByText("Sign in required")).toBeInTheDocument();
+    expect(screen.getByText(/Your session has expired. Sign in again to continue./i)).toBeInTheDocument();
     expect(mocks.signOut).toHaveBeenCalled();
     expect(screen.queryByText("Deleted User Cloud Deal")).not.toBeInTheDocument();
     expect(await screen.findByText("Anonymous After Deleted User")).toBeInTheDocument();
@@ -1309,7 +1292,7 @@ describe("BRIX app module flow", () => {
   it("mocked: remote loading is scoped to the current authenticated user", async () => {
     render(<App />);
 
-    await screen.findByRole("heading", { name: "FindIQ" });
+    await screen.findByRole("heading", { name: "Home" });
     await waitFor(() => expect(mocks.queriedOwnerIds.value).toContain("user-1"));
   });
 

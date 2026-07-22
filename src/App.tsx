@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent } from "react";
-import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch, Eye, EyeOff, AlertTriangle, CheckCircle2, Users, UserMinus } from "lucide-react";
+import type { FormEvent, ReactNode } from "react";
+import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch, Eye, EyeOff, AlertTriangle, CheckCircle2, Users, UserMinus, Home, Menu, X, WifiOff, RefreshCw } from "lucide-react";
 import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
 import { createDealFromInput, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
@@ -34,17 +34,12 @@ import {
   type WorkspaceAccessRole,
 } from "./core/workspaceAccess";
 
-type Module = "find" | "deal" | "contract" | "pipeline" | "offer" | "portfolio" | "reports" | "account";
+type Module = "home" | "deal" | "account";
 
 const nav: Array<{ id: Module; label: string; icon: typeof Search; purpose: string }> = [
-  { id: "find", label: "FindIQ", icon: Search, purpose: "Start or import a property" },
-  { id: "deal", label: "DealIQ", icon: BarChart3, purpose: "Underwrite and compare strategies" },
-  { id: "contract", label: "ContractIQ", icon: FileSearch, purpose: "Review contract risk" },
-  { id: "pipeline", label: "PipelineIQ", icon: KanbanSquare, purpose: "Track active opportunities" },
-  { id: "offer", label: "OfferIQ", icon: FilePenLine, purpose: "Plan pursuit and terms" },
-  { id: "portfolio", label: "PortfolioIQ", icon: Building2, purpose: "Monitor owned assets" },
-  { id: "reports", label: "Reports", icon: ShieldCheck, purpose: "Export decision memos" },
-  { id: "account", label: "Settings", icon: UserCircle, purpose: "My account and trusted access" },
+  { id: "home", label: "Home", icon: Home, purpose: "Resume your BRIX account" },
+  { id: "deal", label: "Deals", icon: BarChart3, purpose: "Review saved deal work" },
+  { id: "account", label: "Settings", icon: UserCircle, purpose: "Account and access" },
 ];
 
 export default function App() {
@@ -57,28 +52,27 @@ export default function App() {
 function moduleFromPath(): Module {
   const raw = window.location.pathname.replace(/^\/+/, "").split("/")[0];
   const aliases: Record<string, Module> = {
-    app: "find",
-    findiq: "find",
+    app: "home",
+    dashboard: "home",
+    home: "home",
+    findiq: "home",
     dealiq: "deal",
-    contractiq: "contract",
-    pipelineiq: "pipeline",
-    offeriq: "offer",
-    portfolioiq: "portfolio",
-    reports: "reports",
+    deals: "deal",
+    contractiq: "home",
+    pipelineiq: "home",
+    offeriq: "home",
+    portfolioiq: "home",
+    reports: "home",
     account: "account",
+    settings: "account",
   };
-  return aliases[raw] ?? "find";
+  return aliases[raw] ?? "home";
 }
 
 function pathForModule(module: Module) {
   const paths: Record<Module, string> = {
-    find: "/findiq",
-    deal: "/dealiq",
-    contract: "/contractiq",
-    pipeline: "/pipelineiq",
-    offer: "/offeriq",
-    portfolio: "/portfolioiq",
-    reports: "/reports",
+    home: "/app",
+    deal: "/deals",
     account: "/account",
   };
   return paths[module];
@@ -86,6 +80,7 @@ function pathForModule(module: Module) {
 
 function BrixApp() {
   const [module, setModuleState] = useState<Module>(() => moduleFromPath());
+  const [navOpen, setNavOpen] = useState(false);
   const [deals, setDeals] = useState<DealFacts[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
@@ -100,14 +95,21 @@ function BrixApp() {
   const [invitationMessage, setInvitationMessage] = useState<string | null>(null);
   const [workspaceRetryKey, setWorkspaceRetryKey] = useState(0);
   const recentCloudCreatesRef = useRef<Map<string, { ownerId: string; deal: DealFacts }>>(new Map());
+  const mainContentRef = useRef<HTMLElement>(null);
+  const isOnline = useOnlineStatus();
   const isAuthenticated = Boolean(authUserId);
   const selectedDeal = deals.find((deal) => deal.id === selectedId) ?? deals[0];
 
   function setModule(next: Module) {
     setModuleState(next);
+    setNavOpen(false);
     const nextPath = pathForModule(next);
     if (window.location.pathname !== nextPath) window.history.pushState({}, "", nextPath);
   }
+
+  useEffect(() => {
+    mainContentRef.current?.focus({ preventScroll: true });
+  }, [module]);
 
   const anonymousDraftsOnDevice = useCallback(() => {
     const anonymousDeals = loadAnonymousDeals();
@@ -321,7 +323,7 @@ function BrixApp() {
       return true;
     } catch (error) {
       setSyncMessage(`Deal was not created: ${error instanceof Error ? error.message : "cloud save failed."}`);
-      setModule("find");
+      setModule("home");
       return false;
     }
   }
@@ -379,16 +381,23 @@ function BrixApp() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={navOpen ? "app-shell shell-nav-open" : "app-shell"}>
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <aside className="rail">
-        <div className="brand">
-          <div className="mark" aria-hidden="true"><span /><span /><span /><span /></div>
-          <div>
-            <strong>BRIX</strong>
-            <small>Real Estate</small>
+        <div className="rail-header">
+          <div className="brand">
+            <div className="mark" aria-hidden="true"><span /><span /><span /><span /></div>
+            <div>
+              <strong>BRIX</strong>
+              <small>Real Estate</small>
+            </div>
           </div>
+          <button className="nav-toggle" type="button" aria-expanded={navOpen} aria-controls="primary-nav" onClick={() => setNavOpen((open) => !open)}>
+            {navOpen ? <X size={18} /> : <Menu size={18} />}
+            <span>Menu</span>
+          </button>
         </div>
-        <nav>
+        <nav id="primary-nav" aria-label="Primary">
           {nav.map((item) => {
             const Icon = item.icon;
             return (
@@ -404,9 +413,9 @@ function BrixApp() {
         </nav>
       </aside>
 
-      <main className="workspace">
+      <main id="main-content" className="workspace" tabIndex={-1} ref={mainContentRef}>
         <header className="topbar">
-          <div>
+          <div className="page-title">
             <p className="eyebrow">BRIX Real Estate</p>
             <h1>{titleFor(module)}</h1>
           </div>
@@ -416,45 +425,35 @@ function BrixApp() {
               <strong>{workspaceContext?.workspaceName ?? "Personal account"}</strong>
             </div>
           )}
-          <DealSwitcher deals={deals} selectedId={selectedDeal?.id} onSelect={setSelectedId} />
+          {module === "deal" && <DealSwitcher deals={deals} selectedId={selectedDeal?.id} onSelect={setSelectedId} />}
         </header>
 
+        {!isOnline && (
+          <ShellNotice tone="warning" title="Offline" icon={<WifiOff size={18} />}>
+            BRIX can keep the shell open, but cloud account and deal updates need a connection.
+          </ShellNotice>
+        )}
         {!authReady && (
-          <div className="callout" role="status" aria-live="polite">
-            <strong>Restoring session</strong>
-            <span>BRIX is checking whether this browser already has a valid account session.</span>
-          </div>
+          <ShellNotice tone="info" title="Restoring session">
+            BRIX is checking whether this browser already has a valid account session.
+          </ShellNotice>
         )}
         {syncMessage && (
-          <div className={isAuthenticated ? "callout danger-callout" : "callout"} role={isAuthenticated ? "alert" : "status"} aria-live="polite">
-            <strong>{authLifecycle === "expired" ? "Sign in required" : isAuthenticated ? "Account needs attention" : "Account"}</strong>
-            <span>{syncMessage}</span>
-            {(workspaceStatus === "failed" || authLifecycle === "expired") && (
-              <button className="secondary compact-button" onClick={retryWorkspaceBootstrap}>{authLifecycle === "expired" ? "Sign in" : "Retry setup"}</button>
-            )}
-          </div>
+          <ShellNotice tone={isAuthenticated ? "danger" : "info"} title={authLifecycle === "expired" ? "Sign in required" : isAuthenticated ? "Account needs attention" : "Account"}>
+            {syncMessage}
+          </ShellNotice>
         )}
         {invitationMessage && (
-          <div className="callout" role="status" aria-live="polite">
-            <strong>Invitation accepted</strong>
-            <span>{invitationMessage}</span>
-          </div>
+          <ShellNotice tone="success" title="Invitation accepted">{invitationMessage}</ShellNotice>
         )}
         {isAuthenticated && hasAnonymousDrafts && (
-          <div className="callout">
-            <strong>Local drafts</strong>
+          <ShellNotice tone="info" title="Local drafts">
             <span>Local drafts are saved on this device and are not part of your BRIX account.</span>
             <span>Sign out to view local drafts.</span>
-          </div>
+          </ShellNotice>
         )}
-        {module !== "account" && <WorkflowStrip active={module} onSelect={setModule} />}
-        {module === "find" && <FindIQ onCreate={createDeal} />}
+        {module === "home" && <HomeSurface isAuthenticated={isAuthenticated} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} deals={deals} selectedDeal={selectedDeal} onOpenDeal={() => setModule("deal")} onOpenSettings={() => setModule("account")} onRetry={retryWorkspaceBootstrap} />}
         {module === "deal" && <DealIQ deal={selectedDeal} onChange={upsertDeal} onDelete={deleteDeal} />}
-        {module === "contract" && <ContractIQ deal={selectedDeal} />}
-        {module === "pipeline" && <PipelineIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} onStatusChange={(deal) => upsertDeal(deal)} />}
-        {module === "offer" && <OfferIQ deal={selectedDeal} />}
-        {module === "portfolio" && <PortfolioIQ deals={deals} onOpen={(id) => { setSelectedId(id); setModule("deal"); }} />}
-        {module === "reports" && <Reports deal={selectedDeal} />}
         {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceContext={workspaceContext} invitationToken={invitationToken} recoveryActive={passwordRecoveryActive} onAuthChanged={(userId) => {
           setDeals([]);
           setSelectedId(null);
@@ -464,7 +463,7 @@ function BrixApp() {
           setWorkspaceStatus(userId ? "loading" : "signed_out");
           setAuthLifecycle(userId ? "bootstrapping" : "signed_out");
           if (userId) anonymousDraftsOnDevice();
-          setModule("find");
+          setModule("home");
         }} onRecoveryCompleted={() => {
           setPasswordRecoveryActive(false);
           if (window.location.pathname === "/account" && window.location.search) {
@@ -480,7 +479,7 @@ function BrixApp() {
           setWorkspaceStatus("signed_out");
           setAuthLifecycle("signed_out");
           restoreAnonymousDrafts();
-          setModule("find");
+          setModule("home");
         }} />}
       </main>
     </div>
@@ -505,6 +504,89 @@ function Landing() {
         <Step n="3" title="Get decision intelligence" text="Confidence, readiness, missing data, strategy comparison, report export, and next actions." />
       </section>
     </main>
+  );
+}
+
+function HomeSurface({
+  isAuthenticated,
+  authLifecycle,
+  workspaceStatus,
+  deals,
+  selectedDeal,
+  onOpenDeal,
+  onOpenSettings,
+  onRetry,
+}: {
+  isAuthenticated: boolean;
+  authLifecycle: "restoring" | "signed_out" | "bootstrapping" | "ready" | "failed" | "signing_out" | "expired";
+  workspaceStatus: "loading" | "ready" | "failed" | "signed_out";
+  deals: DealFacts[];
+  selectedDeal?: DealFacts;
+  onOpenDeal: () => void;
+  onOpenSettings: () => void;
+  onRetry: () => void;
+}) {
+  const hasDeals = deals.length > 0;
+  const isPreparing = authLifecycle === "restoring" || authLifecycle === "bootstrapping" || workspaceStatus === "loading";
+
+  if (workspaceStatus === "failed") {
+    return (
+      <RecoverableState
+        title="Account setup needs attention"
+        text="BRIX could not finish loading your account context. Retry before relying on cloud deal data."
+        actionLabel="Retry setup"
+        onRetry={onRetry}
+      />
+    );
+  }
+
+  return (
+    <section className="home-surface">
+      <div className="panel hero-panel home-hero">
+        <StatusBadge tone={isAuthenticated ? "success" : "neutral"}>{isAuthenticated ? "Account ready" : "Local mode"}</StatusBadge>
+        <h2>{isAuthenticated ? "Your BRIX account is ready." : "Use BRIX locally or sign in when you want cloud continuity."}</h2>
+        <p className="quiet">
+          {isAuthenticated
+            ? "The shell is ready for verified Deal work. BRIX will only show account and Deal information that exists in your saved records."
+            : "Local drafts stay on this device until you sign in. Cloud Deals remain separated from local drafts."}
+        </p>
+        <div className="button-row">
+          {hasDeals && <button className="primary" onClick={onOpenDeal}><BarChart3 size={18} /> Open Deals</button>}
+          <button className="secondary" onClick={onOpenSettings}><UserCircle size={18} /> {isAuthenticated ? "Account settings" : "Sign in"}</button>
+        </div>
+      </div>
+
+      {isPreparing && (
+        <ShellNotice tone="info" title="Preparing account">
+          BRIX is restoring the secure account and workspace context before showing cloud Deal information.
+        </ShellNotice>
+      )}
+
+      {hasDeals ? (
+        <section className="panel">
+          <p className="eyebrow">Saved Deal</p>
+          <h2>{selectedDeal?.address || "Untitled property"}</h2>
+          <p className="quiet">Open the saved Deal workspace to review facts, assumptions, strategy fit, and verification needs.</p>
+          <button className="primary" onClick={onOpenDeal}>Open Deals</button>
+        </section>
+      ) : (
+        <EmptyState
+          title="No saved Deals yet"
+          text="When canonical Deal creation is available, new property work will appear here. This shell will not display fabricated deal counts, alerts, or market stats."
+          actionLabel={isAuthenticated ? "Review account settings" : "Sign in"}
+          onAction={onOpenSettings}
+        />
+      )}
+
+      <section className="state-grid" aria-label="Shell state coverage">
+        <StatePrimitive title="Loading" text="Session and account context show explicit progress." />
+        <StatePrimitive title="Empty" text="No saved records means no invented metrics." />
+        <StatePrimitive title="Offline" text="Connection loss is visible before cloud actions." />
+        <StatePrimitive title="Recoverable" text="Retry actions are shown when setup can be retried." />
+        <StatePrimitive title="Permission" text="Access changes fail closed and clear protected state." />
+        <StatePrimitive title="Stale" text="Stale or partial data must be labeled before release use." />
+      </section>
+    </section>
   );
 }
 
@@ -560,11 +642,9 @@ function FindIQ({ onCreate }: { onCreate: (deal: DealFacts) => Promise<boolean> 
 
 function WorkflowStrip({ active, onSelect }: { active: Module; onSelect: (module: Module) => void }) {
   const steps: Array<{ id: Module; short: string; title: string }> = [
-    { id: "find", short: "1", title: "Start" },
-    { id: "deal", short: "2", title: "Analyze" },
-    { id: "offer", short: "3", title: "Pursue" },
-    { id: "pipeline", short: "4", title: "Track" },
-    { id: "portfolio", short: "5", title: "Own" },
+    { id: "home", short: "1", title: "Home" },
+    { id: "deal", short: "2", title: "Deals" },
+    { id: "account", short: "3", title: "Settings" },
   ];
   return (
     <div className="workflow-strip" aria-label="BRIX workflow">
@@ -1677,8 +1757,72 @@ function Empty({ title, text }: { title: string; text: string }) {
   return <section className="panel empty"><h2>{title}</h2><p>{text}</p></section>;
 }
 
+function EmptyState({ title, text, actionLabel, onAction }: { title: string; text: string; actionLabel?: string; onAction?: () => void }) {
+  return (
+    <section className="panel empty state-card">
+      <div className="state-icon"><Home size={28} /></div>
+      <h2>{title}</h2>
+      <p className="quiet">{text}</p>
+      {actionLabel && onAction && <button className="secondary" onClick={onAction}>{actionLabel}</button>}
+    </section>
+  );
+}
+
+function RecoverableState({ title, text, actionLabel, onRetry }: { title: string; text: string; actionLabel: string; onRetry: () => void }) {
+  return (
+    <section className="panel state-card recoverable-state" role="alert">
+      <div className="state-icon warning"><AlertTriangle size={28} /></div>
+      <h2>{title}</h2>
+      <p className="quiet">{text}</p>
+      <button className="secondary" onClick={onRetry}><RefreshCw size={16} /> {actionLabel}</button>
+    </section>
+  );
+}
+
+function ShellNotice({ tone, title, icon, children }: { tone: "info" | "success" | "warning" | "danger"; title: string; icon?: ReactNode; children: ReactNode }) {
+  const role = tone === "danger" || tone === "warning" ? "alert" : "status";
+  return (
+    <div className={`shell-notice ${tone}`} role={role} aria-live="polite">
+      <div className="notice-icon">{icon ?? (tone === "success" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />)}</div>
+      <div>
+        <strong>{title}</strong>
+        <div className="notice-content">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ tone, children }: { tone: "success" | "neutral" | "warning" | "danger"; children: ReactNode }) {
+  return <span className={`status-badge ${tone}`}>{children}</span>;
+}
+
+function StatePrimitive({ title, text }: { title: string; text: string }) {
+  return (
+    <article className="state-primitive">
+      <strong>{title}</strong>
+      <span>{text}</span>
+    </article>
+  );
+}
+
 function titleFor(module: Module) {
   return nav.find((item) => item.id === module)?.label ?? "BRIX";
+}
+
+function useOnlineStatus() {
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+
+  useEffect(() => {
+    const update = () => setIsOnline(navigator.onLine);
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+
+  return isOnline;
 }
 
 function toNumber(value: string) {
