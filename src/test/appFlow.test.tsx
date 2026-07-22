@@ -472,6 +472,19 @@ describe("BRIX app module flow", () => {
     await waitFor(() => expect(screen.queryByText(/Sync needs attention/i)).not.toBeInTheDocument());
   }, 60000);
 
+  it("keeps the skip link reachable on first load and restores focus after shell navigation", async () => {
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Home" });
+    const main = screen.getByRole("main");
+    expect(document.activeElement).not.toBe(main);
+    expect(screen.getByText("My BRIX")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
+    await waitFor(() => expect(window.location.pathname).toBe("/deals"));
+    expect(document.activeElement).toBe(main);
+  });
+
   it("redirects unfinished legacy module routes to safe shell destinations", async () => {
     window.history.replaceState({}, "", "/findiq");
     const first = render(<App />);

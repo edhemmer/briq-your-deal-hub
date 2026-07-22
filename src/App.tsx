@@ -96,6 +96,7 @@ function BrixApp() {
   const [workspaceRetryKey, setWorkspaceRetryKey] = useState(0);
   const recentCloudCreatesRef = useRef<Map<string, { ownerId: string; deal: DealFacts }>>(new Map());
   const mainContentRef = useRef<HTMLElement>(null);
+  const didRenderInitialModuleRef = useRef(false);
   const isOnline = useOnlineStatus();
   const isAuthenticated = Boolean(authUserId);
   const selectedDeal = deals.find((deal) => deal.id === selectedId) ?? deals[0];
@@ -115,6 +116,10 @@ function BrixApp() {
   }
 
   useEffect(() => {
+    if (!didRenderInitialModuleRef.current) {
+      didRenderInitialModuleRef.current = true;
+      return;
+    }
     mainContentRef.current?.focus({ preventScroll: true });
   }, [module]);
 
@@ -428,7 +433,7 @@ function BrixApp() {
           </div>
           {isAuthenticated && (
             <div className={workspaceStatus === "failed" ? "workspace-pill danger" : "workspace-pill"}>
-              <span>{workspaceStatus === "ready" ? "My BRIX" : "Preparing account"}</span>
+              <span>My BRIX</span>
               <strong>{workspaceContext?.workspaceName ?? "Personal account"}</strong>
             </div>
           )}
