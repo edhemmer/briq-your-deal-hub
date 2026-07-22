@@ -13,6 +13,7 @@ import { reviewContractText } from "./core/contractReview";
 import { buildOfferStructures, offerSummary } from "./core/offerEngine";
 import { portfolioMetrics } from "./core/portfolioEngine";
 import { ensureWorkspaceContext, type WorkspaceContext } from "./core/workspace";
+import { requestAccountDeletion } from "./core/authActions";
 import { isSessionFailure, safeAuthError, validateAuthInput, type AuthMode } from "./core/authLifecycle";
 import {
   acceptWorkspaceInvitation,
@@ -877,6 +878,9 @@ function Account({
   const [invitationError, setInvitationError] = useState("");
   const [invitationStatus, setInvitationStatus] = useState("");
   const [isInvitationWorking, setIsInvitationWorking] = useState(false);
+  const [isDeletionWorking, setIsDeletionWorking] = useState(false);
+  const [deletionStatus, setDeletionStatus] = useState("");
+  const [deletionError, setDeletionError] = useState("");
   const [accessRoles, setAccessRoles] = useState<WorkspaceAccessRole[]>([]);
   const [accessMembers, setAccessMembers] = useState<WorkspaceAccessMember[]>([]);
   const [accessStatus, setAccessStatus] = useState<"idle" | "loading" | "ready" | "permission_denied" | "offline" | "failed">("idle");
@@ -1299,6 +1303,23 @@ function Account({
     }
   }
 
+  async function submitAccountDeletionRequest() {
+    if (!isAuthenticated || isDeletionWorking) return;
+    setDeletionError("");
+    setDeletionStatus("");
+    setIsDeletionWorking(true);
+    try {
+      const result = await requestAccountDeletion();
+      const requestedAt = result.requestedAt ? formatShortDate(result.requestedAt) : "today";
+      setDeletionStatus(`Account deletion request ${result.status}. Requested ${requestedAt}.`);
+    } catch (error) {
+      const safe = safeAuthError(error);
+      setDeletionError(safe.kind === "session_expired" ? "Sign in again before requesting account deletion." : safe.message);
+    } finally {
+      setIsDeletionWorking(false);
+    }
+  }
+
   return (
     <section className="auth-stage" aria-labelledby="auth-title">
       <div className="auth-card">
@@ -1405,9 +1426,23 @@ function Account({
             )}
           </form>
         ) : (
-          <div className="auth-actions">
-            <button className="secondary" onClick={() => changeMode("change_password")} disabled={isWorking}>Change password</button>
-            <button className="secondary" onClick={signOut} disabled={isWorking}><LogOut size={16} /> {isWorking ? "Signing out" : "Sign out"}</button>
+          <div className="account-ready-actions">
+            <div className="auth-actions">
+              <button className="secondary" onClick={() => changeMode("change_password")} disabled={isWorking}>Change password</button>
+              <button className="secondary" onClick={signOut} disabled={isWorking}><LogOut size={16} /> {isWorking ? "Signing out" : "Sign out"}</button>
+            </div>
+            <section className="account-danger-zone" aria-labelledby="account-deletion-title">
+              <div>
+                <p className="eyebrow">Account deletion</p>
+                <h3 id="account-deletion-title">Delete account request</h3>
+                <p className="quiet">Request deletion of your BRIX account and personal account data. Workspace business records may be retained when required for ownership, audit, or legal obligations.</p>
+              </div>
+              <button className="secondary danger-button" type="button" onClick={submitAccountDeletionRequest} disabled={isDeletionWorking}>
+                <Trash2 size={16} /> {isDeletionWorking ? "Recording request" : "Request account deletion"}
+              </button>
+              {deletionStatus && <p className="success" role="status">{deletionStatus}</p>}
+              {deletionError && <p className="error" role="alert">{deletionError}</p>}
+            </section>
           </div>
         )}
 

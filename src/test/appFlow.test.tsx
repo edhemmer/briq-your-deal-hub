@@ -165,11 +165,17 @@ const mocks = vi.hoisted(() => ({
   signOut: vi.fn(async () => ({ error: null })),
   getSession: vi.fn(async () => ({ data: { session: mocks.session.value } })),
   insert: vi.fn(async () => ({ data: null, error: null })),
+  invokeFunction: vi.fn(async (_name: string, _options?: { body?: unknown }) => ({ data: { ok: true, requestId: "delete-request-1", status: "requested", requestedAt: "2026-01-04T00:00:00.000Z" }, error: null })),
   downloadDecisionPdf: vi.fn(async () => undefined),
   downloadWorkbook: vi.fn(async () => undefined),
 }));
 
 vi.mock("../core/supabase", () => ({
+  invokeBrixFunction: vi.fn(async (name: string, body: unknown) => {
+    const { data, error } = await mocks.invokeFunction(name, { body });
+    if (error) throw error;
+    return data;
+  }),
   supabase: {
     auth: {
       getSession: mocks.getSession,
@@ -222,7 +228,7 @@ vi.mock("../core/supabase", () => ({
       return { insert: mocks.insert };
     }),
     rpc: mocks.rpc,
-    functions: { invoke: vi.fn(async () => ({ data: {}, error: null })) },
+    functions: { invoke: mocks.invokeFunction },
   },
 }));
 
@@ -468,9 +474,11 @@ describe("BRIX app module flow", () => {
     await waitFor(() => expect(mocks.signInWithPassword).toHaveBeenCalledWith({ email: "edhemmer@gmail.com", password: "inlight" }));
     expect(window.location.pathname).toBe("/findiq");
 
-    fireEvent.click(screen.getByRole("button", { name: /Account/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Account Profile, billing, privacy/i }));
     await screen.findByRole("heading", { name: "Account ready" });
-    expect(screen.queryByRole("button", { name: /Request account deletion/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Request account deletion/i }));
+    await waitFor(() => expect(mocks.invokeFunction).toHaveBeenCalledWith("request-account-deletion", { body: {} }));
+    expect(await screen.findByText(/Account deletion request requested/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Sign out/i }));
     await waitFor(() => expect(mocks.signOut).toHaveBeenCalled());
     expect(await screen.findByRole("heading", { name: "FindIQ" })).toBeInTheDocument();
@@ -1075,7 +1083,7 @@ describe("BRIX app module flow", () => {
     render(<App />);
 
     await screen.findByText("User One Deal");
-    fireEvent.click(screen.getByRole("button", { name: /Account/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Account Profile, billing, privacy/i }));
     fireEvent.click(screen.getByRole("button", { name: /Sign out/i }));
     await waitFor(() => expect(screen.queryByText("User One Deal")).not.toBeInTheDocument());
     expect(await screen.findByText("Anonymous Draft")).toBeInTheDocument();

@@ -105,6 +105,7 @@ enum BRIXService {
         request.setValue(publishableKey, forHTTPHeaderField: "apikey")
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("ios", forHTTPHeaderField: "x-brix-client")
         request.httpBody = Data("{}".utf8)
         let (_, response) = try await URLSession.shared.data(for: request)
         try validateHTTP(response)

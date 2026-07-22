@@ -149,6 +149,9 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .wide-button { width: 100%; margin-top: 8px; }
 .compact-button { min-height: 36px; padding: 0 12px; border-radius: 10px; justify-self: start; }
 .auth-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.account-ready-actions { display: grid; gap: 16px; }
+.account-danger-zone { display: grid; gap: 12px; border: 1px solid rgba(241,92,92,.32); border-radius: 16px; background: rgba(127,29,29,.12); padding: 16px; }
+.account-danger-zone h3 { margin: 0; font-size: 18px; }
 .section-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
 .section-heading h3 { margin: 0; font-size: 20px; }
 .access-panel { display: grid; gap: 16px; border: 1px solid rgba(59,130,246,.26); border-radius: 18px; background: rgba(8,15,29,.62); padding: 18px; }
