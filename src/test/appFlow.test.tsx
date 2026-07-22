@@ -614,6 +614,7 @@ describe("BRIX app module flow", () => {
       invite_role_id: "contributor",
     }));
     expect((await screen.findByLabelText("Invitation link") as HTMLInputElement).value).toContain("/account?invite=raw-token-1");
+    expect(screen.getByRole("button", { name: "Revoke invitation" })).toBeInTheDocument();
     expect(await screen.findByText("teammate@example.com")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Resend" }));

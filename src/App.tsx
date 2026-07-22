@@ -1683,10 +1683,17 @@ function Account({
             {invitationError && <p className="error">{invitationError}</p>}
             {invitationStatus && <p className="success">{invitationStatus}</p>}
             {invitationResult?.invitationLink && (
-              <label className="field" htmlFor="invitation-link">
-                <span>Invitation link</span>
-                <input id="invitation-link" readOnly value={invitationResult.invitationLink} onFocus={(event) => event.currentTarget.select()} />
-              </label>
+              <div className="invitation-result">
+                <label className="field" htmlFor="invitation-link">
+                  <span>Invitation link</span>
+                  <input id="invitation-link" readOnly value={invitationResult.invitationLink} onFocus={(event) => event.currentTarget.select()} />
+                </label>
+                {invitationResult.status === "pending" && invitationResult.id && (
+                  <button className="secondary compact-button danger-button" type="button" disabled={isInvitationWorking} onClick={() => revokeInvitation(invitationResult.id)}>
+                    Revoke invitation
+                  </button>
+                )}
+              </div>
             )}
             {pendingInvitations.length > 0 && (
               <div className="invitation-list">
