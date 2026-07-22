@@ -22,12 +22,19 @@ This matrix does not replace any owning document or specification. It confirms t
 | 09 | `docs/09-APPLE-PLATFORM-COMPLIANCE.md` | Binding Apple, Xcode, TestFlight, App Store, privacy, asset, device requirements |
 | 10 | `docs/10-CODEX-MASTER-BUILD-PROMPT.md` | Codex implementation discipline and required reporting |
 | 11 | `docs/11-DOCUMENT-CONTROL-AND-READINESS-MATRIX.md` | Package control, sequence verification, change discipline |
+| 12 | `docs/12-INDIVIDUAL-INVESTOR-PRODUCT-REALIGNMENT.md` | Binding individual-investor product model and scope amendment; controls when older language implies enterprise collaboration or excessive identity/security scope |
+
+### 2.1 Individual-investor precedence
+
+`docs/12-INDIVIDUAL-INVESTOR-PRODUCT-REALIGNMENT.md` is an approved binding amendment across every file in `docs/` and `specs/`. It preserves the canonical data model and baseline production security while making the solo investor the primary product model. When older language can reasonably be interpreted as requiring enterprise collaboration, workforce administration, or security work that delays the Deal workflow without material benefit, Document 12 controls.
+
+Every Codex build prompt and every implementation slice must read Document 12 before scope selection.
 
 ## 3. Authoritative Specifications
 
 | No. | File | Owning outcome |
 |---|---|---|
-| 001 | `specs/001-authentication-and-workspaces.md` | Identity, sessions, workspaces, roles, invitations, isolation |
+| 001 | `specs/001-authentication-and-workspaces.md` | Identity, sessions, personal workspace tenancy, optional light access, isolation |
 | 002 | `specs/002-dashboard-and-application-shell.md` | Product shell, navigation, dashboard, global context |
 | 003 | `specs/003-deals-and-pdrm-core.md` | Canonical Property, Deal, relationships, lifecycle, timeline |
 | 004 | `specs/004-property-intake-and-source-tracking.md` | Address, listing, manual, URL, file, email, provider intake |
@@ -43,10 +50,10 @@ This matrix does not replace any owning document or specification. It confirms t
 | 014 | `specs/014-visitiq-maps-routes-and-voice-notes.md` | Routes, visits, field capture, maps, voice, offline |
 | 015 | `specs/015-inspectioniq-and-appraisaliq.md` | Inspection and appraisal report intelligence and controlled proposals |
 | 016 | `specs/016-evidence-email-files-and-audit.md` | Immutable Evidence, email, files, provenance, retention, audit |
-| 017 | `specs/017-reportiq-sharing-and-portfolio-comparison.md` | Reports, exports, secure sharing, portfolio comparison |
+| 017 | `specs/017-reportiq-sharing-and-portfolio-comparison.md` | Reports, exports, secure artifact sharing, portfolio comparison |
 | 018 | `specs/018-relearniq.md` | Guided investor education and explainability |
-| 019 | `specs/019-admin-billing-usage-and-operations.md` | Admin, billing, entitlements, metering, support, operations |
-| 020 | `specs/020-native-iphone-and-ipad-production.md` | Native iPhone/iPad architecture, offline, field workflow, release |
+| 019 | `specs/019-admin-billing-usage-and-operations.md` | Individual-first plans, billing, entitlements, metering, support, operations |
+| 020 | `specs/020-native-iphone-and-ipad-production.md` | Native iPhone/iPad field experience, offline, release |
 | 021 | `specs/021-ai-orchestration-safety-and-explainability.md` | Shared AI gateway, retrieval, tools, safety, approvals, provenance |
 | 022 | `specs/022-notifications-tasks-and-deadlines.md` | Canonical tasks, deadlines, reminders, delivery, calendar |
 | 023 | `specs/023-landing-help-and-conversion.md` | Public experience, help, pricing, trust, signup, conversion |
@@ -67,6 +74,9 @@ The current package has been checked for the following structural requirements:
 - Loading, stale, offline, conflict, permission, retry, failure, and recovery states are governed product-wide.
 - Apple compliance is separated into a maintainable binding supplement and is required by `docs/00-START-HERE.md`.
 - Codex execution discipline is centralized in `docs/10-CODEX-MASTER-BUILD-PROMPT.md`.
+- The individual-investor model is binding across the entire package through Document 12.
+- Collaboration is optional and subordinate to the investor Deal workflow.
+- Apple-only verification may be deferred on Windows but remains required before native release.
 
 This is documentation readiness, not evidence that the application code already satisfies the package.
 
@@ -84,6 +94,7 @@ BRIX may be relied upon for investor decision support only when the implementati
 8. Failure of an external provider cannot erase prior valid results or user work.
 9. Release gates in Specification 024 pass.
 10. Apple gates in `docs/09-APPLE-PLATFORM-COMPLIANCE.md` pass for native release.
+11. Investor-facing Deal workflows receive priority over optional collaboration administration.
 
 ## 6. Change-Control Rules
 
@@ -99,6 +110,8 @@ Any change to a governing document or specification must:
 8. Never delete a requirement merely because implementation is difficult.
 9. Never add functionality to a completed specification without checking the roadmap and ownership boundary.
 10. Repeat the readiness checks in this file before implementation continues.
+11. Apply Document 12 before adding collaboration, member administration, enterprise identity, or security scope.
+12. Do not block investor-facing Windows development on Xcode-only verification; record the deferred gate and complete it before native release.
 
 ## 7. Codex Entry Point
 
@@ -106,7 +119,11 @@ Codex begins with:
 
 `docs/10-CODEX-MASTER-BUILD-PROMPT.md`
 
-Codex then follows the reading order and build sequence defined by `docs/00-START-HERE.md` and `docs/05-BUILD-ROADMAP.md`.
+Codex must then read:
+
+`docs/12-INDIVIDUAL-INVESTOR-PRODUCT-REALIGNMENT.md`
+
+Codex then follows the reading order and build sequence defined by `docs/00-START-HERE.md` and `docs/05-BUILD-ROADMAP.md` as amended by Document 12.
 
 No implementation task may use this matrix as a substitute for reading the full owning specification.
 
@@ -119,8 +136,10 @@ The BRIX documentation package is ready to guide implementation when:
 - No owning subsystem conflicts with another.
 - Governing reading order is current.
 - Every current implementation task names its owning specification.
-- Apple tasks include document 09.
+- Every scope decision applies the individual-investor amendment.
+- Apple tasks include Document 09.
+- Windows tasks defer only truly Apple-specific runtime verification.
 - Every task uses the Codex start and completion reports.
 - Any material ambiguity is repaired before code is written.
 
-Status of the documentation package after this control pass: `READY FOR DISCIPLINED IMPLEMENTATION`.
+Status of the documentation package after this control pass: `READY FOR INDIVIDUAL-INVESTOR IMPLEMENTATION`.
