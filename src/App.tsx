@@ -34,13 +34,17 @@ import {
   type WorkspaceAccessRole,
 } from "./core/workspaceAccess";
 
-type Module = "home" | "deal" | "account";
+type Module = "home" | "deals" | "deal" | "account";
 
 const nav: Array<{ id: Module; label: string; icon: typeof Search; purpose: string }> = [
   { id: "home", label: "Home", icon: Home, purpose: "Resume your BRIX account" },
-  { id: "deal", label: "Deals", icon: BarChart3, purpose: "Review saved deal work" },
+  { id: "deals", label: "Deals", icon: BarChart3, purpose: "Review saved deal work" },
   { id: "account", label: "Settings", icon: UserCircle, purpose: "Account and access" },
 ];
+
+const RECENT_DEAL_IDS_LIMIT = 6;
+const SHELL_RECENT_DEALS_PREFIX = "brix.shell.recentDeals";
+const SHELL_LAST_DEAL_PREFIX = "brix.shell.lastDeal";
 
 export default function App() {
   if (window.location.pathname === "/") {
@@ -50,14 +54,16 @@ export default function App() {
 }
 
 function moduleFromPath(): Module {
-  const raw = window.location.pathname.replace(/^\/+/, "").split("/")[0];
+  const parts = window.location.pathname.replace(/^\/+/, "").split("/");
+  const raw = parts[0];
+  if (raw === "deals" && parts[1]) return "deal";
   const aliases: Record<string, Module> = {
     app: "home",
     dashboard: "home",
     home: "home",
     findiq: "home",
-    dealiq: "deal",
-    deals: "deal",
+    dealiq: "deals",
+    deals: "deals",
     contractiq: "home",
     pipelineiq: "home",
     offeriq: "home",
@@ -72,10 +78,50 @@ function moduleFromPath(): Module {
 function pathForModule(module: Module) {
   const paths: Record<Module, string> = {
     home: "/app",
+    deals: "/deals",
     deal: "/deals",
     account: "/account",
   };
   return paths[module];
+}
+
+function currentRoutePath() {
+  const module = moduleFromPath();
+  const routeDealId = dealIdFromPath();
+  return module === "deal" && routeDealId ? dealPath(routeDealId) : pathForModule(module);
+}
+
+function dealPath(id: string) {
+  return `/deals/${encodeURIComponent(id)}`;
+}
+
+function dealIdFromPath() {
+  const [, rawId] = window.location.pathname.replace(/^\/+/, "").split("/");
+  if (!rawId) return null;
+  try {
+    const decoded = decodeURIComponent(rawId);
+    return decoded.length > 0 && decoded.length <= 160 ? decoded : null;
+  } catch {
+    return null;
+  }
+}
+
+function shellStorageScope(userId: string | null, workspaceContext: WorkspaceContext | null) {
+  if (!userId) return "anonymous";
+  return `${userId}:${workspaceContext?.workspaceId ?? "workspace-pending"}`;
+}
+
+function readScopedDealIds(prefix: string, scope: string) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(`${prefix}:${scope}`) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeScopedDealIds(prefix: string, scope: string, ids: string[]) {
+  localStorage.setItem(`${prefix}:${scope}`, JSON.stringify([...new Set(ids)].slice(0, RECENT_DEAL_IDS_LIMIT)));
 }
 
 function BrixApp() {
@@ -93,16 +139,23 @@ function BrixApp() {
   const [passwordRecoveryActive, setPasswordRecoveryActive] = useState(() => new URLSearchParams(window.location.search).get("flow") === "reset-password");
   const [invitationToken, setInvitationToken] = useState<string | null>(() => invitationTokenFromLocation());
   const [invitationMessage, setInvitationMessage] = useState<string | null>(null);
+  const [routeMessage, setRouteMessage] = useState<string | null>(null);
+  const [recentDealIds, setRecentDealIds] = useState<string[]>([]);
   const [workspaceRetryKey, setWorkspaceRetryKey] = useState(0);
   const recentCloudCreatesRef = useRef<Map<string, { ownerId: string; deal: DealFacts }>>(new Map());
   const mainContentRef = useRef<HTMLElement>(null);
   const didRenderInitialModuleRef = useRef(false);
+  const didRestoreLastDealRef = useRef(false);
   const isOnline = useOnlineStatus();
   const isAuthenticated = Boolean(authUserId);
-  const selectedDeal = deals.find((deal) => deal.id === selectedId) ?? deals[0];
+  const selectedDeal = deals.find((deal) => deal.id === selectedId);
+  const storageScope = shellStorageScope(authUserId, workspaceContext);
+  const recentDeals = recentDealIds
+    .map((id) => deals.find((deal) => deal.id === id))
+    .filter((deal): deal is DealFacts => Boolean(deal));
 
   useEffect(() => {
-    const safePath = pathForModule(moduleFromPath());
+    const safePath = currentRoutePath();
     if (window.location.pathname !== safePath) {
       window.history.replaceState({}, "", `${safePath}${window.location.search}${window.location.hash}`);
     }
@@ -115,6 +168,39 @@ function BrixApp() {
     if (window.location.pathname !== nextPath) window.history.pushState({}, "", nextPath);
   }
 
+  const rememberDealContext = useCallback((dealId: string) => {
+    const currentScope = shellStorageScope(authUserId, workspaceContext);
+    setRecentDealIds((current) => {
+      const nextRecent = [dealId, ...current.filter((id) => id !== dealId)].slice(0, RECENT_DEAL_IDS_LIMIT);
+      writeScopedDealIds(SHELL_RECENT_DEALS_PREFIX, currentScope, nextRecent);
+      return nextRecent;
+    });
+    writeScopedDealIds(SHELL_LAST_DEAL_PREFIX, currentScope, [dealId]);
+  }, [authUserId, workspaceContext]);
+
+  const openDeal = useCallback((dealId: string, options: { replace?: boolean; silent?: boolean } = {}) => {
+    if (syncMessage?.startsWith("Deal was not saved") && !window.confirm("This Deal has unsaved cloud changes. Leave it anyway?")) return;
+    const deal = deals.find((item) => item.id === dealId);
+    if (!deal) {
+      setSelectedId(null);
+      setModuleState("deals");
+      setRouteMessage("That Deal is no longer available in this workspace.");
+      window.history.replaceState({}, "", "/deals");
+      return;
+    }
+    setSelectedId(deal.id);
+    rememberDealContext(deal.id);
+    setRouteMessage(null);
+    setModuleState("deal");
+    setNavOpen(false);
+    const nextPath = dealPath(deal.id);
+    if (window.location.pathname !== nextPath) {
+      if (options.replace) window.history.replaceState({}, "", nextPath);
+      else window.history.pushState({}, "", nextPath);
+    }
+    if (!options.silent) mainContentRef.current?.focus({ preventScroll: true });
+  }, [deals, rememberDealContext, syncMessage]);
+
   useEffect(() => {
     if (!didRenderInitialModuleRef.current) {
       didRenderInitialModuleRef.current = true;
@@ -122,6 +208,10 @@ function BrixApp() {
     }
     mainContentRef.current?.focus({ preventScroll: true });
   }, [module]);
+
+  useEffect(() => {
+    setRecentDealIds(readScopedDealIds(SHELL_RECENT_DEALS_PREFIX, storageScope));
+  }, [storageScope]);
 
   const anonymousDraftsOnDevice = useCallback(() => {
     const anonymousDeals = loadAnonymousDeals();
@@ -140,7 +230,7 @@ function BrixApp() {
   const restoreAnonymousDrafts = useCallback(() => {
     const anonymousDeals = anonymousDraftsOnDevice();
     setDeals(anonymousDeals);
-    setSelectedId(anonymousDeals[0]?.id ?? null);
+    setSelectedId(null);
   }, [anonymousDraftsOnDevice]);
 
   const restoreRecentCloudCreates = useCallback((userId: string) => {
@@ -152,7 +242,7 @@ function BrixApp() {
       const currentIds = new Set(current.map((deal) => deal.id));
       return [...recentDealsForUser.filter((deal) => !currentIds.has(deal.id)), ...current];
     });
-    setSelectedId((currentId) => currentId ?? recentDealsForUser[0]?.id ?? null);
+    setSelectedId((currentId) => currentId ?? null);
   }, []);
 
   const clearProtectedState = useCallback(() => {
@@ -275,7 +365,7 @@ function BrixApp() {
           ].filter((deal, index, allDeals) => !remoteIds.has(deal.id) && allDeals.findIndex((item) => item.id === deal.id) === index);
           return [...inFlightCreatedDeals, ...remoteDeals];
         });
-        setSelectedId((currentId) => currentId ?? recentDealsForUser[0]?.id ?? remoteDeals[0]?.id ?? null);
+        setSelectedId((currentId) => currentId ?? null);
         setSyncMessage(null);
       })
       .catch((error) => {
@@ -298,6 +388,58 @@ function BrixApp() {
       isCurrent = false;
     };
   }, [authUserId, clearProtectedState, invitationToken, restoreAnonymousDrafts, workspaceRetryKey]);
+
+  useEffect(() => {
+    if (!authReady) return;
+    if (authUserId && workspaceStatus !== "ready") return;
+    const routeDealId = dealIdFromPath();
+    if (!routeDealId) return;
+    const deal = deals.find((item) => item.id === routeDealId);
+    if (deal) {
+      setSelectedId(deal.id);
+      rememberDealContext(deal.id);
+      setModuleState("deal");
+      setRouteMessage(null);
+      return;
+    }
+    setSelectedId(null);
+    setModuleState("deals");
+    setRouteMessage("That Deal is no longer available in this workspace.");
+    window.history.replaceState({}, "", "/deals");
+  }, [authReady, authUserId, deals, rememberDealContext, workspaceStatus]);
+
+  useEffect(() => {
+    if (!authReady || didRestoreLastDealRef.current) return;
+    if (authUserId && (workspaceStatus !== "ready" || !workspaceContext)) return;
+    const routeDealId = dealIdFromPath();
+    if (routeDealId || !["/app", "/home", "/dashboard"].includes(window.location.pathname)) return;
+    const readyScope = shellStorageScope(authUserId, workspaceContext);
+    const [lastDealId] = readScopedDealIds(SHELL_LAST_DEAL_PREFIX, readyScope);
+    if (!lastDealId) {
+      didRestoreLastDealRef.current = true;
+      return;
+    }
+    const deal = deals.find((item) => item.id === lastDealId);
+    didRestoreLastDealRef.current = true;
+    if (deal) openDeal(deal.id, { replace: true, silent: true });
+  }, [authReady, authUserId, deals, openDeal, workspaceContext, workspaceStatus]);
+
+  useEffect(() => {
+    didRestoreLastDealRef.current = false;
+  }, [authUserId, storageScope]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    if (deals.some((deal) => deal.id === selectedId)) return;
+    setSelectedId(null);
+  }, [deals, selectedId]);
+
+  useEffect(() => {
+    if (module !== "deal" || selectedDeal) return;
+    if (dealIdFromPath()) return;
+    setModuleState("deals");
+    window.history.replaceState({}, "", "/deals");
+  }, [module, selectedDeal]);
 
   async function createDeal(deal: DealFacts) {
     try {
@@ -329,9 +471,12 @@ function BrixApp() {
         return next;
       });
       setSelectedId(confirmedDeal.id);
+      rememberDealContext(confirmedDeal.id);
       if (!effectiveUserId) setHasAnonymousDrafts(true);
       setSyncMessage(effectiveUserId ? null : "Deal created on this device. Sign in from Settings to keep it across devices.");
-      setModule("deal");
+      setModuleState("deal");
+      setNavOpen(false);
+      window.history.pushState({}, "", dealPath(confirmedDeal.id));
       return true;
     } catch (error) {
       setSyncMessage(`Deal was not created: ${error instanceof Error ? error.message : "cloud save failed."}`);
@@ -374,6 +519,13 @@ function BrixApp() {
         setHasAnonymousDrafts(next.length > 0);
         return next;
       });
+      const nextRecent = recentDealIds.filter((dealId) => dealId !== id);
+      setRecentDealIds(nextRecent);
+      writeScopedDealIds(SHELL_RECENT_DEALS_PREFIX, storageScope, nextRecent);
+      if (selectedId === id) {
+        setModuleState("deals");
+        window.history.replaceState({}, "", "/deals");
+      }
       setSyncMessage("Deal removed from this device.");
       return;
     }
@@ -386,6 +538,13 @@ function BrixApp() {
         setSelectedId((currentId) => currentId === id ? next[0]?.id ?? null : currentId);
         return next;
       });
+      const nextRecent = recentDealIds.filter((dealId) => dealId !== id);
+      setRecentDealIds(nextRecent);
+      writeScopedDealIds(SHELL_RECENT_DEALS_PREFIX, storageScope, nextRecent);
+      if (selectedId === id) {
+        setModuleState("deals");
+        window.history.replaceState({}, "", "/deals");
+      }
       setSyncMessage(null);
     } catch (error) {
       setSyncMessage(`Deal was not deleted: ${error instanceof Error ? error.message : "check your connection."}`);
@@ -412,8 +571,9 @@ function BrixApp() {
         <nav id="primary-nav" aria-label="Primary">
           {nav.map((item) => {
             const Icon = item.icon;
+            const isActive = module === item.id || (module === "deal" && item.id === "deals");
             return (
-              <button key={item.id} className={module === item.id ? "nav-item active" : "nav-item"} onClick={() => setModule(item.id)}>
+              <button key={item.id} className={isActive ? "nav-item active" : "nav-item"} onClick={() => setModule(item.id)}>
                 <Icon size={18} />
                 <span>
                   <strong>{item.label}</strong>
@@ -437,7 +597,13 @@ function BrixApp() {
               <strong>{workspaceContext?.workspaceName ?? "Personal account"}</strong>
             </div>
           )}
-          {module === "deal" && <DealSwitcher deals={deals} selectedId={selectedDeal?.id} onSelect={setSelectedId} />}
+          {selectedDeal && module !== "deal" && (
+            <button className="active-deal-pill" type="button" onClick={() => openDeal(selectedDeal.id)}>
+              <span>Active Deal</span>
+              <strong>{dealTitle(selectedDeal)}</strong>
+            </button>
+          )}
+          {module === "deal" && <DealSwitcher deals={deals} selectedId={selectedDeal?.id} onSelect={(id) => openDeal(id)} />}
         </header>
 
         {!isOnline && (
@@ -464,7 +630,11 @@ function BrixApp() {
             <span>Sign out to view local drafts.</span>
           </ShellNotice>
         )}
-        {module === "home" && <HomeSurface isAuthenticated={isAuthenticated} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} deals={deals} selectedDeal={selectedDeal} onOpenDeal={() => setModule("deal")} onOpenSettings={() => setModule("account")} onRetry={retryWorkspaceBootstrap} />}
+        {routeMessage && (
+          <ShellNotice tone="warning" title="Deal unavailable">{routeMessage}</ShellNotice>
+        )}
+        {module === "home" && <HomeSurface isAuthenticated={isAuthenticated} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} deals={deals} selectedDeal={selectedDeal ?? deals[0]} onOpenDeal={() => selectedDeal ? openDeal(selectedDeal.id) : setModule("deals")} onOpenSettings={() => setModule("account")} onRetry={retryWorkspaceBootstrap} />}
+        {module === "deals" && <DealsSurface authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} deals={deals} recentDeals={recentDeals} selectedId={selectedId} onOpenDeal={openDeal} onRetry={retryWorkspaceBootstrap} />}
         {module === "deal" && <DealIQ deal={selectedDeal} onChange={upsertDeal} onDelete={deleteDeal} />}
         {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceContext={workspaceContext} invitationToken={invitationToken} recoveryActive={passwordRecoveryActive} onAuthChanged={(userId) => {
           setDeals([]);
@@ -598,6 +768,111 @@ function HomeSurface({
         <StatePrimitive title="Permission" text="Access changes fail closed and clear protected state." />
         <StatePrimitive title="Stale" text="Stale or partial data must be labeled before decisions rely on it." />
       </section>
+    </section>
+  );
+}
+
+function DealsSurface({
+  authLifecycle,
+  workspaceStatus,
+  deals,
+  recentDeals,
+  selectedId,
+  onOpenDeal,
+  onRetry,
+}: {
+  authLifecycle: "restoring" | "signed_out" | "bootstrapping" | "ready" | "failed" | "signing_out" | "expired";
+  workspaceStatus: "loading" | "ready" | "failed" | "signed_out";
+  deals: DealFacts[];
+  recentDeals: DealFacts[];
+  selectedId: string | null;
+  onOpenDeal: (id: string) => void;
+  onRetry: () => void;
+}) {
+  const isPreparing = authLifecycle === "restoring" || authLifecycle === "bootstrapping" || workspaceStatus === "loading";
+  if (workspaceStatus === "failed") {
+    return (
+      <EmptyState
+        title="Deals are unavailable"
+        text="BRIX could not confirm your workspace, so cloud Deals are hidden until access is verified."
+        actionLabel="Retry setup"
+        onAction={onRetry}
+      />
+    );
+  }
+  if (isPreparing) {
+    return (
+      <EmptyState
+        title="Loading Deals"
+        text="BRIX is confirming your workspace before showing saved Deal records."
+      />
+    );
+  }
+  if (!deals.length) {
+    return (
+      <EmptyState
+        title="No Deals yet"
+        text="When a Deal exists in this account, it will appear here. BRIX does not show sample records or another user's work."
+      />
+    );
+  }
+
+  return (
+    <section className="deals-surface">
+      {recentDeals.length > 0 && (
+        <div className="panel wide">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Recently opened</p>
+              <h2>Continue where you left off</h2>
+            </div>
+          </div>
+          <div className="recent-deal-row">
+            {recentDeals.map((deal) => (
+              <button key={deal.id} className={deal.id === selectedId ? "recent-deal-card active" : "recent-deal-card"} type="button" onClick={() => onOpenDeal(deal.id)}>
+                <strong>{dealTitle(deal)}</strong>
+                <span>{dealLocation(deal)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="panel wide">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Saved Deals</p>
+            <h2>Authorized Deal records</h2>
+            <p className="quiet">Only records available to the current account and workspace are shown.</p>
+          </div>
+          <StatusBadge tone="neutral">{deals.length} {deals.length === 1 ? "Deal" : "Deals"}</StatusBadge>
+        </div>
+        <div className="deal-list" role="list" aria-label="Saved Deals">
+          {deals.map((deal) => {
+            const analysis = analyzeDeal(deal);
+            return (
+              <article key={deal.id} className={deal.id === selectedId ? "deal-list-row active" : "deal-list-row"} role="listitem">
+                <div>
+                  <strong>{dealTitle(deal)}</strong>
+                  <span>{dealLocation(deal)}</span>
+                </div>
+                <div>
+                  <small>Status</small>
+                  <b>{statusLabel(deal.status)}</b>
+                </div>
+                <div>
+                  <small>Decision</small>
+                  <b>{analysis.decision}</b>
+                </div>
+                <div>
+                  <small>Updated</small>
+                  <b>{formatShortDate(deal.updatedAt)}</b>
+                </div>
+                <button className="primary" type="button" onClick={() => onOpenDeal(deal.id)}>Open Deal</button>
+              </article>
+            );
+          })}
+        </div>
+      </div>
     </section>
   );
 }
@@ -1825,7 +2100,17 @@ function StatePrimitive({ title, text }: { title: string; text: string }) {
 }
 
 function titleFor(module: Module) {
+  if (module === "deal") return "Deal";
   return nav.find((item) => item.id === module)?.label ?? "BRIX";
+}
+
+function dealTitle(deal: DealFacts) {
+  return deal.address?.trim() || "Untitled Deal";
+}
+
+function dealLocation(deal: DealFacts) {
+  const parts = [deal.city, deal.state, deal.zip].filter(Boolean);
+  return parts.length ? parts.join(", ") : "Location not entered";
 }
 
 function useOnlineStatus() {

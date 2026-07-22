@@ -485,6 +485,69 @@ describe("BRIX app module flow", () => {
     expect(document.activeElement).toBe(main);
   });
 
+  it("opens Deals as an authorized list, then opens one Deal with active context", async () => {
+    mocks.remoteDeals.value = [
+      remoteDealRow("deal-alpha", "user-1", "Alpha House", { city: "Naperville", state: "IL", updated_at: "2026-01-04T00:00:00.000Z" }),
+      remoteDealRow("deal-beta", "user-1", "Beta House", { city: "Aurora", state: "IL", updated_at: "2026-01-03T00:00:00.000Z" }),
+    ];
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Home" });
+    fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
+
+    expect(await screen.findByRole("heading", { name: "Authorized Deal records" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Saved Deals" })).toBeInTheDocument();
+    expect(screen.getByText("Alpha House")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Open Deal" })[0]);
+
+    await waitFor(() => expect(window.location.pathname).toBe("/deals/deal-alpha"));
+    expect(screen.getByRole("heading", { name: "Deal" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Home Resume your BRIX account/i }));
+    expect(await screen.findByRole("button", { name: /Active Deal Alpha House/i })).toBeInTheDocument();
+  });
+
+  it("restores the last safe active Deal route on refresh without duplicating records", async () => {
+    mocks.remoteDeals.value = [remoteDealRow("restore-deal", "user-1", "Restore House")];
+    localStorage.setItem("brix.shell.lastDeal:user-1:workspace-1", JSON.stringify(["restore-deal"]));
+    window.history.replaceState({}, "", "/app");
+    render(<App />);
+
+    await waitFor(() => expect(window.location.pathname).toBe("/deals/restore-deal"));
+    expect(screen.getByRole("heading", { name: "Deal" })).toBeInTheDocument();
+    expect(screen.getAllByText("Restore House").length).toBeGreaterThan(0);
+    expect(mocks.queriedOwnerIds.value).toEqual(["user-1"]);
+  });
+
+  it("recovers safely when a routed Deal is missing, deleted, or unauthorized", async () => {
+    mocks.remoteDeals.value = [remoteDealRow("visible-deal", "user-1", "Visible Deal")];
+    window.history.replaceState({}, "", "/deals/not-authorized");
+    render(<App />);
+
+    expect(await screen.findByText("That Deal is no longer available in this workspace.")).toBeInTheDocument();
+    await waitFor(() => expect(window.location.pathname).toBe("/deals"));
+    expect(screen.getByRole("heading", { name: "Authorized Deal records" })).toBeInTheDocument();
+    expect(screen.queryByText("not-authorized")).not.toBeInTheDocument();
+  });
+
+  it("shows recent Deals scoped to the current workspace and switches safely", async () => {
+    mocks.remoteDeals.value = [
+      remoteDealRow("recent-a", "user-1", "Recent A"),
+      remoteDealRow("recent-b", "user-1", "Recent B"),
+    ];
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Home" });
+    fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Open Deal" })[0]);
+    await waitFor(() => expect(window.location.pathname).toBe("/deals/recent-a"));
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "recent-b" } });
+
+    await waitFor(() => expect(window.location.pathname).toBe("/deals/recent-b"));
+    fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
+    expect(await screen.findByRole("heading", { name: "Continue where you left off" })).toBeInTheDocument();
+    expect(localStorage.getItem("brix.shell.recentDeals:user-1:workspace-1")).toContain("recent-b");
+  });
+
   it("redirects unfinished legacy module routes to safe shell destinations", async () => {
     window.history.replaceState({}, "", "/findiq");
     const first = render(<App />);
@@ -1038,6 +1101,7 @@ describe("BRIX app module flow", () => {
 
     expect(await screen.findByText("Delete This Deal")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Open Deal" })[0]);
     fireEvent.click(screen.getByRole("button", { name: /Delete deal/i }));
 
     await waitFor(() => expect(screen.queryByText("Delete This Deal")).not.toBeInTheDocument());
@@ -1061,6 +1125,7 @@ describe("BRIX app module flow", () => {
 
     expect(await screen.findByText("Still Visible Deal")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Open Deal" })[0]);
     fireEvent.click(screen.getByRole("button", { name: /Delete deal/i }));
 
     expect(await screen.findByText(/Deal was not deleted: delete failed/i)).toBeInTheDocument();
@@ -1092,6 +1157,7 @@ describe("BRIX app module flow", () => {
 
     expect((await screen.findAllByText(/44 Round Trip Ave/i)).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Open Deal" })[0]);
     expect((screen.getByLabelText("Purchase price") as HTMLInputElement).value).toBe("250000");
   });
 
