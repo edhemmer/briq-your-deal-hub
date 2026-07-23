@@ -472,6 +472,113 @@ describe("BRIX app module flow", () => {
     await waitFor(() => expect(screen.queryByText(/Sync needs attention/i)).not.toBeInTheDocument());
   }, 60000);
 
+  it("opens shell search from the header and restores focus when closed", async () => {
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Home" });
+    const searchButton = screen.getByRole("button", { name: /Search/i });
+    fireEvent.click(searchButton);
+
+    expect(await screen.findByRole("dialog", { name: "Search BRIX" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Search saved Deals/i)).toHaveFocus();
+    fireEvent.keyDown(screen.getByLabelText(/Search saved Deals/i), { key: "Escape" });
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Search BRIX" })).not.toBeInTheDocument());
+    expect(searchButton).toHaveFocus();
+  });
+
+  it("opens shell search with Ctrl+K without hijacking text entry", async () => {
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Settings" });
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    expect(await screen.findByRole("dialog", { name: "Search BRIX" })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByLabelText(/Search saved Deals/i), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Search BRIX" })).not.toBeInTheDocument());
+
+    const accountButton = screen.getByRole("button", { name: "Change password" });
+    fireEvent.click(accountButton);
+    const passwordInput = await screen.findByLabelText("Current password");
+    fireEvent.keyDown(passwordInput, { key: "k", ctrlKey: true });
+    expect(screen.queryByRole("dialog", { name: "Search BRIX" })).not.toBeInTheDocument();
+  });
+
+  it("searches only authorized cloud Deals and opens the selected Deal", async () => {
+    mocks.remoteDeals.value = [
+      remoteDealRow("deal-alpha", "user-1", "123 Maple Avenue", { city: "Naperville", state: "IL", zip: "60540" }),
+      remoteDealRow("deal-beta", "user-1", "456 Pine Street", { city: "Aurora", state: "IL", zip: "60502" }),
+    ];
+    render(<App />);
+
+    await screen.findByText("123 Maple Avenue");
+    fireEvent.click(screen.getByRole("button", { name: /Search/i }));
+    const input = await screen.findByLabelText(/Search saved Deals/i);
+    fireEvent.change(input, { target: { value: "pine" } });
+
+    expect(await screen.findByRole("option", { name: /456 Pine Street/i })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /123 Maple Avenue/i })).not.toBeInTheDocument();
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(await screen.findByRole("heading", { name: "Deal" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/deals/deal-beta");
+  });
+
+  it("keeps signed-out search from exposing cloud Deal results", async () => {
+    mocks.session.value = null;
+    mocks.user.value = null;
+    mocks.remoteDeals.value = [remoteDealRow("cloud-only", "user-1", "Protected Cloud Deal")];
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Home" });
+    fireEvent.click(screen.getByRole("button", { name: /Search/i }));
+    const input = await screen.findByLabelText(/Search saved Deals/i);
+    fireEvent.change(input, { target: { value: "Protected" } });
+
+    expect(await screen.findByText(/Sign in to search saved cloud Deals/i)).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Protected Cloud Deal/i })).not.toBeInTheDocument();
+  });
+
+  it("keeps stale search updates from replacing the latest query", async () => {
+    mocks.remoteDeals.value = [
+      remoteDealRow("deal-alpha", "user-1", "Alpha Terrace"),
+      remoteDealRow("deal-beta", "user-1", "Beta Lane"),
+    ];
+    render(<App />);
+
+    await screen.findByText("Alpha Terrace");
+    fireEvent.click(screen.getByRole("button", { name: /Search/i }));
+    const input = await screen.findByLabelText(/Search saved Deals/i);
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(input, { target: { value: "alpha" } });
+      fireEvent.change(input, { target: { value: "beta" } });
+
+      await act(async () => {
+        vi.advanceTimersByTime(220);
+      });
+
+      expect(screen.getByRole("option", { name: /Beta Lane/i })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: /Alpha Terrace/i })).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows account recovery in search when workspace bootstrap has failed", async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: null, error: new Error("workspace unavailable") });
+    render(<App />);
+
+    expect(await screen.findByText(/BRIX could not prepare your workspace/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Search/i }));
+
+    expect(await screen.findByText(/Search is temporarily unavailable/i)).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Retry account setup" }));
+    });
+    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith("ensure_workspace_context"));
+  });
+
   it("keeps the skip link reachable on first load and restores focus after shell navigation", async () => {
     render(<App />);
 

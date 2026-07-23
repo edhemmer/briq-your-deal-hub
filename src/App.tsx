@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
 import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch, Eye, EyeOff, AlertTriangle, CheckCircle2, Users, UserMinus, Home, Menu, X, WifiOff, RefreshCw } from "lucide-react";
 import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
@@ -35,12 +35,24 @@ import {
 } from "./core/workspaceAccess";
 
 type Module = "home" | "deals" | "deal" | "account";
+type SearchStatus = "idle" | "loading" | "ready" | "failed";
+type SearchTarget = "home" | "deals" | "account" | "deal";
+
+type ShellSearchResult = {
+  key: string;
+  label: string;
+  description: string;
+  group: string;
+  target: SearchTarget;
+  dealId?: string;
+};
 
 const nav: Array<{ id: Module; label: string; icon: typeof Search; purpose: string }> = [
   { id: "home", label: "Home", icon: Home, purpose: "Resume your BRIX account" },
   { id: "deals", label: "Deals", icon: BarChart3, purpose: "Review saved deal work" },
   { id: "account", label: "Settings", icon: UserCircle, purpose: "Account and access" },
 ];
+const SHELL_SEARCH_DEBOUNCE_MS = 180;
 
 const RECENT_DEAL_IDS_LIMIT = 6;
 const SHELL_RECENT_DEALS_PREFIX = "brix.shell.recentDeals";
@@ -142,17 +154,25 @@ function BrixApp() {
   const [routeMessage, setRouteMessage] = useState<string | null>(null);
   const [recentDealIds, setRecentDealIds] = useState<string[]>([]);
   const [workspaceRetryKey, setWorkspaceRetryKey] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<ShellSearchResult[]>([]);
+  const [searchStatus, setSearchStatus] = useState<SearchStatus>("idle");
+  const [searchHighlightIndex, setSearchHighlightIndex] = useState(0);
   const recentCloudCreatesRef = useRef<Map<string, { ownerId: string; deal: DealFacts }>>(new Map());
   const mainContentRef = useRef<HTMLElement>(null);
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchRequestRef = useRef(0);
   const didRenderInitialModuleRef = useRef(false);
   const didRestoreLastDealRef = useRef(false);
   const isOnline = useOnlineStatus();
   const isAuthenticated = Boolean(authUserId);
   const selectedDeal = deals.find((deal) => deal.id === selectedId);
   const storageScope = shellStorageScope(authUserId, workspaceContext);
-  const recentDeals = recentDealIds
+  const recentDeals = useMemo(() => recentDealIds
     .map((id) => deals.find((deal) => deal.id === id))
-    .filter((deal): deal is DealFacts => Boolean(deal));
+    .filter((deal): deal is DealFacts => Boolean(deal)), [deals, recentDealIds]);
 
   useEffect(() => {
     const safePath = currentRoutePath();
@@ -161,12 +181,12 @@ function BrixApp() {
     }
   }, []);
 
-  function setModule(next: Module) {
+  const setModule = useCallback((next: Module) => {
     setModuleState(next);
     setNavOpen(false);
     const nextPath = pathForModule(next);
     if (window.location.pathname !== nextPath) window.history.pushState({}, "", nextPath);
-  }
+  }, []);
 
   const rememberDealContext = useCallback((dealId: string) => {
     const currentScope = shellStorageScope(authUserId, workspaceContext);
@@ -200,6 +220,76 @@ function BrixApp() {
     }
     if (!options.silent) mainContentRef.current?.focus({ preventScroll: true });
   }, [deals, rememberDealContext, syncMessage]);
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    setSearchQuery("");
+    setSearchStatus("idle");
+    setSearchHighlightIndex(0);
+    window.setTimeout(() => searchButtonRef.current?.focus({ preventScroll: true }), 0);
+  }, []);
+
+  const executeSearchResult = useCallback((result: ShellSearchResult) => {
+    if (result.target === "deal" && result.dealId) {
+      openDeal(result.dealId);
+    } else if (result.target === "home") {
+      setModule("home");
+    } else if (result.target === "deals") {
+      setModule("deals");
+    } else if (result.target === "account") {
+      setModule("account");
+    }
+    closeSearch();
+  }, [closeSearch, openDeal, setModule]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.key.toLowerCase() === "k" && (event.ctrlKey || event.metaKey))) return;
+      if (isTextEntryTarget(event.target)) return;
+      event.preventDefault();
+      setSearchOpen(true);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    window.setTimeout(() => searchInputRef.current?.focus({ preventScroll: true }), 0);
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    setSearchHighlightIndex(0);
+    const requestId = searchRequestRef.current + 1;
+    searchRequestRef.current = requestId;
+
+    if (!isOnline) {
+      setSearchStatus("failed");
+      return;
+    }
+
+    if (workspaceStatus === "failed" || authLifecycle === "failed" || authLifecycle === "expired") {
+      setSearchStatus("failed");
+      return;
+    }
+
+    const trimmedQuery = searchQuery.trim();
+    if (!trimmedQuery) {
+      setSearchResults(buildShellSearchResults({ query: "", deals, recentDeals, selectedDeal, isAuthenticated }));
+      setSearchStatus("idle");
+      return;
+    }
+
+    setSearchStatus("loading");
+    const timer = window.setTimeout(() => {
+      if (searchRequestRef.current !== requestId) return;
+      setSearchResults(buildShellSearchResults({ query: trimmedQuery, deals, recentDeals, selectedDeal, isAuthenticated }));
+      setSearchStatus("ready");
+    }, SHELL_SEARCH_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [authLifecycle, deals, isAuthenticated, isOnline, recentDeals, searchOpen, searchQuery, selectedDeal, workspaceStatus]);
 
   useEffect(() => {
     if (!didRenderInitialModuleRef.current) {
@@ -326,7 +416,7 @@ function BrixApp() {
       window.removeEventListener("popstate", onPopState);
       listener.subscription.unsubscribe();
     };
-  }, [anonymousDraftsOnDevice, clearProtectedState, restoreAnonymousDrafts, restoreRecentCloudCreates]);
+  }, [anonymousDraftsOnDevice, clearProtectedState, restoreAnonymousDrafts, restoreRecentCloudCreates, setModule]);
 
   useEffect(() => {
     if (!authUserId) return;
@@ -591,6 +681,11 @@ function BrixApp() {
             <p className="eyebrow">BRIX Real Estate</p>
             <h1>{titleFor(module)}</h1>
           </div>
+          <button ref={searchButtonRef} className="shell-search-trigger" type="button" onClick={() => setSearchOpen(true)}>
+            <Search size={18} />
+            <span>Search</span>
+            <kbd>Ctrl K</kbd>
+          </button>
           {isAuthenticated && (
             <div className={workspaceStatus === "failed" ? "workspace-pill danger" : "workspace-pill"}>
               <span>My BRIX</span>
@@ -664,6 +759,24 @@ function BrixApp() {
           setModule("home");
         }} />}
       </main>
+      {searchOpen && (
+        <ShellSearchPanel
+          query={searchQuery}
+          results={searchResults}
+          status={searchStatus}
+          isOnline={isOnline}
+          isAuthenticated={isAuthenticated}
+          workspaceStatus={workspaceStatus}
+          authLifecycle={authLifecycle}
+          highlightedIndex={searchHighlightIndex}
+          inputRef={searchInputRef}
+          onQueryChange={setSearchQuery}
+          onHighlightChange={setSearchHighlightIndex}
+          onClose={closeSearch}
+          onRetry={retryWorkspaceBootstrap}
+          onExecute={executeSearchResult}
+        />
+      )}
     </div>
   );
 }
@@ -686,6 +799,165 @@ function Landing() {
         <Step n="3" title="Get decision intelligence" text="Confidence, readiness, missing data, strategy comparison, report export, and next actions." />
       </section>
     </main>
+  );
+}
+
+function ShellSearchPanel({
+  query,
+  results,
+  status,
+  isOnline,
+  isAuthenticated,
+  workspaceStatus,
+  authLifecycle,
+  highlightedIndex,
+  inputRef,
+  onQueryChange,
+  onHighlightChange,
+  onClose,
+  onRetry,
+  onExecute,
+}: {
+  query: string;
+  results: ShellSearchResult[];
+  status: SearchStatus;
+  isOnline: boolean;
+  isAuthenticated: boolean;
+  workspaceStatus: "loading" | "ready" | "failed" | "signed_out";
+  authLifecycle: "restoring" | "signed_out" | "bootstrapping" | "ready" | "failed" | "signing_out" | "expired";
+  highlightedIndex: number;
+  inputRef: RefObject<HTMLInputElement>;
+  onQueryChange: (query: string) => void;
+  onHighlightChange: (index: number) => void;
+  onClose: () => void;
+  onRetry: () => void;
+  onExecute: (result: ShellSearchResult) => void;
+}) {
+  const unavailableReason = !isOnline
+    ? "Search needs a connection to confirm account access."
+    : workspaceStatus === "failed" || authLifecycle === "failed"
+      ? "Search is temporarily unavailable until account setup is restored."
+      : authLifecycle === "expired"
+        ? "Sign in again to search saved Deals."
+        : null;
+  const showLoading = status === "loading" && query.trim().length > 0;
+  const showNoResults = status === "ready" && query.trim().length > 0 && results.length === 0;
+
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (!results.length) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      onHighlightChange((highlightedIndex + 1) % results.length);
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      onHighlightChange((highlightedIndex - 1 + results.length) % results.length);
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      onExecute(results[Math.min(highlightedIndex, results.length - 1)]);
+    }
+  }
+
+  return (
+    <div className="search-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
+      <section
+        className="shell-search-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shell-search-title"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") onClose();
+        }}
+      >
+        <div className="search-heading">
+          <div>
+            <p className="eyebrow">Quick navigation</p>
+            <h2 id="shell-search-title">Search BRIX</h2>
+          </div>
+          <button className="secondary compact-button" type="button" onClick={onClose}>
+            <X size={16} /> Close
+          </button>
+        </div>
+        <label className="search-input-row" htmlFor="shell-search-input">
+          <Search size={18} />
+          <input
+            ref={inputRef}
+            id="shell-search-input"
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            onKeyDown={handleKeyDown}
+            aria-label="Search saved Deals"
+            aria-describedby="shell-search-help"
+          />
+          <kbd>Esc</kbd>
+        </label>
+        <p id="shell-search-help" className="search-help">
+          Search saved Deals by address, location, or status. Use arrow keys and Enter to open a result.
+        </p>
+
+        {unavailableReason && (
+          <div className="search-state warning" role="status">
+            <AlertTriangle size={18} />
+            <span>{unavailableReason}</span>
+            {(workspaceStatus === "failed" || authLifecycle === "failed") && (
+              <button className="secondary compact-button" type="button" onClick={onRetry}>Retry account setup</button>
+            )}
+          </div>
+        )}
+
+        {!unavailableReason && !isAuthenticated && (
+          <div className="search-state" role="status">
+            <ShieldCheck size={18} />
+            <span>Sign in to search saved cloud Deals. Local drafts stay separate from account Deals.</span>
+          </div>
+        )}
+
+        {!unavailableReason && showLoading && (
+          <div className="search-state" role="status" aria-live="polite">
+            <RefreshCw size={18} />
+            <span>Updating results...</span>
+          </div>
+        )}
+
+        {!unavailableReason && showNoResults && (
+          <div className="search-state" role="status" aria-live="polite">
+            <Search size={18} />
+            <span>No saved Deals match this search.</span>
+          </div>
+        )}
+
+        {!unavailableReason && results.length > 0 && (
+          <div className="search-results" role="listbox" aria-label="BRIX search results">
+            {results.map((result, index) => (
+              <button
+                key={result.key}
+                id={`shell-search-result-${index}`}
+                className={index === highlightedIndex ? "search-result active" : "search-result"}
+                type="button"
+                role="option"
+                aria-selected={index === highlightedIndex}
+                onMouseEnter={() => onHighlightChange(index)}
+                onClick={() => onExecute(result)}
+              >
+                <span>
+                  <strong>{result.label}</strong>
+                  <small>{result.description}</small>
+                </span>
+                <em>{result.group}</em>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -2021,6 +2293,85 @@ function workspaceAccessError(error: unknown) {
 function DealSwitcher({ deals, selectedId, onSelect }: { deals: DealFacts[]; selectedId?: string; onSelect: (id: string) => void }) {
   if (!deals.length) return null;
   return <select className="deal-switcher" value={selectedId} onChange={(event) => onSelect(event.target.value)}>{deals.map((deal) => <option key={deal.id} value={deal.id}>{deal.address || "Untitled property"}</option>)}</select>;
+}
+
+function buildShellSearchResults({
+  query,
+  deals,
+  recentDeals,
+  selectedDeal,
+  isAuthenticated,
+}: {
+  query: string;
+  deals: DealFacts[];
+  recentDeals: DealFacts[];
+  selectedDeal?: DealFacts;
+  isAuthenticated: boolean;
+}) {
+  const trimmedQuery = query.trim();
+  const results: ShellSearchResult[] = [];
+  const add = (result: ShellSearchResult) => {
+    if (!results.some((item) => item.key === result.key)) results.push(result);
+  };
+
+  if (!trimmedQuery) {
+    add({ key: "nav-home", label: "Home", description: "Return to the BRIX account overview.", group: "Navigation", target: "home" });
+    add({ key: "nav-deals", label: "Deals", description: "Open the saved Deal workspace.", group: "Navigation", target: "deals" });
+    add({ key: "nav-account", label: "Settings", description: "Manage account, access, and security.", group: "Navigation", target: "account" });
+    if (isAuthenticated && selectedDeal) add(dealSearchResult(selectedDeal, "Active Deal"));
+    if (isAuthenticated) recentDeals.forEach((deal) => add(dealSearchResult(deal, "Recent Deal")));
+    return results;
+  }
+
+  const normalizedQuery = normalizeSearchText(trimmedQuery);
+  for (const item of nav) {
+    const searchableText = normalizeSearchText(`${item.label} ${item.purpose}`);
+    if (searchableText.includes(normalizedQuery)) {
+      add({ key: `nav-${item.id}`, label: item.label, description: item.purpose, group: "Navigation", target: item.id === "deal" ? "deals" : item.id });
+    }
+  }
+
+  if (!isAuthenticated) return results;
+
+  for (const deal of deals) {
+    if (dealMatchesSearch(deal, normalizedQuery)) add(dealSearchResult(deal, "Saved Deal"));
+  }
+
+  return results;
+}
+
+function dealSearchResult(deal: DealFacts, group: string): ShellSearchResult {
+  return {
+    key: `deal-${deal.id}`,
+    label: dealTitle(deal),
+    description: `${dealLocation(deal)} - ${statusLabel(deal.status)}`,
+    group,
+    target: "deal",
+    dealId: deal.id,
+  };
+}
+
+function dealMatchesSearch(deal: DealFacts, normalizedQuery: string) {
+  const strategyName = deal.strategyId ? strategyCatalog[deal.strategyId as StrategyId]?.name ?? "" : "";
+  const searchableText = normalizeSearchText([
+    deal.address,
+    deal.city,
+    deal.state,
+    deal.zip,
+    statusLabel(deal.status),
+    strategyName,
+  ].filter(Boolean).join(" "));
+  return searchableText.includes(normalizedQuery);
+}
+
+function normalizeSearchText(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function isTextEntryTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  const tagName = target.tagName.toLowerCase();
+  return tagName === "input" || tagName === "textarea" || tagName === "select" || target.isContentEditable;
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
