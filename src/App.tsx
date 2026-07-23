@@ -16,6 +16,14 @@ import { ensureWorkspaceContext, type WorkspaceContext } from "./core/workspace"
 import { requestAccountDeletion } from "./core/authActions";
 import { isSessionFailure, safeAuthError, validateAuthInput, type AuthMode } from "./core/authLifecycle";
 import {
+  DEFAULT_PRESENTATION_MODE,
+  loadAnonymousPresentationMode,
+  loadProfilePresentationMode,
+  saveAnonymousPresentationMode,
+  saveProfilePresentationMode,
+  type PresentationMode,
+} from "./core/presentationMode";
+import {
   acceptWorkspaceInvitation,
   createWorkspaceInvitation,
   invitationTokenFromLocation,
@@ -37,6 +45,7 @@ import {
 type Module = "home" | "deals" | "deal" | "account";
 type SearchStatus = "idle" | "loading" | "ready" | "failed";
 type SearchTarget = "home" | "deals" | "account" | "deal";
+type PresentationPreferenceStatus = "loading" | "ready" | "saving" | "saved" | "failed" | "offline" | "unsupported";
 
 type ShellSearchResult = {
   key: string;
@@ -154,6 +163,10 @@ function BrixApp() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [presentationMode, setPresentationMode] = useState<PresentationMode>(() => loadAnonymousPresentationMode());
+  const [presentationPreferenceStatus, setPresentationPreferenceStatus] = useState<PresentationPreferenceStatus>("ready");
+  const [presentationPreferenceMessage, setPresentationPreferenceMessage] = useState("");
+  const [failedPresentationMode, setFailedPresentationMode] = useState<PresentationMode | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [hasAnonymousDrafts, setHasAnonymousDrafts] = useState(false);
   const [workspaceContext, setWorkspaceContext] = useState<WorkspaceContext | null>(null);
@@ -334,6 +347,18 @@ function BrixApp() {
     setSelectedId(null);
   }, [anonymousDraftsOnDevice]);
 
+  const resetPresentationForAuthTransition = useCallback((userId: string | null) => {
+    setFailedPresentationMode(null);
+    setPresentationPreferenceMessage("");
+    if (userId) {
+      setPresentationMode(DEFAULT_PRESENTATION_MODE);
+      setPresentationPreferenceStatus("loading");
+    } else {
+      setPresentationMode(loadAnonymousPresentationMode());
+      setPresentationPreferenceStatus("ready");
+    }
+  }, []);
+
   const restoreRecentCloudCreates = useCallback((userId: string) => {
     const recentDealsForUser = Array.from(recentCloudCreatesRef.current.values())
       .filter((entry) => entry.ownerId === userId)
@@ -362,6 +387,66 @@ function BrixApp() {
     setWorkspaceRetryKey((current) => current + 1);
   }
 
+  const updatePresentationMode = useCallback(async (nextMode: PresentationMode) => {
+    const previousMode = presentationMode;
+    setPresentationMode(nextMode);
+    setPresentationPreferenceStatus("saving");
+    setPresentationPreferenceMessage("");
+    setFailedPresentationMode(null);
+
+    try {
+      if (authUserId) {
+        if (!isOnline) throw new Error("offline");
+        await saveProfilePresentationMode(authUserId, nextMode);
+      } else {
+        saveAnonymousPresentationMode(nextMode);
+      }
+      setPresentationPreferenceStatus("saved");
+      setPresentationPreferenceMessage(`${nextMode === "guided" ? "Guided" : "Professional"} mode saved.`);
+    } catch {
+      setPresentationMode(previousMode);
+      setFailedPresentationMode(nextMode);
+      setPresentationPreferenceStatus(isOnline ? "failed" : "offline");
+      setPresentationPreferenceMessage(isOnline
+        ? "BRIX could not save that preference. Your previous mode is still active."
+        : "You appear to be offline. Your previous mode is still active.");
+    }
+  }, [authUserId, isOnline, presentationMode]);
+
+  const retryPresentationModeSave = useCallback(() => {
+    if (failedPresentationMode) void updatePresentationMode(failedPresentationMode);
+  }, [failedPresentationMode, updatePresentationMode]);
+
+  useEffect(() => {
+    if (!authReady) return;
+    if (!authUserId) {
+      resetPresentationForAuthTransition(null);
+      return;
+    }
+    let isCurrent = true;
+    setPresentationMode(DEFAULT_PRESENTATION_MODE);
+    setPresentationPreferenceStatus("loading");
+    setPresentationPreferenceMessage("");
+    setFailedPresentationMode(null);
+    loadProfilePresentationMode(authUserId)
+      .then((mode) => {
+        if (!isCurrent) return;
+        setPresentationMode(mode);
+        setPresentationPreferenceStatus("ready");
+      })
+      .catch(() => {
+        if (!isCurrent) return;
+        setPresentationMode(DEFAULT_PRESENTATION_MODE);
+        setPresentationPreferenceStatus(isOnline ? "failed" : "offline");
+        setPresentationPreferenceMessage(isOnline
+          ? "BRIX could not load your presentation preference. Guided mode is active until retry succeeds."
+          : "You appear to be offline. Guided mode is active until BRIX can load your account preference.");
+      });
+    return () => {
+      isCurrent = false;
+    };
+  }, [authReady, authUserId, isOnline, resetPresentationForAuthTransition]);
+
   function clearInvitationFromUrl() {
     const url = new URL(window.location.href);
     if (!url.searchParams.has("invite")) return;
@@ -383,6 +468,7 @@ function BrixApp() {
       .then(({ data }) => {
         const userId = data.session?.user?.id ?? null;
         clearProtectedState();
+        resetPresentationForAuthTransition(userId);
         setAuthUserId(userId);
         setAuthReady(true);
         if (!userId) {
@@ -411,6 +497,7 @@ function BrixApp() {
       }
       if (window.location.pathname === "/account") setInvitationToken(invitationTokenFromLocation());
       clearProtectedState();
+      resetPresentationForAuthTransition(userId);
       setAuthUserId(userId);
       setAuthReady(true);
       if (!userId) {
@@ -427,7 +514,14 @@ function BrixApp() {
       window.removeEventListener("popstate", onPopState);
       listener.subscription.unsubscribe();
     };
-  }, [anonymousDraftsOnDevice, clearProtectedState, restoreAnonymousDrafts, restoreRecentCloudCreates, setModule]);
+  }, [
+    anonymousDraftsOnDevice,
+    clearProtectedState,
+    resetPresentationForAuthTransition,
+    restoreAnonymousDrafts,
+    restoreRecentCloudCreates,
+    setModule,
+  ]);
 
   useEffect(() => {
     if (!authUserId) return;
@@ -653,7 +747,7 @@ function BrixApp() {
   }
 
   return (
-    <div className={navOpen ? "app-shell shell-nav-open" : "app-shell"}>
+    <div className={`${navOpen ? "app-shell shell-nav-open" : "app-shell"} mode-${presentationMode}`}>
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <aside className="rail">
         <div className="rail-header">
@@ -739,12 +833,13 @@ function BrixApp() {
         {routeMessage && (
           <ShellNotice tone="warning" title="Deal unavailable">{routeMessage}</ShellNotice>
         )}
-        {module === "home" && <HomeSurface isAuthenticated={isAuthenticated} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} isOnline={isOnline} deals={deals} selectedDeal={selectedDeal ?? deals[0]} syncMessage={syncMessage} routeMessage={routeMessage} onOpenDeal={(dealId?: string) => dealId ? openDeal(dealId) : selectedDeal ? openDeal(selectedDeal.id) : setModule("deals")} onOpenDeals={() => setModule("deals")} onOpenSettings={() => setModule("account")} onRetry={retryWorkspaceBootstrap} />}
-        {module === "deals" && <DealsSurface authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} deals={deals} recentDeals={recentDeals} selectedId={selectedId} onOpenDeal={openDeal} onRetry={retryWorkspaceBootstrap} />}
+        {module === "home" && <HomeSurface presentationMode={presentationMode} isAuthenticated={isAuthenticated} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} isOnline={isOnline} deals={deals} selectedDeal={selectedDeal ?? deals[0]} syncMessage={syncMessage} routeMessage={routeMessage} onOpenDeal={(dealId?: string) => dealId ? openDeal(dealId) : selectedDeal ? openDeal(selectedDeal.id) : setModule("deals")} onOpenDeals={() => setModule("deals")} onOpenSettings={() => setModule("account")} onRetry={retryWorkspaceBootstrap} />}
+        {module === "deals" && <DealsSurface presentationMode={presentationMode} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} deals={deals} recentDeals={recentDeals} selectedId={selectedId} onOpenDeal={openDeal} onRetry={retryWorkspaceBootstrap} />}
         {module === "deal" && <DealIQ deal={selectedDeal} onChange={upsertDeal} onDelete={deleteDeal} />}
         {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceContext={workspaceContext} invitationToken={invitationToken} recoveryActive={passwordRecoveryActive} onAuthChanged={(userId) => {
           setDeals([]);
           setSelectedId(null);
+          resetPresentationForAuthTransition(userId);
           setAuthUserId(userId);
           setAuthReady(true);
           setWorkspaceContext(null);
@@ -761,6 +856,7 @@ function BrixApp() {
           setAuthLifecycle("signing_out");
           clearProtectedState();
         }} onSignedOut={() => {
+          resetPresentationForAuthTransition(null);
           setAuthUserId(null);
           setAuthReady(true);
           setWorkspaceContext(null);
@@ -768,7 +864,7 @@ function BrixApp() {
           setAuthLifecycle("signed_out");
           restoreAnonymousDrafts();
           setModule("home");
-        }} />}
+        }} presentationMode={presentationMode} presentationStatus={presentationPreferenceStatus} presentationMessage={presentationPreferenceMessage} failedPresentationMode={failedPresentationMode} onPresentationModeChange={(mode) => void updatePresentationMode(mode)} onPresentationRetry={retryPresentationModeSave} />}
       </main>
       {searchOpen && (
         <ShellSearchPanel
@@ -786,6 +882,7 @@ function BrixApp() {
           onClose={closeSearch}
           onRetry={retryWorkspaceBootstrap}
           onExecute={executeSearchResult}
+          presentationMode={presentationMode}
         />
       )}
     </div>
@@ -828,6 +925,7 @@ function ShellSearchPanel({
   onClose,
   onRetry,
   onExecute,
+  presentationMode,
 }: {
   query: string;
   results: ShellSearchResult[];
@@ -843,6 +941,7 @@ function ShellSearchPanel({
   onClose: () => void;
   onRetry: () => void;
   onExecute: (result: ShellSearchResult) => void;
+  presentationMode: PresentationMode;
 }) {
   const unavailableReason = !isOnline
     ? "Search needs a connection to confirm account access."
@@ -911,7 +1010,9 @@ function ShellSearchPanel({
           <kbd>Esc</kbd>
         </label>
         <p id="shell-search-help" className="search-help">
-          Search saved Deals by address, location, or status. Use arrow keys and Enter to open a result.
+          {presentationMode === "professional"
+            ? "Search saved Deals. Arrow keys move, Enter opens."
+            : "Search saved Deals by address, location, strategy, or status. Use arrow keys and Enter to open a result."}
         </p>
 
         {unavailableReason && (
@@ -973,6 +1074,7 @@ function ShellSearchPanel({
 }
 
 function HomeSurface({
+  presentationMode,
   isAuthenticated,
   authLifecycle,
   workspaceStatus,
@@ -986,6 +1088,7 @@ function HomeSurface({
   onOpenSettings,
   onRetry,
 }: {
+  presentationMode: PresentationMode;
   isAuthenticated: boolean;
   authLifecycle: "restoring" | "signed_out" | "bootstrapping" | "ready" | "failed" | "signing_out" | "expired";
   workspaceStatus: "loading" | "ready" | "failed" | "signed_out";
@@ -1000,6 +1103,7 @@ function HomeSurface({
   onRetry: () => void;
 }) {
   const hasDeals = deals.length > 0;
+  const isProfessional = presentationMode === "professional";
   const isPreparing = authLifecycle === "restoring" || authLifecycle === "bootstrapping" || workspaceStatus === "loading";
   const accountReady = isAuthenticated && authLifecycle === "ready" && workspaceStatus === "ready";
   const attentionItems = buildInvestorAttentionItems({
@@ -1016,10 +1120,12 @@ function HomeSurface({
     <section className="home-surface">
       <div className="panel hero-panel home-hero">
         <StatusBadge tone={accountReady ? "success" : isAuthenticated ? "warning" : "neutral"}>{accountReady ? "Account ready" : isAuthenticated ? "Account loading" : "Local mode"}</StatusBadge>
-        <h2>{accountReady ? "Your BRIX account is ready." : isAuthenticated ? "BRIX is confirming your account context." : "Use BRIX locally or sign in when you want cloud continuity."}</h2>
+        <h2>{accountReady ? isProfessional ? "Ready for deal work." : "Your BRIX account is ready." : isAuthenticated ? "BRIX is confirming your account context." : "Use BRIX locally or sign in when you want cloud continuity."}</h2>
         <p className="quiet">
           {accountReady
-            ? "The shell is ready for verified Deal work. BRIX will only show account and Deal information that exists in your saved records."
+            ? isProfessional
+              ? "Saved records, account state, and available actions are loaded from your authorized BRIX data."
+              : "The shell is ready for verified Deal work. BRIX will only show account and Deal information that exists in your saved records."
             : isAuthenticated
               ? "Cloud Deal information stays hidden until BRIX confirms your account workspace and permissions."
             : "Local drafts stay on this device until you sign in. Cloud Deals remain separated from local drafts."}
@@ -1031,6 +1137,7 @@ function HomeSurface({
       </div>
 
       <InvestorAttentionSurface
+        presentationMode={presentationMode}
         items={attentionItems}
         onOpenDeal={onOpenDeal}
         onOpenDeals={onOpenDeals}
@@ -1064,12 +1171,14 @@ function HomeSurface({
 }
 
 function InvestorAttentionSurface({
+  presentationMode,
   items,
   onOpenDeal,
   onOpenDeals,
   onOpenSettings,
   onRetry,
 }: {
+  presentationMode: PresentationMode;
   items: InvestorAttentionItem[];
   onOpenDeal: (dealId?: string) => void;
   onOpenDeals: () => void;
@@ -1082,7 +1191,7 @@ function InvestorAttentionSurface({
       <div className="section-heading">
         <div>
           <p className="eyebrow">Attention</p>
-          <h2 id="investor-attention-title">What needs attention now</h2>
+          <h2 id="investor-attention-title">{presentationMode === "professional" ? "Attention" : "What needs attention now"}</h2>
         </div>
       </div>
       <div className="attention-list">
@@ -1121,6 +1230,7 @@ function InvestorAttentionSurface({
 }
 
 function DealsSurface({
+  presentationMode,
   authLifecycle,
   workspaceStatus,
   deals,
@@ -1129,6 +1239,7 @@ function DealsSurface({
   onOpenDeal,
   onRetry,
 }: {
+  presentationMode: PresentationMode;
   authLifecycle: "restoring" | "signed_out" | "bootstrapping" | "ready" | "failed" | "signing_out" | "expired";
   workspaceStatus: "loading" | "ready" | "failed" | "signed_out";
   deals: DealFacts[];
@@ -1138,6 +1249,7 @@ function DealsSurface({
   onRetry: () => void;
 }) {
   const isPreparing = authLifecycle === "restoring" || authLifecycle === "bootstrapping" || workspaceStatus === "loading";
+  const isProfessional = presentationMode === "professional";
   if (workspaceStatus === "failed") {
     return (
       <EmptyState
@@ -1189,8 +1301,8 @@ function DealsSurface({
         <div className="section-heading">
           <div>
             <p className="eyebrow">Saved Deals</p>
-            <h2>Authorized Deal records</h2>
-            <p className="quiet">Only records available to the current account and workspace are shown.</p>
+            <h2>{isProfessional ? "Deal records" : "Authorized Deal records"}</h2>
+            <p className="quiet">{isProfessional ? "Scoped to the current account." : "Only records available to the current account and workspace are shown."}</p>
           </div>
           <StatusBadge tone="neutral">{deals.length} {deals.length === 1 ? "Deal" : "Deals"}</StatusBadge>
         </div>
@@ -1561,19 +1673,31 @@ function Account({
   workspaceContext,
   invitationToken,
   recoveryActive,
+  presentationMode,
+  presentationStatus,
+  presentationMessage,
+  failedPresentationMode,
   onAuthChanged,
   onRecoveryCompleted,
   onSigningOut,
   onSignedOut,
+  onPresentationModeChange,
+  onPresentationRetry,
 }: {
   isAuthenticated: boolean;
   workspaceContext?: WorkspaceContext | null;
   invitationToken?: string | null;
   recoveryActive?: boolean;
+  presentationMode: PresentationMode;
+  presentationStatus: PresentationPreferenceStatus;
+  presentationMessage: string;
+  failedPresentationMode: PresentationMode | null;
   onAuthChanged: (userId: string) => void;
   onRecoveryCompleted?: () => void;
   onSigningOut?: () => void;
   onSignedOut?: () => void;
+  onPresentationModeChange: (mode: PresentationMode) => void;
+  onPresentationRetry: () => void;
 }) {
   const [mode, setMode] = useState<AuthMode>(() => recoveryActive ? "reset_complete" : "sign_in");
   const [email, setEmail] = useState("");
@@ -2152,6 +2276,14 @@ function Account({
               <button className="secondary" onClick={() => changeMode("change_password")} disabled={isWorking}>Change password</button>
               <button className="secondary" onClick={signOut} disabled={isWorking}><LogOut size={16} /> {isWorking ? "Signing out" : "Sign out"}</button>
             </div>
+            <PresentationModePanel
+              mode={presentationMode}
+              status={presentationStatus}
+              message={presentationMessage}
+              failedMode={failedPresentationMode}
+              onChange={onPresentationModeChange}
+              onRetry={onPresentationRetry}
+            />
             {canUseTrustedAccess && (
               <section className="trusted-access-entry" aria-labelledby="trusted-access-entry-title">
                 <div>
@@ -2341,6 +2473,81 @@ function Account({
       </div>
     </section>
   );
+}
+
+function PresentationModePanel({
+  mode,
+  status,
+  message,
+  failedMode,
+  onChange,
+  onRetry,
+}: {
+  mode: PresentationMode;
+  status: PresentationPreferenceStatus;
+  message: string;
+  failedMode: PresentationMode | null;
+  onChange: (mode: PresentationMode) => void;
+  onRetry: () => void;
+}) {
+  const isBusy = status === "loading" || status === "saving";
+  const statusTone = status === "failed" || status === "offline" ? "error" : "quiet";
+  return (
+    <section className="presentation-panel" aria-labelledby="presentation-mode-title">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Presentation</p>
+          <h3 id="presentation-mode-title">Guided or professional mode</h3>
+          <p className="quiet">Choose how BRIX presents the same deal data, warnings, actions, and calculations.</p>
+        </div>
+        <StatusBadge tone={status === "saved" || status === "ready" ? "success" : status === "failed" || status === "offline" ? "warning" : "neutral"}>
+          {presentationStatusLabel(status)}
+        </StatusBadge>
+      </div>
+      <fieldset className="presentation-options" disabled={isBusy}>
+        <legend className="sr-only">Presentation mode</legend>
+        <label className={mode === "guided" ? "presentation-option selected" : "presentation-option"} htmlFor="presentation-guided">
+          <input id="presentation-guided" name="presentation-mode" type="radio" value="guided" checked={mode === "guided"} onChange={() => onChange("guided")} />
+          <span>
+            <strong>Guided</strong>
+            <small>Plain-language labels, context, suggested order, and clearer next steps.</small>
+          </span>
+        </label>
+        <label className={mode === "professional" ? "presentation-option selected" : "presentation-option"} htmlFor="presentation-professional">
+          <input id="presentation-professional" name="presentation-mode" type="radio" value="professional" checked={mode === "professional"} onChange={() => onChange("professional")} />
+          <span>
+            <strong>Professional</strong>
+            <small>Compact wording, denser surfaces, and faster scanning for experienced users.</small>
+          </span>
+        </label>
+      </fieldset>
+      {(message || status === "loading" || status === "saving" || failedMode) && (
+        <div className="presentation-status-row" role={status === "failed" || status === "offline" ? "alert" : "status"} aria-live="polite">
+          <span className={statusTone}>
+            {message || (status === "loading" ? "Loading your account preference." : status === "saving" ? "Saving preference." : "")}
+          </span>
+          {failedMode && (
+            <button className="secondary compact-button" type="button" onClick={onRetry}>
+              <RefreshCw size={15} /> Retry {failedMode === "guided" ? "Guided" : "Professional"}
+            </button>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function presentationStatusLabel(status: PresentationPreferenceStatus) {
+  const labels: Record<PresentationPreferenceStatus, string> = {
+    loading: "Loading",
+    ready: "Active",
+    saving: "Saving",
+    saved: "Saved",
+    failed: "Retry needed",
+    offline: "Offline",
+    unsupported: "Unavailable",
+  };
+  return labels[status];
 }
 
 function roleLabel(roles: WorkspaceAccessRole[], roleId: string) {

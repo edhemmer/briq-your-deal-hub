@@ -10,6 +10,10 @@ const mocks = vi.hoisted(() => ({
   session: { value: { user: { id: "user-1" } } as { user: { id: string } } | null },
   user: { value: { id: "user-1", email: "edhemmer@gmail.com" } as { id: string; email: string } | null },
   remoteDeals: { value: [] as Array<Record<string, unknown>> },
+  profileModes: { value: {} as Record<string, "guided" | "professional" | undefined> },
+  profileSelectError: { value: null as Error | null },
+  profileUpdateError: { value: null as Error | null },
+  profileUpdates: { value: [] as Array<{ userId: string; mode: "guided" | "professional" }> },
   invitations: { value: [] as Array<Record<string, unknown>> },
   accessRoles: { value: [
     { role_id: "admin", role_name: "Administrator", role_description: "Can manage workspace settings, invitations, members, and deal work." },
@@ -209,6 +213,28 @@ vi.mock("../core/supabase", () => ({
           })),
           upsert: mocks.upsert,
           update: mocks.update,
+        };
+      }
+      if (table === "profiles") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn((_field: string, userId: string) => ({
+              maybeSingle: vi.fn(async () => {
+                if (mocks.profileSelectError.value) return { data: null, error: mocks.profileSelectError.value };
+                return { data: { id: userId, presentation_mode: mocks.profileModes.value[userId] ?? null }, error: null };
+              }),
+            })),
+          })),
+          update: vi.fn((values: Record<string, unknown>) => ({
+            eq: vi.fn(async (_field: string, userId: string) => {
+              if (mocks.profileUpdateError.value) return { data: null, error: mocks.profileUpdateError.value };
+              const mode = values.presentation_mode === "professional" ? "professional" : "guided";
+              mocks.profileModes.value[userId] = mode;
+              mocks.profileUpdates.value.push({ userId, mode });
+              return { data: null, error: null };
+            }),
+          })),
+          insert: mocks.insert,
         };
       }
       if (table === "audit_events" || table === "domain_events") {
@@ -411,6 +437,10 @@ describe("BRIX app module flow", () => {
     mocks.session.value = { user: { id: "user-1" } };
     mocks.user.value = { id: "user-1", email: "edhemmer@gmail.com" };
     mocks.remoteDeals.value = [];
+    mocks.profileModes.value = {};
+    mocks.profileSelectError.value = null;
+    mocks.profileUpdateError.value = null;
+    mocks.profileUpdates.value = [];
     mocks.invitations.value = [];
     mocks.workspaceMembers.value = [{
       membership_id: "membership-owner",
@@ -471,6 +501,118 @@ describe("BRIX app module flow", () => {
 
     await waitFor(() => expect(screen.queryByText(/Sync needs attention/i)).not.toBeInTheDocument());
   }, 60000);
+
+  it("uses deterministic guided mode when no profile preference exists", async () => {
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Home" });
+    fireEvent.click(screen.getByRole("button", { name: /Settings Account and access/i }));
+
+    expect(await screen.findByRole("heading", { name: "My Account" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("radio", { name: /Guided/i })).toBeChecked());
+    expect(screen.getByRole("radio", { name: /Professional/i })).not.toBeChecked();
+    expect(screen.getByText(/Plain-language labels/i)).toBeInTheDocument();
+  });
+
+  it("persists professional mode and restores it after refresh", async () => {
+    const first = render(<App />);
+
+    await screen.findByRole("heading", { name: "Home" });
+    fireEvent.click(screen.getByRole("button", { name: /Settings Account and access/i }));
+    fireEvent.click(await screen.findByRole("radio", { name: /Professional/i }));
+
+    await waitFor(() => expect(mocks.profileUpdates.value).toContainEqual({ userId: "user-1", mode: "professional" }));
+    expect(await screen.findByText("Professional mode saved.")).toBeInTheDocument();
+    first.unmount();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Settings" });
+    await waitFor(() => expect(screen.getByRole("radio", { name: /Professional/i })).toBeChecked());
+    fireEvent.click(screen.getByRole("button", { name: /Home Resume your BRIX account/i }));
+    expect(await screen.findByText("Ready for deal work.")).toBeInTheDocument();
+  });
+
+  it("persists guided mode after switching back from professional", async () => {
+    mocks.profileModes.value["user-1"] = "professional";
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Home" });
+    fireEvent.click(screen.getByRole("button", { name: /Settings Account and access/i }));
+    await waitFor(() => expect(screen.getByRole("radio", { name: /Professional/i })).toBeChecked());
+    fireEvent.click(screen.getByRole("radio", { name: /Guided/i }));
+
+    await waitFor(() => expect(mocks.profileUpdates.value).toContainEqual({ userId: "user-1", mode: "guided" }));
+    expect(await screen.findByText("Guided mode saved.")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Guided/i })).toBeChecked();
+  });
+
+  it("does not carry presentation preferences across authenticated accounts", async () => {
+    mocks.profileModes.value["user-a"] = "professional";
+    mocks.profileModes.value["user-b"] = "guided";
+    mocks.session.value = { user: { id: "user-a" } };
+    mocks.user.value = { id: "user-a", email: "a@example.com" };
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Home" });
+    expect(await screen.findByText("Ready for deal work.")).toBeInTheDocument();
+    mocks.user.value = { id: "user-b", email: "b@example.com" };
+    act(() => {
+      mocks.authChangeCallback.value?.("SIGNED_IN", { user: { id: "user-b" } });
+    });
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Home" })).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("Ready for deal work.")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Settings Account and access/i }));
+    await waitFor(() => expect(screen.getByRole("radio", { name: /Guided/i })).toBeChecked());
+  });
+
+  it("restores anonymous presentation scope after sign-out", async () => {
+    localStorage.setItem("brix.presentationMode:anonymous", "professional");
+    mocks.profileModes.value["user-1"] = "guided";
+    window.history.replaceState({}, "", "/account");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "My Account" });
+    await waitFor(() => expect(screen.getByRole("radio", { name: /Guided/i })).toBeChecked());
+    fireEvent.click(screen.getByRole("button", { name: /Sign out/i }));
+
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "My Account" })).not.toBeInTheDocument());
+    expect(await screen.findByText("Use BRIX locally or sign in when you want cloud continuity.")).toBeInTheDocument();
+    expect(localStorage.getItem("brix.presentationMode:anonymous")).toBe("professional");
+  });
+
+  it("preserves the prior valid mode when profile preference save fails", async () => {
+    mocks.profileModes.value["user-1"] = "professional";
+    mocks.profileUpdateError.value = new Error("preference save failed");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Home" });
+    fireEvent.click(screen.getByRole("button", { name: /Settings Account and access/i }));
+    await waitFor(() => expect(screen.getByRole("radio", { name: /Professional/i })).toBeChecked());
+    fireEvent.click(screen.getByRole("radio", { name: /Guided/i }));
+
+    expect(await screen.findByText(/previous mode is still active/i)).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Professional/i })).toBeChecked();
+    expect(screen.getByRole("button", { name: /Retry Guided/i })).toBeInTheDocument();
+  });
+
+  it("keeps authorized data, actions, and safety warnings available in professional mode", async () => {
+    mocks.profileModes.value["user-1"] = "professional";
+    mocks.remoteDeals.value = [remoteDealRow("pro-deal", "user-1", "Professional Mode Deal", {
+      updated_at: "2026-01-03T00:00:00.000Z",
+    })];
+    render(<App />);
+
+    expect(await screen.findByText("Professional Mode Deal")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Attention" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Open Deal" }).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
+    expect(await screen.findByRole("heading", { name: "Deal records" })).toBeInTheDocument();
+    expect(screen.getByText("Professional Mode Deal")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Search/i }));
+    expect(await screen.findByText(/Arrow keys move, Enter opens/i)).toBeInTheDocument();
+  });
 
   it("surfaces only canonical authenticated Deal attention and opens the selected Deal", async () => {
     mocks.remoteDeals.value = [
