@@ -2,18 +2,133 @@ import SwiftUI
 
 struct AppView: View {
     @EnvironmentObject private var state: AppState
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     var body: some View {
-        TabView(selection: $state.tab) {
-            FindIQView().tabItem { Label("Find", systemImage: "magnifyingglass") }.tag(AppTab.find)
-            DealIQCockpitView().tabItem { Label("Deal", systemImage: "chart.bar.xaxis") }.tag(AppTab.deal)
-            ContractIQView().tabItem { Label("Contract", systemImage: "doc.text.magnifyingglass") }.tag(AppTab.contract)
-            PipelineIQView().tabItem { Label("Pipeline", systemImage: "rectangle.3.group") }.tag(AppTab.pipeline)
-            OfferIQView().tabItem { Label("Offer", systemImage: "doc.text") }.tag(AppTab.offer)
-            PortfolioOSView().tabItem { Label("Portfolio", systemImage: "building.2") }.tag(AppTab.portfolio)
-            ReportsIQView().tabItem { Label("Reports", systemImage: "square.and.arrow.down") }.tag(AppTab.reports)
-            AccountView().tabItem { Label("Account", systemImage: "person.crop.circle") }.tag(AppTab.account)
+        Group {
+            if horizontalSizeClass == .regular {
+                iPadShell
+            } else {
+                iPhoneShell
+            }
         }
         .tint(Brix.blue)
+    }
+
+    private var iPhoneShell: some View {
+        TabView(selection: $state.tab) {
+            screen(for: .find).tabItem { Label("Find", systemImage: AppTab.find.systemImage) }.tag(AppTab.find)
+            screen(for: .deal).tabItem { Label("Deal", systemImage: AppTab.deal.systemImage) }.tag(AppTab.deal)
+            screen(for: .contract).tabItem { Label("Contract", systemImage: AppTab.contract.systemImage) }.tag(AppTab.contract)
+            screen(for: .pipeline).tabItem { Label("Pipeline", systemImage: AppTab.pipeline.systemImage) }.tag(AppTab.pipeline)
+            screen(for: .offer).tabItem { Label("Offer", systemImage: AppTab.offer.systemImage) }.tag(AppTab.offer)
+            screen(for: .portfolio).tabItem { Label("Portfolio", systemImage: AppTab.portfolio.systemImage) }.tag(AppTab.portfolio)
+            screen(for: .reports).tabItem { Label("Reports", systemImage: AppTab.reports.systemImage) }.tag(AppTab.reports)
+            screen(for: .account).tabItem { Label("Account", systemImage: AppTab.account.systemImage) }.tag(AppTab.account)
+        }
+    }
+
+    private var iPadShell: some View {
+        NavigationSplitView {
+            List {
+                Section("BRIX") {
+                    ForEach(AppTab.allCases) { tab in
+                        Button {
+                            state.tab = tab
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: tab.systemImage)
+                                    .frame(width: 24)
+                                    .foregroundStyle(state.tab == tab ? Brix.blue : Brix.muted)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(tab.title)
+                                        .font(.headline)
+                                        .foregroundStyle(state.tab == tab ? .white : Brix.muted)
+                                    Text(tab.purpose)
+                                        .font(.caption)
+                                        .foregroundStyle(Brix.muted)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.plain)
+                        .listRowBackground(state.tab == tab ? Brix.blue.opacity(0.16) : Color.clear)
+                        .accessibilityLabel(tab.title)
+                        .accessibilityHint(tab.purpose)
+                    }
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(Brix.ink)
+            .navigationTitle("BRIX")
+        } detail: {
+            screen(for: state.tab)
+                .toolbar {
+                    ToolbarItem(placement: .principal) {
+                        VStack(spacing: 2) {
+                            Text(state.tab.title)
+                                .font(.headline)
+                            if let deal = state.selectedDeal {
+                                Text(deal.address.isEmpty ? "Current Deal" : deal.address)
+                                    .font(.caption)
+                                    .foregroundStyle(Brix.muted)
+                            }
+                        }
+                    }
+                }
+        }
+        .navigationSplitViewStyle(.balanced)
+    }
+
+    @ViewBuilder
+    private func screen(for tab: AppTab) -> some View {
+        switch tab {
+        case .find:
+            FindIQView()
+        case .deal:
+            DealIQCockpitView()
+        case .contract:
+            ContractIQView()
+        case .pipeline:
+            PipelineIQView()
+        case .offer:
+            OfferIQView()
+        case .portfolio:
+            PortfolioOSView()
+        case .reports:
+            ReportsIQView()
+        case .account:
+            AccountView()
+        }
+    }
+}
+
+private extension AppTab {
+    var systemImage: String {
+        switch self {
+        case .find: "magnifyingglass"
+        case .deal: "chart.bar.xaxis"
+        case .contract: "doc.text.magnifyingglass"
+        case .pipeline: "rectangle.3.group"
+        case .offer: "doc.text"
+        case .portfolio: "building.2"
+        case .reports: "square.and.arrow.down"
+        case .account: "person.crop.circle"
+        }
+    }
+
+    var purpose: String {
+        switch self {
+        case .find: "Start or import a property"
+        case .deal: "Review the current decision"
+        case .contract: "Read contract risk"
+        case .pipeline: "Track Deal stage"
+        case .offer: "Prepare pursuit"
+        case .portfolio: "Review owned assets"
+        case .reports: "Export current work"
+        case .account: "Account and security"
+        }
     }
 }
 
