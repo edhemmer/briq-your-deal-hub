@@ -47,6 +47,17 @@ type ShellSearchResult = {
   dealId?: string;
 };
 
+type InvestorAttentionItem = {
+  key: string;
+  title: string;
+  detail: string;
+  category: "Needs attention" | "Processing" | "Finished" | "Failed";
+  tone: "success" | "neutral" | "warning" | "danger";
+  action?: "openDeal" | "openDeals" | "retryWorkspace" | "openSettings";
+  actionLabel?: string;
+  dealId?: string;
+};
+
 const nav: Array<{ id: Module; label: string; icon: typeof Search; purpose: string }> = [
   { id: "home", label: "Home", icon: Home, purpose: "Resume your BRIX account" },
   { id: "deals", label: "Deals", icon: BarChart3, purpose: "Review saved deal work" },
@@ -728,7 +739,7 @@ function BrixApp() {
         {routeMessage && (
           <ShellNotice tone="warning" title="Deal unavailable">{routeMessage}</ShellNotice>
         )}
-        {module === "home" && <HomeSurface isAuthenticated={isAuthenticated} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} deals={deals} selectedDeal={selectedDeal ?? deals[0]} onOpenDeal={() => selectedDeal ? openDeal(selectedDeal.id) : setModule("deals")} onOpenSettings={() => setModule("account")} onRetry={retryWorkspaceBootstrap} />}
+        {module === "home" && <HomeSurface isAuthenticated={isAuthenticated} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} isOnline={isOnline} deals={deals} selectedDeal={selectedDeal ?? deals[0]} syncMessage={syncMessage} routeMessage={routeMessage} onOpenDeal={(dealId?: string) => dealId ? openDeal(dealId) : selectedDeal ? openDeal(selectedDeal.id) : setModule("deals")} onOpenDeals={() => setModule("deals")} onOpenSettings={() => setModule("account")} onRetry={retryWorkspaceBootstrap} />}
         {module === "deals" && <DealsSurface authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} deals={deals} recentDeals={recentDeals} selectedId={selectedId} onOpenDeal={openDeal} onRetry={retryWorkspaceBootstrap} />}
         {module === "deal" && <DealIQ deal={selectedDeal} onChange={upsertDeal} onDelete={deleteDeal} />}
         {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceContext={workspaceContext} invitationToken={invitationToken} recoveryActive={passwordRecoveryActive} onAuthChanged={(userId) => {
@@ -965,50 +976,67 @@ function HomeSurface({
   isAuthenticated,
   authLifecycle,
   workspaceStatus,
+  isOnline,
   deals,
   selectedDeal,
+  syncMessage,
+  routeMessage,
   onOpenDeal,
+  onOpenDeals,
   onOpenSettings,
   onRetry,
 }: {
   isAuthenticated: boolean;
   authLifecycle: "restoring" | "signed_out" | "bootstrapping" | "ready" | "failed" | "signing_out" | "expired";
   workspaceStatus: "loading" | "ready" | "failed" | "signed_out";
+  isOnline: boolean;
   deals: DealFacts[];
   selectedDeal?: DealFacts;
-  onOpenDeal: () => void;
+  syncMessage: string | null;
+  routeMessage: string | null;
+  onOpenDeal: (dealId?: string) => void;
+  onOpenDeals: () => void;
   onOpenSettings: () => void;
   onRetry: () => void;
 }) {
   const hasDeals = deals.length > 0;
   const isPreparing = authLifecycle === "restoring" || authLifecycle === "bootstrapping" || workspaceStatus === "loading";
-
-  if (workspaceStatus === "failed") {
-    return (
-      <RecoverableState
-        title="Account setup needs attention"
-        text="BRIX could not finish loading your account context. Retry before relying on cloud deal data."
-        actionLabel="Retry setup"
-        onRetry={onRetry}
-      />
-    );
-  }
+  const accountReady = isAuthenticated && authLifecycle === "ready" && workspaceStatus === "ready";
+  const attentionItems = buildInvestorAttentionItems({
+    isAuthenticated,
+    authLifecycle,
+    workspaceStatus,
+    isOnline,
+    deals,
+    syncMessage,
+    routeMessage,
+  });
 
   return (
     <section className="home-surface">
       <div className="panel hero-panel home-hero">
-        <StatusBadge tone={isAuthenticated ? "success" : "neutral"}>{isAuthenticated ? "Account ready" : "Local mode"}</StatusBadge>
-        <h2>{isAuthenticated ? "Your BRIX account is ready." : "Use BRIX locally or sign in when you want cloud continuity."}</h2>
+        <StatusBadge tone={accountReady ? "success" : isAuthenticated ? "warning" : "neutral"}>{accountReady ? "Account ready" : isAuthenticated ? "Account loading" : "Local mode"}</StatusBadge>
+        <h2>{accountReady ? "Your BRIX account is ready." : isAuthenticated ? "BRIX is confirming your account context." : "Use BRIX locally or sign in when you want cloud continuity."}</h2>
         <p className="quiet">
-          {isAuthenticated
+          {accountReady
             ? "The shell is ready for verified Deal work. BRIX will only show account and Deal information that exists in your saved records."
+            : isAuthenticated
+              ? "Cloud Deal information stays hidden until BRIX confirms your account workspace and permissions."
             : "Local drafts stay on this device until you sign in. Cloud Deals remain separated from local drafts."}
         </p>
         <div className="button-row">
-          {hasDeals && <button className="primary" onClick={onOpenDeal}><BarChart3 size={18} /> Open Deals</button>}
+          {hasDeals && <button className="primary" onClick={() => onOpenDeal()}><BarChart3 size={18} /> Open Deals</button>}
           <button className="secondary" onClick={onOpenSettings}><UserCircle size={18} /> {isAuthenticated ? "Account settings" : "Sign in"}</button>
         </div>
       </div>
+
+      <InvestorAttentionSurface
+        items={attentionItems}
+        onOpenDeal={onOpenDeal}
+        onOpenDeals={onOpenDeals}
+        onOpenSettings={onOpenSettings}
+        onRetry={onRetry}
+      />
 
       {isPreparing && (
         <ShellNotice tone="info" title="Preparing account">
@@ -1021,7 +1049,7 @@ function HomeSurface({
           <p className="eyebrow">Saved Deal</p>
           <h2>{selectedDeal?.address || "Untitled property"}</h2>
           <p className="quiet">Open the saved Deal workspace to review facts, assumptions, strategy fit, and verification needs.</p>
-          <button className="primary" onClick={onOpenDeal}>Open Deals</button>
+          <button className="primary" onClick={() => onOpenDeal()}>Open Deals</button>
         </section>
       ) : (
         <EmptyState
@@ -1031,15 +1059,63 @@ function HomeSurface({
           onAction={onOpenSettings}
         />
       )}
+    </section>
+  );
+}
 
-      <section className="state-grid" aria-label="Shell state coverage">
-        <StatePrimitive title="Loading" text="Session and account context show explicit progress." />
-        <StatePrimitive title="Empty" text="No saved records means no invented metrics." />
-        <StatePrimitive title="Offline" text="Connection loss is visible before cloud actions." />
-        <StatePrimitive title="Recoverable" text="Retry actions are shown when setup can be retried." />
-        <StatePrimitive title="Permission" text="Access changes fail closed and clear protected state." />
-        <StatePrimitive title="Stale" text="Stale or partial data must be labeled before decisions rely on it." />
-      </section>
+function InvestorAttentionSurface({
+  items,
+  onOpenDeal,
+  onOpenDeals,
+  onOpenSettings,
+  onRetry,
+}: {
+  items: InvestorAttentionItem[];
+  onOpenDeal: (dealId?: string) => void;
+  onOpenDeals: () => void;
+  onOpenSettings: () => void;
+  onRetry: () => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <section className="panel attention-surface" aria-labelledby="investor-attention-title">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Attention</p>
+          <h2 id="investor-attention-title">What needs attention now</h2>
+        </div>
+      </div>
+      <div className="attention-list">
+        {items.map((item) => (
+          <article className={`attention-item ${item.tone}`} key={item.key}>
+            <div className="attention-marker" aria-hidden="true">
+              {item.tone === "success" ? <CheckCircle2 size={18} /> : item.tone === "neutral" ? <RefreshCw size={18} /> : <AlertTriangle size={18} />}
+            </div>
+            <div className="attention-copy">
+              <div className="attention-title-row">
+                <strong>{item.title}</strong>
+                <StatusBadge tone={item.tone}>{item.category}</StatusBadge>
+              </div>
+              <p>{item.detail}</p>
+            </div>
+            {item.action && item.actionLabel && (
+              <button
+                className={item.tone === "danger" || item.tone === "warning" ? "secondary compact-button" : "primary compact-button"}
+                type="button"
+                onClick={() => {
+                  if (item.action === "openDeal") onOpenDeal(item.dealId);
+                  if (item.action === "openDeals") onOpenDeals();
+                  if (item.action === "retryWorkspace") onRetry();
+                  if (item.action === "openSettings") onOpenSettings();
+                }}
+              >
+                {item.action === "retryWorkspace" && <RefreshCw size={15} />}
+                {item.actionLabel}
+              </button>
+            )}
+          </article>
+        ))}
+      </div>
     </section>
   );
 }
@@ -2362,6 +2438,147 @@ function dealMatchesSearch(deal: DealFacts, normalizedQuery: string) {
     strategyName,
   ].filter(Boolean).join(" "));
   return searchableText.includes(normalizedQuery);
+}
+
+function buildInvestorAttentionItems({
+  isAuthenticated,
+  authLifecycle,
+  workspaceStatus,
+  isOnline,
+  deals,
+  syncMessage,
+  routeMessage,
+}: {
+  isAuthenticated: boolean;
+  authLifecycle: "restoring" | "signed_out" | "bootstrapping" | "ready" | "failed" | "signing_out" | "expired";
+  workspaceStatus: "loading" | "ready" | "failed" | "signed_out";
+  isOnline: boolean;
+  deals: DealFacts[];
+  syncMessage: string | null;
+  routeMessage: string | null;
+}) {
+  const items: InvestorAttentionItem[] = [];
+
+  if (!isOnline) {
+    items.push({
+      key: "offline",
+      title: "Connection is unavailable",
+      detail: "Cloud Deal updates and account actions are paused until this device reconnects.",
+      category: "Failed",
+      tone: "warning",
+    });
+  }
+
+  if (authLifecycle === "signing_out") {
+    items.push({
+      key: "signing-out",
+      title: "Signing out",
+      detail: "Protected workspace state is being cleared from this browser.",
+      category: "Processing",
+      tone: "neutral",
+    });
+  }
+
+  if (isAuthenticated && (authLifecycle === "bootstrapping" || workspaceStatus === "loading")) {
+    items.push({
+      key: "workspace-loading",
+      title: "Preparing account workspace",
+      detail: "Saved Deals stay hidden until workspace access is confirmed.",
+      category: "Processing",
+      tone: "neutral",
+    });
+  }
+
+  if (isAuthenticated && (authLifecycle === "failed" || workspaceStatus === "failed")) {
+    items.push({
+      key: "workspace-failed",
+      title: "Account setup needs attention",
+      detail: "BRIX could not confirm workspace access. Retry before relying on cloud Deal data.",
+      category: "Failed",
+      tone: "danger",
+      action: "retryWorkspace",
+      actionLabel: "Retry setup",
+    });
+  }
+
+  if (isAuthenticated && authLifecycle === "expired") {
+    items.push({
+      key: "session-expired",
+      title: "Sign in required",
+      detail: "The previous session is no longer valid. Sign in again before opening cloud Deals.",
+      category: "Failed",
+      tone: "danger",
+      action: "openSettings",
+      actionLabel: "Open settings",
+    });
+  }
+
+  if (syncMessage?.startsWith("Saving") || syncMessage?.startsWith("Deleting")) {
+    items.push({
+      key: "cloud-sync-processing",
+      title: syncMessage.startsWith("Saving") ? "Saving Deal" : "Deleting Deal",
+      detail: syncMessage,
+      category: "Processing",
+      tone: "neutral",
+    });
+  } else if (syncMessage?.startsWith("Deal was not")) {
+    items.push({
+      key: "cloud-sync-failed",
+      title: "Cloud update failed",
+      detail: syncMessage,
+      category: "Failed",
+      tone: "danger",
+      action: "openDeals",
+      actionLabel: "Review Deals",
+    });
+  }
+
+  if (routeMessage) {
+    items.push({
+      key: "route-message",
+      title: "Deal route needs attention",
+      detail: routeMessage,
+      category: "Needs attention",
+      tone: "warning",
+      action: "openDeals",
+      actionLabel: "Open Deals",
+    });
+  }
+
+  if (isAuthenticated && authLifecycle === "ready" && workspaceStatus === "ready") {
+    const activeDeals = deals
+      .filter((deal) => ["draft", "reviewing", "underwriting", "pursuing", "under_contract"].includes(deal.status))
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+      .slice(0, 4);
+
+    for (const deal of activeDeals) {
+      items.push({
+        key: `deal-${deal.id}`,
+        title: attentionTitleForDeal(deal),
+        detail: `${dealTitle(deal)} - ${dealLocation(deal)} - ${statusLabel(deal.status)} - updated ${formatShortDate(deal.updatedAt)}.`,
+        category: "Needs attention",
+        tone: deal.status === "under_contract" ? "warning" : "neutral",
+        action: "openDeal",
+        actionLabel: "Open Deal",
+        dealId: deal.id,
+      });
+    }
+  }
+
+  return items;
+}
+
+function attentionTitleForDeal(deal: DealFacts) {
+  const labels: Record<DealStatus, string> = {
+    draft: "Deal needs first review",
+    reviewing: "Deal review is in progress",
+    underwriting: "Underwriting is in progress",
+    pursuing: "Pursuit is active",
+    under_contract: "Contract period is active",
+    closed: "Deal is closed",
+    passed: "Deal is passed",
+  };
+  return labels[deal.status];
 }
 
 function normalizeSearchText(value: string) {

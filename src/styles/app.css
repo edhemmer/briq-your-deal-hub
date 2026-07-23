@@ -96,6 +96,21 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .home-surface { display: grid; gap: 18px; }
 .home-hero { display: grid; gap: 14px; max-width: 960px; }
 .home-hero h2 { max-width: 760px; }
+.attention-surface { display: grid; gap: 16px; }
+.attention-list { display: grid; gap: 10px; }
+.attention-item { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 14px; align-items: center; border: 1px solid var(--line); border-radius: 16px; background: rgba(8,15,29,.66); padding: 14px; }
+.attention-item.neutral { border-color: rgba(59,130,246,.26); }
+.attention-item.success { border-color: rgba(25,217,132,.3); background: rgba(25,217,132,.06); }
+.attention-item.warning { border-color: rgba(246,182,63,.38); background: rgba(246,182,63,.08); }
+.attention-item.danger { border-color: rgba(241,92,92,.42); background: rgba(241,92,92,.08); }
+.attention-marker { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: rgba(59,130,246,.12); color: #9dc2ff; }
+.attention-item.success .attention-marker { background: rgba(25,217,132,.12); color: var(--green); }
+.attention-item.warning .attention-marker { background: rgba(246,182,63,.12); color: var(--amber); }
+.attention-item.danger .attention-marker { background: rgba(241,92,92,.12); color: #ffb3b3; }
+.attention-copy { display: grid; gap: 6px; min-width: 0; }
+.attention-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.attention-title-row strong { color: white; }
+.attention-copy p { margin: 0; color: var(--muted); line-height: 1.45; }
 .deals-surface { display: grid; gap: 18px; }
 .recent-deal-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .recent-deal-card { display: grid; gap: 5px; min-height: 92px; border: 1px solid var(--line); border-radius: 16px; background: rgba(8,15,29,.62); color: white; padding: 16px; text-align: left; }
@@ -277,7 +292,7 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 
 @media (max-width: 640px) {
   .workspace, .rail { padding: 16px; }
-  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row, .trusted-access-entry, .state-grid { grid-template-columns: 1fr; }
+  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row, .trusted-access-entry, .state-grid, .attention-item { grid-template-columns: 1fr; }
   .topbar { display: grid; }
   .workspace-pill, .active-deal-pill, .deal-switcher, .shell-search-trigger { min-width: 0; width: 100%; }
   .search-backdrop { padding: 12px; place-items: stretch; }
@@ -296,4 +311,5 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
   .invitation-row { align-items: stretch; flex-direction: column; }
   .row-actions { justify-content: stretch; }
   .row-actions button { flex: 1; }
+  .attention-item .compact-button { width: 100%; }
 }

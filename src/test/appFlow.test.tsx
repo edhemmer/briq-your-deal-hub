@@ -464,13 +464,42 @@ describe("BRIX app module flow", () => {
     expect(within(primaryNav).queryByRole("button", { name: /OfferIQ/i })).not.toBeInTheDocument();
     expect(within(primaryNav).queryByRole("button", { name: /PortfolioIQ/i })).not.toBeInTheDocument();
     expect(within(primaryNav).queryByRole("button", { name: /Reports/i })).not.toBeInTheDocument();
+    expect(await screen.findByText("Account ready")).toBeInTheDocument();
     expect(screen.getByText("No saved Deals yet")).toBeInTheDocument();
     expect(screen.getByText(/only shows records that exist/i)).toBeInTheDocument();
-    expect(screen.getByText("Loading")).toBeInTheDocument();
-    expect(screen.getByText("Recoverable")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "What needs attention now" })).not.toBeInTheDocument());
 
     await waitFor(() => expect(screen.queryByText(/Sync needs attention/i)).not.toBeInTheDocument());
   }, 60000);
+
+  it("surfaces only canonical authenticated Deal attention and opens the selected Deal", async () => {
+    mocks.remoteDeals.value = [
+      remoteDealRow("active-cloud", "user-1", "Active Cloud Deal", { city: "Naperville", state: "IL", status: "underwriting", updated_at: "2026-01-05T00:00:00.000Z", facts: { ...draftDeal("active-cloud", "Active Cloud Deal"), city: "Naperville", state: "IL", status: "underwriting", updatedAt: "2026-01-05T00:00:00.000Z" } }),
+      remoteDealRow("closed-cloud", "user-1", "Closed Cloud Deal", { city: "Aurora", state: "IL", status: "closed", updated_at: "2026-01-04T00:00:00.000Z", facts: { ...draftDeal("closed-cloud", "Closed Cloud Deal"), city: "Aurora", state: "IL", status: "closed", updatedAt: "2026-01-04T00:00:00.000Z" } }),
+    ];
+    render(<App />);
+
+    expect(await screen.findByText("Account ready")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "What needs attention now" })).toBeInTheDocument();
+    expect(screen.getByText("Underwriting is in progress")).toBeInTheDocument();
+    expect(screen.getByText(/Active Cloud Deal - Naperville, IL - Underwriting/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Closed Cloud Deal - Aurora, IL - Closed/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Deal" }));
+
+    await waitFor(() => expect(window.location.pathname).toBe("/deals/active-cloud"));
+    expect(screen.getByRole("heading", { name: "Deal" })).toBeInTheDocument();
+  });
+
+  it("does not treat anonymous local drafts as authenticated attention", async () => {
+    localStorage.setItem("brix.deals", JSON.stringify([draftDeal("local-only", "Local Only Draft")]));
+    mocks.remoteDeals.value = [];
+    render(<App />);
+
+    expect(await screen.findByText("No saved Deals yet")).toBeInTheDocument();
+    expect(screen.queryByText("Local Only Draft")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "What needs attention now" })).not.toBeInTheDocument();
+  });
 
   it("opens shell search from the header and restores focus when closed", async () => {
     render(<App />);
