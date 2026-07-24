@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
-import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch, Eye, EyeOff, AlertTriangle, CheckCircle2, Users, UserMinus, Home, Menu, X, WifiOff, RefreshCw } from "lucide-react";
+import type { Dispatch, FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject, SetStateAction } from "react";
+import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch, Eye, EyeOff, AlertTriangle, CheckCircle2, Users, UserMinus, Home, Menu, X, WifiOff, RefreshCw, CalendarClock, Pin, Archive, CheckSquare } from "lucide-react";
 import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
 import { createDealFromInput, createRemoteDeal, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
-import type { DealFacts, DealRelationship, DealRelationshipRole, DealRelationshipStatus, DealStatus, DuplicateCandidate, RelationshipTargetType } from "./core/types";
+import type { DealFacts, DealNote, DealRelationship, DealRelationshipRole, DealRelationshipStatus, DealStatus, DealTimelineItem, DealWorkItem, DuplicateCandidate, RelationshipTargetType } from "./core/types";
 import { supabase } from "./core/supabase";
 import { downloadDecisionPdf, downloadWorkbook } from "./core/reportExports";
 import { analyzePhotoEvidence } from "./core/photoAnalysis";
@@ -23,6 +23,30 @@ import {
   updateRelationship,
   type RelationshipDraft,
 } from "./core/relationships";
+import {
+  archiveDealNote,
+  cancelDealTask,
+  completeDealDeadline,
+  completeDealTask,
+  createDealDeadline,
+  createDealNote,
+  createDealTask,
+  deadlineStatuses,
+  deadlineVerificationStates,
+  listDealNotes,
+  listDealWork,
+  loadDealTimeline,
+  noteTypes,
+  taskPriorities,
+  taskStatuses,
+  taskTypes,
+  updateDealDeadline,
+  updateDealNote,
+  updateDealTask,
+  type DeadlineDraft,
+  type NoteDraft,
+  type TaskDraft,
+} from "./core/workHistory";
 import { ensureWorkspaceContext, type WorkspaceContext } from "./core/workspace";
 import { requestAccountDeletion } from "./core/authActions";
 import { isSessionFailure, safeAuthError, validateAuthInput, type AuthMode } from "./core/authLifecycle";
@@ -1597,6 +1621,8 @@ function DealIQ({
 
       <RelationshipPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} />
 
+      <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} />
+
       <section className="panel wide">
         <p className="eyebrow">Strategy comparison</p>
         <div className="strategy-insight">
@@ -1685,6 +1711,328 @@ function DealIQ({
       </section>
     </div>
   );
+}
+
+function WorkHistoryPanel({
+  dealId,
+  workspaceId,
+  isAuthenticated,
+  isOnline,
+}: {
+  dealId: string;
+  workspaceId?: string;
+  isAuthenticated: boolean;
+  isOnline: boolean;
+}) {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const emptyTask: TaskDraft = { title: "", description: "", taskType: "general", priority: "normal", status: "open", dueAt: "", dueDate: "", isAllDay: false, timezone };
+  const emptyDeadline: DeadlineDraft = { title: "", status: "open", dueAt: "", dueDate: "", isAllDay: false, timezone, sourceTerm: "", sourceDescription: "", triggerDate: "", calculationRule: "", verificationState: "unverified" };
+  const emptyNote: NoteDraft = { body: "", noteType: "general", pinned: false };
+  const [work, setWork] = useState<DealWorkItem[]>([]);
+  const [notes, setNotes] = useState<DealNote[]>([]);
+  const [timeline, setTimeline] = useState<DealTimelineItem[]>([]);
+  const [taskDraft, setTaskDraft] = useState<TaskDraft>(emptyTask);
+  const [deadlineDraft, setDeadlineDraft] = useState<DeadlineDraft>(emptyDeadline);
+  const [noteDraft, setNoteDraft] = useState<NoteDraft>(emptyNote);
+  const [editingWork, setEditingWork] = useState<Record<string, { title: string; status: string; priority?: string; dueAt?: string; dueDate?: string; isAllDay: boolean; timezone: string }>>({});
+  const [editingNotes, setEditingNotes] = useState<Record<string, { body: string; noteType: string; pinned: boolean }>>({});
+  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "saving" | "saved" | "failed" | "permission" | "offline">("idle");
+  const [message, setMessage] = useState("");
+  const canUseCloud = isAuthenticated && Boolean(workspaceId);
+
+  const load = useCallback(async () => {
+    if (!canUseCloud) {
+      setWork([]);
+      setNotes([]);
+      setTimeline([]);
+      setStatus("ready");
+      setMessage("Sign in to save Deal work and history.");
+      return;
+    }
+    if (!isOnline) {
+      setStatus("offline");
+      setMessage("Connection is unavailable. Saved work remains visible after reconnect.");
+      return;
+    }
+    setStatus("loading");
+    setMessage("");
+    try {
+      const [workRows, noteRows, timelineRows] = await Promise.all([
+        listDealWork(dealId),
+        listDealNotes(dealId),
+        loadDealTimeline(dealId),
+      ]);
+      setWork(workRows);
+      setNotes(noteRows);
+      setTimeline(timelineRows);
+      setEditingWork(Object.fromEntries(workRows.map((item) => [item.recordId, {
+        title: item.title,
+        status: item.status,
+        priority: item.priority,
+        dueAt: item.dueAt ? item.dueAt.slice(0, 16) : "",
+        dueDate: item.dueDate ?? "",
+        isAllDay: item.isAllDay,
+        timezone: item.timezone,
+      }])));
+      setEditingNotes(Object.fromEntries(noteRows.map((note) => [note.noteId, { body: note.body, noteType: note.noteType, pinned: note.pinned }])));
+      setStatus("ready");
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "BRIX could not load Deal work.";
+      setStatus(/permission|access|not have/i.test(text) ? "permission" : "failed");
+      setMessage(text);
+    }
+  }, [canUseCloud, dealId, isOnline]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function run(action: () => Promise<void>, success: string) {
+    if (!canUseCloud) {
+      setMessage("Sign in to save Deal work and history.");
+      return;
+    }
+    if (!isOnline) {
+      setStatus("offline");
+      setMessage("Connection is unavailable. Try again when you are back online.");
+      return;
+    }
+    setStatus("saving");
+    setMessage("");
+    try {
+      await action();
+      setStatus("saved");
+      setMessage(success);
+      await load();
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "BRIX could not save this change.";
+      setStatus(/changed after you opened/i.test(text) ? "failed" : /permission|access|not have/i.test(text) ? "permission" : "failed");
+      setMessage(text);
+    }
+  }
+
+  function addTask() {
+    if (!taskDraft.title.trim()) {
+      setMessage("Enter a task title.");
+      return;
+    }
+    void run(async () => {
+      await createDealTask(dealId, taskDraft);
+      setTaskDraft(emptyTask);
+    }, "Task saved.");
+  }
+
+  function addDeadline() {
+    if (!deadlineDraft.title.trim()) {
+      setMessage("Enter a deadline title.");
+      return;
+    }
+    if (deadlineDraft.isAllDay ? !deadlineDraft.dueDate : !deadlineDraft.dueAt) {
+      setMessage("Add a due date or exact due time.");
+      return;
+    }
+    void run(async () => {
+      await createDealDeadline(dealId, deadlineDraft);
+      setDeadlineDraft(emptyDeadline);
+    }, "Deadline saved.");
+  }
+
+  function addNote() {
+    if (!noteDraft.body.trim()) {
+      setMessage("Write a note first.");
+      return;
+    }
+    void run(async () => {
+      await createDealNote(dealId, noteDraft);
+      setNoteDraft(emptyNote);
+    }, "Note saved.");
+  }
+
+  const pending = work.filter((item) => item.status !== "completed" && item.status !== "cancelled");
+  const completed = work.filter((item) => item.status === "completed");
+
+  return (
+    <section className="panel wide work-history-panel">
+      <div className="panel-heading-row">
+        <div>
+          <p className="eyebrow">Work and history</p>
+          <h3>What needs attention on this Deal?</h3>
+        </div>
+        <button className="secondary compact" type="button" onClick={load} disabled={status === "loading" || status === "saving"}>
+          <RefreshCw size={14} /> Reload
+        </button>
+      </div>
+
+      {status === "loading" && <p className="quiet">Loading saved tasks, deadlines, notes, and history.</p>}
+      {message && <p className={status === "failed" || status === "permission" || status === "offline" ? "error" : "success-text"}>{message}</p>}
+      {!canUseCloud && <StatusBadge tone="warning">Cloud save required</StatusBadge>}
+
+      <div className="work-history-grid">
+        <div className="work-column">
+          <h4><CheckSquare size={16} /> Tasks</h4>
+          <div className="work-form">
+            <input aria-label="Task title" placeholder="Task title" value={taskDraft.title} onChange={(event) => setTaskDraft({ ...taskDraft, title: event.target.value })} />
+            <select aria-label="Task type" value={taskDraft.taskType} onChange={(event) => setTaskDraft({ ...taskDraft, taskType: event.target.value as TaskDraft["taskType"] })}>
+              {taskTypes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+            <select aria-label="Task priority" value={taskDraft.priority} onChange={(event) => setTaskDraft({ ...taskDraft, priority: event.target.value as TaskDraft["priority"] })}>
+              {taskPriorities.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+            <input aria-label="Task due time" type="datetime-local" value={taskDraft.dueAt ?? ""} onChange={(event) => setTaskDraft({ ...taskDraft, dueAt: event.target.value, isAllDay: false })} />
+            <button className="primary compact" type="button" onClick={addTask} disabled={!canUseCloud || status === "saving"}><Plus size={14} /> Add task</button>
+          </div>
+          <WorkList items={pending.filter((item) => item.recordType === "task")} editing={editingWork} setEditing={setEditingWork} onSave={(item) => {
+            const edit = editingWork[item.recordId];
+            void run(() => updateDealTask(item, {
+              title: edit?.title,
+              status: edit?.status as TaskDraft["status"],
+              priority: edit?.priority as TaskDraft["priority"],
+              dueAt: edit?.dueAt,
+              dueDate: edit?.dueDate,
+              isAllDay: edit?.isAllDay,
+              timezone: edit?.timezone,
+            }), "Task updated.");
+          }} onComplete={(item) => void run(() => completeDealTask(item), "Task completed.")} onCancel={(item) => void run(() => cancelDealTask(item), "Task cancelled.")} />
+        </div>
+
+        <div className="work-column">
+          <h4><CalendarClock size={16} /> Deadlines</h4>
+          <div className="work-form">
+            <input aria-label="Deadline title" placeholder="Deadline title" value={deadlineDraft.title} onChange={(event) => setDeadlineDraft({ ...deadlineDraft, title: event.target.value })} />
+            <input aria-label="Deadline due time" type="datetime-local" value={deadlineDraft.dueAt ?? ""} onChange={(event) => setDeadlineDraft({ ...deadlineDraft, dueAt: event.target.value, isAllDay: false })} />
+            <label className="inline-check"><input type="checkbox" checked={deadlineDraft.isAllDay} onChange={(event) => setDeadlineDraft({ ...deadlineDraft, isAllDay: event.target.checked, dueAt: event.target.checked ? "" : deadlineDraft.dueAt })} /> All-day</label>
+            {deadlineDraft.isAllDay && <input aria-label="Deadline all-day date" type="date" value={deadlineDraft.dueDate ?? ""} onChange={(event) => setDeadlineDraft({ ...deadlineDraft, dueDate: event.target.value })} />}
+            <select aria-label="Deadline verification" value={deadlineDraft.verificationState} onChange={(event) => setDeadlineDraft({ ...deadlineDraft, verificationState: event.target.value as DeadlineDraft["verificationState"] })}>
+              {deadlineVerificationStates.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+            <textarea aria-label="Deadline source description" placeholder="Source or triggering fact" value={deadlineDraft.sourceDescription ?? ""} onChange={(event) => setDeadlineDraft({ ...deadlineDraft, sourceDescription: event.target.value })} />
+            <button className="primary compact" type="button" onClick={addDeadline} disabled={!canUseCloud || status === "saving"}><Plus size={14} /> Add deadline</button>
+          </div>
+          <WorkList items={pending.filter((item) => item.recordType === "deadline")} editing={editingWork} setEditing={setEditingWork} onSave={(item) => {
+            const edit = editingWork[item.recordId];
+            void run(() => updateDealDeadline(item, {
+              title: edit?.title,
+              status: edit?.status as DeadlineDraft["status"],
+              dueAt: edit?.dueAt,
+              dueDate: edit?.dueDate,
+              isAllDay: edit?.isAllDay,
+              timezone: edit?.timezone,
+            }), "Deadline updated.");
+          }} onComplete={(item) => void run(() => completeDealDeadline(item), "Deadline completed.")} />
+        </div>
+
+        <div className="work-column">
+          <h4><FilePenLine size={16} /> Notes</h4>
+          <div className="work-form">
+            <textarea aria-label="Deal note" placeholder="Save a note for this Deal" value={noteDraft.body} onChange={(event) => setNoteDraft({ ...noteDraft, body: event.target.value })} />
+            <select aria-label="Note type" value={noteDraft.noteType} onChange={(event) => setNoteDraft({ ...noteDraft, noteType: event.target.value as NoteDraft["noteType"] })}>
+              {noteTypes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+            <label className="inline-check"><input type="checkbox" checked={noteDraft.pinned} onChange={(event) => setNoteDraft({ ...noteDraft, pinned: event.target.checked })} /> Pin</label>
+            <button className="primary compact" type="button" onClick={addNote} disabled={!canUseCloud || status === "saving"}><Plus size={14} /> Add note</button>
+          </div>
+          <div className="work-list">
+            {notes.length === 0 ? <p className="quiet">No notes saved yet.</p> : notes.map((note) => {
+              const edit = editingNotes[note.noteId] ?? { body: note.body, noteType: note.noteType, pinned: note.pinned };
+              return (
+                <article className={note.pinned ? "work-card pinned" : "work-card"} key={note.noteId}>
+                  <textarea aria-label="Edit note" value={edit.body} onChange={(event) => setEditingNotes((current) => ({ ...current, [note.noteId]: { ...edit, body: event.target.value } }))} />
+                  <div className="work-card-actions">
+                    <button className="secondary compact" type="button" onClick={() => void run(() => updateDealNote(note, edit as NoteDraft), "Note updated.")}>Save</button>
+                    <button className="secondary compact" type="button" onClick={() => void run(() => updateDealNote(note, { pinned: !note.pinned }), note.pinned ? "Note unpinned." : "Note pinned.")}><Pin size={14} /> {note.pinned ? "Unpin" : "Pin"}</button>
+                    <button className="danger compact" type="button" onClick={() => void run(() => archiveDealNote(note), "Note archived.")}><Archive size={14} /> Archive</button>
+                  </div>
+                  <small>{formatWorkDate(note.updatedAt)}</small>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="timeline-panel">
+        <h4>Deal history</h4>
+        {timeline.length === 0 ? <p className="quiet">No Deal history is available yet. Real saved activity will appear here.</p> : (
+          <ol className="timeline-list">
+            {timeline.map((item) => (
+              <li key={item.timelineId}>
+                <strong>{item.safeTitle}</strong>
+                <span>{item.safeSummary}</span>
+                <small>{formatWorkDate(item.occurredAt)}</small>
+              </li>
+            ))}
+          </ol>
+        )}
+        {completed.length > 0 && <p className="quiet">{completed.length} completed item{completed.length === 1 ? "" : "s"} saved on this Deal.</p>}
+      </div>
+    </section>
+  );
+}
+
+function WorkList({
+  items,
+  editing,
+  setEditing,
+  onSave,
+  onComplete,
+  onCancel,
+}: {
+  items: DealWorkItem[];
+  editing: Record<string, { title: string; status: string; priority?: string; dueAt?: string; dueDate?: string; isAllDay: boolean; timezone: string }>;
+  setEditing: Dispatch<SetStateAction<Record<string, { title: string; status: string; priority?: string; dueAt?: string; dueDate?: string; isAllDay: boolean; timezone: string }>>>;
+  onSave: (item: DealWorkItem) => void;
+  onComplete: (item: DealWorkItem) => void;
+  onCancel?: (item: DealWorkItem) => void;
+}) {
+  if (items.length === 0) return <p className="quiet">Nothing open here.</p>;
+  return (
+    <div className="work-list">
+      {items.map((item) => {
+        const edit = editing[item.recordId] ?? { title: item.title, status: item.status, priority: item.priority, dueAt: item.dueAt?.slice(0, 16), dueDate: item.dueDate, isAllDay: item.isAllDay, timezone: item.timezone };
+        const timing = workTiming(item);
+        return (
+          <article className={`work-card ${timing}`} key={item.recordId}>
+            <input aria-label="Work title" value={edit.title} onChange={(event) => setEditing((current) => ({ ...current, [item.recordId]: { ...edit, title: event.target.value } }))} />
+            <div className="work-edit-row">
+              <select aria-label="Work status" value={edit.status} onChange={(event) => setEditing((current) => ({ ...current, [item.recordId]: { ...edit, status: event.target.value } }))}>
+                {(item.recordType === "task" ? taskStatuses : deadlineStatuses).map((statusOption) => <option value={statusOption.id} key={statusOption.id}>{statusOption.label}</option>)}
+              </select>
+              {item.recordType === "task" && (
+                <select aria-label="Work priority" value={edit.priority ?? "normal"} onChange={(event) => setEditing((current) => ({ ...current, [item.recordId]: { ...edit, priority: event.target.value } }))}>
+                  {taskPriorities.map((priority) => <option value={priority.id} key={priority.id}>{priority.label}</option>)}
+                </select>
+              )}
+              <input aria-label="Work due time" type="datetime-local" value={edit.dueAt ?? ""} onChange={(event) => setEditing((current) => ({ ...current, [item.recordId]: { ...edit, dueAt: event.target.value, isAllDay: false } }))} />
+            </div>
+            <small>{item.isAllDay ? `Due ${item.dueDate} (${item.timezone})` : item.dueAt ? `Due ${formatWorkDate(item.dueAt)} (${item.timezone})` : "No due time"}</small>
+            {item.body && <small>{item.body}</small>}
+            <div className="work-card-actions">
+              <button className="secondary compact" type="button" onClick={() => onSave(item)}>Save</button>
+              <button className="secondary compact" type="button" onClick={() => onComplete(item)}>Complete</button>
+              {onCancel && <button className="danger compact" type="button" onClick={() => onCancel(item)}>Cancel</button>}
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function workTiming(item: DealWorkItem) {
+  if (item.status === "blocked") return "blocked";
+  if (item.status === "completed") return "completed";
+  const due = item.dueAt ? new Date(item.dueAt) : item.dueDate ? new Date(`${item.dueDate}T23:59:59`) : null;
+  if (!due || Number.isNaN(due.getTime())) return "unscheduled";
+  const delta = due.getTime() - Date.now();
+  if (delta < 0) return "overdue";
+  if (delta <= 1000 * 60 * 60 * 24 * 3) return "due-soon";
+  return "scheduled";
+}
+
+function formatWorkDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
 function RelationshipPanel({
@@ -3026,7 +3374,7 @@ function workspaceAccessError(error: unknown) {
 
 function DealSwitcher({ deals, selectedId, onSelect }: { deals: DealFacts[]; selectedId?: string; onSelect: (id: string) => void }) {
   if (!deals.length) return null;
-  return <select className="deal-switcher" value={selectedId} onChange={(event) => onSelect(event.target.value)}>{deals.map((deal) => <option key={deal.id} value={deal.id}>{deal.address || "Untitled property"}</option>)}</select>;
+  return <select aria-label="Deal switcher" className="deal-switcher" value={selectedId} onChange={(event) => onSelect(event.target.value)}>{deals.map((deal) => <option key={deal.id} value={deal.id}>{deal.address || "Untitled property"}</option>)}</select>;
 }
 
 function buildShellSearchResults({

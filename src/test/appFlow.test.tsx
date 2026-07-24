@@ -969,7 +969,7 @@ describe("BRIX app module flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
     fireEvent.click(screen.getAllByRole("button", { name: "Open Deal" })[0]);
     await waitFor(() => expect(window.location.pathname).toBe("/deals/recent-a"));
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "recent-b" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Deal switcher" }), { target: { value: "recent-b" } });
 
     await waitFor(() => expect(window.location.pathname).toBe("/deals/recent-b"));
     fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));

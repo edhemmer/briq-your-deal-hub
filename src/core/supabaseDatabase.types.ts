@@ -2775,6 +2775,18 @@ export type Database = {
           status: string
         }[]
       }
+      create_deal_deadline: {
+        Args: { deadline_input: Json; idempotency_key: string; target_deal_id: string }
+        Returns: { deadline_id: string; deadline_version: number }[]
+      }
+      create_deal_note: {
+        Args: { idempotency_key: string; note_input: Json; target_deal_id: string }
+        Returns: { note_id: string; note_version: number }[]
+      }
+      create_deal_task: {
+        Args: { idempotency_key: string; target_deal_id: string; task_input: Json }
+        Returns: { task_id: string; task_version: number }[]
+      }
       create_workspace_invitation: {
         Args: {
           invite_email: string
@@ -2796,6 +2808,22 @@ export type Database = {
           relationship_id: string
           relationship_version: number
         }[]
+      }
+      archive_deal_note: {
+        Args: { expected_version?: number; target_note_id: string }
+        Returns: { note_id: string; note_version: number }[]
+      }
+      cancel_deal_task: {
+        Args: { expected_version?: number; target_task_id: string }
+        Returns: { task_id: string; task_version: number }[]
+      }
+      complete_deal_deadline: {
+        Args: { expected_version?: number; target_deadline_id: string }
+        Returns: { deadline_id: string; deadline_version: number }[]
+      }
+      complete_deal_task: {
+        Args: { expected_version?: number; target_task_id: string }
+        Returns: { task_id: string; task_version: number }[]
       }
       ensure_current_profile: {
         Args: never
@@ -2912,6 +2940,66 @@ export type Database = {
           target_type: string
           target_website: string
           updated_at: string
+          workspace_id: string
+        }[]
+      }
+      list_deal_notes: {
+        Args: { target_deal_id: string }
+        Returns: {
+          archived_at: string | null
+          body: string
+          created_at: string
+          deal_id: string
+          note_id: string
+          note_type: string
+          note_version: number
+          pinned: boolean
+          source_record_id: string | null
+          source_type: string
+          updated_at: string
+          workspace_id: string
+        }[]
+      }
+      list_deal_work: {
+        Args: { target_deal_id: string }
+        Returns: {
+          archived_at: string | null
+          body: string | null
+          completed_at: string | null
+          created_at: string
+          deal_id: string
+          due_at: string | null
+          due_date: string | null
+          is_all_day: boolean
+          pinned: boolean
+          priority: string | null
+          record_id: string
+          record_type: string
+          record_version: number
+          source_record_id: string | null
+          source_type: string
+          status: string
+          timezone: string
+          title: string
+          updated_at: string
+          verification_state: string | null
+          work_type: string
+          workspace_id: string
+        }[]
+      }
+      load_deal_timeline: {
+        Args: { before_time?: string | null; page_size?: number; target_deal_id: string }
+        Returns: {
+          actor_id: string | null
+          canonical_order: string
+          deal_id: string
+          event_type: string
+          occurred_at: string
+          safe_summary: string
+          safe_title: string
+          source_record_id: string | null
+          source_type: string
+          timeline_id: string
           workspace_id: string
         }[]
       }
@@ -3069,6 +3157,30 @@ export type Database = {
           relationship_id: string
           relationship_version: number
         }[]
+      }
+      update_deal_deadline: {
+        Args: {
+          deadline_input: Json
+          expected_version?: number
+          target_deadline_id: string
+        }
+        Returns: { deadline_id: string; deadline_version: number }[]
+      }
+      update_deal_note: {
+        Args: {
+          expected_version?: number
+          note_input: Json
+          target_note_id: string
+        }
+        Returns: { note_id: string; note_version: number }[]
+      }
+      update_deal_task: {
+        Args: {
+          expected_version?: number
+          target_task_id: string
+          task_input: Json
+        }
+        Returns: { task_id: string; task_version: number }[]
       }
     }
     Enums: {

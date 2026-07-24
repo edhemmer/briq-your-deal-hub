@@ -152,3 +152,69 @@ export type DuplicateCandidate = {
   version: number;
   matchReasons: string[];
 };
+
+export type DealTaskStatus = "open" | "in_progress" | "blocked" | "completed" | "cancelled";
+export type DealTaskPriority = "low" | "normal" | "high" | "urgent";
+export type DealTaskType = "general" | "verification" | "research" | "visit" | "offer" | "contract" | "financing" | "due_diligence";
+export type DealDeadlineStatus = "open" | "changed" | "completed" | "cancelled";
+export type DealDeadlineVerificationState =
+  | "unverified"
+  | "user_verified"
+  | "source_verified"
+  | "professional_review_recommended"
+  | "rejected"
+  | "superseded";
+export type DealNoteType = "general" | "call" | "visit" | "research" | "decision";
+
+export type DealWorkItem = {
+  recordType: "task" | "deadline";
+  recordId: string;
+  recordVersion: number;
+  workspaceId: string;
+  dealId: string;
+  title: string;
+  body?: string;
+  status: DealTaskStatus | DealDeadlineStatus;
+  priority?: DealTaskPriority;
+  workType: DealTaskType | "deadline";
+  dueAt?: string;
+  dueDate?: string;
+  isAllDay: boolean;
+  timezone: string;
+  sourceType: string;
+  sourceRecordId?: string;
+  verificationState?: DealDeadlineVerificationState;
+  completedAt?: string;
+  archivedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DealNote = {
+  noteId: string;
+  noteVersion: number;
+  workspaceId: string;
+  dealId: string;
+  body: string;
+  noteType: DealNoteType;
+  pinned: boolean;
+  sourceType: string;
+  sourceRecordId?: string;
+  archivedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DealTimelineItem = {
+  timelineId: string;
+  workspaceId: string;
+  dealId: string;
+  eventType: string;
+  sourceType: string;
+  sourceRecordId?: string;
+  safeTitle: string;
+  safeSummary: string;
+  actorId?: string;
+  occurredAt: string;
+  canonicalOrder: string;
+};
