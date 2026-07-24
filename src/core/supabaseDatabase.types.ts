@@ -2787,6 +2787,106 @@ export type Database = {
         Args: { idempotency_key: string; target_deal_id: string; task_input: Json }
         Returns: { task_id: string; task_version: number }[]
       }
+      list_deal_projection: {
+        Args: {
+          page_offset?: number
+          page_size?: number
+          sort_direction?: string
+          target_workspace_id: string
+        }
+        Returns: {
+          deal_id: string
+          deal_version: number
+          display_name: string
+          next_due_at: string | null
+          open_work_count: number
+          primary_property_address: string | null
+          primary_property_id: string | null
+          primary_property_version: number | null
+          priority: string
+          relationship_count: number
+          source: string
+          stage: string
+          status: string
+          strategy_intent: string | null
+          total_count: number
+          updated_at: string
+          workspace_id: string
+        }[]
+      }
+      load_deal_detail_projection: {
+        Args: { target_deal_id: string }
+        Returns: {
+          deal_id: string
+          deal_type: string
+          deal_updated_at: string
+          deal_version: number
+          display_name: string
+          facts: Json
+          loaded_at: string
+          open_deadline_count: number
+          open_task_count: number
+          pinned_note_count: number
+          primary_property_address: string | null
+          primary_property_address_line1: string | null
+          primary_property_address_line2: string | null
+          primary_property_city: string | null
+          primary_property_country: string | null
+          primary_property_id: string | null
+          primary_property_parcel_identifier: string | null
+          primary_property_postal_code: string | null
+          primary_property_region: string | null
+          primary_property_version: number | null
+          priority: string
+          property_updated_at: string | null
+          recent_event_count: number
+          relationship_count: number
+          source: string
+          source_text: string | null
+          source_url: string | null
+          stage: string
+          status: string
+          strategy_id: string
+          strategy_intent: string | null
+          verification: Json
+          workspace_id: string
+        }[]
+      }
+      load_property_summary: {
+        Args: { target_property_id: string }
+        Returns: {
+          active_deal_count: number
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          country: string
+          display_address: string
+          parcel_identifier: string | null
+          postal_code: string | null
+          property_id: string
+          property_version: number
+          region: string | null
+          updated_at: string
+          workspace_id: string
+        }[]
+      }
+      load_active_deal_shell_projection: {
+        Args: { target_deal_id: string }
+        Returns: {
+          deal_id: string
+          deal_version: number
+          display_name: string
+          loaded_at: string
+          next_due_at: string | null
+          open_work_count: number
+          primary_property_address: string | null
+          priority: string
+          stage: string
+          status: string
+          updated_at: string
+          workspace_id: string
+        }[]
+      }
       create_workspace_invitation: {
         Args: {
           invite_email: string
@@ -3165,6 +3265,65 @@ export type Database = {
           target_deadline_id: string
         }
         Returns: { deadline_id: string; deadline_version: number }[]
+      }
+      update_canonical_deal: {
+        Args: {
+          deal_input: Json
+          expected_version: number
+          idempotency_key: string
+          target_deal_id: string
+        }
+        Returns: {
+          deal_id: string
+          deal_type: string
+          deal_version: number
+          display_name: string
+          priority: string
+          source: string
+          stage: string
+          status: string
+          strategy_intent: string | null
+          updated_at: string
+          workspace_id: string
+        }[]
+      }
+      update_canonical_property: {
+        Args: {
+          expected_version: number
+          idempotency_key: string
+          property_input: Json
+          target_property_id: string
+        }
+        Returns: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          country: string
+          display_address: string
+          parcel_identifier: string | null
+          postal_code: string | null
+          property_id: string
+          property_version: number
+          region: string | null
+          updated_at: string
+          workspace_id: string
+        }[]
+      }
+      update_deal_lifecycle: {
+        Args: {
+          expected_version: number
+          idempotency_key: string
+          lifecycle_input: Json
+          target_deal_id: string
+        }
+        Returns: {
+          deal_id: string
+          deal_version: number
+          stage: string
+          status: string
+          updated_at: string
+          workspace_id: string
+        }[]
       }
       update_deal_note: {
         Args: {

@@ -305,6 +305,33 @@ vi.mock("../core/reportExports", () => ({
 function installDefaultRpcMock() {
   mocks.rpc.mockImplementation(async (name: string, args?: Record<string, unknown>) => {
     if (name === "ensure_workspace_context") return { data: [mocks.workspaceContext.value], error: null };
+    if (name === "list_deal_projection") return { data: mocks.remoteDeals.value.filter((row) => row.deleted_at === undefined || row.deleted_at === null).map((row) => dealListProjectionRow(row)), error: null };
+    if (name === "load_deal_detail_projection") {
+      const row = mocks.remoteDeals.value.find((deal) => deal.id === args?.target_deal_id);
+      return { data: row ? [dealDetailProjectionRow(row)] : [], error: row ? null : new Error("Deal is not available.") };
+    }
+    if (name === "update_canonical_deal") {
+      const dealInput = args?.deal_input as Record<string, unknown> | undefined;
+      mocks.remoteDeals.value = mocks.remoteDeals.value.map((row) => row.id === args?.target_deal_id ? {
+        ...row,
+        version: Number(row.version ?? 1) + 1,
+        display_name: dealInput?.display_name ?? row.display_name,
+        source_url: dealInput?.source_url ?? row.source_url,
+        source_text: dealInput?.source_text ?? row.source_text,
+        strategy_id: dealInput?.strategy_id ?? row.strategy_id,
+        strategy_intent: dealInput?.strategy_intent ?? row.strategy_intent,
+        facts: dealInput?.facts ?? row.facts,
+        verification: dealInput?.verification ?? row.verification,
+        updated_at: "2026-01-02T00:00:00.000Z",
+      } : row);
+      return { data: [{ deal_id: args?.target_deal_id, deal_version: 2, workspace_id: "workspace-1", display_name: dealInput?.display_name ?? "Updated Deal", deal_type: "acquisition", priority: "normal", source: "manual", strategy_intent: dealInput?.strategy_intent ?? null, stage: "lead", status: "active", updated_at: "2026-01-02T00:00:00.000Z" }], error: null };
+    }
+    if (name === "update_canonical_property") {
+      const propertyInput = args?.property_input as Record<string, unknown> | undefined;
+      return { data: [{ property_id: args?.target_property_id, property_version: 2, workspace_id: "workspace-1", display_address: propertyInput?.display_address ?? "Updated Property", address_line1: propertyInput?.address_line1 ?? null, address_line2: propertyInput?.address_line2 ?? null, city: propertyInput?.city ?? null, region: propertyInput?.region ?? null, postal_code: propertyInput?.postal_code ?? null, country: "US", parcel_identifier: propertyInput?.parcel_identifier ?? null, updated_at: "2026-01-02T00:00:00.000Z" }], error: null };
+    }
+    if (name === "update_deal_lifecycle") return { data: [{ deal_id: args?.target_deal_id, deal_version: 2, workspace_id: "workspace-1", stage: "lead", status: "active", updated_at: "2026-01-02T00:00:00.000Z" }], error: null };
+    if (name === "list_deal_relationships" || name === "list_deal_work" || name === "list_deal_notes" || name === "load_deal_timeline") return { data: [], error: null };
     if (name === "create_canonical_deal") {
       const dealInput = args?.deal_input as Record<string, unknown> | undefined;
       return {
@@ -496,15 +523,92 @@ function draftDeal(id: string, address: string): DealFacts {
   };
 }
 
+function expectWorkspaceDealProjectionLoad(workspaceId = "workspace-1") {
+  expect(mocks.rpc).toHaveBeenCalledWith("list_deal_projection", expect.objectContaining({
+    target_workspace_id: workspaceId,
+    page_size: 50,
+    page_offset: 0,
+  }));
+}
+
 function remoteDealRow(id: string, ownerId: string, address: string, extra: Record<string, unknown> = {}) {
   return {
     id,
     owner_id: ownerId,
+    workspace_id: "workspace-1",
+    version: 1,
+    display_name: address,
+    operating_status: "active",
+    stage: "lead",
+    priority: "normal",
+    source: "manual",
+    strategy_intent: "owner_occupant",
+    updated_at: "2026-01-01T00:00:00.000Z",
     address,
     status: "draft",
     strategy_id: "owner_occupant",
     facts: draftDeal(id, address),
     ...extra,
+  };
+}
+
+function dealListProjectionRow(row: Record<string, unknown>) {
+  return {
+    deal_id: row.id,
+    deal_version: row.version ?? 1,
+    workspace_id: row.workspace_id ?? "workspace-1",
+    display_name: row.display_name ?? row.address,
+    primary_property_id: row.property_id ?? `property-${row.id}`,
+    primary_property_version: row.property_version ?? 1,
+    primary_property_address: row.address,
+    stage: row.stage ?? "lead",
+    status: row.operating_status ?? "active",
+    priority: row.priority ?? "normal",
+    source: row.source ?? "manual",
+    strategy_intent: row.strategy_intent ?? row.strategy_id,
+    updated_at: row.updated_at ?? "2026-01-01T00:00:00.000Z",
+    open_work_count: 0,
+    relationship_count: 0,
+    next_due_at: null,
+    total_count: mocks.remoteDeals.value.length,
+  };
+}
+
+function dealDetailProjectionRow(row: Record<string, unknown>) {
+  return {
+    deal_id: row.id,
+    deal_version: row.version ?? 1,
+    workspace_id: row.workspace_id ?? "workspace-1",
+    display_name: row.display_name ?? row.address,
+    deal_type: row.deal_type ?? "acquisition",
+    stage: row.stage ?? "lead",
+    status: row.operating_status ?? "active",
+    priority: row.priority ?? "normal",
+    source: row.source ?? "manual",
+    strategy_intent: row.strategy_intent ?? row.strategy_id,
+    source_url: row.source_url ?? null,
+    source_text: row.source_text ?? null,
+    strategy_id: row.strategy_id ?? "owner_occupant",
+    facts: row.facts ?? draftDeal(String(row.id), String(row.address ?? "Deal")),
+    verification: row.verification ?? {},
+    deal_updated_at: row.updated_at ?? "2026-01-01T00:00:00.000Z",
+    primary_property_id: row.property_id ?? `property-${row.id}`,
+    primary_property_version: row.property_version ?? 1,
+    primary_property_address: row.address,
+    primary_property_address_line1: row.address,
+    primary_property_address_line2: null,
+    primary_property_city: row.city ?? null,
+    primary_property_region: row.state ?? null,
+    primary_property_postal_code: row.zip ?? null,
+    primary_property_country: "US",
+    primary_property_parcel_identifier: null,
+    property_updated_at: row.updated_at ?? "2026-01-01T00:00:00.000Z",
+    relationship_count: 0,
+    open_task_count: 0,
+    open_deadline_count: 0,
+    pinned_note_count: 0,
+    recent_event_count: 0,
+    loaded_at: "2026-01-02T00:00:00.000Z",
   };
 }
 
@@ -610,8 +714,8 @@ describe("BRIX app module flow", () => {
 
     expect((await screen.findAllByText("Cloud Deep Link Deal")).length).toBeGreaterThan(0);
     expect(window.location.pathname).toBe("/deals/cloud-deep");
-    expect((screen.getByLabelText("Purchase price") as HTMLInputElement).value).toBe("315000");
-    expect(mocks.queriedOwnerIds.value).toEqual(["user-1"]);
+    await waitFor(() => expect((screen.getByLabelText("Purchase price") as HTMLInputElement).value).toBe("315000"));
+    expectWorkspaceDealProjectionLoad();
   });
 
   it("recovers safely when a Deal deep link is not authorized for the current workspace", async () => {
@@ -768,17 +872,17 @@ describe("BRIX app module flow", () => {
   it("surfaces only canonical authenticated Deal attention and opens the selected Deal", async () => {
     mocks.remoteDeals.value = [
       remoteDealRow("active-cloud", "user-1", "Active Cloud Deal", { city: "Naperville", state: "IL", status: "underwriting", updated_at: "2026-01-05T00:00:00.000Z", facts: { ...draftDeal("active-cloud", "Active Cloud Deal"), city: "Naperville", state: "IL", status: "underwriting", updatedAt: "2026-01-05T00:00:00.000Z" } }),
-      remoteDealRow("closed-cloud", "user-1", "Closed Cloud Deal", { city: "Aurora", state: "IL", status: "closed", updated_at: "2026-01-04T00:00:00.000Z", facts: { ...draftDeal("closed-cloud", "Closed Cloud Deal"), city: "Aurora", state: "IL", status: "closed", updatedAt: "2026-01-04T00:00:00.000Z" } }),
+      remoteDealRow("closed-cloud", "user-1", "Closed Cloud Deal", { city: "Aurora", state: "IL", operating_status: "closed_won", status: "closed", updated_at: "2026-01-04T00:00:00.000Z", facts: { ...draftDeal("closed-cloud", "Closed Cloud Deal"), city: "Aurora", state: "IL", status: "closed", updatedAt: "2026-01-04T00:00:00.000Z" } }),
     ];
     render(<App />);
 
     expect(await screen.findByText("Account ready")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "What needs attention now" })).toBeInTheDocument();
-    expect(screen.getByText("Underwriting is in progress")).toBeInTheDocument();
-    expect(screen.getByText(/Active Cloud Deal - Naperville, IL - Underwriting/i)).toBeInTheDocument();
+    expect(screen.getAllByText("Deal review is in progress").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Active Cloud Deal - Location not entered - Reviewing/i)).toBeInTheDocument();
     expect(screen.queryByText(/Closed Cloud Deal - Aurora, IL - Closed/i)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Open Deal" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Open Deal" })[0]);
 
     await waitFor(() => expect(window.location.pathname).toBe("/deals/active-cloud"));
     expect(screen.getByRole("heading", { name: "Deal" })).toBeInTheDocument();
@@ -944,7 +1048,7 @@ describe("BRIX app module flow", () => {
     await waitFor(() => expect(window.location.pathname).toBe("/deals/restore-deal"));
     expect(screen.getByRole("heading", { name: "Deal" })).toBeInTheDocument();
     expect(screen.getAllByText("Restore House").length).toBeGreaterThan(0);
-    expect(mocks.queriedOwnerIds.value).toEqual(["user-1"]);
+    expectWorkspaceDealProjectionLoad();
   });
 
   it("recovers safely when a routed Deal is missing, deleted, or unauthorized", async () => {
@@ -1396,19 +1500,28 @@ describe("BRIX app module flow", () => {
   });
 
   it("mocked: authenticated deal update and reopen uses Supabase records", async () => {
+    mocks.remoteDeals.value = [remoteDealRow("cloud-roundtrip", "user-1", "Cloud Roundtrip Deal", {
+      facts: {
+        ...draftDeal("cloud-roundtrip", "Cloud Roundtrip Deal"),
+        dealVersion: 1,
+        listPrice: 300000,
+      },
+    })];
     const created = await persistRemoteDeal({
       ...draftDeal("cloud-roundtrip", "Cloud Roundtrip Deal"),
+      dealVersion: 1,
       listPrice: 325000,
       notes: ["Preserve this note"],
     }, "user-1");
     mocks.remoteDeals.value = [remoteDealRow(created.id, "user-1", "Cloud Roundtrip Deal", { facts: created, created_at: created.createdAt, updated_at: created.updatedAt })];
 
-    const reopened = await loadRemoteDeals("user-1");
+    const reopened = await loadRemoteDeals("user-1", "workspace-1");
 
-    expect(mocks.update).toHaveBeenCalled();
+    expect(mocks.rpc).toHaveBeenCalledWith("update_canonical_deal", expect.objectContaining({ target_deal_id: "cloud-roundtrip" }));
+    expect(mocks.update).not.toHaveBeenCalled();
     expect(reopened[0].id).toBe("cloud-roundtrip");
-    expect(reopened[0].listPrice).toBe(325000);
-    expect(reopened[0].notes).toEqual(["Preserve this note"]);
+    expect(created.listPrice).toBe(325000);
+    expect(created.notes).toEqual(["Preserve this note"]);
   });
 
   it("mocked: authenticated deal creation uses the canonical server contract", async () => {
@@ -1599,7 +1712,7 @@ describe("BRIX app module flow", () => {
       remoteDealRow("deleted-cloud", "user-1", "Deleted Cloud Deal", { deleted_at: "2026-01-02" }),
     ];
 
-    const records = await loadRemoteDeals("user-1");
+    const records = await loadRemoteDeals("user-1", "workspace-1");
 
     expect(records.map((deal) => deal.address)).toEqual(["Active Cloud Deal"]);
   });
@@ -1795,7 +1908,7 @@ describe("BRIX app module flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry setup" }));
 
     expect(await screen.findByText("Retry Cloud Deal")).toBeInTheDocument();
-    expect(mocks.queriedOwnerIds.value).toEqual(["user-1"]);
+    expectWorkspaceDealProjectionLoad();
   });
 
   it("fails closed when a restored authenticated session is expired or revoked", async () => {
@@ -1850,7 +1963,7 @@ describe("BRIX app module flow", () => {
     render(<App />);
 
     await screen.findByRole("heading", { name: "Home" });
-    await waitFor(() => expect(mocks.queriedOwnerIds.value).toContain("user-1"));
+    await waitFor(() => expectWorkspaceDealProjectionLoad());
   });
 
   it("mocked: authenticated sessions establish workspace context before cloud deals are shown", async () => {
@@ -1859,7 +1972,7 @@ describe("BRIX app module flow", () => {
 
     expect(await screen.findByText("Workspace Loaded Deal")).toBeInTheDocument();
     expect(mocks.rpc).toHaveBeenCalledWith("ensure_workspace_context");
-    expect(mocks.queriedOwnerIds.value).toEqual(["user-1"]);
+    expectWorkspaceDealProjectionLoad();
   });
 
   it("mocked: workspace bootstrap failure blocks cloud deal loading", async () => {

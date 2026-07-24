@@ -6,6 +6,9 @@ export type VerificationState = "entered" | "source_backed" | "estimated" | "mis
 
 export type DealFacts = {
   id: string;
+  dealVersion?: number;
+  propertyId?: string;
+  propertyVersion?: number;
   createdAt: string;
   updatedAt: string;
   status: DealStatus;
@@ -37,6 +40,116 @@ export type DealFacts = {
   photoUrls: string[];
   uploadedPhotoNames: string[];
   verification: Record<string, VerificationState>;
+};
+
+export type DealPriority = "low" | "normal" | "high" | "urgent";
+export type CanonicalDealStage =
+  | "lead"
+  | "screening"
+  | "research"
+  | "visit_planned"
+  | "visited"
+  | "underwriting"
+  | "negotiation"
+  | "offer_preparation"
+  | "offer_submitted"
+  | "under_contract"
+  | "due_diligence"
+  | "financing"
+  | "closing"
+  | "owned"
+  | "stabilizing"
+  | "operating"
+  | "refinancing"
+  | "disposition"
+  | "sold"
+  | "passed"
+  | "archived";
+export type CanonicalDealOperatingStatus = "active" | "needs_attention" | "waiting" | "blocked" | "on_hold" | "passed" | "closed_won" | "closed_lost" | "archived" | "deleted_pending";
+
+export type PropertySummary = {
+  propertyId: string;
+  propertyVersion: number;
+  workspaceId: string;
+  displayAddress: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  country: string;
+  parcelIdentifier?: string;
+  activeDealCount?: number;
+  updatedAt: string;
+};
+
+export type DealListProjection = {
+  dealId: string;
+  dealVersion: number;
+  workspaceId: string;
+  displayName: string;
+  primaryPropertyId?: string;
+  primaryPropertyVersion?: number;
+  primaryPropertyAddress?: string;
+  stage: CanonicalDealStage;
+  status: CanonicalDealOperatingStatus;
+  priority: DealPriority;
+  source: string;
+  strategyIntent?: string;
+  updatedAt: string;
+  openWorkCount: number;
+  relationshipCount: number;
+  nextDueAt?: string;
+  totalCount: number;
+};
+
+export type DealDetailProjection = {
+  deal: DealFacts;
+  workspaceId: string;
+  displayName: string;
+  dealType: string;
+  stage: CanonicalDealStage;
+  operatingStatus: CanonicalDealOperatingStatus;
+  priority: DealPriority;
+  source: string;
+  strategyIntent?: string;
+  property?: PropertySummary;
+  relationshipCount: number;
+  openTaskCount: number;
+  openDeadlineCount: number;
+  pinnedNoteCount: number;
+  recentEventCount: number;
+  loadedAt: string;
+};
+
+export type DealCoreUpdate = {
+  displayName?: string;
+  dealType?: string;
+  priority?: DealPriority;
+  source?: string;
+  strategyIntent?: string;
+  sourceUrl?: string;
+  sourceText?: string;
+  strategyId?: StrategyId;
+  facts?: DealFacts;
+  verification?: Record<string, VerificationState>;
+};
+
+export type PropertyUpdate = {
+  displayAddress?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  country?: string;
+  parcelIdentifier?: string;
+};
+
+export type DealLifecycleUpdate = {
+  stage?: CanonicalDealStage;
+  operatingStatus?: CanonicalDealOperatingStatus;
+  reason?: string;
 };
 
 export type StrategyScore = {

@@ -1,4 +1,5 @@
 import { createBlankDeal, parseListingInput } from "./listingParser";
+import { listDealProjections, projectionToDealFacts, updateDealCore } from "./dealCrud";
 import { getStrategy, normalizeStrategy, type StrategyId } from "./strategyCatalog";
 import type { DealFacts, DealStatus, VerificationState } from "./types";
 import { supabase } from "./supabase";
@@ -74,9 +75,9 @@ export const anonymousDealRepository: DealPersistenceRepository = {
   },
 };
 
-export function cloudDealRepository(userId: string): DealPersistenceRepository {
+export function cloudDealRepository(userId: string, workspaceId?: string): DealPersistenceRepository {
   return {
-    list: () => loadRemoteDeals(userId),
+    list: () => loadRemoteDeals(userId, workspaceId),
     create: (deal) => persistRemoteDeal(deal, userId),
     update: (deal) => persistRemoteDeal(deal, userId),
     softDelete: (id) => softDeleteRemoteDeal(id, userId),
@@ -99,17 +100,11 @@ async function requireAuthenticatedUser(expectedUserId?: string) {
   return user;
 }
 
-export async function loadRemoteDeals(userId: string): Promise<DealFacts[]> {
+export async function loadRemoteDeals(userId: string, workspaceId?: string): Promise<DealFacts[]> {
   await requireAuthenticatedUser(userId);
-  const { data, error } = await supabase
-    .from("brix_deals")
-    .select("*")
-    .eq("owner_id", userId)
-    .is("deleted_at", null)
-    .order("updated_at", { ascending: false });
-  if (error) throw error;
-  if (!data) return [];
-  return (Array.isArray(data) ? data : []).map(normalizeDealRow).filter(isDealFacts);
+  if (!workspaceId) throw new Error("BRIX workspace is not ready.");
+  const { deals } = await listDealProjections(workspaceId, 50, 0);
+  return deals.map(projectionToDealFacts);
 }
 
 export async function persistRemoteDeal(deal: DealFacts, userId: string): Promise<DealFacts> {
@@ -117,29 +112,16 @@ export async function persistRemoteDeal(deal: DealFacts, userId: string): Promis
   const now = new Date().toISOString();
   const canonicalDeal = normalizeDealRecord({ ...deal, updatedAt: now });
   if (!canonicalDeal) throw new Error("Deal record is missing a usable ID.");
-  const { data, error } = await supabase.from("brix_deals").update({
-    status: canonicalDeal.status,
-    source_url: canonicalDeal.sourceUrl || null,
-    source_text: canonicalDeal.sourceText || null,
-    address: canonicalDeal.address,
-    city: canonicalDeal.city || null,
-    state: canonicalDeal.state || null,
-    zip: canonicalDeal.zip || null,
-    county: canonicalDeal.county || null,
-    strategy_id: canonicalDeal.strategyId,
+  const saved = await updateDealCore(canonicalDeal, {
+    displayName: canonicalDeal.address,
+    sourceUrl: canonicalDeal.sourceUrl,
+    sourceText: canonicalDeal.sourceText,
+    strategyId: canonicalDeal.strategyId,
+    strategyIntent: canonicalDeal.strategyId,
     facts: canonicalDeal,
     verification: canonicalDeal.verification,
-    updated_at: canonicalDeal.updatedAt,
-  })
-    .eq("id", canonicalDeal.id)
-    .eq("owner_id", userId)
-    .select("*")
-    .single();
-  if (error) throw error;
-  if (!data) throw new Error("Supabase did not return the saved deal.");
-  const normalized = normalizeDealRow(data);
-  if (!normalized) throw new Error("Supabase returned a malformed deal record.");
-  return normalized;
+  });
+  return saved.deal;
 }
 
 type CanonicalDealCreateResult = {
@@ -197,6 +179,9 @@ export async function createRemoteDeal(deal: DealFacts, userId: string, workspac
   return normalizeDealRecord({
     ...canonicalDeal,
     id: row.deal_id,
+    dealVersion: row.deal_version,
+    propertyId: row.property_id,
+    propertyVersion: row.property_version,
     updatedAt: new Date().toISOString(),
   }) as DealFacts;
 }
@@ -219,6 +204,7 @@ export function normalizeDealRow(row: unknown): DealFacts | null {
   const merged = {
     ...facts,
     id: row.id ?? facts.id,
+    dealVersion: row.version ?? facts.dealVersion,
     status: row.status ?? facts.status,
     sourceUrl: row.source_url ?? facts.sourceUrl,
     sourceText: row.source_text ?? facts.sourceText,
@@ -244,6 +230,9 @@ export function normalizeDealRecord(value: unknown): DealFacts | null {
   const strategyId = getStrategy(optionalString(value.strategyId))?.id ?? normalizeStrategy("owner_occupant");
   const deal: DealFacts = {
     id,
+    dealVersion: optionalNumber(value.dealVersion),
+    propertyId: optionalString(value.propertyId),
+    propertyVersion: optionalNumber(value.propertyVersion),
     createdAt,
     updatedAt,
     status: dealStatuses.includes(value.status as DealStatus) ? value.status as DealStatus : "draft",

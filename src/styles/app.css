@@ -207,7 +207,9 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .duplicate-candidates article { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) auto; gap: 10px; align-items: center; }
 .duplicate-candidates span { color: white; font-weight: 900; }
 .duplicate-candidates small { color: #ffd28a; }
-.work-history-panel { gap: 18px; }
+.canonical-edit-panel, .work-history-panel { gap: 18px; }
+.canonical-edit-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.canonical-edit-grid .field:first-child, .canonical-edit-grid .field:nth-child(5) { grid-column: span 2; }
 .work-history-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
 .work-column { display: grid; gap: 12px; min-width: 0; }
 .work-column h4, .timeline-panel h4 { display: flex; align-items: center; gap: 8px; margin: 0; color: white; }
@@ -354,13 +356,13 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
   .nav-toggle { display: inline-flex; }
   .two-column, .deal-grid { grid-template-columns: 1fr; }
   .relationship-card, .relationship-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .landing-grid, .strategy-insight, .comparison-detail, .state-grid, .work-history-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .landing-grid, .strategy-insight, .comparison-detail, .state-grid, .canonical-edit-grid, .work-history-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .workflow-strip { overflow-x: auto; grid-template-columns: repeat(5, minmax(132px, 1fr)); padding-bottom: 4px; }
 }
 
 @media (max-width: 640px) {
   .workspace, .rail { padding: 16px; }
-  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row, .trusted-access-entry, .presentation-options, .state-grid, .attention-item, .relationship-card, .relationship-form, .duplicate-candidates article, .work-history-grid, .work-edit-row { grid-template-columns: 1fr; }
+  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row, .trusted-access-entry, .presentation-options, .state-grid, .attention-item, .relationship-card, .relationship-form, .duplicate-candidates article, .canonical-edit-grid, .work-history-grid, .work-edit-row { grid-template-columns: 1fr; }
   .relationship-toolbar { justify-content: flex-start; flex-wrap: wrap; }
   .topbar { display: grid; }
   .workspace-pill, .active-deal-pill, .deal-switcher, .shell-search-trigger { min-width: 0; width: 100%; }
@@ -382,5 +384,5 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
   .row-actions button { flex: 1; }
   .attention-item .compact-button { width: 100%; }
   .relationship-actions { justify-content: stretch; }
-  .relationship-actions button, .relationship-form button, .notes-field { width: 100%; grid-column: auto; }
+  .relationship-actions button, .relationship-form button, .notes-field, .canonical-edit-grid .field { width: 100%; grid-column: auto; }
 }

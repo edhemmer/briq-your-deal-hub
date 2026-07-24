@@ -4,7 +4,8 @@ import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, U
 import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
 import { createDealFromInput, createRemoteDeal, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
-import type { DealFacts, DealNote, DealRelationship, DealRelationshipRole, DealRelationshipStatus, DealStatus, DealTimelineItem, DealWorkItem, DuplicateCandidate, RelationshipTargetType } from "./core/types";
+import { loadDealDetail, updateDealCore, updateDealLifecycle, updateProperty } from "./core/dealCrud";
+import type { CanonicalDealOperatingStatus, CanonicalDealStage, DealFacts, DealNote, DealPriority, DealRelationship, DealRelationshipRole, DealRelationshipStatus, DealStatus, DealTimelineItem, DealWorkItem, DuplicateCandidate, PropertySummary, RelationshipTargetType } from "./core/types";
 import { supabase } from "./core/supabase";
 import { downloadDecisionPdf, downloadWorkbook } from "./core/reportExports";
 import { analyzePhotoEvidence } from "./core/photoAnalysis";
@@ -219,6 +220,7 @@ function BrixApp() {
   const searchRequestRef = useRef(0);
   const didRenderInitialModuleRef = useRef(false);
   const didRestoreLastDealRef = useRef(false);
+  const dealHydrationRef = useRef<string | null>(null);
   const isOnline = useOnlineStatus();
   const isAuthenticated = Boolean(authUserId);
   const selectedDeal = deals.find((deal) => deal.id === selectedId);
@@ -625,7 +627,7 @@ function BrixApp() {
         setWorkspaceContext(context);
         setWorkspaceStatus("ready");
         setAuthLifecycle("ready");
-        return loadRemoteDeals(authUserId);
+        return loadRemoteDeals(authUserId, context.workspaceId);
       })
       .then((remoteDeals) => {
         if (!isCurrent) return;
@@ -781,6 +783,27 @@ function BrixApp() {
     setModuleState("deals");
     window.history.replaceState({}, "", "/deals");
   }, [module, selectedDeal]);
+
+  useEffect(() => {
+    if (!authUserId || !isOnline || module !== "deal" || !selectedDeal) return;
+    const hydrationKey = `${selectedDeal.id}:${selectedDeal.dealVersion ?? 0}:${selectedDeal.updatedAt}`;
+    if (dealHydrationRef.current === hydrationKey) return;
+    let isCurrent = true;
+    dealHydrationRef.current = hydrationKey;
+    loadDealDetail(selectedDeal.id)
+      .then((detail) => {
+        if (!isCurrent) return;
+        putDealInState(detail.deal);
+      })
+      .catch((error) => {
+        if (!isCurrent) return;
+        const safe = safeDealCommandMessage(error);
+        setSyncMessage(safe.message);
+      });
+    return () => {
+      isCurrent = false;
+    };
+  }, [authUserId, isOnline, module, selectedDeal]);
 
   async function createDeal(deal: DealFacts) {
     try {
@@ -993,7 +1016,7 @@ function BrixApp() {
         )}
         {module === "home" && <HomeSurface presentationMode={presentationMode} isAuthenticated={isAuthenticated} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} isOnline={isOnline} deals={deals} selectedDeal={selectedDeal ?? deals[0]} syncMessage={syncMessage} routeMessage={routeMessage} onOpenDeal={(dealId?: string) => dealId ? openDeal(dealId) : selectedDeal ? openDeal(selectedDeal.id) : setModule("deals")} onOpenDeals={() => setModule("deals")} onOpenSettings={() => setModule("account")} onRetry={retryWorkspaceBootstrap} />}
         {module === "deals" && <DealsSurface presentationMode={presentationMode} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} deals={deals} recentDeals={recentDeals} selectedId={selectedId} onOpenDeal={openDeal} onRetry={retryWorkspaceBootstrap} />}
-        {module === "deal" && <DealIQ deal={selectedDeal} workspaceId={workspaceContext?.workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} onChange={upsertDeal} onDelete={deleteDeal} />}
+        {module === "deal" && <DealIQ deal={selectedDeal} workspaceId={workspaceContext?.workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} onChange={upsertDeal} onCanonicalSaved={putDealInState} onDelete={deleteDeal} />}
         {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceContext={workspaceContext} invitationToken={invitationToken} recoveryActive={passwordRecoveryActive} onAuthChanged={(userId) => {
           setDeals([]);
           setSelectedId(null);
@@ -1569,6 +1592,7 @@ function DealIQ({
   isAuthenticated,
   isOnline,
   onChange,
+  onCanonicalSaved,
   onDelete,
 }: {
   deal?: DealFacts;
@@ -1576,6 +1600,7 @@ function DealIQ({
   isAuthenticated: boolean;
   isOnline: boolean;
   onChange: (deal: DealFacts) => void;
+  onCanonicalSaved: (deal: DealFacts) => void;
   onDelete: (id: string) => void;
 }) {
   if (!deal) return <Empty title="No deal file yet" text="Start in FindIQ with an address, listing URL, or listing text." />;
@@ -1602,6 +1627,8 @@ function DealIQ({
           <span>{primary.why[0]}</span>
         </div>
       </section>
+
+      <CanonicalDealEditPanel deal={deal} isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={onCanonicalSaved} />
 
       <section className="panel">
         <p className="eyebrow">Facts</p>
@@ -1711,6 +1738,244 @@ function DealIQ({
       </section>
     </div>
   );
+}
+
+const dealStageOptions: Array<{ id: CanonicalDealStage; label: string }> = [
+  { id: "lead", label: "Lead" },
+  { id: "screening", label: "Screening" },
+  { id: "research", label: "Research" },
+  { id: "visit_planned", label: "Visit planned" },
+  { id: "visited", label: "Visited" },
+  { id: "underwriting", label: "Underwriting" },
+  { id: "negotiation", label: "Negotiation" },
+  { id: "offer_preparation", label: "Offer preparation" },
+  { id: "offer_submitted", label: "Offer submitted" },
+  { id: "under_contract", label: "Under contract" },
+  { id: "due_diligence", label: "Due diligence" },
+  { id: "financing", label: "Financing" },
+  { id: "closing", label: "Closing" },
+  { id: "owned", label: "Owned" },
+  { id: "stabilizing", label: "Stabilizing" },
+  { id: "operating", label: "Operating" },
+  { id: "refinancing", label: "Refinancing" },
+  { id: "disposition", label: "Disposition" },
+  { id: "sold", label: "Sold" },
+  { id: "passed", label: "Passed" },
+];
+
+const dealOperatingStatusOptions: Array<{ id: CanonicalDealOperatingStatus; label: string }> = [
+  { id: "active", label: "Active" },
+  { id: "needs_attention", label: "Needs attention" },
+  { id: "waiting", label: "Waiting" },
+  { id: "blocked", label: "Blocked" },
+  { id: "on_hold", label: "On hold" },
+  { id: "passed", label: "Passed" },
+  { id: "closed_won", label: "Closed won" },
+  { id: "closed_lost", label: "Closed lost" },
+];
+
+function CanonicalDealEditPanel({
+  deal,
+  isAuthenticated,
+  isOnline,
+  onSaved,
+}: {
+  deal: DealFacts;
+  isAuthenticated: boolean;
+  isOnline: boolean;
+  onSaved: (deal: DealFacts) => void;
+}) {
+  const [status, setStatus] = useState<"idle" | "loading" | "loaded" | "editing" | "saving" | "saved" | "stale" | "validation" | "permission" | "offline" | "failed">("idle");
+  const [message, setMessage] = useState("");
+  const [property, setProperty] = useState<PropertySummary | null>(null);
+  const [dealDraft, setDealDraft] = useState({
+    displayName: deal.address,
+    priority: "normal" as DealPriority,
+    source: deal.sourceUrl ? "listing_url" : "manual",
+    stage: "lead" as CanonicalDealStage,
+    operatingStatus: "active" as CanonicalDealOperatingStatus,
+  });
+  const [propertyDraft, setPropertyDraft] = useState({
+    displayAddress: deal.address,
+    addressLine1: deal.address,
+    city: deal.city ?? "",
+    region: deal.state ?? "",
+    postalCode: deal.zip ?? "",
+    parcelIdentifier: "",
+  });
+
+  const load = useCallback(async () => {
+    if (!isAuthenticated) {
+      setStatus("loaded");
+      setMessage("Sign in to edit canonical Deal and Property records.");
+      return;
+    }
+    if (!isOnline) {
+      setStatus("offline");
+      setMessage("Connection is unavailable. Reload when you are back online.");
+      return;
+    }
+    setStatus("loading");
+    setMessage("");
+    try {
+      const detail = await loadDealDetail(deal.id);
+      setProperty(detail.property ?? null);
+      setDealDraft({
+        displayName: detail.displayName,
+        priority: detail.priority,
+        source: detail.source,
+        stage: detail.stage,
+        operatingStatus: detail.operatingStatus,
+      });
+      setPropertyDraft({
+        displayAddress: detail.property?.displayAddress ?? detail.deal.address,
+        addressLine1: detail.property?.addressLine1 ?? detail.deal.address,
+        city: detail.property?.city ?? detail.deal.city ?? "",
+        region: detail.property?.region ?? detail.deal.state ?? "",
+        postalCode: detail.property?.postalCode ?? detail.deal.zip ?? "",
+        parcelIdentifier: detail.property?.parcelIdentifier ?? "",
+      });
+      setStatus("loaded");
+    } catch (error) {
+      const safe = safeDealCommandMessage(error);
+      setStatus(safe.status);
+      setMessage(safe.message);
+    }
+  }, [deal.id, isAuthenticated, isOnline]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function saveCanonicalEdits() {
+    if (!isAuthenticated) {
+      setMessage("Sign in to save canonical Deal and Property changes.");
+      return;
+    }
+    if (!isOnline) {
+      setStatus("offline");
+      setMessage("Connection is unavailable. Your onscreen changes are still here; retry when back online.");
+      return;
+    }
+    if (!dealDraft.displayName.trim() || !propertyDraft.displayAddress.trim()) {
+      setStatus("validation");
+      setMessage("Deal name and Property address are required.");
+      return;
+    }
+    setStatus("saving");
+    setMessage("");
+    try {
+      const detailAfterDeal = await updateDealCore(deal, {
+        displayName: dealDraft.displayName,
+        priority: dealDraft.priority,
+        source: dealDraft.source,
+        strategyIntent: deal.strategyId,
+        strategyId: deal.strategyId,
+        facts: { ...deal, address: propertyDraft.displayAddress, city: propertyDraft.city, state: propertyDraft.region, zip: propertyDraft.postalCode },
+        verification: deal.verification,
+      });
+      let nextDetail = detailAfterDeal;
+      if (property) {
+        await updateProperty(property, {
+          displayAddress: propertyDraft.displayAddress,
+          addressLine1: propertyDraft.addressLine1,
+          city: propertyDraft.city,
+          region: propertyDraft.region,
+          postalCode: propertyDraft.postalCode,
+          country: property.country,
+          parcelIdentifier: propertyDraft.parcelIdentifier,
+        });
+        nextDetail = await loadDealDetail(deal.id);
+      }
+      if (dealDraft.stage !== nextDetail.stage || dealDraft.operatingStatus !== nextDetail.operatingStatus) {
+        nextDetail = await updateDealLifecycle(nextDetail.deal, {
+          stage: dealDraft.stage,
+          operatingStatus: dealDraft.operatingStatus,
+          reason: "deal_detail_edit",
+        });
+      }
+      onSaved(nextDetail.deal);
+      setProperty(nextDetail.property ?? null);
+      setStatus("saved");
+      setMessage("Deal and Property changes saved.");
+    } catch (error) {
+      const safe = safeDealCommandMessage(error);
+      setStatus(safe.status);
+      setMessage(safe.message);
+    }
+  }
+
+  return (
+    <section className="panel wide canonical-edit-panel">
+      <div className="panel-heading-row">
+        <div>
+          <p className="eyebrow">Deal record</p>
+          <h3>Canonical Deal and Property details</h3>
+        </div>
+        <div className="button-row">
+          <button className="secondary compact" type="button" onClick={load} disabled={status === "loading" || status === "saving"}><RefreshCw size={14} /> Reload</button>
+          <button className="primary compact" type="button" onClick={saveCanonicalEdits} disabled={!isAuthenticated || status === "loading" || status === "saving"}>Save</button>
+        </div>
+      </div>
+      {message && <p className={status === "saved" ? "success-text" : status === "loaded" ? "quiet" : "error"}>{message}</p>}
+      <div className="canonical-edit-grid">
+        <label className="field">
+          <span>Deal name</span>
+          <input value={dealDraft.displayName} onChange={(event) => { setStatus("editing"); setDealDraft({ ...dealDraft, displayName: event.target.value }); }} />
+        </label>
+        <label className="field">
+          <span>Priority</span>
+          <select value={dealDraft.priority} onChange={(event) => { setStatus("editing"); setDealDraft({ ...dealDraft, priority: event.target.value as DealPriority }); }}>
+            <option value="low">Low</option>
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </label>
+        <label className="field">
+          <span>Stage</span>
+          <select value={dealDraft.stage} onChange={(event) => { setStatus("editing"); setDealDraft({ ...dealDraft, stage: event.target.value as CanonicalDealStage }); }}>
+            {dealStageOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+          </select>
+        </label>
+        <label className="field">
+          <span>Status</span>
+          <select value={dealDraft.operatingStatus} onChange={(event) => { setStatus("editing"); setDealDraft({ ...dealDraft, operatingStatus: event.target.value as CanonicalDealOperatingStatus }); }}>
+            {dealOperatingStatusOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+          </select>
+        </label>
+        <label className="field">
+          <span>Property address</span>
+          <input value={propertyDraft.displayAddress} onChange={(event) => { setStatus("editing"); setPropertyDraft({ ...propertyDraft, displayAddress: event.target.value, addressLine1: event.target.value }); }} />
+        </label>
+        <label className="field">
+          <span>City</span>
+          <input value={propertyDraft.city} onChange={(event) => { setStatus("editing"); setPropertyDraft({ ...propertyDraft, city: event.target.value }); }} />
+        </label>
+        <label className="field">
+          <span>State</span>
+          <input value={propertyDraft.region} onChange={(event) => { setStatus("editing"); setPropertyDraft({ ...propertyDraft, region: event.target.value }); }} />
+        </label>
+        <label className="field">
+          <span>ZIP</span>
+          <input value={propertyDraft.postalCode} onChange={(event) => { setStatus("editing"); setPropertyDraft({ ...propertyDraft, postalCode: event.target.value }); }} />
+        </label>
+        <label className="field">
+          <span>Parcel ID</span>
+          <input value={propertyDraft.parcelIdentifier} onChange={(event) => { setStatus("editing"); setPropertyDraft({ ...propertyDraft, parcelIdentifier: event.target.value }); }} />
+        </label>
+      </div>
+      <p className="quiet">Versions: Deal {deal.dealVersion ?? "reload required"}{property ? `, Property ${property.propertyVersion}` : ""}</p>
+    </section>
+  );
+}
+
+function safeDealCommandMessage(error: unknown): { status: "stale" | "validation" | "permission" | "failed"; message: string } {
+  const raw = error instanceof Error ? error.message : "";
+  if (/changed after you opened|40001/i.test(raw)) return { status: "stale", message: "This record changed after you opened it. Reload to review the current version, then save again." };
+  if (/permission|not have|42501/i.test(raw)) return { status: "permission", message: "You do not have permission to save this Deal." };
+  if (/required|not available|invalid|22023/i.test(raw)) return { status: "validation", message: raw.includes("required") ? raw : "Check the highlighted fields and try again." };
+  return { status: "failed", message: "BRIX could not save this change. Your onscreen edits are preserved; retry in a moment." };
 }
 
 function WorkHistoryPanel({
