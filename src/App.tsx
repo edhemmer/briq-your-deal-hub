@@ -4,7 +4,7 @@ import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, U
 import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
 import { createDealFromInput, createRemoteDeal, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
-import type { DealFacts, DealStatus } from "./core/types";
+import type { DealFacts, DealRelationship, DealRelationshipRole, DealRelationshipStatus, DealStatus, DuplicateCandidate, RelationshipTargetType } from "./core/types";
 import { supabase } from "./core/supabase";
 import { downloadDecisionPdf, downloadWorkbook } from "./core/reportExports";
 import { analyzePhotoEvidence } from "./core/photoAnalysis";
@@ -12,6 +12,17 @@ import { areaSearchUrl, ownerOccupiedConveniences, taxSearchUrl } from "./core/a
 import { reviewContractText } from "./core/contractReview";
 import { buildOfferStructures, offerSummary } from "./core/offerEngine";
 import { portfolioMetrics } from "./core/portfolioEngine";
+import {
+  attachExistingRelationship,
+  createAndAttachRelationship,
+  findRelationshipCandidates,
+  listDealRelationships,
+  relationshipRoles,
+  relationshipStatuses,
+  removeRelationship,
+  updateRelationship,
+  type RelationshipDraft,
+} from "./core/relationships";
 import { ensureWorkspaceContext, type WorkspaceContext } from "./core/workspace";
 import { requestAccountDeletion } from "./core/authActions";
 import { isSessionFailure, safeAuthError, validateAuthInput, type AuthMode } from "./core/authLifecycle";
@@ -958,7 +969,7 @@ function BrixApp() {
         )}
         {module === "home" && <HomeSurface presentationMode={presentationMode} isAuthenticated={isAuthenticated} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} isOnline={isOnline} deals={deals} selectedDeal={selectedDeal ?? deals[0]} syncMessage={syncMessage} routeMessage={routeMessage} onOpenDeal={(dealId?: string) => dealId ? openDeal(dealId) : selectedDeal ? openDeal(selectedDeal.id) : setModule("deals")} onOpenDeals={() => setModule("deals")} onOpenSettings={() => setModule("account")} onRetry={retryWorkspaceBootstrap} />}
         {module === "deals" && <DealsSurface presentationMode={presentationMode} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} deals={deals} recentDeals={recentDeals} selectedId={selectedId} onOpenDeal={openDeal} onRetry={retryWorkspaceBootstrap} />}
-        {module === "deal" && <DealIQ deal={selectedDeal} onChange={upsertDeal} onDelete={deleteDeal} />}
+        {module === "deal" && <DealIQ deal={selectedDeal} workspaceId={workspaceContext?.workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} onChange={upsertDeal} onDelete={deleteDeal} />}
         {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceContext={workspaceContext} invitationToken={invitationToken} recoveryActive={passwordRecoveryActive} onAuthChanged={(userId) => {
           setDeals([]);
           setSelectedId(null);
@@ -1528,7 +1539,21 @@ function WorkflowStrip({ active, onSelect }: { active: Module; onSelect: (module
   );
 }
 
-function DealIQ({ deal, onChange, onDelete }: { deal?: DealFacts; onChange: (deal: DealFacts) => void; onDelete: (id: string) => void }) {
+function DealIQ({
+  deal,
+  workspaceId,
+  isAuthenticated,
+  isOnline,
+  onChange,
+  onDelete,
+}: {
+  deal?: DealFacts;
+  workspaceId?: string;
+  isAuthenticated: boolean;
+  isOnline: boolean;
+  onChange: (deal: DealFacts) => void;
+  onDelete: (id: string) => void;
+}) {
   if (!deal) return <Empty title="No deal file yet" text="Start in FindIQ with an address, listing URL, or listing text." />;
   const analysis = analyzeDeal(deal);
   const primary = analysis.primaryStrategy;
@@ -1569,6 +1594,8 @@ function DealIQ({ deal, onChange, onDelete }: { deal?: DealFacts; onChange: (dea
           <MoneyField label="Down payment" value={deal.downPayment} onChange={(downPayment) => patch({ downPayment })} />
         </div>
       </section>
+
+      <RelationshipPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} />
 
       <section className="panel wide">
         <p className="eyebrow">Strategy comparison</p>
@@ -1657,6 +1684,303 @@ function DealIQ({ deal, onChange, onDelete }: { deal?: DealFacts; onChange: (dea
         <button className="danger" onClick={() => onDelete(deal.id)}><Trash2 size={16} /> Delete deal</button>
       </section>
     </div>
+  );
+}
+
+function RelationshipPanel({
+  dealId,
+  workspaceId,
+  isAuthenticated,
+  isOnline,
+}: {
+  dealId: string;
+  workspaceId?: string;
+  isAuthenticated: boolean;
+  isOnline: boolean;
+}) {
+  const emptyDraft: RelationshipDraft = {
+    targetType: "contact",
+    displayName: "",
+    email: "",
+    phone: "",
+    website: "",
+    role: "seller_owner",
+    status: "active",
+    notes: "",
+  };
+  const [relationships, setRelationships] = useState<DealRelationship[]>([]);
+  const [draft, setDraft] = useState<RelationshipDraft>(emptyDraft);
+  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "saving" | "saved" | "failed" | "permission" | "offline">("idle");
+  const [message, setMessage] = useState("");
+  const [candidates, setCandidates] = useState<DuplicateCandidate[]>([]);
+  const [pendingSeparateCreate, setPendingSeparateCreate] = useState(false);
+  const [editing, setEditing] = useState<Record<string, { role: DealRelationshipRole; status: DealRelationshipStatus; notes: string }>>({});
+  const [showForm, setShowForm] = useState(false);
+
+  const canUseCloud = isAuthenticated && Boolean(workspaceId);
+
+  const load = useCallback(async () => {
+    if (!canUseCloud) {
+      setRelationships([]);
+      setStatus("ready");
+      setMessage("Sign in to save people and organizations with this Deal.");
+      return;
+    }
+    if (!isOnline) {
+      setStatus("offline");
+      setMessage("Connection is unavailable. Saved relationships remain unchanged.");
+      return;
+    }
+    setStatus("loading");
+    setMessage("");
+    try {
+      const rows = await listDealRelationships(dealId);
+      setRelationships(rows);
+      setEditing(Object.fromEntries(rows.map((relationship) => [relationship.relationshipId, {
+        role: relationship.role,
+        status: relationship.status,
+        notes: relationship.notes ?? "",
+      }])));
+      setStatus("ready");
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "BRIX could not load Deal relationships.";
+      setStatus(/permission|access|not have/i.test(text) ? "permission" : "failed");
+      setMessage(text);
+    }
+  }, [canUseCloud, dealId, isOnline]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function saveDraft(options: { allowSeparate: boolean } = { allowSeparate: false }) {
+    if (!workspaceId || !isAuthenticated) {
+      setMessage("Sign in to save people and organizations with this Deal.");
+      return;
+    }
+    if (!isOnline) {
+      setStatus("offline");
+      setMessage("Connection is unavailable. Try again when you are back online.");
+      return;
+    }
+    const cleanedName = draft.displayName.trim();
+    if (!cleanedName) {
+      setMessage(draft.targetType === "contact" ? "Enter the person's name." : "Enter the organization name.");
+      return;
+    }
+
+    setStatus("saving");
+    setMessage("");
+    try {
+      if (!options.allowSeparate) {
+        const duplicateCandidates = await findRelationshipCandidates(workspaceId, { ...draft, displayName: cleanedName });
+        if (duplicateCandidates.length > 0) {
+          setCandidates(duplicateCandidates);
+          setPendingSeparateCreate(true);
+          setStatus("ready");
+          setMessage("BRIX found possible existing records. Choose one or create a separate record.");
+          return;
+        }
+      }
+
+      await createAndAttachRelationship(workspaceId, dealId, { ...draft, displayName: cleanedName });
+      setDraft(emptyDraft);
+      setCandidates([]);
+      setPendingSeparateCreate(false);
+      setShowForm(false);
+      setStatus("saved");
+      setMessage("Relationship saved.");
+      await load();
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "Relationship was not saved.";
+      setStatus(/changed after you opened/i.test(text) ? "failed" : /permission|access|not have/i.test(text) ? "permission" : "failed");
+      setMessage(text);
+    }
+  }
+
+  async function attachExistingCandidate(candidate: DuplicateCandidate) {
+    if (!isAuthenticated || !workspaceId) return;
+    setStatus("saving");
+    try {
+      await attachExistingRelationship(dealId, draft.targetType, candidate.id, draft);
+      setDraft(emptyDraft);
+      setCandidates([]);
+      setPendingSeparateCreate(false);
+      setShowForm(false);
+      setStatus("saved");
+      setMessage("Existing record connected to this Deal.");
+      await load();
+    } catch (error) {
+      setStatus("failed");
+      setMessage(error instanceof Error ? error.message : "Existing record was not connected.");
+    }
+  }
+
+  async function saveRelationship(relationship: DealRelationship) {
+    const next = editing[relationship.relationshipId];
+    if (!next) return;
+    setStatus("saving");
+    try {
+      await updateRelationship(relationship, next);
+      setStatus("saved");
+      setMessage("Relationship updated.");
+      await load();
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "Relationship was not updated.";
+      setStatus(/changed after you opened/i.test(text) ? "failed" : /permission|access|not have/i.test(text) ? "permission" : "failed");
+      setMessage(text);
+    }
+  }
+
+  async function removeFromDeal(relationship: DealRelationship) {
+    setStatus("saving");
+    try {
+      await removeRelationship(relationship);
+      setStatus("saved");
+      setMessage("Relationship removed from this Deal. The person or organization record was kept.");
+      await load();
+    } catch (error) {
+      setStatus("failed");
+      setMessage(error instanceof Error ? error.message : "Relationship was not removed.");
+    }
+  }
+
+  function setRelationshipEdit(id: string, update: Partial<{ role: DealRelationshipRole; status: DealRelationshipStatus; notes: string }>) {
+    setEditing((current) => ({ ...current, [id]: { ...current[id], ...update } }));
+  }
+
+  return (
+    <section className="panel relationships-panel">
+      <div className="panel-heading-row">
+        <div>
+          <p className="eyebrow">People</p>
+          <h3>Who is involved in this Deal?</h3>
+        </div>
+        <div className="relationship-toolbar">
+          <button className="secondary compact" type="button" onClick={() => setShowForm((current) => !current)} disabled={!canUseCloud}>
+            <Plus size={14} /> {showForm ? "Close" : "Add person"}
+          </button>
+          <button className="secondary compact" type="button" onClick={load} disabled={status === "loading" || status === "saving"}>
+            <RefreshCw size={14} /> Reload
+          </button>
+        </div>
+      </div>
+
+      {status === "loading" && <p className="quiet">Loading saved relationships.</p>}
+      {message && <p className={status === "failed" || status === "permission" || status === "offline" ? "error" : "success-text"}>{message}</p>}
+      {!canUseCloud && <StatusBadge tone="warning">Cloud save required</StatusBadge>}
+
+      <div className="relationship-list" role="list" aria-label="Deal relationships">
+        {relationships.length === 0 && status !== "loading" ? (
+          <div className="relationship-empty">
+            <strong>No people connected yet</strong>
+            <span>Add the seller, broker, lender, inspector, contractor, or other Deal contact when you know them.</span>
+          </div>
+        ) : relationships.map((relationship) => {
+          const current = editing[relationship.relationshipId] ?? { role: relationship.role, status: relationship.status, notes: relationship.notes ?? "" };
+          return (
+            <article className="relationship-card" role="listitem" key={relationship.relationshipId}>
+              <div>
+                <strong>{relationship.targetDisplayName}</strong>
+                <span>{relationship.targetType === "contact" ? "Person" : "Organization"}</span>
+                {(relationship.targetEmail || relationship.targetPhone || relationship.targetWebsite) && (
+                  <small>{[relationship.targetEmail, relationship.targetPhone, relationship.targetWebsite].filter(Boolean).join(" | ")}</small>
+                )}
+              </div>
+              <label className="field mini">
+                <span>Role</span>
+                <select value={current.role} onChange={(event) => setRelationshipEdit(relationship.relationshipId, { role: event.target.value as DealRelationshipRole })}>
+                  {relationshipRoles.map((role) => <option value={role.id} key={role.id}>{role.label}</option>)}
+                </select>
+              </label>
+              <label className="field mini">
+                <span>Status</span>
+                <select value={current.status} onChange={(event) => setRelationshipEdit(relationship.relationshipId, { status: event.target.value as DealRelationshipStatus })}>
+                  {relationshipStatuses.map((relationshipStatus) => <option value={relationshipStatus.id} key={relationshipStatus.id}>{relationshipStatus.label}</option>)}
+                </select>
+              </label>
+              <label className="field mini notes-field">
+                <span>Deal notes</span>
+                <input value={current.notes} onChange={(event) => setRelationshipEdit(relationship.relationshipId, { notes: event.target.value })} />
+              </label>
+              <div className="relationship-actions">
+                <button className="secondary compact" type="button" onClick={() => saveRelationship(relationship)} disabled={status === "saving"}>Save</button>
+                <button className="danger compact" type="button" onClick={() => removeFromDeal(relationship)} disabled={status === "saving"}>Remove</button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      {showForm && <div className="relationship-form" aria-label="Add Deal relationship">
+        <label className="field mini">
+          <span>Type</span>
+          <select value={draft.targetType} onChange={(event) => {
+            setDraft({ ...draft, targetType: event.target.value as RelationshipTargetType });
+            setCandidates([]);
+            setPendingSeparateCreate(false);
+          }}>
+            <option value="contact">Person</option>
+            <option value="organization">Organization</option>
+          </select>
+        </label>
+        <label className="field mini">
+          <span>{draft.targetType === "contact" ? "Person name" : "Organization name"}</span>
+          <input value={draft.displayName} onChange={(event) => setDraft({ ...draft, displayName: event.target.value })} />
+        </label>
+        <label className="field mini">
+          <span>Email</span>
+          <input type="email" value={draft.email ?? ""} onChange={(event) => setDraft({ ...draft, email: event.target.value })} />
+        </label>
+        <label className="field mini">
+          <span>Phone</span>
+          <input type="tel" value={draft.phone ?? ""} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} />
+        </label>
+        {draft.targetType === "organization" && (
+          <label className="field mini">
+            <span>Website</span>
+            <input value={draft.website ?? ""} onChange={(event) => setDraft({ ...draft, website: event.target.value })} />
+          </label>
+        )}
+        <label className="field mini">
+          <span>Role</span>
+          <select value={draft.role} onChange={(event) => setDraft({ ...draft, role: event.target.value as DealRelationshipRole })}>
+            {relationshipRoles.map((role) => <option value={role.id} key={role.id}>{role.label}</option>)}
+          </select>
+        </label>
+        <label className="field mini">
+          <span>Status</span>
+          <select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as RelationshipDraft["status"] })}>
+            {relationshipStatuses.map((relationshipStatus) => <option value={relationshipStatus.id} key={relationshipStatus.id}>{relationshipStatus.label}</option>)}
+          </select>
+        </label>
+        <label className="field mini notes-field">
+          <span>Deal notes</span>
+          <input value={draft.notes ?? ""} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} />
+        </label>
+        <button className="primary compact" type="button" onClick={() => saveDraft()} disabled={!canUseCloud || status === "saving"}>
+          <Plus size={14} /> Add to Deal
+        </button>
+      </div>}
+
+      {candidates.length > 0 && (
+        <div className="duplicate-candidates" role="status">
+          <strong>Possible existing records</strong>
+          {candidates.map((candidate) => (
+            <article key={candidate.id}>
+              <span>{candidate.displayName}</span>
+              <small>{candidate.matchReasons.length ? `Matched by ${candidate.matchReasons.join(", ")}` : "Possible duplicate"}</small>
+              <button className="secondary compact" type="button" onClick={() => attachExistingCandidate(candidate)} disabled={status === "saving"}>Use existing</button>
+            </article>
+          ))}
+          {pendingSeparateCreate && (
+            <button className="secondary compact" type="button" onClick={() => saveDraft({ allowSeparate: true })} disabled={status === "saving"}>
+              Create separate record
+            </button>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -95,3 +95,60 @@ export type PipelineItem = {
   nextAction: string;
   confidence: number;
 };
+
+export type DealRelationshipRole =
+  | "buyer_investor"
+  | "seller_owner"
+  | "listing_broker"
+  | "buyer_broker"
+  | "property_manager"
+  | "lender"
+  | "mortgage_broker"
+  | "attorney"
+  | "title_escrow"
+  | "inspector"
+  | "appraiser"
+  | "contractor"
+  | "architect_engineer"
+  | "insurance_professional"
+  | "association_manager"
+  | "tenant"
+  | "partner_investor"
+  | "other";
+
+export type DealRelationshipStatus = "active" | "prospective" | "inactive" | "removed";
+
+export type RelationshipTargetType = "contact" | "organization";
+
+export type DealRelationship = {
+  relationshipId: string;
+  relationshipVersion: number;
+  workspaceId: string;
+  dealId: string;
+  targetType: RelationshipTargetType;
+  contactId?: string;
+  organizationId?: string;
+  role: DealRelationshipRole;
+  roleLabel: string;
+  status: DealRelationshipStatus;
+  statusLabel: string;
+  isPrimary: boolean;
+  notes?: string;
+  communicationPreference?: "email" | "phone" | "text" | "unknown";
+  targetDisplayName: string;
+  targetEmail?: string;
+  targetPhone?: string;
+  targetWebsite?: string;
+  targetArchivedAt?: string;
+  updatedAt: string;
+};
+
+export type DuplicateCandidate = {
+  id: string;
+  displayName: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  version: number;
+  matchReasons: string[];
+};
