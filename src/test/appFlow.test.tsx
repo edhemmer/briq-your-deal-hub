@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { downloadDecisionPdf, downloadWorkbook } from "../core/reportExports";
 import { loadAnonymousDeals, loadRemoteDeals, normalizeDealRecord, normalizeDealRow, persistRemoteDeal, saveAnonymousDeals } from "../core/store";
@@ -431,6 +431,10 @@ function remoteDealRow(id: string, ownerId: string, address: string, extra: Reco
 }
 
 describe("BRIX app module flow", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     localStorage.clear();
     window.history.replaceState({}, "", "/app");
@@ -501,6 +505,75 @@ describe("BRIX app module flow", () => {
 
     await waitFor(() => expect(screen.queryByText(/Sync needs attention/i)).not.toBeInTheDocument());
   }, 60000);
+
+  it("routes signed-out protected Deal links to account without exposing local drafts", async () => {
+    localStorage.setItem("brix.deals", JSON.stringify([draftDeal("anon-deep", "Anonymous Deep Link Draft")]));
+    mocks.session.value = null;
+    mocks.user.value = null;
+    window.history.replaceState({}, "", "/deals/cloud-deep");
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Sign in to BRIX" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/account");
+    expect(screen.getByText("Sign in to continue.")).toBeInTheDocument();
+    expect(screen.queryByText("Anonymous Deep Link Draft")).not.toBeInTheDocument();
+    expect(mocks.queriedOwnerIds.value).toEqual([]);
+  });
+
+  it("opens an authorized Deal deep link only after workspace and cloud deals are ready", async () => {
+    mocks.remoteDeals.value = [remoteDealRow("cloud-deep", "user-1", "Cloud Deep Link Deal", {
+      facts: {
+        ...draftDeal("cloud-deep", "Cloud Deep Link Deal"),
+        listPrice: 315000,
+      },
+    })];
+    window.history.replaceState({}, "", "/deals/cloud-deep");
+    render(<App />);
+
+    expect((await screen.findAllByText("Cloud Deep Link Deal")).length).toBeGreaterThan(0);
+    expect(window.location.pathname).toBe("/deals/cloud-deep");
+    expect((screen.getByLabelText("Purchase price") as HTMLInputElement).value).toBe("315000");
+    expect(mocks.queriedOwnerIds.value).toEqual(["user-1"]);
+  });
+
+  it("recovers safely when a Deal deep link is not authorized for the current workspace", async () => {
+    mocks.remoteDeals.value = [remoteDealRow("owned-deal", "user-1", "Owned Deal")];
+    window.history.replaceState({}, "", "/deals/missing-deal");
+    render(<App />);
+
+    expect(await screen.findByText("This Deal is no longer available.")).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/deals");
+    expect(await screen.findByRole("heading", { name: "Deals" })).toBeInTheDocument();
+    expect(screen.queryByText("missing-deal")).not.toBeInTheDocument();
+  });
+
+  it("rejects unfinished legacy module links without opening a dead destination", async () => {
+    window.history.replaceState({}, "", "/contractiq");
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Home" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/app");
+    expect(screen.getAllByText("BRIX could not open that link.").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/ContractIQ/i)).not.toBeInTheDocument();
+  });
+
+  it("rejects unsafe redirect parameters and restores the safe app route", async () => {
+    window.history.replaceState({}, "", "/auth/callback?next=https%3A%2F%2Fevil.example%2Fdeals%2Fcloud-deep");
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Home" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/app");
+    expect(screen.getAllByText("BRIX could not open that link.").length).toBeGreaterThan(0);
+  });
+
+  it("opens Trusted Access as an authenticated secondary settings deep link", async () => {
+    window.history.replaceState({}, "", "/account/trusted-access");
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "My Account" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "People with access" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/account/trusted-access");
+  });
 
   it("uses deterministic guided mode when no profile preference exists", async () => {
     render(<App />);
@@ -801,7 +874,7 @@ describe("BRIX app module flow", () => {
     window.history.replaceState({}, "", "/deals/not-authorized");
     render(<App />);
 
-    expect(await screen.findByText("That Deal is no longer available in this workspace.")).toBeInTheDocument();
+    expect(await screen.findByText("This Deal is no longer available.")).toBeInTheDocument();
     await waitFor(() => expect(window.location.pathname).toBe("/deals"));
     expect(screen.getByRole("heading", { name: "Authorized Deal records" })).toBeInTheDocument();
     expect(screen.queryByText("not-authorized")).not.toBeInTheDocument();

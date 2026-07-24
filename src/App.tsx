@@ -41,6 +41,13 @@ import {
   type WorkspaceAccessMember,
   type WorkspaceAccessRole,
 } from "./core/workspaceAccess";
+import {
+  brixLink,
+  parseBrixDeepLink,
+  pathForBrixDestination,
+  requiresAuthentication,
+  type BrixDeepLinkDestination,
+} from "./core/deepLinks";
 
 type Module = "home" | "deals" | "deal" | "account";
 type SearchStatus = "idle" | "loading" | "ready" | "failed";
@@ -86,25 +93,8 @@ export default function App() {
 }
 
 function moduleFromPath(): Module {
-  const parts = window.location.pathname.replace(/^\/+/, "").split("/");
-  const raw = parts[0];
-  if (raw === "deals" && parts[1]) return "deal";
-  const aliases: Record<string, Module> = {
-    app: "home",
-    dashboard: "home",
-    home: "home",
-    findiq: "home",
-    dealiq: "deals",
-    deals: "deals",
-    contractiq: "home",
-    pipelineiq: "home",
-    offeriq: "home",
-    portfolioiq: "home",
-    reports: "home",
-    account: "account",
-    settings: "account",
-  };
-  return aliases[raw] ?? "home";
+  const parsed = parseBrixDeepLink(window.location.href);
+  return parsed.ok ? moduleForDestination(parsed.destination) : "home";
 }
 
 function pathForModule(module: Module) {
@@ -118,24 +108,23 @@ function pathForModule(module: Module) {
 }
 
 function currentRoutePath() {
-  const module = moduleFromPath();
-  const routeDealId = dealIdFromPath();
-  return module === "deal" && routeDealId ? dealPath(routeDealId) : pathForModule(module);
+  const parsed = parseBrixDeepLink(window.location.href);
+  return parsed.ok ? parsed.canonicalPath : "/app";
 }
 
 function dealPath(id: string) {
-  return `/deals/${encodeURIComponent(id)}`;
+  return pathForBrixDestination({ kind: "deal", dealId: id });
 }
 
 function dealIdFromPath() {
-  const [, rawId] = window.location.pathname.replace(/^\/+/, "").split("/");
-  if (!rawId) return null;
-  try {
-    const decoded = decodeURIComponent(rawId);
-    return decoded.length > 0 && decoded.length <= 160 ? decoded : null;
-  } catch {
-    return null;
-  }
+  const parsed = parseBrixDeepLink(window.location.href);
+  return parsed.ok && parsed.destination.kind === "deal" ? parsed.destination.dealId : null;
+}
+
+function moduleForDestination(destination: BrixDeepLinkDestination): Module {
+  if (destination.kind === "deals" || destination.kind === "deal") return destination.kind === "deal" ? "deal" : "deals";
+  if (destination.kind === "settings" || destination.kind === "password-recovery" || destination.kind === "invitation") return "account";
+  return "home";
 }
 
 function shellStorageScope(userId: string | null, workspaceContext: WorkspaceContext | null) {
@@ -176,6 +165,11 @@ function BrixApp() {
   const [invitationToken, setInvitationToken] = useState<string | null>(() => invitationTokenFromLocation());
   const [invitationMessage, setInvitationMessage] = useState<string | null>(null);
   const [routeMessage, setRouteMessage] = useState<string | null>(null);
+  const [pendingDeepLink, setPendingDeepLink] = useState<BrixDeepLinkDestination | null>(() => {
+    const parsed = parseBrixDeepLink(window.location.href);
+    return parsed.ok ? parsed.destination : null;
+  });
+  const [cloudDealsStatus, setCloudDealsStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
   const [recentDealIds, setRecentDealIds] = useState<string[]>([]);
   const [workspaceRetryKey, setWorkspaceRetryKey] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -199,13 +193,33 @@ function BrixApp() {
     .filter((deal): deal is DealFacts => Boolean(deal)), [deals, recentDealIds]);
 
   useEffect(() => {
-    const safePath = currentRoutePath();
-    if (window.location.pathname !== safePath) {
-      window.history.replaceState({}, "", `${safePath}${window.location.search}${window.location.hash}`);
+    const parsed = parseBrixDeepLink(window.location.href);
+    if ("message" in parsed) {
+      setPendingDeepLink(null);
+      setRouteMessage(parsed.message);
+      setModuleState("home");
+      window.history.replaceState({}, "", parsed.canonicalPath);
+      return;
+    }
+    if (parsed.destination.kind === "home") {
+      setPendingDeepLink(null);
+      setModuleState("home");
+      if (window.location.pathname + window.location.search !== parsed.canonicalPath) {
+        window.history.replaceState({}, "", parsed.canonicalPath);
+      }
+      return;
+    }
+    setPendingDeepLink(parsed.destination);
+    setModuleState(moduleForDestination(parsed.destination));
+    if (parsed.destination.kind === "password-recovery") setPasswordRecoveryActive(true);
+    if (parsed.destination.kind === "invitation") setInvitationToken(parsed.destination.token);
+    if (window.location.pathname + window.location.search !== parsed.canonicalPath) {
+      window.history.replaceState({}, "", parsed.canonicalPath);
     }
   }, []);
 
   const setModule = useCallback((next: Module) => {
+    setPendingDeepLink(null);
     setModuleState(next);
     setNavOpen(false);
     const nextPath = pathForModule(next);
@@ -234,6 +248,7 @@ function BrixApp() {
     }
     setSelectedId(deal.id);
     rememberDealContext(deal.id);
+    setPendingDeepLink(null);
     setRouteMessage(null);
     setModuleState("deal");
     setNavOpen(false);
@@ -461,13 +476,37 @@ function BrixApp() {
   }, [authReady, authUserId, deals]);
 
   useEffect(() => {
-    const onPopState = () => setModuleState(moduleFromPath());
+    const onPopState = () => {
+      const parsed = parseBrixDeepLink(window.location.href);
+      if ("message" in parsed) {
+        setPendingDeepLink(null);
+        setRouteMessage(parsed.message);
+        setModuleState("home");
+        window.history.replaceState({}, "", parsed.canonicalPath);
+        return;
+      }
+      if (parsed.destination.kind === "home") {
+        setPendingDeepLink(null);
+        setRouteMessage(null);
+        setModuleState("home");
+        if (window.location.pathname + window.location.search !== parsed.canonicalPath) {
+          window.history.replaceState({}, "", parsed.canonicalPath);
+        }
+        return;
+      }
+      setPendingDeepLink(parsed.destination);
+      setRouteMessage(null);
+      setModuleState(moduleForDestination(parsed.destination));
+      setPasswordRecoveryActive(parsed.destination.kind === "password-recovery");
+      setInvitationToken(parsed.destination.kind === "invitation" ? parsed.destination.token : null);
+    };
     window.addEventListener("popstate", onPopState);
     setAuthLifecycle("restoring");
     supabase.auth.getSession()
       .then(({ data }) => {
         const userId = data.session?.user?.id ?? null;
         clearProtectedState();
+        setCloudDealsStatus("idle");
         resetPresentationForAuthTransition(userId);
         setAuthUserId(userId);
         setAuthReady(true);
@@ -485,6 +524,7 @@ function BrixApp() {
         setAuthUserId(null);
         setAuthReady(true);
         clearProtectedState();
+        setCloudDealsStatus("idle");
         restoreAnonymousDrafts();
         setAuthLifecycle("expired");
         setSyncMessage("Your session could not be restored. Sign in again to continue.");
@@ -497,6 +537,7 @@ function BrixApp() {
       }
       if (window.location.pathname === "/account") setInvitationToken(invitationTokenFromLocation());
       clearProtectedState();
+      setCloudDealsStatus("idle");
       resetPresentationForAuthTransition(userId);
       setAuthUserId(userId);
       setAuthReady(true);
@@ -527,9 +568,11 @@ function BrixApp() {
     if (!authUserId) return;
     let isCurrent = true;
     clearProtectedState();
+    setCloudDealsStatus("idle");
     setWorkspaceContext(null);
     setWorkspaceStatus("loading");
     setAuthLifecycle("bootstrapping");
+    setCloudDealsStatus("loading");
     const pendingInvitationToken = invitationToken;
     (async () => {
       if (pendingInvitationToken) {
@@ -561,6 +604,7 @@ function BrixApp() {
           return [...inFlightCreatedDeals, ...remoteDeals];
         });
         setSelectedId((currentId) => currentId ?? null);
+        setCloudDealsStatus("ready");
         setSyncMessage(null);
       })
       .catch((error) => {
@@ -569,6 +613,7 @@ function BrixApp() {
           void supabase.auth.signOut();
           setAuthUserId(null);
           clearProtectedState();
+          setCloudDealsStatus("idle");
           restoreAnonymousDrafts();
           setAuthLifecycle("expired");
           setSyncMessage("Your session has expired. Sign in again to continue.");
@@ -576,6 +621,7 @@ function BrixApp() {
         }
         setWorkspaceContext(null);
         setWorkspaceStatus("failed");
+        setCloudDealsStatus("failed");
         setAuthLifecycle("failed");
         setSyncMessage(pendingInvitationToken ? safeAuthError(error).message : safeAuthError(error).message);
       });
@@ -586,22 +632,85 @@ function BrixApp() {
 
   useEffect(() => {
     if (!authReady) return;
-    if (authUserId && workspaceStatus !== "ready") return;
-    const routeDealId = dealIdFromPath();
-    if (!routeDealId) return;
-    const deal = deals.find((item) => item.id === routeDealId);
-    if (deal) {
-      setSelectedId(deal.id);
-      rememberDealContext(deal.id);
-      setModuleState("deal");
+    if (!pendingDeepLink) return;
+    if (pendingDeepLink.kind === "password-recovery") {
+      setModuleState("account");
       setRouteMessage(null);
+      setPasswordRecoveryActive(true);
+      if (window.location.pathname + window.location.search !== "/account?flow=reset-password") {
+        window.history.replaceState({}, "", "/account?flow=reset-password");
+      }
+      setPendingDeepLink(null);
       return;
     }
-    setSelectedId(null);
-    setModuleState("deals");
-    setRouteMessage("That Deal is no longer available in this workspace.");
-    window.history.replaceState({}, "", "/deals");
-  }, [authReady, authUserId, deals, rememberDealContext, workspaceStatus]);
+    if (pendingDeepLink.kind === "home") {
+      setModuleState("home");
+      setRouteMessage(null);
+      if (window.location.pathname !== "/app") window.history.replaceState({}, "", "/app");
+      setPendingDeepLink(null);
+      return;
+    }
+    if (pendingDeepLink.kind === "settings" && !requiresAuthentication(pendingDeepLink)) {
+      setModuleState("account");
+      setRouteMessage(null);
+      if (window.location.pathname !== "/account") window.history.replaceState({}, "", "/account");
+      setPendingDeepLink(null);
+      return;
+    }
+    if (requiresAuthentication(pendingDeepLink) && !authUserId) {
+      setSelectedId(null);
+      setModuleState("account");
+      setRouteMessage("Sign in to continue.");
+      if (window.location.pathname !== "/account") window.history.replaceState({}, "", "/account");
+      return;
+    }
+    if (authUserId && (workspaceStatus !== "ready" || cloudDealsStatus === "loading" || cloudDealsStatus === "idle")) return;
+    if (authUserId && (workspaceStatus === "failed" || cloudDealsStatus === "failed")) {
+      setSelectedId(null);
+      setModuleState("account");
+      setRouteMessage("BRIX could not open that link. Try again after account access is restored.");
+      return;
+    }
+    if (pendingDeepLink.kind === "deal") {
+      const deal = deals.find((item) => item.id === pendingDeepLink.dealId);
+      if (deal) {
+        setSelectedId(deal.id);
+        rememberDealContext(deal.id);
+        setModuleState("deal");
+        setRouteMessage(null);
+        if (window.location.pathname !== dealPath(deal.id)) window.history.replaceState({}, "", dealPath(deal.id));
+        setPendingDeepLink(null);
+        return;
+      }
+      setSelectedId(null);
+      setModuleState("deals");
+      setRouteMessage("This Deal is no longer available.");
+      window.history.replaceState({}, "", "/deals");
+      setPendingDeepLink(null);
+      return;
+    }
+    if (pendingDeepLink.kind === "deals") {
+      setModuleState("deals");
+      setRouteMessage(null);
+      if (window.location.pathname !== "/deals") window.history.replaceState({}, "", "/deals");
+      setPendingDeepLink(null);
+      return;
+    }
+    if (pendingDeepLink.kind === "settings") {
+      setModuleState("account");
+      setRouteMessage(null);
+      const path = pathForBrixDestination(pendingDeepLink);
+      if (window.location.pathname + window.location.search !== path) window.history.replaceState({}, "", path);
+      setPendingDeepLink(null);
+      return;
+    }
+    if (pendingDeepLink.kind === "invitation") {
+      setModuleState("account");
+      setRouteMessage(null);
+      if (window.location.pathname !== "/account") window.history.replaceState({}, "", "/account");
+      setPendingDeepLink(null);
+    }
+  }, [authReady, authUserId, cloudDealsStatus, deals, pendingDeepLink, rememberDealContext, workspaceStatus]);
 
   useEffect(() => {
     if (!authReady || didRestoreLastDealRef.current) return;
@@ -1727,7 +1836,7 @@ function Account({
   const [accessError, setAccessError] = useState("");
   const [workingMembershipId, setWorkingMembershipId] = useState<string | null>(null);
   const [selectedRoleByMembership, setSelectedRoleByMembership] = useState<Record<string, string>>({});
-  const [showTrustedAccess, setShowTrustedAccess] = useState(false);
+  const [showTrustedAccess, setShowTrustedAccess] = useState(() => window.location.pathname === "/account/trusted-access");
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const authSubmitInFlightRef = useRef(false);
   const canUseTrustedAccess = isAuthenticated && Boolean(workspaceContext?.workspaceId);
@@ -1810,6 +1919,10 @@ function Account({
     if (!canUseTrustedAccess) setShowTrustedAccess(false);
   }, [canUseTrustedAccess]);
 
+  useEffect(() => {
+    if (canUseTrustedAccess && window.location.pathname === "/account/trusted-access") setShowTrustedAccess(true);
+  }, [canUseTrustedAccess]);
+
   function resetFeedback() {
     setMessage(null);
     setFieldErrors({});
@@ -1825,7 +1938,7 @@ function Account({
   }
 
   function recoveryRedirectUrl() {
-    return `${window.location.origin}/account?flow=reset-password`;
+    return brixLink({ kind: "password-recovery" });
   }
 
   async function submitInvitation(event: FormEvent<HTMLFormElement>) {
