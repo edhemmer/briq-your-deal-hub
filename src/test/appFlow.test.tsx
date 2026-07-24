@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { downloadDecisionPdf, downloadWorkbook } from "../core/reportExports";
-import { loadAnonymousDeals, loadRemoteDeals, normalizeDealRecord, normalizeDealRow, persistRemoteDeal, saveAnonymousDeals } from "../core/store";
+import { createRemoteDeal, loadAnonymousDeals, loadRemoteDeals, normalizeDealRecord, normalizeDealRow, persistRemoteDeal, saveAnonymousDeals } from "../core/store";
 import type { DealFacts } from "../core/types";
 
 const mocks = vi.hoisted(() => ({
@@ -44,6 +44,23 @@ const mocks = vi.hoisted(() => ({
   queriedOwnerIds: { value: [] as string[] },
   rpc: vi.fn(async (name: string, args?: Record<string, unknown>) => {
     if (name === "ensure_workspace_context") return { data: [mocks.workspaceContext.value], error: null };
+    if (name === "create_canonical_deal") {
+      const dealInput = args?.deal_input as Record<string, unknown> | undefined;
+      return {
+        data: [{
+          property_id: "property-1",
+          property_version: 1,
+          deal_id: dealInput?.id ?? "deal-1",
+          deal_version: 1,
+          deal_property_id: "deal-property-1",
+          deal_property_version: 1,
+          stage: "lead",
+          status: "active",
+          idempotency_key_out: args?.idempotency_key,
+        }],
+        error: null,
+      };
+    }
     if (name === "list_workspace_access_roles") return { data: mocks.accessRoles.value, error: null };
     if (name === "list_workspace_memberships") return { data: mocks.workspaceMembers.value, error: null };
     if (name === "change_workspace_member_role") {
@@ -153,15 +170,37 @@ const mocks = vi.hoisted(() => ({
       single: vi.fn(async () => ({ data: { ...row, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }, error: null })),
     })),
   })),
-  update: vi.fn(() => ({
-    eq: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn(async () => ({ data: { id: "deleted-id" }, error: null })),
-        })),
-      })),
-    })),
-  })),
+  update: vi.fn((values: Record<string, unknown>) => {
+    const filters: Record<string, unknown> = {};
+    return {
+      eq: vi.fn((field: string, value: unknown) => {
+        filters[field] = value;
+        return {
+          eq: vi.fn((nextField: string, nextValue: unknown) => {
+            filters[nextField] = nextValue;
+            return {
+              select: vi.fn(() => ({
+                single: vi.fn(async () => ({
+                  data: {
+                    id: filters.id ?? values.id ?? "updated-id",
+                    owner_id: filters.owner_id ?? "user-1",
+                    address: values.address ?? "Updated Deal",
+                    status: values.status ?? "draft",
+                    strategy_id: values.strategy_id ?? "owner_occupant",
+                    facts: values.facts ?? draftDeal(String(filters.id ?? "updated-id"), String(values.address ?? "Updated Deal")),
+                    verification: values.verification ?? {},
+                    created_at: "2026-01-01T00:00:00.000Z",
+                    updated_at: values.updated_at ?? "2026-01-02T00:00:00.000Z",
+                  },
+                  error: null,
+                })),
+              })),
+            };
+          }),
+        };
+      }),
+    };
+  }),
   signInWithPassword: vi.fn(async () => ({ data: { session: mocks.session.value }, error: null })),
   signUp: vi.fn(async () => ({ data: { session: mocks.session.value }, error: null })),
   resetPasswordForEmail: vi.fn(async () => ({ data: {}, error: null })),
@@ -266,6 +305,23 @@ vi.mock("../core/reportExports", () => ({
 function installDefaultRpcMock() {
   mocks.rpc.mockImplementation(async (name: string, args?: Record<string, unknown>) => {
     if (name === "ensure_workspace_context") return { data: [mocks.workspaceContext.value], error: null };
+    if (name === "create_canonical_deal") {
+      const dealInput = args?.deal_input as Record<string, unknown> | undefined;
+      return {
+        data: [{
+          property_id: "property-1",
+          property_version: 1,
+          deal_id: dealInput?.id ?? "deal-1",
+          deal_version: 1,
+          deal_property_id: "deal-property-1",
+          deal_property_version: 1,
+          stage: "lead",
+          status: "active",
+          idempotency_key_out: args?.idempotency_key,
+        }],
+        error: null,
+      };
+    }
     if (name === "list_workspace_access_roles") return { data: mocks.accessRoles.value, error: null };
     if (name === "list_workspace_memberships") return { data: mocks.workspaceMembers.value, error: null };
     if (name === "change_workspace_member_role") {
@@ -379,15 +435,37 @@ function installDefaultSupabaseMocks() {
       single: vi.fn(async () => ({ data: { ...row, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }, error: null })),
     })),
   }));
-  mocks.update.mockImplementation(() => ({
-    eq: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn(async () => ({ data: { id: "deleted-id" }, error: null })),
-        })),
-      })),
-    })),
-  }));
+  mocks.update.mockImplementation((values: Record<string, unknown>) => {
+    const filters: Record<string, unknown> = {};
+    return {
+      eq: vi.fn((field: string, value: unknown) => {
+        filters[field] = value;
+        return {
+          eq: vi.fn((nextField: string, nextValue: unknown) => {
+            filters[nextField] = nextValue;
+            return {
+              select: vi.fn(() => ({
+                single: vi.fn(async () => ({
+                  data: {
+                    id: filters.id ?? values.id ?? "updated-id",
+                    owner_id: filters.owner_id ?? "user-1",
+                    address: values.address ?? "Updated Deal",
+                    status: values.status ?? "draft",
+                    strategy_id: values.strategy_id ?? "owner_occupant",
+                    facts: values.facts ?? draftDeal(String(filters.id ?? "updated-id"), String(values.address ?? "Updated Deal")),
+                    verification: values.verification ?? {},
+                    created_at: "2026-01-01T00:00:00.000Z",
+                    updated_at: values.updated_at ?? "2026-01-02T00:00:00.000Z",
+                  },
+                  error: null,
+                })),
+              })),
+            };
+          }),
+        };
+      }),
+    };
+  });
   mocks.signInWithPassword.mockImplementation(async () => ({ data: { session: mocks.session.value }, error: null }));
   mocks.signUp.mockImplementation(async () => ({ data: { session: mocks.session.value }, error: null }));
   mocks.resetPasswordForEmail.mockImplementation(async () => ({ data: {}, error: null }));
@@ -1317,7 +1395,7 @@ describe("BRIX app module flow", () => {
     expect(mocks.upsert).not.toHaveBeenCalled();
   });
 
-  it("mocked: authenticated deal create and reopen uses Supabase records", async () => {
+  it("mocked: authenticated deal update and reopen uses Supabase records", async () => {
     const created = await persistRemoteDeal({
       ...draftDeal("cloud-roundtrip", "Cloud Roundtrip Deal"),
       listPrice: 325000,
@@ -1327,10 +1405,42 @@ describe("BRIX app module flow", () => {
 
     const reopened = await loadRemoteDeals("user-1");
 
-    expect(mocks.upsert).toHaveBeenCalled();
+    expect(mocks.update).toHaveBeenCalled();
     expect(reopened[0].id).toBe("cloud-roundtrip");
     expect(reopened[0].listPrice).toBe(325000);
     expect(reopened[0].notes).toEqual(["Preserve this note"]);
+  });
+
+  it("mocked: authenticated deal creation uses the canonical server contract", async () => {
+    const dealId = "11111111-1111-4111-8111-111111111111";
+    const created = await createRemoteDeal({
+      ...draftDeal(dealId, "Canonical Create Deal"),
+      city: "Plainfield",
+      state: "IL",
+      zip: "60544",
+      sourceUrl: "https://example.com/listing/canonical-create",
+    }, "user-1", "workspace-1");
+
+    expect(created.id).toBe(dealId);
+    expect(created.address).toBe("Canonical Create Deal");
+    expect(mocks.rpc).toHaveBeenCalledWith("create_canonical_deal", expect.objectContaining({
+      target_workspace_id: "workspace-1",
+      idempotency_key: `deal:create:${dealId}`,
+      property_input: expect.objectContaining({
+        display_address: "Canonical Create Deal",
+        city: "Plainfield",
+        region: "IL",
+        postal_code: "60544",
+      }),
+      deal_input: expect.objectContaining({
+        id: dealId,
+        address: "Canonical Create Deal",
+        strategy_id: "owner_occupant",
+        source: "listing_url",
+      }),
+      existing_property_id: null,
+    }));
+    expect(mocks.upsert).not.toHaveBeenCalled();
   });
 
   it("mocked: anonymous drafts load only when signed out", async () => {

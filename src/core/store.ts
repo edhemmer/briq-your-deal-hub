@@ -117,9 +117,7 @@ export async function persistRemoteDeal(deal: DealFacts, userId: string): Promis
   const now = new Date().toISOString();
   const canonicalDeal = normalizeDealRecord({ ...deal, updatedAt: now });
   if (!canonicalDeal) throw new Error("Deal record is missing a usable ID.");
-  const { data, error } = await supabase.from("brix_deals").upsert({
-    id: canonicalDeal.id,
-    owner_id: userId,
+  const { data, error } = await supabase.from("brix_deals").update({
     status: canonicalDeal.status,
     source_url: canonicalDeal.sourceUrl || null,
     source_text: canonicalDeal.sourceText || null,
@@ -132,12 +130,75 @@ export async function persistRemoteDeal(deal: DealFacts, userId: string): Promis
     facts: canonicalDeal,
     verification: canonicalDeal.verification,
     updated_at: canonicalDeal.updatedAt,
-  }).select("*").single();
+  })
+    .eq("id", canonicalDeal.id)
+    .eq("owner_id", userId)
+    .select("*")
+    .single();
   if (error) throw error;
   if (!data) throw new Error("Supabase did not return the saved deal.");
   const normalized = normalizeDealRow(data);
   if (!normalized) throw new Error("Supabase returned a malformed deal record.");
   return normalized;
+}
+
+type CanonicalDealCreateResult = {
+  property_id: string;
+  property_version: number;
+  deal_id: string;
+  deal_version: number;
+  deal_property_id: string;
+  deal_property_version: number;
+  stage: string;
+  status: string;
+  idempotency_key_out: string;
+};
+
+export async function createRemoteDeal(deal: DealFacts, userId: string, workspaceId: string): Promise<DealFacts> {
+  await requireAuthenticatedUser(userId);
+  const canonicalDeal = normalizeDealRecord(deal);
+  if (!canonicalDeal) throw new Error("Deal record is missing a usable ID.");
+  const idempotencyKey = `deal:create:${canonicalDeal.id}`;
+  const { data, error } = await supabase.rpc("create_canonical_deal", {
+    target_workspace_id: workspaceId,
+    idempotency_key: idempotencyKey,
+    property_input: {
+      display_address: canonicalDeal.address,
+      address_line1: canonicalDeal.address,
+      city: canonicalDeal.city ?? null,
+      region: canonicalDeal.state ?? null,
+      postal_code: canonicalDeal.zip ?? null,
+      country: "US",
+      source_identifiers: canonicalDeal.sourceUrl ? { listing_url: canonicalDeal.sourceUrl } : {},
+    },
+    deal_input: {
+      id: canonicalDeal.id,
+      display_name: canonicalDeal.address,
+      deal_type: "acquisition",
+      source: canonicalDeal.sourceUrl ? "listing_url" : "manual",
+      source_url: canonicalDeal.sourceUrl ?? null,
+      source_text: canonicalDeal.sourceText ?? null,
+      address: canonicalDeal.address,
+      city: canonicalDeal.city ?? null,
+      state: canonicalDeal.state ?? null,
+      zip: canonicalDeal.zip ?? null,
+      county: canonicalDeal.county ?? null,
+      strategy_id: canonicalDeal.strategyId,
+      strategy_intent: canonicalDeal.strategyId,
+      facts: canonicalDeal,
+      verification: canonicalDeal.verification,
+    },
+    existing_property_id: null,
+  });
+  if (error) throw error;
+
+  const row = normalizeCanonicalDealCreateResult(data);
+  if (!row) throw new Error("BRIX cloud did not return a usable Deal creation result.");
+  return normalizeDealRecord({
+    ...canonicalDeal,
+    id: row.deal_id,
+    updatedAt: new Date().toISOString(),
+  }) as DealFacts;
 }
 
 export async function softDeleteRemoteDeal(id: string, userId: string) {
@@ -209,6 +270,33 @@ export function normalizeDealRecord(value: unknown): DealFacts | null {
 
 function isDealFacts(value: DealFacts | null): value is DealFacts {
   return value !== null;
+}
+
+function normalizeCanonicalDealCreateResult(value: unknown): CanonicalDealCreateResult | null {
+  const row = Array.isArray(value) ? value[0] : value;
+  if (!isRecord(row)) return null;
+  if (
+    typeof row.property_id !== "string" ||
+    typeof row.deal_id !== "string" ||
+    typeof row.deal_property_id !== "string" ||
+    typeof row.stage !== "string" ||
+    typeof row.status !== "string" ||
+    typeof row.idempotency_key_out !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    property_id: row.property_id,
+    property_version: optionalNumber(row.property_version) ?? 1,
+    deal_id: row.deal_id,
+    deal_version: optionalNumber(row.deal_version) ?? 1,
+    deal_property_id: row.deal_property_id,
+    deal_property_version: optionalNumber(row.deal_property_version) ?? 1,
+    stage: row.stage,
+    status: row.status,
+    idempotency_key_out: row.idempotency_key_out,
+  };
 }
 
 function isRecord(value: unknown): value is UnknownRecord {

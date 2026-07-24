@@ -3,7 +3,7 @@ import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObje
 import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch, Eye, EyeOff, AlertTriangle, CheckCircle2, Users, UserMinus, Home, Menu, X, WifiOff, RefreshCw } from "lucide-react";
 import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
-import { createDealFromInput, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
+import { createDealFromInput, createRemoteDeal, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
 import type { DealFacts, DealStatus } from "./core/types";
 import { supabase } from "./core/supabase";
 import { downloadDecisionPdf, downloadWorkbook } from "./core/reportExports";
@@ -349,11 +349,13 @@ function BrixApp() {
   }, []);
 
   async function prepareWorkspaceForCloudAction() {
-    if (!authUserId || workspaceStatus === "ready") return;
+    if (!authUserId) return null;
+    if (workspaceStatus === "ready" && workspaceContext) return workspaceContext;
     setWorkspaceStatus("loading");
     const context = await ensureWorkspaceContext();
     setWorkspaceContext(context);
     setWorkspaceStatus("ready");
+    return context;
   }
 
   const restoreAnonymousDrafts = useCallback(() => {
@@ -762,14 +764,26 @@ function BrixApp() {
         }
       }
       if (effectiveUserId) {
-        await prepareWorkspaceForCloudAction();
+        const context = await prepareWorkspaceForCloudAction();
+        if (!context) throw new Error("BRIX cloud workspace is not ready.");
+        const confirmedDeal = await createRemoteDeal(deal, effectiveUserId, context.workspaceId);
+        recentCloudCreatesRef.current.set(confirmedDeal.id, { ownerId: effectiveUserId, deal: confirmedDeal });
+        setDeals((current) => {
+          const next = [confirmedDeal, ...current.filter((item) => item.id !== confirmedDeal.id)];
+          return next;
+        });
+        setSelectedId(confirmedDeal.id);
+        rememberDealContext(confirmedDeal.id);
+        setSyncMessage(null);
+        setModuleState("deal");
+        setNavOpen(false);
+        window.history.pushState({}, "", dealPath(confirmedDeal.id));
+        return true;
       }
-      const confirmedDeal = effectiveUserId ? await persistRemoteDeal(deal, effectiveUserId) : deal;
-      if (effectiveUserId) recentCloudCreatesRef.current.set(confirmedDeal.id, { ownerId: effectiveUserId, deal: confirmedDeal });
-      if (!effectiveUserId) {
-        const savedDeals = [confirmedDeal, ...loadAnonymousDeals().filter((item) => item.id !== confirmedDeal.id)];
-        saveAnonymousDeals(savedDeals);
-      }
+
+      const confirmedDeal = deal;
+      const savedDeals = [confirmedDeal, ...loadAnonymousDeals().filter((item) => item.id !== confirmedDeal.id)];
+      saveAnonymousDeals(savedDeals);
       setDeals((current) => {
         const next = [confirmedDeal, ...current.filter((item) => item.id !== confirmedDeal.id)];
         return next;
@@ -777,7 +791,7 @@ function BrixApp() {
       setSelectedId(confirmedDeal.id);
       rememberDealContext(confirmedDeal.id);
       if (!effectiveUserId) setHasAnonymousDrafts(true);
-      setSyncMessage(effectiveUserId ? null : "Deal created on this device. Sign in from Settings to keep it across devices.");
+      setSyncMessage("Deal created on this device. Sign in from Settings to keep it across devices.");
       setModuleState("deal");
       setNavOpen(false);
       window.history.pushState({}, "", dealPath(confirmedDeal.id));
