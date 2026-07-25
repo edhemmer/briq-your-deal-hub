@@ -89,6 +89,25 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 
 .two-column { display: grid; grid-template-columns: minmax(320px, 520px) 1fr; gap: 20px; align-items: start; }
 .deal-grid { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(360px, .92fr); gap: 18px; align-items: start; }
+.deal-workspace { display: grid; gap: 18px; }
+.deal-workspace-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: start; border: 1px solid rgba(59,130,246,.28); border-radius: 18px; background: linear-gradient(145deg, rgba(17,29,48,.94), rgba(8,15,29,.96)); padding: 22px; box-shadow: var(--shadow-panel); }
+.deal-title-block { min-width: 0; }
+.deal-title-block h2 { margin-bottom: 6px; overflow-wrap: anywhere; }
+.deal-header-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; max-width: 520px; }
+.deal-section-tabs { display: flex; gap: 8px; overflow-x: auto; border-bottom: 1px solid var(--line); padding: 0 2px 10px; }
+.deal-section-tab { min-height: 42px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: var(--muted); padding: 0 14px; font-weight: 900; white-space: nowrap; }
+.deal-section-tab.active { border-color: rgba(59,130,246,.55); background: rgba(59,130,246,.14); color: #fff; }
+.deal-section-shell { display: grid; gap: 14px; }
+.deal-section-shell > h3 { margin: 0; font-size: 22px; }
+.deal-section-shell > h3:focus { outline: none; }
+.deal-section-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 14px; align-items: start; }
+.workspace-card { display: grid; gap: 12px; border: 1px solid var(--line); border-radius: 16px; background: rgba(8,15,29,.68); padding: 18px; min-width: 0; }
+.workspace-card h4 { margin: 0; color: white; font-size: 18px; overflow-wrap: anywhere; }
+.definition-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.definition-list div { display: grid; gap: 4px; border: 1px solid rgba(34,49,76,.76); border-radius: 12px; background: rgba(7,16,30,.8); padding: 12px; min-width: 0; }
+.definition-list dt { color: var(--muted); font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+.definition-list dd { margin: 0; color: white; overflow-wrap: anywhere; }
+.workspace-count-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
 .panel { background: linear-gradient(180deg, rgba(17,29,48,.98), rgba(10,17,30,.98)); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-panel); }
 .hero-panel { border-color: rgba(59,130,246,.55); }
 .focus-panel { min-height: 430px; }
@@ -222,6 +241,7 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .canonical-edit-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; align-items: start; }
 .canonical-edit-grid .field:first-child, .canonical-edit-grid .field:nth-child(5) { grid-column: span 2; }
 .work-history-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.work-history-grid.two-up { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .work-column { display: grid; gap: 12px; min-width: 0; }
 .work-column h4, .timeline-panel h4 { display: flex; align-items: center; gap: 8px; margin: 0; color: white; }
 .work-form { display: grid; gap: 8px; border: 1px solid rgba(59,130,246,.24); border-radius: 16px; background: rgba(8,15,29,.62); padding: 12px; }
@@ -365,15 +385,15 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
   .rail nav { display: none; margin-top: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .shell-nav-open .rail nav { display: grid; }
   .nav-toggle { display: inline-flex; }
-  .two-column, .deal-grid { grid-template-columns: 1fr; }
+  .two-column, .deal-grid, .deal-workspace-header, .deal-section-grid { grid-template-columns: 1fr; }
   .relationship-card, .relationship-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .landing-grid, .strategy-insight, .comparison-detail, .state-grid, .canonical-edit-grid, .work-history-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .landing-grid, .strategy-insight, .comparison-detail, .state-grid, .canonical-edit-grid, .work-history-grid, .workspace-count-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .workflow-strip { overflow-x: auto; grid-template-columns: repeat(5, minmax(132px, 1fr)); padding-bottom: 4px; }
 }
 
 @media (max-width: 640px) {
   .workspace, .rail { padding: 16px; }
-  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row, .trusted-access-entry, .presentation-options, .state-grid, .attention-item, .relationship-card, .relationship-form, .duplicate-candidates article, .canonical-edit-grid, .work-history-grid, .work-edit-row { grid-template-columns: 1fr; }
+  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row, .trusted-access-entry, .presentation-options, .state-grid, .attention-item, .relationship-card, .relationship-form, .duplicate-candidates article, .canonical-edit-grid, .work-history-grid, .work-edit-row, .definition-list, .workspace-count-row { grid-template-columns: 1fr; }
   .relationship-toolbar { justify-content: flex-start; flex-wrap: wrap; }
   .topbar { display: grid; }
   .workspace-pill, .active-deal-pill, .deal-switcher, .shell-search-trigger { min-width: 0; width: 100%; }
@@ -385,6 +405,7 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
   .search-result { grid-template-columns: 1fr; }
   .search-result em { justify-self: start; }
   .deal-list-row, .deal-controls { grid-template-columns: 1fr; align-items: stretch; }
+  .deal-header-actions { justify-content: flex-start; max-width: none; }
   .deal-row-actions { grid-auto-flow: row; grid-auto-columns: 1fr; }
   .table-row { grid-template-columns: 1fr; }
   .landing { padding: 22px; }

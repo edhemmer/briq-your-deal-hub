@@ -111,10 +111,13 @@ describe("Specification 003 tasks, deadlines, notes, timeline, and activity", ()
   });
 
   it("adds focused Deal-level work UX without rendering unsafe note HTML", () => {
-    for (const text of ["Work and history", "What needs attention on this Deal?", "Add task", "Add deadline", "Add note", "Deal history"]) {
+    for (const text of ["Tasks and deadlines", "What needs attention on this Deal?", "Add task", "Add deadline", "Add note", "Deal history"]) {
       expect(app).toContain(text);
     }
     expect(app).toContain("<WorkHistoryPanel");
+    expect(app).toContain("section=\"work\"");
+    expect(app).toContain("section=\"notes\"");
+    expect(app).toContain("section=\"history\"");
     expect(app).not.toContain("dangerouslySetInnerHTML");
   });
 });

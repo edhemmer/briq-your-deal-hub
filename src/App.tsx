@@ -5,7 +5,7 @@ import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
 import { createDealFromInput, createRemoteDeal, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
 import { archiveDeal, listDealProjections, loadDealDetail, restoreDeal, updateDealCore, updateDealLifecycle, updateProperty } from "./core/dealCrud";
-import type { CanonicalDealOperatingStatus, CanonicalDealStage, DealAttentionState, DealFacts, DealListProjection, DealNote, DealPriority, DealProjectionFilters, DealProjectionSort, DealRelationship, DealRelationshipRole, DealRelationshipStatus, DealStatus, DealTimelineItem, DealWorkItem, DuplicateCandidate, PropertySummary, RelationshipTargetType } from "./core/types";
+import type { CanonicalDealOperatingStatus, CanonicalDealStage, DealAttentionState, DealDetailProjection, DealFacts, DealListProjection, DealNote, DealPriority, DealProjectionFilters, DealProjectionSort, DealRelationship, DealRelationshipRole, DealRelationshipStatus, DealStatus, DealTimelineItem, DealWorkItem, DuplicateCandidate, PropertySummary, RelationshipTargetType } from "./core/types";
 import { supabase } from "./core/supabase";
 import { downloadDecisionPdf, downloadWorkbook } from "./core/reportExports";
 import { analyzePhotoEvidence } from "./core/photoAnalysis";
@@ -1916,15 +1916,28 @@ function WorkflowStrip({ active, onSelect }: { active: Module; onSelect: (module
   );
 }
 
-function DealIQ({
-  deal,
-  workspaceId,
-  isAuthenticated,
-  isOnline,
-  onChange,
-  onCanonicalSaved,
-  onDelete,
-}: {
+type DealWorkspaceSection = "overview" | "property" | "people" | "work" | "notes" | "history";
+
+const dealWorkspaceSections: Array<{ id: DealWorkspaceSection; label: string }> = [
+  { id: "overview", label: "Overview" },
+  { id: "property", label: "Property" },
+  { id: "people", label: "People" },
+  { id: "work", label: "Work" },
+  { id: "notes", label: "Notes" },
+  { id: "history", label: "History" },
+];
+
+function workspaceSectionFromLocation(): DealWorkspaceSection {
+  const value = new URLSearchParams(window.location.search).get("section");
+  return dealWorkspaceSections.some((section) => section.id === value) ? value as DealWorkspaceSection : "overview";
+}
+
+function dealWorkspaceUrl(dealId: string, section: DealWorkspaceSection) {
+  const base = dealPath(dealId);
+  return section === "overview" ? base : `${base}?section=${section}`;
+}
+
+type DealIQProps = {
   deal?: DealFacts;
   workspaceId?: string;
   isAuthenticated: boolean;
@@ -1932,142 +1945,298 @@ function DealIQ({
   onChange: (deal: DealFacts) => void;
   onCanonicalSaved: (deal: DealFacts) => void;
   onDelete: (id: string) => void;
-}) {
-  if (!deal) return <Empty title="No deal file yet" text="Start in FindIQ with an address, listing URL, or listing text." />;
-  const analysis = analyzeDeal(deal);
-  const primary = analysis.primaryStrategy;
+};
 
-  function patch(update: Partial<DealFacts>) {
-    onChange({ ...deal, ...update, updatedAt: new Date().toISOString() });
+function DealIQ(props: DealIQProps) {
+  if (!props.deal) return <Empty title="No deal file yet" text="Start in FindIQ with an address, listing URL, or listing text." />;
+  return <DealWorkspace {...props} deal={props.deal} />;
+}
+
+function DealWorkspace({
+  deal,
+  workspaceId,
+  isAuthenticated,
+  isOnline,
+  onCanonicalSaved,
+  onDelete,
+}: DealIQProps & { deal: DealFacts }) {
+  const [section, setSection] = useState<DealWorkspaceSection>(() => workspaceSectionFromLocation());
+  const [detail, setDetail] = useState<DealDetailProjection | null>(null);
+  const [loadStatus, setLoadStatus] = useState<"loading" | "ready" | "failed" | "permission" | "offline">("loading");
+  const [message, setMessage] = useState("");
+  const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
+  const tabRefs = useRef<Record<DealWorkspaceSection, HTMLButtonElement | null>>({
+    overview: null,
+    property: null,
+    people: null,
+    work: null,
+    notes: null,
+    history: null,
+  });
+  const canUseCloud = isAuthenticated && Boolean(workspaceId);
+  const effectiveDeal = detail?.deal ?? deal;
+  const displayName = detail?.displayName ?? deal.address ?? "Untitled Deal";
+  const property = detail?.property;
+  const isArchived = detail?.stage === "archived" || detail?.operatingStatus === "archived";
+
+  const loadDetail = useCallback(async () => {
+    if (!canUseCloud) {
+      setDetail(null);
+      setLoadStatus("ready");
+      setMessage("Sign in to save this Deal workspace to your BRIX account.");
+      return;
+    }
+    if (!isOnline) {
+      setLoadStatus("offline");
+      setMessage("Connection is unavailable. Saved Deal details remain unchanged until reconnect.");
+      return;
+    }
+    setLoadStatus("loading");
+    setMessage("");
+    try {
+      const loaded = await loadDealDetail(deal.id);
+      setDetail(loaded);
+      setLoadStatus("ready");
+    } catch (error) {
+      const safe = safeDealCommandMessage(error);
+      setLoadStatus(safe.status === "permission" ? "permission" : "failed");
+      setMessage(safe.message);
+    }
+  }, [canUseCloud, deal.id, isOnline]);
+
+  useEffect(() => {
+    setDetail(null);
+    setLoadStatus("loading");
+    setMessage("");
+    void loadDetail();
+  }, [loadDetail]);
+
+  useEffect(() => {
+    const next = workspaceSectionFromLocation();
+    if (next !== section) window.history.replaceState({}, "", dealWorkspaceUrl(deal.id, section));
+  }, [deal.id, section]);
+
+  useEffect(() => {
+    const onPopState = () => setSection(workspaceSectionFromLocation());
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  function selectSection(next: DealWorkspaceSection, options: { replace?: boolean } = {}) {
+    setSection(next);
+    const url = dealWorkspaceUrl(deal.id, next);
+    if (options.replace) window.history.replaceState({}, "", url);
+    else window.history.pushState({}, "", url);
+    window.requestAnimationFrame(() => sectionHeadingRef.current?.focus({ preventScroll: true }));
+  }
+
+  function onSectionKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, index: number) {
+    if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const lastIndex = dealWorkspaceSections.length - 1;
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? lastIndex
+        : event.key === "ArrowRight"
+          ? index === lastIndex ? 0 : index + 1
+          : index === 0 ? lastIndex : index - 1;
+    const next = dealWorkspaceSections[nextIndex].id;
+    tabRefs.current[next]?.focus();
+    selectSection(next);
   }
 
   return (
-    <div className="deal-grid">
-      <section className="panel decision-card">
-        <p className="eyebrow">Decision</p>
-        <h2>{analysis.decision}</h2>
-        <p className="quiet">{deal.address}{deal.city ? `, ${deal.city}` : ""}{deal.state ? `, ${deal.state}` : ""}</p>
-        <div className="metric-row">
-          <Metric label="Confidence" value={analysis.confidence} />
-          <Metric label="Readiness" value={analysis.readiness} />
-          <Metric label="Strategy fit" value={primary.score} />
+    <section className="deal-workspace" aria-labelledby="deal-workspace-title">
+      <header className="deal-workspace-header">
+        <div className="deal-title-block">
+          <p className="eyebrow">Deal workspace</p>
+          <h2 id="deal-workspace-title">{displayName}</h2>
+          <p className="quiet">{formatPropertyLine(property, effectiveDeal)}</p>
         </div>
-        <div className="callout">
-          <strong>{primary.name}: {primary.recommendation}</strong>
-          <span>{primary.why[0]}</span>
+        <div className="deal-header-actions">
+          {detail && (
+            <>
+              <StatusBadge tone="neutral">{labelForStage(detail.stage)}</StatusBadge>
+              <StatusBadge tone={detail.operatingStatus === "blocked" || detail.operatingStatus === "archived" ? "warning" : "neutral"}>{labelForOperatingStatus(detail.operatingStatus)}</StatusBadge>
+              <StatusBadge tone="neutral">{labelForPriority(detail.priority)}</StatusBadge>
+            </>
+          )}
+          {isArchived && <StatusBadge tone="warning">Archived</StatusBadge>}
+          <button className="secondary compact" type="button" onClick={loadDetail} disabled={loadStatus === "loading"}>
+            <RefreshCw size={14} /> Reload
+          </button>
+          <button className="danger compact" type="button" onClick={() => onDelete(deal.id)}>
+            <Trash2 size={14} /> {isAuthenticated ? "Archive Deal" : "Delete local draft"}
+          </button>
         </div>
-      </section>
+      </header>
 
-      <CanonicalDealEditPanel deal={deal} isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={onCanonicalSaved} />
+      {loadStatus === "loading" && <p className="quiet">Loading Deal workspace.</p>}
+      {message && <p className={loadStatus === "failed" || loadStatus === "permission" || loadStatus === "offline" ? "error" : "success-text"}>{message}</p>}
 
-      <section className="panel">
-        <p className="eyebrow">Facts</p>
-        <div className="form-grid">
-          <MoneyField label="Purchase price" value={deal.listPrice} onChange={(listPrice) => patch({ listPrice })} />
-          <NumberField label="Beds" value={deal.beds} onChange={(beds) => patch({ beds })} />
-          <NumberField label="Baths" value={deal.baths} onChange={(baths) => patch({ baths })} />
-          <NumberField label="Square feet" value={deal.squareFeet} onChange={(squareFeet) => patch({ squareFeet })} />
-          <MoneyField label="Annual taxes" value={deal.annualTaxes} onChange={(annualTaxes) => patch({ annualTaxes })} />
-          <MoneyField label="Annual insurance" value={deal.annualInsurance} onChange={(annualInsurance) => patch({ annualInsurance })} />
-          <MoneyField label="Monthly rent" value={deal.monthlyRent} onChange={(monthlyRent) => patch({ monthlyRent })} />
-          <MoneyField label="Rehab budget" value={deal.rehabBudget} onChange={(rehabBudget) => patch({ rehabBudget })} />
-          <MoneyField label="After repair value" value={deal.arv} onChange={(arv) => patch({ arv })} />
-          <MoneyField label="Down payment" value={deal.downPayment} onChange={(downPayment) => patch({ downPayment })} />
-        </div>
-      </section>
+      <nav className="deal-section-tabs" role="tablist" aria-label="Deal workspace sections">
+        {dealWorkspaceSections.map((item, index) => (
+          <button
+            key={item.id}
+            ref={(node) => { tabRefs.current[item.id] = node; }}
+            className={section === item.id ? "deal-section-tab active" : "deal-section-tab"}
+            type="button"
+            role="tab"
+            id={`deal-tab-${item.id}`}
+            aria-selected={section === item.id}
+            aria-controls={`deal-section-${item.id}`}
+            tabIndex={section === item.id ? 0 : -1}
+            onClick={() => selectSection(item.id)}
+            onKeyDown={(event) => onSectionKeyDown(event, index)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
 
-      <RelationshipPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} />
+      <div className="deal-section-shell" role="tabpanel" id={`deal-section-${section}`} aria-labelledby={`deal-tab-${section}`}>
+        <h3 ref={sectionHeadingRef} tabIndex={-1}>{dealWorkspaceSections.find((item) => item.id === section)?.label}</h3>
+        {section === "overview" && <DealOverviewSection deal={effectiveDeal} detail={detail} property={property} onEdit={() => selectSection("property")} />}
+        {section === "property" && <DealPropertySection deal={effectiveDeal} detail={detail} property={property} isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
+        {section === "people" && <RelationshipPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} />}
+        {section === "work" && <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} section="work" />}
+        {section === "notes" && <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} section="notes" />}
+        {section === "history" && <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} section="history" />}
+      </div>
+    </section>
+  );
+}
 
-      <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} />
-
-      <section className="panel wide">
-        <p className="eyebrow">Strategy comparison</p>
-        <div className="strategy-insight">
+function DealOverviewSection({
+  deal,
+  detail,
+  property,
+  onEdit,
+}: {
+  deal: DealFacts;
+  detail: DealDetailProjection | null;
+  property?: PropertySummary;
+  onEdit: () => void;
+}) {
+  const summaryItems = detail ? [
+    { label: "Stage", value: labelForStage(detail.stage) },
+    { label: "Status", value: labelForOperatingStatus(detail.operatingStatus) },
+    { label: "Priority", value: labelForPriority(detail.priority) },
+    { label: "Source", value: readableValue(detail.source) },
+    { label: "Deal version", value: String(deal.dealVersion ?? "Reload required") },
+    { label: "Loaded", value: formatShortDate(detail.loadedAt) },
+  ] : [
+    { label: "Status", value: readableValue(deal.status) },
+    { label: "Updated", value: formatShortDate(deal.updatedAt) },
+    { label: "Mode", value: "Local draft" },
+  ];
+  return (
+    <div className="deal-section-grid">
+      <section className="workspace-card">
+        <div className="panel-heading-row">
           <div>
-            <h3>{analysis.strategyInsight.headline}</h3>
-            <p className="quiet">{analysis.strategyInsight.explanation}</p>
+            <p className="eyebrow">Core record</p>
+            <h4>{detail?.displayName ?? deal.address ?? "Untitled Deal"}</h4>
           </div>
-          <div className="stat-row compact">
-            <Stat label="Selected" value={analysis.strategyInsight.selected.name} />
-            <Stat label="Top fit" value={analysis.strategyInsight.best.name} />
-            <Stat label="Gap" value={`${analysis.strategyInsight.scoreGap} pts`} />
-          </div>
+          <button className="secondary compact" type="button" onClick={onEdit}>Edit</button>
         </div>
-        <div className="score-list">
-          {analysis.strategyScores.slice(0, 12).map((score) => (
-            <button key={score.strategyId} className={score.strategyId === deal.strategyId ? "score-card selected" : "score-card"} onClick={() => patch({ strategyId: score.strategyId })}>
-              <strong>{score.name}</strong>
-              <span>{score.recommendation}</span>
-              <b>{score.score}</b>
-              <small>{score.why[0]}</small>
-              {score.risks[0] && <small>Verify: {score.risks[0]}</small>}
-            </button>
-          ))}
-        </div>
-        <div className="comparison-detail">
-          <ChallengeBlock title="Tradeoffs" items={analysis.strategyInsight.tradeoffs} />
-          <ChallengeBlock title="Verify before switching strategy" items={analysis.strategyInsight.verification} />
-        </div>
+        <DefinitionList items={summaryItems} />
       </section>
-
-      <section className="panel">
-        <p className="eyebrow">Photos and condition</p>
-        <div className="upload-zone">
-          <Camera size={26} />
-          <strong>Add listing or field photos</strong>
-          <input type="file" accept="image/*" multiple onChange={(event) => {
-            const names = Array.from(event.target.files ?? []).map((file) => file.name);
-            patch({ uploadedPhotoNames: [...deal.uploadedPhotoNames, ...names] });
-          }} />
-        </div>
-        {[...deal.photoUrls, ...deal.uploadedPhotoNames].length > 0 && (
-          <ul className="compact-list">{[...deal.photoUrls, ...deal.uploadedPhotoNames].slice(0, 8).map((item) => <li key={item}>{item}</li>)}</ul>
+      <section className="workspace-card">
+        <p className="eyebrow">Property</p>
+        <h4>{formatPropertyLine(property, deal)}</h4>
+        <DefinitionList items={[
+          { label: "Address", value: property?.displayAddress ?? deal.address ?? "Not set" },
+          { label: "City", value: property?.city ?? deal.city ?? "Not set" },
+          { label: "State", value: property?.region ?? deal.state ?? "Not set" },
+          { label: "ZIP", value: property?.postalCode ?? deal.zip ?? "Not set" },
+          { label: "Parcel ID", value: property?.parcelIdentifier ?? "Not set" },
+        ]} />
+      </section>
+      <section className="workspace-card wide">
+        <p className="eyebrow">Workspace status</p>
+        {detail ? (
+          <div className="workspace-count-row">
+            <Stat label="People" value={String(detail.relationshipCount)} />
+            <Stat label="Open tasks" value={String(detail.openTaskCount)} />
+            <Stat label="Open deadlines" value={String(detail.openDeadlineCount)} />
+            <Stat label="Pinned notes" value={String(detail.pinnedNoteCount)} />
+            <Stat label="Recent history" value={String(detail.recentEventCount)} />
+          </div>
+        ) : (
+          <p className="quiet">This local draft can be reviewed here. Sign in to connect people, work, notes, and saved history.</p>
         )}
-        {analyzePhotoEvidence([...deal.photoUrls, ...deal.uploadedPhotoNames]).length > 0 && (
-          <div className="findings">
-            {analyzePhotoEvidence([...deal.photoUrls, ...deal.uploadedPhotoNames]).map((finding) => (
-              <article key={finding.area}>
-                <strong>{finding.severity}: {finding.area}</strong>
-                <span>{finding.finding} {finding.action}</span>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="panel">
-        <p className="eyebrow">Verification</p>
-        <ul className="check-list">
-          {analysis.nextActions.map((action) => <li key={action}>{action}</li>)}
-        </ul>
-        <div className="button-row">
-          <a className="secondary link-button" href={taxSearchUrl(deal)} target="_blank" rel="noreferrer"><Landmark size={16} /> Tax source</a>
-          {ownerOccupiedConveniences.slice(0, 3).map((item) => (
-            <a key={item.label} className="secondary link-button" href={areaSearchUrl(deal, item.label)} target="_blank" rel="noreferrer"><MapPinned size={16} /> {item.label}</a>
-          ))}
-        </div>
-      </section>
-
-      <section className="panel wide">
-        <p className="eyebrow">Decision challenge</p>
-        <div className="challenge-grid">
-          <ChallengeBlock title="Key risks" items={analysis.keyRisks} />
-          <ChallengeBlock title="Bull case" items={analysis.bullCase} />
-          <ChallengeBlock title="Bear case" items={analysis.bearCase} />
-          <ChallengeBlock title="What must be true" items={analysis.whatMustBeTrue} />
-          <ChallengeBlock title="Failure scenarios" items={analysis.failureScenarios} />
-          <ChallengeBlock title="Alternatives" items={analysis.alternativeStrategies} />
-        </div>
-      </section>
-
-      <section className="panel wide action-bar">
-        <button className="secondary" onClick={() => patch({ status: nextStatus(deal.status) })}>Advance status</button>
-        <button className="secondary" onClick={() => downloadDecisionPdf(deal, analysis)}><FileDown size={16} /> PDF memo</button>
-        <button className="secondary" onClick={() => downloadWorkbook(deal, analysis)}><Table2 size={16} /> XLS workbook</button>
-        <button className="danger" onClick={() => onDelete(deal.id)}><Trash2 size={16} /> {isAuthenticated ? "Archive Deal" : "Delete local draft"}</button>
       </section>
     </div>
   );
+}
+
+function DealPropertySection({
+  deal,
+  detail,
+  property,
+  isAuthenticated,
+  isOnline,
+  onSaved,
+}: {
+  deal: DealFacts;
+  detail: DealDetailProjection | null;
+  property?: PropertySummary;
+  isAuthenticated: boolean;
+  isOnline: boolean;
+  onSaved: (deal: DealFacts) => void;
+}) {
+  return (
+    <div className="deal-section-grid">
+      <section className="workspace-card">
+        <p className="eyebrow">Property summary</p>
+        <h4>{formatPropertyLine(property, deal)}</h4>
+        <DefinitionList items={[
+          { label: "Display address", value: property?.displayAddress ?? deal.address ?? "Not set" },
+          { label: "Address line 1", value: property?.addressLine1 ?? deal.address ?? "Not set" },
+          { label: "Address line 2", value: property?.addressLine2 ?? "Not set" },
+          { label: "City", value: property?.city ?? deal.city ?? "Not set" },
+          { label: "State", value: property?.region ?? deal.state ?? "Not set" },
+          { label: "ZIP", value: property?.postalCode ?? deal.zip ?? "Not set" },
+          { label: "Country", value: property?.country ?? "US" },
+          { label: "Parcel ID", value: property?.parcelIdentifier ?? "Not set" },
+          { label: "Property version", value: String(property?.propertyVersion ?? deal.propertyVersion ?? "Reload required") },
+        ]} />
+      </section>
+      <CanonicalDealEditPanel deal={detail?.deal ?? deal} isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={onSaved} />
+    </div>
+  );
+}
+
+function DefinitionList({ items }: { items: Array<{ label: string; value?: string }> }) {
+  return (
+    <dl className="definition-list">
+      {items.map((item) => (
+        <div key={item.label}>
+          <dt>{item.label}</dt>
+          <dd>{item.value || "Not set"}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function formatPropertyLine(property: PropertySummary | undefined, deal: DealFacts) {
+  const fallback = [deal.address, deal.city, deal.state, deal.zip].filter(Boolean).join(", ");
+  if (!property) return fallback || "No property address saved";
+  return [property.displayAddress, property.city, property.region, property.postalCode].filter(Boolean).join(", ") || fallback || "No property address saved";
+}
+
+function readableValue(value?: string) {
+  return value ? value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) : "Not set";
+}
+
+function labelForPriority(priority?: DealPriority) {
+  if (priority === "urgent") return "Urgent";
+  if (priority === "high") return "High";
+  if (priority === "low") return "Low";
+  return "Normal";
 }
 
 const dealStageOptions: Array<{ id: CanonicalDealStage; label: string }> = [
@@ -2313,11 +2482,13 @@ function WorkHistoryPanel({
   workspaceId,
   isAuthenticated,
   isOnline,
+  section,
 }: {
   dealId: string;
   workspaceId?: string;
   isAuthenticated: boolean;
   isOnline: boolean;
+  section: "work" | "notes" | "history";
 }) {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const emptyTask: TaskDraft = { title: "", description: "", taskType: "general", priority: "normal", status: "open", dueAt: "", dueDate: "", isAllDay: false, timezone };
@@ -2333,13 +2504,14 @@ function WorkHistoryPanel({
   const [editingNotes, setEditingNotes] = useState<Record<string, { body: string; noteType: string; pinned: boolean }>>({});
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "saving" | "saved" | "failed" | "permission" | "offline">("idle");
   const [message, setMessage] = useState("");
+  const [historyHasMore, setHistoryHasMore] = useState(false);
   const canUseCloud = isAuthenticated && Boolean(workspaceId);
 
   const load = useCallback(async () => {
     if (!canUseCloud) {
-      setWork([]);
-      setNotes([]);
-      setTimeline([]);
+      if (section === "work") setWork([]);
+      if (section === "notes") setNotes([]);
+      if (section === "history") setTimeline([]);
       setStatus("ready");
       setMessage("Sign in to save Deal work and history.");
       return;
@@ -2352,31 +2524,36 @@ function WorkHistoryPanel({
     setStatus("loading");
     setMessage("");
     try {
-      const [workRows, noteRows, timelineRows] = await Promise.all([
-        listDealWork(dealId),
-        listDealNotes(dealId),
-        loadDealTimeline(dealId),
-      ]);
-      setWork(workRows);
-      setNotes(noteRows);
-      setTimeline(timelineRows);
-      setEditingWork(Object.fromEntries(workRows.map((item) => [item.recordId, {
-        title: item.title,
-        status: item.status,
-        priority: item.priority,
-        dueAt: item.dueAt ? item.dueAt.slice(0, 16) : "",
-        dueDate: item.dueDate ?? "",
-        isAllDay: item.isAllDay,
-        timezone: item.timezone,
-      }])));
-      setEditingNotes(Object.fromEntries(noteRows.map((note) => [note.noteId, { body: note.body, noteType: note.noteType, pinned: note.pinned }])));
+      if (section === "work") {
+        const workRows = await listDealWork(dealId);
+        setWork(workRows);
+        setEditingWork(Object.fromEntries(workRows.map((item) => [item.recordId, {
+          title: item.title,
+          status: item.status,
+          priority: item.priority,
+          dueAt: item.dueAt ? item.dueAt.slice(0, 16) : "",
+          dueDate: item.dueDate ?? "",
+          isAllDay: item.isAllDay,
+          timezone: item.timezone,
+        }])));
+      }
+      if (section === "notes") {
+        const noteRows = await listDealNotes(dealId);
+        setNotes(noteRows);
+        setEditingNotes(Object.fromEntries(noteRows.map((note) => [note.noteId, { body: note.body, noteType: note.noteType, pinned: note.pinned }])));
+      }
+      if (section === "history") {
+        const timelineRows = await loadDealTimeline(dealId);
+        setTimeline(timelineRows);
+        setHistoryHasMore(timelineRows.length >= 50);
+      }
       setStatus("ready");
     } catch (error) {
       const text = error instanceof Error ? error.message : "BRIX could not load Deal work.";
       setStatus(/permission|access|not have/i.test(text) ? "permission" : "failed");
       setMessage(text);
     }
-  }, [canUseCloud, dealId, isOnline]);
+  }, [canUseCloud, dealId, isOnline, section]);
 
   useEffect(() => {
     void load();
@@ -2445,24 +2622,45 @@ function WorkHistoryPanel({
 
   const pending = work.filter((item) => item.status !== "completed" && item.status !== "cancelled");
   const completed = work.filter((item) => item.status === "completed");
+  const heading = section === "work" ? "Tasks and deadlines" : section === "notes" ? "Notes" : "History";
+  const reloadText = section === "work" ? "Loading saved tasks and deadlines." : section === "notes" ? "Loading saved notes." : "Loading saved history.";
+
+  async function loadMoreHistory() {
+    if (section !== "history" || timeline.length === 0 || !canUseCloud || !isOnline) return;
+    const before = timeline[timeline.length - 1]?.occurredAt;
+    if (!before) return;
+    setStatus("loading");
+    try {
+      const rows = await loadDealTimeline(dealId, before);
+      setTimeline((current) => {
+        const seen = new Set(current.map((item) => item.timelineId));
+        return [...current, ...rows.filter((item) => !seen.has(item.timelineId))];
+      });
+      setHistoryHasMore(rows.length >= 50);
+      setStatus("ready");
+    } catch (error) {
+      setStatus("failed");
+      setMessage(error instanceof Error ? error.message : "BRIX could not load more Deal history.");
+    }
+  }
 
   return (
     <section className="panel wide work-history-panel">
       <div className="panel-heading-row">
         <div>
-          <p className="eyebrow">Work and history</p>
-          <h3>What needs attention on this Deal?</h3>
+          <p className="eyebrow">{heading}</p>
+          <h3>{section === "work" ? "What needs attention on this Deal?" : section === "notes" ? "Saved Deal notes" : "Saved Deal activity"}</h3>
         </div>
         <button className="secondary compact" type="button" onClick={load} disabled={status === "loading" || status === "saving"}>
           <RefreshCw size={14} /> Reload
         </button>
       </div>
 
-      {status === "loading" && <p className="quiet">Loading saved tasks, deadlines, notes, and history.</p>}
+      {status === "loading" && <p className="quiet">{reloadText}</p>}
       {message && <p className={status === "failed" || status === "permission" || status === "offline" ? "error" : "success-text"}>{message}</p>}
       {!canUseCloud && <StatusBadge tone="warning">Cloud save required</StatusBadge>}
 
-      <div className="work-history-grid">
+      {section === "work" && <div className="work-history-grid two-up">
         <div className="work-column">
           <h4><CheckSquare size={16} /> Tasks</h4>
           <div className="work-form">
@@ -2515,7 +2713,10 @@ function WorkHistoryPanel({
             }), "Deadline updated.");
           }} onComplete={(item) => void run(() => completeDealDeadline(item), "Deadline completed.")} />
         </div>
+        {completed.length > 0 && <p className="quiet wide">{completed.length} completed item{completed.length === 1 ? "" : "s"} saved on this Deal.</p>}
+      </div>}
 
+      {section === "notes" && (
         <div className="work-column">
           <h4><FilePenLine size={16} /> Notes</h4>
           <div className="work-form">
@@ -2543,9 +2744,9 @@ function WorkHistoryPanel({
             })}
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="timeline-panel">
+      {section === "history" && <div className="timeline-panel">
         <h4>Deal history</h4>
         {timeline.length === 0 ? <p className="quiet">No Deal history is available yet. Real saved activity will appear here.</p> : (
           <ol className="timeline-list">
@@ -2558,8 +2759,8 @@ function WorkHistoryPanel({
             ))}
           </ol>
         )}
-        {completed.length > 0 && <p className="quiet">{completed.length} completed item{completed.length === 1 ? "" : "s"} saved on this Deal.</p>}
-      </div>
+        {historyHasMore && <button className="secondary compact" type="button" onClick={loadMoreHistory} disabled={status === "loading"}>Load more history</button>}
+      </div>}
     </section>
   );
 }

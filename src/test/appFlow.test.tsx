@@ -744,7 +744,9 @@ describe("BRIX app module flow", () => {
 
     expect((await screen.findAllByText("Cloud Deep Link Deal")).length).toBeGreaterThan(0);
     expect(window.location.pathname).toBe("/deals/cloud-deep");
-    await waitFor(() => expect((screen.getByLabelText("Purchase price") as HTMLInputElement).value).toBe("315000"));
+    expect(await screen.findByRole("tab", { name: "Overview" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Property" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Purchase price")).not.toBeInTheDocument();
     expectWorkspaceDealProjectionLoad();
   });
 
@@ -1754,7 +1756,9 @@ describe("BRIX app module flow", () => {
     expect((await screen.findAllByText(/44 Round Trip Ave/i)).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
     fireEvent.click(screen.getAllByRole("button", { name: "Open Deal" })[0]);
-    expect((screen.getByLabelText("Purchase price") as HTMLInputElement).value).toBe("250000");
+    expect(screen.getByRole("tab", { name: "Overview" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Property" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Purchase price")).not.toBeInTheDocument();
   });
 
   it("mocked: sign out clears authenticated deals and can show preserved anonymous records only", async () => {
