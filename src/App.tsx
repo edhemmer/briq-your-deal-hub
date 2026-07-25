@@ -84,6 +84,15 @@ import {
   requiresAuthentication,
   type BrixDeepLinkDestination,
 } from "./core/deepLinks";
+import {
+  cancelOfflineDraft,
+  createOfflineDraft,
+  createOfflineDraftRepository,
+  processOfflineDraftQueue,
+  queueOfflineDraft,
+  type OfflineDraft,
+  type OfflineDraftScope,
+} from "./core/offlineDrafts";
 
 type Module = "home" | "deals" | "deal" | "account";
 type SearchStatus = "idle" | "loading" | "ready" | "failed";
@@ -225,9 +234,80 @@ function BrixApp() {
   const isAuthenticated = Boolean(authUserId);
   const selectedDeal = deals.find((deal) => deal.id === selectedId);
   const storageScope = shellStorageScope(authUserId, workspaceContext);
+  const draftRepository = useMemo(() => createOfflineDraftRepository(), []);
+  const draftScope = useMemo<OfflineDraftScope>(() => authUserId && workspaceContext
+    ? { kind: "authenticated", userId: authUserId, workspaceId: workspaceContext.workspaceId }
+    : { kind: "anonymous" }, [authUserId, workspaceContext]);
+  const [offlineDrafts, setOfflineDrafts] = useState<OfflineDraft[]>([]);
+  const [draftSyncStatus, setDraftSyncStatus] = useState<"idle" | "loading" | "syncing" | "ready" | "failed">("idle");
+  const [draftSyncMessage, setDraftSyncMessage] = useState("");
   const recentDeals = useMemo(() => recentDealIds
     .map((id) => deals.find((deal) => deal.id === id))
     .filter((deal): deal is DealFacts => Boolean(deal)), [deals, recentDealIds]);
+  const activeOfflineDrafts = offlineDrafts.filter((draft) => draft.status !== "synced" && draft.status !== "cancelled");
+  const selectedDealDrafts = selectedDeal ? offlineDrafts.filter((draft) => draft.dealId === selectedDeal.id || draft.payload && "deal" in draft.payload && (draft.payload as { deal?: DealFacts }).deal?.id === selectedDeal.id) : [];
+
+  const loadOfflineDrafts = useCallback(async () => {
+    setDraftSyncStatus((current) => current === "syncing" ? current : "loading");
+    try {
+      const drafts = await draftRepository.list(draftScope);
+      setOfflineDrafts(drafts);
+      setDraftSyncStatus("ready");
+      setDraftSyncMessage("");
+    } catch {
+      setDraftSyncStatus("failed");
+      setDraftSyncMessage("BRIX could not read saved device work. Your account data remains protected.");
+    }
+  }, [draftRepository, draftScope]);
+
+  useEffect(() => {
+    void loadOfflineDrafts();
+  }, [loadOfflineDrafts]);
+
+  async function enqueueOfflineDraft(draft: OfflineDraft, message: string) {
+    const queued = queueOfflineDraft(draft);
+    await draftRepository.put(queued);
+    await loadOfflineDrafts();
+    setDraftSyncMessage(message);
+  }
+
+  const retryOfflineDrafts = useCallback(async () => {
+    if (!isAuthenticated || !workspaceContext) {
+      setDraftSyncMessage("Sign in before synchronizing saved device work.");
+      return;
+    }
+    setDraftSyncStatus("syncing");
+    const retryableDrafts = offlineDrafts.filter((draft) => draft.status === "failed" || draft.status === "conflicted");
+    await Promise.all(retryableDrafts.map((draft) => draftRepository.put(queueOfflineDraft(draft))));
+    const result = await processOfflineDraftQueue({
+      repository: draftRepository,
+      scope: draftScope,
+      userId: authUserId,
+      workspaceId: workspaceContext.workspaceId,
+      isOnline,
+      refresh: async () => {
+        const cloudDeals = await loadRemoteDeals(authUserId, workspaceContext.workspaceId);
+        setDeals(cloudDeals);
+      },
+    });
+    await loadOfflineDrafts();
+    setDraftSyncStatus(result.paused ? "failed" : "ready");
+    if (result.synced > 0) setDraftSyncMessage(`${result.synced} saved device item${result.synced === 1 ? "" : "s"} synchronized with BRIX.`);
+    else if (result.conflicted > 0) setDraftSyncMessage(`${result.conflicted} saved device item${result.conflicted === 1 ? " needs" : "s need"} review before synchronization.`);
+    else if (result.failed > 0 || result.paused) setDraftSyncMessage("Saved device work could not synchronize yet. Retry when account access and connection are ready.");
+    else setDraftSyncMessage("");
+  }, [authUserId, draftRepository, draftScope, isAuthenticated, isOnline, loadOfflineDrafts, offlineDrafts, workspaceContext]);
+
+  useEffect(() => {
+    if (!isOnline || !isAuthenticated || !workspaceContext) return;
+    if (!offlineDrafts.some((draft) => draft.status === "queued")) return;
+    void retryOfflineDrafts();
+  }, [isAuthenticated, isOnline, offlineDrafts, retryOfflineDrafts, workspaceContext]);
+
+  async function cancelQueuedDraft(draft: OfflineDraft) {
+    await draftRepository.put(cancelOfflineDraft(draft));
+    await loadOfflineDrafts();
+  }
 
   useEffect(() => {
     const parsed = parseBrixDeepLink(window.location.href);
@@ -618,7 +698,7 @@ function BrixApp() {
         await acceptWorkspaceInvitation(pendingInvitationToken);
         setInvitationToken(null);
         clearInvitationFromUrl();
-        setInvitationMessage("Trusted access accepted.");
+        setInvitationMessage("Workspace access accepted.");
       }
       return ensureWorkspaceContext();
     })()
@@ -824,6 +904,23 @@ function BrixApp() {
       if (effectiveUserId) {
         const context = await prepareWorkspaceForCloudAction();
         if (!context) throw new Error("BRIX cloud workspace is not ready.");
+        if (!isOnline) {
+          const scopedDraft: OfflineDraftScope = { kind: "authenticated", userId: effectiveUserId, workspaceId: context.workspaceId };
+          await enqueueOfflineDraft(createOfflineDraft({
+            scope: scopedDraft,
+            workspaceId: context.workspaceId,
+            dealId: deal.id,
+            draftType: "new_deal",
+            commandType: "create_canonical_deal",
+            payload: { deal },
+          }), "Deal saved on this device and waiting to synchronize with BRIX.");
+          putDealInState(deal);
+          rememberDealContext(deal.id);
+          setModuleState("deal");
+          setNavOpen(false);
+          window.history.pushState({}, "", dealPath(deal.id));
+          return true;
+        }
         const confirmedDeal = await createRemoteDeal(deal, effectiveUserId, context.workspaceId);
         recentCloudCreatesRef.current.set(confirmedDeal.id, { ownerId: effectiveUserId, deal: confirmedDeal });
         setDeals((current) => {
@@ -855,6 +952,22 @@ function BrixApp() {
       window.history.pushState({}, "", dealPath(confirmedDeal.id));
       return true;
     } catch (error) {
+      if (authUserId && workspaceContext && classifyRecoverableDraftError(error)) {
+        await enqueueOfflineDraft(createOfflineDraft({
+          scope: { kind: "authenticated", userId: authUserId, workspaceId: workspaceContext.workspaceId },
+          workspaceId: workspaceContext.workspaceId,
+          dealId: deal.id,
+          draftType: "new_deal",
+          commandType: "create_canonical_deal",
+          payload: { deal },
+        }), "Deal saved on this device and waiting to synchronize with BRIX.");
+        putDealInState(deal);
+        rememberDealContext(deal.id);
+        setModuleState("deal");
+        setNavOpen(false);
+        window.history.pushState({}, "", dealPath(deal.id));
+        return true;
+      }
       setSyncMessage(`Deal was not created: ${error instanceof Error ? error.message : "cloud save failed."}`);
       setModule("home");
       return false;
@@ -879,10 +992,62 @@ function BrixApp() {
     setSyncMessage("Saving deal to BRIX cloud...");
     try {
       await prepareWorkspaceForCloudAction();
+      if (!isOnline && workspaceContext) {
+        await enqueueOfflineDraft(createOfflineDraft({
+          scope: { kind: "authenticated", userId: authUserId, workspaceId: workspaceContext.workspaceId },
+          workspaceId: workspaceContext.workspaceId,
+          dealId: next.id,
+          propertyId: next.propertyId,
+          draftType: "deal_core_update",
+          commandType: "update_canonical_deal",
+          baseRecordId: next.id,
+          baseVersion: next.dealVersion,
+          payload: {
+            deal: next,
+            update: {
+              displayName: next.address,
+              sourceUrl: next.sourceUrl,
+              sourceText: next.sourceText,
+              strategyId: next.strategyId,
+              strategyIntent: next.strategyId,
+              facts: next,
+              verification: next.verification,
+            },
+          },
+        }), "Deal change saved on this device and waiting to synchronize with BRIX.");
+        putDealInState(next);
+        return;
+      }
       const confirmedDeal = await persistRemoteDeal(next, authUserId);
       putDealInState(confirmedDeal);
       setSyncMessage(null);
     } catch (error) {
+      if (workspaceContext && classifyRecoverableDraftError(error)) {
+        await enqueueOfflineDraft(createOfflineDraft({
+          scope: { kind: "authenticated", userId: authUserId, workspaceId: workspaceContext.workspaceId },
+          workspaceId: workspaceContext.workspaceId,
+          dealId: next.id,
+          propertyId: next.propertyId,
+          draftType: "deal_core_update",
+          commandType: "update_canonical_deal",
+          baseRecordId: next.id,
+          baseVersion: next.dealVersion,
+          payload: {
+            deal: next,
+            update: {
+              displayName: next.address,
+              sourceUrl: next.sourceUrl,
+              sourceText: next.sourceText,
+              strategyId: next.strategyId,
+              strategyIntent: next.strategyId,
+              facts: next,
+              verification: next.verification,
+            },
+          },
+        }), "Deal change saved on this device and waiting to synchronize with BRIX.");
+        putDealInState(next);
+        return;
+      }
       setSyncMessage(`Deal was not saved: ${error instanceof Error ? error.message : "check your connection."}`);
     }
   }
@@ -1012,6 +1177,17 @@ function BrixApp() {
             BRIX is checking whether this browser already has a valid account session.
           </ShellNotice>
         )}
+        {draftSyncMessage && (
+          <ShellNotice tone={activeOfflineDrafts.some((draft) => draft.status === "conflicted" || draft.status === "failed") ? "warning" : "info"} title="Saved device work">
+            {draftSyncMessage}
+          </ShellNotice>
+        )}
+        {activeOfflineDrafts.length > 0 && (
+          <ShellNotice tone="info" title="Saved device work">
+            <span>{activeOfflineDrafts.length} item{activeOfflineDrafts.length === 1 ? "" : "s"} saved on this device.</span>
+            <button className="secondary compact" type="button" onClick={() => void retryOfflineDrafts()} disabled={draftSyncStatus === "syncing" || !isAuthenticated}>Retry sync</button>
+          </ShellNotice>
+        )}
         {syncMessage && (
           <ShellNotice tone={isAuthenticated ? "danger" : "info"} title={authLifecycle === "expired" ? "Sign in required" : isAuthenticated ? "Account needs attention" : "Account"}>
             {syncMessage}
@@ -1031,7 +1207,7 @@ function BrixApp() {
         )}
         {module === "home" && <HomeSurface presentationMode={presentationMode} isAuthenticated={isAuthenticated} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} isOnline={isOnline} deals={deals} selectedDeal={selectedDeal ?? deals[0]} syncMessage={syncMessage} routeMessage={routeMessage} onOpenDeal={(dealId?: string) => dealId ? openDeal(dealId) : selectedDeal ? openDeal(selectedDeal.id) : setModule("deals")} onOpenDeals={() => setModule("deals")} onOpenSettings={() => setModule("account")} onRetry={retryWorkspaceBootstrap} />}
         {module === "deals" && <DealsSurface presentationMode={presentationMode} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} workspaceId={workspaceContext?.workspaceId} storageScope={storageScope} isAuthenticated={isAuthenticated} isOnline={isOnline} deals={deals} recentDeals={recentDeals} selectedId={selectedId} onOpenDeal={openDeal} onRetry={retryWorkspaceBootstrap} onArchived={markDealArchived} onRestored={putDealInState} />}
-        {module === "deal" && <DealIQ deal={selectedDeal} workspaceId={workspaceContext?.workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} onChange={upsertDeal} onCanonicalSaved={putDealInState} onDelete={deleteDeal} />}
+        {module === "deal" && <DealIQ deal={selectedDeal} workspaceId={workspaceContext?.workspaceId} userId={authUserId} draftScope={draftScope} offlineDrafts={selectedDealDrafts} isAuthenticated={isAuthenticated} isOnline={isOnline} onChange={upsertDeal} onCanonicalSaved={putDealInState} onDelete={deleteDeal} onDraftQueued={enqueueOfflineDraft} onDraftRetry={retryOfflineDrafts} onDraftCancel={cancelQueuedDraft} />}
         {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceContext={workspaceContext} invitationToken={invitationToken} recoveryActive={passwordRecoveryActive} onAuthChanged={(userId) => {
           setDeals([]);
           setSelectedId(null);
@@ -1049,8 +1225,10 @@ function BrixApp() {
             window.history.replaceState({}, "", "/account");
           }
         }} onSigningOut={() => {
+          if (activeOfflineDrafts.length > 0 && !window.confirm("You have saved device work that has not reached BRIX. Sign out anyway?")) return false;
           setAuthLifecycle("signing_out");
           clearProtectedState();
+          return true;
         }} onSignedOut={() => {
           resetPresentationForAuthTransition(null);
           setAuthUserId(null);
@@ -1940,11 +2118,17 @@ function dealWorkspaceUrl(dealId: string, section: DealWorkspaceSection) {
 type DealIQProps = {
   deal?: DealFacts;
   workspaceId?: string;
+  userId?: string | null;
+  draftScope: OfflineDraftScope;
+  offlineDrafts: OfflineDraft[];
   isAuthenticated: boolean;
   isOnline: boolean;
   onChange: (deal: DealFacts) => void;
   onCanonicalSaved: (deal: DealFacts) => void;
   onDelete: (id: string) => void;
+  onDraftQueued: (draft: OfflineDraft, message: string) => Promise<void>;
+  onDraftRetry: () => Promise<void>;
+  onDraftCancel: (draft: OfflineDraft) => Promise<void>;
 };
 
 function DealIQ(props: DealIQProps) {
@@ -1955,10 +2139,16 @@ function DealIQ(props: DealIQProps) {
 function DealWorkspace({
   deal,
   workspaceId,
+  userId,
+  draftScope,
+  offlineDrafts,
   isAuthenticated,
   isOnline,
   onCanonicalSaved,
   onDelete,
+  onDraftQueued,
+  onDraftRetry,
+  onDraftCancel,
 }: DealIQProps & { deal: DealFacts }) {
   const [section, setSection] = useState<DealWorkspaceSection>(() => workspaceSectionFromLocation());
   const [detail, setDetail] = useState<DealDetailProjection | null>(null);
@@ -2074,6 +2264,7 @@ function DealWorkspace({
 
       {loadStatus === "loading" && <p className="quiet">Loading Deal workspace.</p>}
       {message && <p className={loadStatus === "failed" || loadStatus === "permission" || loadStatus === "offline" ? "error" : "success-text"}>{message}</p>}
+      <OfflineDraftPanel drafts={offlineDrafts} onRetry={onDraftRetry} onCancel={onDraftCancel} />
 
       <nav className="deal-section-tabs" role="tablist" aria-label="Deal workspace sections">
         {dealWorkspaceSections.map((item, index) => (
@@ -2098,11 +2289,11 @@ function DealWorkspace({
       <div className="deal-section-shell" role="tabpanel" id={`deal-section-${section}`} aria-labelledby={`deal-tab-${section}`}>
         <h3 ref={sectionHeadingRef} tabIndex={-1}>{dealWorkspaceSections.find((item) => item.id === section)?.label}</h3>
         {section === "overview" && <DealOverviewSection deal={effectiveDeal} detail={detail} property={property} onEdit={() => selectSection("property")} />}
-        {section === "property" && <DealPropertySection deal={effectiveDeal} detail={detail} property={property} isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
+        {section === "property" && <DealPropertySection deal={effectiveDeal} detail={detail} property={property} userId={userId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
         {section === "people" && <RelationshipPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} />}
-        {section === "work" && <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} section="work" />}
-        {section === "notes" && <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} section="notes" />}
-        {section === "history" && <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} section="history" />}
+        {section === "work" && <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} section="work" />}
+        {section === "notes" && <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} section="notes" />}
+        {section === "history" && <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} section="history" />}
       </div>
     </section>
   );
@@ -2172,19 +2363,84 @@ function DealOverviewSection({
   );
 }
 
+function OfflineDraftPanel({
+  drafts,
+  onRetry,
+  onCancel,
+}: {
+  drafts: OfflineDraft[];
+  onRetry: () => Promise<void>;
+  onCancel: (draft: OfflineDraft) => Promise<void>;
+}) {
+  const active = drafts.filter((draft) => draft.status !== "synced" && draft.status !== "cancelled");
+  if (active.length === 0) {
+    const synced = drafts.filter((draft) => draft.status === "synced").sort((a, b) => (b.lastSyncedAt ?? "").localeCompare(a.lastSyncedAt ?? ""));
+    if (synced.length === 0) return null;
+    return (
+      <section className="draft-sync-panel" aria-label="Draft sync status">
+        <div>
+          <p className="eyebrow">Saved device work</p>
+          <strong>Last synchronized {formatShortDate(synced[0].lastSyncedAt ?? synced[0].updatedAt)}</strong>
+        </div>
+      </section>
+    );
+  }
+  return (
+    <section className="draft-sync-panel" aria-label="Draft sync status">
+      <div className="panel-heading-row">
+        <div>
+          <p className="eyebrow">Saved device work</p>
+          <h3>{active.length} item{active.length === 1 ? "" : "s"} not yet saved to BRIX</h3>
+          <p className="quiet">Local work stays on this device until BRIX confirms synchronization. Conflicts keep server data intact until you review them.</p>
+        </div>
+        <button className="secondary compact" type="button" onClick={() => void onRetry()}>Retry sync</button>
+      </div>
+      <div className="draft-sync-list">
+        {active.map((draft) => (
+          <article className={`draft-sync-card ${draft.status}`} key={draft.localDraftId}>
+            <div>
+              <strong>{labelForDraftType(draft.draftType)}</strong>
+              <span>{labelForDraftStatus(draft.status)}</span>
+              <small>{draft.lastAttemptedAt ? `Last tried ${formatShortDate(draft.lastAttemptedAt)}` : `Saved ${formatShortDate(draft.updatedAt)}`}</small>
+            </div>
+            {draft.status === "conflicted" && <p className="quiet">Review required before BRIX applies this local change.</p>}
+            {draft.status === "failed" && <p className="quiet">Retry is available. Your local input is preserved.</p>}
+            {draft.status === "conflicted" && (
+              <details className="draft-conflict-details">
+                <summary>Review conflict</summary>
+                <p>BRIX kept the server record unchanged. Reload the latest Deal, compare this saved device item, then retry or cancel the local draft.</p>
+              </details>
+            )}
+            <div className="work-card-actions">
+              {(draft.status === "failed" || draft.status === "queued" || draft.status === "conflicted") && <button className="secondary compact" type="button" onClick={() => void onRetry()}>Retry</button>}
+              <button className="danger compact" type="button" onClick={() => void onCancel(draft)}>Cancel local draft</button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function DealPropertySection({
   deal,
   detail,
   property,
+  userId,
+  draftScope,
   isAuthenticated,
   isOnline,
+  onDraftQueued,
   onSaved,
 }: {
   deal: DealFacts;
   detail: DealDetailProjection | null;
   property?: PropertySummary;
+  userId?: string | null;
+  draftScope: OfflineDraftScope;
   isAuthenticated: boolean;
   isOnline: boolean;
+  onDraftQueued: (draft: OfflineDraft, message: string) => Promise<void>;
   onSaved: (deal: DealFacts) => void;
 }) {
   return (
@@ -2204,7 +2460,7 @@ function DealPropertySection({
           { label: "Property version", value: String(property?.propertyVersion ?? deal.propertyVersion ?? "Reload required") },
         ]} />
       </section>
-      <CanonicalDealEditPanel deal={detail?.deal ?? deal} isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={onSaved} />
+      <CanonicalDealEditPanel deal={detail?.deal ?? deal} userId={userId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} onSaved={onSaved} />
     </div>
   );
 }
@@ -2237,6 +2493,39 @@ function labelForPriority(priority?: DealPriority) {
   if (priority === "high") return "High";
   if (priority === "low") return "Low";
   return "Normal";
+}
+
+function labelForDraftType(type: OfflineDraft["draftType"]) {
+  const labels: Record<OfflineDraft["draftType"], string> = {
+    new_deal: "New Deal",
+    deal_core_update: "Deal edit",
+    property_update: "Property edit",
+    note_create: "New note",
+    note_update: "Note edit",
+    task_create: "New task",
+    task_update: "Task edit",
+    deadline_create: "New deadline",
+    deadline_update: "Deadline edit",
+  };
+  return labels[type];
+}
+
+function labelForDraftStatus(status: OfflineDraft["status"]) {
+  const labels: Record<OfflineDraft["status"], string> = {
+    local: "Saved on this device",
+    queued: "Waiting to sync",
+    syncing: "Syncing",
+    synced: "Saved to BRIX",
+    conflicted: "Needs review",
+    failed: "Sync failed",
+    cancelled: "Cancelled",
+  };
+  return labels[status];
+}
+
+function classifyRecoverableDraftError(error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  return /network|fetch|offline|unavailable|timeout|Failed to fetch/i.test(raw);
 }
 
 const dealStageOptions: Array<{ id: CanonicalDealStage; label: string }> = [
@@ -2275,13 +2564,19 @@ const dealOperatingStatusOptions: Array<{ id: CanonicalDealOperatingStatus; labe
 
 function CanonicalDealEditPanel({
   deal,
+  userId,
+  draftScope,
   isAuthenticated,
   isOnline,
+  onDraftQueued,
   onSaved,
 }: {
   deal: DealFacts;
+  userId?: string | null;
+  draftScope: OfflineDraftScope;
   isAuthenticated: boolean;
   isOnline: boolean;
+  onDraftQueued: (draft: OfflineDraft, message: string) => Promise<void>;
   onSaved: (deal: DealFacts) => void;
 }) {
   const [status, setStatus] = useState<"idle" | "loading" | "loaded" | "editing" | "saving" | "saved" | "stale" | "validation" | "permission" | "offline" | "failed">("idle");
@@ -2352,8 +2647,59 @@ function CanonicalDealEditPanel({
       return;
     }
     if (!isOnline) {
+      if (isAuthenticated && userId && draftScope.kind === "authenticated") {
+        const updatedDeal = { ...deal, address: propertyDraft.displayAddress, city: propertyDraft.city, state: propertyDraft.region, zip: propertyDraft.postalCode };
+        await onDraftQueued(createOfflineDraft({
+          scope: draftScope,
+          workspaceId: draftScope.workspaceId,
+          dealId: deal.id,
+          propertyId: deal.propertyId,
+          draftType: "deal_core_update",
+          commandType: "update_canonical_deal",
+          baseRecordId: deal.id,
+          baseVersion: deal.dealVersion,
+          baseValues: { displayName: deal.address, dealVersion: deal.dealVersion },
+          payload: {
+            deal,
+            update: {
+              displayName: dealDraft.displayName,
+              priority: dealDraft.priority,
+              source: dealDraft.source,
+              strategyIntent: deal.strategyId,
+              strategyId: deal.strategyId,
+              facts: updatedDeal,
+              verification: deal.verification,
+            },
+          },
+        }), "Deal edits saved on this device and waiting to synchronize with BRIX.");
+        if (property) {
+          await onDraftQueued(createOfflineDraft({
+            scope: draftScope,
+            workspaceId: draftScope.workspaceId,
+            dealId: deal.id,
+            propertyId: property.propertyId,
+            draftType: "property_update",
+            commandType: "update_canonical_property",
+            baseRecordId: property.propertyId,
+            baseVersion: property.propertyVersion,
+            baseValues: { displayAddress: property.displayAddress, propertyVersion: property.propertyVersion },
+            payload: {
+              property,
+              update: {
+                displayAddress: propertyDraft.displayAddress,
+                addressLine1: propertyDraft.addressLine1,
+                city: propertyDraft.city,
+                region: propertyDraft.region,
+                postalCode: propertyDraft.postalCode,
+                country: property.country,
+                parcelIdentifier: propertyDraft.parcelIdentifier,
+              },
+            },
+          }), "Property edits saved on this device and waiting to synchronize with BRIX.");
+        }
+      }
       setStatus("offline");
-      setMessage("Connection is unavailable. Your onscreen changes are still here; retry when back online.");
+      setMessage(isAuthenticated ? "Changes are saved on this device and waiting to synchronize." : "Connection is unavailable. Your onscreen changes are still here; retry when back online.");
       return;
     }
     if (!dealDraft.displayName.trim() || !propertyDraft.displayAddress.trim()) {
@@ -2480,14 +2826,18 @@ function safeDealCommandMessage(error: unknown): { status: "stale" | "validation
 function WorkHistoryPanel({
   dealId,
   workspaceId,
+  draftScope,
   isAuthenticated,
   isOnline,
+  onDraftQueued,
   section,
 }: {
   dealId: string;
   workspaceId?: string;
+  draftScope: OfflineDraftScope;
   isAuthenticated: boolean;
   isOnline: boolean;
+  onDraftQueued: (draft: OfflineDraft, message: string) => Promise<void>;
   section: "work" | "notes" | "history";
 }) {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -2588,6 +2938,21 @@ function WorkHistoryPanel({
       setMessage("Enter a task title.");
       return;
     }
+    if (!isOnline && canUseCloud && workspaceId) {
+      void onDraftQueued(createOfflineDraft({
+        scope: draftScope,
+        workspaceId,
+        dealId,
+        draftType: "task_create",
+        commandType: "create_deal_task",
+        payload: { dealId, draft: taskDraft },
+      }), "Task saved on this device and waiting to synchronize with BRIX.").then(() => {
+        setTaskDraft(emptyTask);
+        setStatus("offline");
+        setMessage("Task saved on this device.");
+      });
+      return;
+    }
     void run(async () => {
       await createDealTask(dealId, taskDraft);
       setTaskDraft(emptyTask);
@@ -2603,6 +2968,21 @@ function WorkHistoryPanel({
       setMessage("Add a due date or exact due time.");
       return;
     }
+    if (!isOnline && canUseCloud && workspaceId) {
+      void onDraftQueued(createOfflineDraft({
+        scope: draftScope,
+        workspaceId,
+        dealId,
+        draftType: "deadline_create",
+        commandType: "create_deal_deadline",
+        payload: { dealId, draft: deadlineDraft },
+      }), "Deadline saved on this device and waiting to synchronize with BRIX.").then(() => {
+        setDeadlineDraft(emptyDeadline);
+        setStatus("offline");
+        setMessage("Deadline saved on this device.");
+      });
+      return;
+    }
     void run(async () => {
       await createDealDeadline(dealId, deadlineDraft);
       setDeadlineDraft(emptyDeadline);
@@ -2614,10 +2994,108 @@ function WorkHistoryPanel({
       setMessage("Write a note first.");
       return;
     }
+    if (!isOnline && canUseCloud && workspaceId) {
+      void onDraftQueued(createOfflineDraft({
+        scope: draftScope,
+        workspaceId,
+        dealId,
+        draftType: "note_create",
+        commandType: "create_deal_note",
+        payload: { dealId, draft: noteDraft },
+      }), "Note saved on this device and waiting to synchronize with BRIX.").then(() => {
+        setNoteDraft(emptyNote);
+        setStatus("offline");
+        setMessage("Note saved on this device.");
+      });
+      return;
+    }
     void run(async () => {
       await createDealNote(dealId, noteDraft);
       setNoteDraft(emptyNote);
     }, "Note saved.");
+  }
+
+  function queueTaskUpdate(item: DealWorkItem) {
+    const edit = editingWork[item.recordId];
+    if (!edit || !workspaceId) return false;
+    if (isOnline || !canUseCloud) return false;
+    void onDraftQueued(createOfflineDraft({
+      scope: draftScope,
+      workspaceId,
+      dealId,
+      draftType: "task_update",
+      commandType: "update_deal_task",
+      baseRecordId: item.recordId,
+      baseVersion: item.recordVersion,
+      baseValues: { title: item.title, status: item.status, priority: item.priority, dueAt: item.dueAt, dueDate: item.dueDate },
+      payload: {
+        item,
+        draft: {
+          title: edit.title,
+          status: edit.status as TaskDraft["status"],
+          priority: edit.priority as TaskDraft["priority"],
+          dueAt: edit.dueAt,
+          dueDate: edit.dueDate,
+          isAllDay: edit.isAllDay,
+          timezone: edit.timezone,
+        },
+      },
+    }), "Task update saved on this device and waiting to synchronize with BRIX.").then(() => {
+      setStatus("offline");
+      setMessage("Task update saved on this device.");
+    });
+    return true;
+  }
+
+  function queueDeadlineUpdate(item: DealWorkItem) {
+    const edit = editingWork[item.recordId];
+    if (!edit || !workspaceId) return false;
+    if (isOnline || !canUseCloud) return false;
+    void onDraftQueued(createOfflineDraft({
+      scope: draftScope,
+      workspaceId,
+      dealId,
+      draftType: "deadline_update",
+      commandType: "update_deal_deadline",
+      baseRecordId: item.recordId,
+      baseVersion: item.recordVersion,
+      baseValues: { title: item.title, status: item.status, dueAt: item.dueAt, dueDate: item.dueDate, timezone: item.timezone },
+      payload: {
+        item,
+        draft: {
+          title: edit.title,
+          status: edit.status as DeadlineDraft["status"],
+          dueAt: edit.dueAt,
+          dueDate: edit.dueDate,
+          isAllDay: edit.isAllDay,
+          timezone: edit.timezone,
+        },
+      },
+    }), "Deadline update saved on this device and waiting to synchronize with BRIX.").then(() => {
+      setStatus("offline");
+      setMessage("Deadline update saved on this device.");
+    });
+    return true;
+  }
+
+  function queueNoteUpdate(note: DealNote, update: Partial<NoteDraft>) {
+    if (!workspaceId) return false;
+    if (isOnline || !canUseCloud) return false;
+    void onDraftQueued(createOfflineDraft({
+      scope: draftScope,
+      workspaceId,
+      dealId,
+      draftType: "note_update",
+      commandType: "update_deal_note",
+      baseRecordId: note.noteId,
+      baseVersion: note.noteVersion,
+      baseValues: { body: note.body, noteType: note.noteType, pinned: note.pinned },
+      payload: { note, draft: update },
+    }), "Note update saved on this device and waiting to synchronize with BRIX.").then(() => {
+      setStatus("offline");
+      setMessage("Note update saved on this device.");
+    });
+    return true;
   }
 
   const pending = work.filter((item) => item.status !== "completed" && item.status !== "cancelled");
@@ -2676,6 +3154,7 @@ function WorkHistoryPanel({
           </div>
           <WorkList items={pending.filter((item) => item.recordType === "task")} editing={editingWork} setEditing={setEditingWork} onSave={(item) => {
             const edit = editingWork[item.recordId];
+            if (queueTaskUpdate(item)) return;
             void run(() => updateDealTask(item, {
               title: edit?.title,
               status: edit?.status as TaskDraft["status"],
@@ -2703,6 +3182,7 @@ function WorkHistoryPanel({
           </div>
           <WorkList items={pending.filter((item) => item.recordType === "deadline")} editing={editingWork} setEditing={setEditingWork} onSave={(item) => {
             const edit = editingWork[item.recordId];
+            if (queueDeadlineUpdate(item)) return;
             void run(() => updateDealDeadline(item, {
               title: edit?.title,
               status: edit?.status as DeadlineDraft["status"],
@@ -2734,8 +3214,15 @@ function WorkHistoryPanel({
                 <article className={note.pinned ? "work-card pinned" : "work-card"} key={note.noteId}>
                   <textarea aria-label="Edit note" value={edit.body} onChange={(event) => setEditingNotes((current) => ({ ...current, [note.noteId]: { ...edit, body: event.target.value } }))} />
                   <div className="work-card-actions">
-                    <button className="secondary compact" type="button" onClick={() => void run(() => updateDealNote(note, edit as NoteDraft), "Note updated.")}>Save</button>
-                    <button className="secondary compact" type="button" onClick={() => void run(() => updateDealNote(note, { pinned: !note.pinned }), note.pinned ? "Note unpinned." : "Note pinned.")}><Pin size={14} /> {note.pinned ? "Unpin" : "Pin"}</button>
+                    <button className="secondary compact" type="button" onClick={() => {
+                      if (queueNoteUpdate(note, edit as NoteDraft)) return;
+                      void run(() => updateDealNote(note, edit as NoteDraft), "Note updated.");
+                    }}>Save</button>
+                    <button className="secondary compact" type="button" onClick={() => {
+                      const update = { pinned: !note.pinned };
+                      if (queueNoteUpdate(note, update)) return;
+                      void run(() => updateDealNote(note, update), note.pinned ? "Note unpinned." : "Note pinned.");
+                    }}><Pin size={14} /> {note.pinned ? "Unpin" : "Pin"}</button>
                     <button className="danger compact" type="button" onClick={() => void run(() => archiveDealNote(note), "Note archived.")}><Archive size={14} /> Archive</button>
                   </div>
                   <small>{formatWorkDate(note.updatedAt)}</small>
@@ -3285,7 +3772,7 @@ function Account({
   failedPresentationMode: PresentationMode | null;
   onAuthChanged: (userId: string) => void;
   onRecoveryCompleted?: () => void;
-  onSigningOut?: () => void;
+  onSigningOut?: () => boolean | void;
   onSignedOut?: () => void;
   onPresentationModeChange: (mode: PresentationMode) => void;
   onPresentationRetry: () => void;
@@ -3347,7 +3834,7 @@ function Account({
         if (isCurrent) setInvitations(items);
       })
       .catch(() => {
-        if (isCurrent) setInvitationError("BRIX could not load current trusted invitations.");
+        if (isCurrent) setInvitationError("BRIX could not load current workspace invitations.");
       });
     return () => {
       isCurrent = false;
@@ -3378,7 +3865,7 @@ function Account({
         ? safe.message
         : safe.kind === "session_expired"
           ? "Your access changed. Sign in again to refresh your account."
-          : "BRIX could not load trusted access. Retry when your connection is stable.");
+          : "BRIX could not load workspace access. Retry when your connection is stable.");
     }
   }, [workspaceContext?.workspaceId]);
 
@@ -3522,7 +4009,7 @@ function Account({
     setAccessMessage("");
     try {
       await revokeWorkspaceMemberAccess(member.membershipId, member.updatedAt);
-      setAccessMessage("Trusted access removed.");
+      setAccessMessage("Workspace access removed.");
       await loadWorkspaceAccess();
     } catch (error) {
       setAccessError(workspaceAccessError(error));
@@ -3729,7 +4216,11 @@ function Account({
     if (isWorking || authSubmitInFlightRef.current) return;
     authSubmitInFlightRef.current = true;
     setIsWorking(true);
-    onSigningOut?.();
+    if (onSigningOut?.() === false) {
+      authSubmitInFlightRef.current = false;
+      setIsWorking(false);
+      return;
+    }
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
@@ -3782,7 +4273,7 @@ function Account({
         {invitationToken && !isAuthenticated && (
           <div className="auth-message info" role="status">
             <CheckCircle2 size={18} />
-            <span>Sign in or create an account with the invited email address to accept trusted access.</span>
+            <span>Sign in or create an account with the invited email address to accept workspace access.</span>
           </div>
         )}
 
@@ -3883,11 +4374,11 @@ function Account({
               <section className="trusted-access-entry" aria-labelledby="trusted-access-entry-title">
                 <div>
                   <p className="eyebrow">Optional sharing</p>
-                  <h3 id="trusted-access-entry-title">Trusted Access</h3>
+                  <h3 id="trusted-access-entry-title">Workspace Access</h3>
                   <p className="quiet">Share BRIX only when a spouse, partner, advisor, or assistant needs access to your deal work.</p>
                 </div>
                 <button className="secondary" type="button" onClick={() => setShowTrustedAccess((current) => !current)}>
-                  {showTrustedAccess ? "Hide Trusted Access" : "Open Trusted Access"}
+                  {showTrustedAccess ? "Hide Workspace Access" : "Open Workspace Access"}
                 </button>
               </section>
             )}
@@ -3910,16 +4401,16 @@ function Account({
           <section className="access-panel" aria-labelledby="trusted-access-title">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Trusted access</p>
+                <p className="eyebrow">Workspace access</p>
                 <h3 id="trusted-access-title">People with access</h3>
-                <p className="quiet">Give trusted people only the access level they need.</p>
+                <p className="quiet">Give people only the access level they need.</p>
               </div>
               <button className="secondary compact-button" type="button" onClick={() => loadWorkspaceAccess()} disabled={accessStatus === "loading" || Boolean(workingMembershipId)}>
                 {accessStatus === "loading" ? "Loading" : "Retry"}
               </button>
             </div>
 
-            {accessStatus === "loading" && <p className="quiet" role="status">Loading trusted access.</p>}
+            {accessStatus === "loading" && <p className="quiet" role="status">Loading workspace access.</p>}
             {accessStatus === "offline" && <p className="error">{accessError}</p>}
             {accessStatus === "permission_denied" && <p className="error">{accessError}</p>}
             {accessStatus === "failed" && <p className="error">{accessError}</p>}
@@ -3940,7 +4431,7 @@ function Account({
               <div className="empty-mini">
                 <Users size={22} />
                 <strong>No collaborators yet</strong>
-                <span>Invite a trusted partner, advisor, or assistant when you are ready to share BRIX.</span>
+                <span>Invite a partner, advisor, or assistant when you are ready to share BRIX.</span>
               </div>
             )}
 
@@ -3997,7 +4488,7 @@ function Account({
             )}
 
             {!canInvite && accessStatus === "ready" && (
-              <p className="quiet">Only the account owner or an administrator can change trusted access.</p>
+              <p className="quiet">Only the account owner or an administrator can change workspace access.</p>
             )}
 
             {pendingInvitations.length > 0 && (
@@ -4014,7 +4505,7 @@ function Account({
             <div>
               <p className="eyebrow">Trusted invitation</p>
               <h3 id="trusted-invitations-title">Share access</h3>
-              <p className="quiet">Send an expiring invitation to someone you trust with your BRIX deal work.</p>
+              <p className="quiet">Send an expiring invitation to someone approved to work in this BRIX account.</p>
             </div>
             <form className="invitation-form" onSubmit={submitInvitation}>
               <label className="field" htmlFor="invite-email">
@@ -4160,12 +4651,12 @@ function workspaceAccessError(error: unknown) {
   const safe = safeAuthError(error);
   const raw = error instanceof Error ? error.message.toLowerCase() : typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string" ? (error as { message: string }).message.toLowerCase() : "";
   if (safe.kind === "offline") return safe.message;
-  if (raw.includes("refresh") || raw.includes("changed")) return "Trusted access changed. Refresh and try again.";
-  if (raw.includes("permission") || raw.includes("access") || raw.includes("42501")) return "You do not have permission to change trusted access.";
+  if (raw.includes("refresh") || raw.includes("changed")) return "Workspace access changed. Refresh and try again.";
+  if (raw.includes("permission") || raw.includes("access") || raw.includes("42501")) return "You do not have permission to change workspace access.";
   if (raw.includes("owner")) return "The account owner cannot be changed or removed here.";
   if (raw.includes("role") || raw.includes("access level")) return "That access level is not available for this account.";
-  if (raw.includes("active")) return "Only active trusted access can be changed.";
-  return "BRIX could not update trusted access. Retry when your connection is stable.";
+  if (raw.includes("active")) return "Only active workspace access can be changed.";
+  return "BRIX could not update workspace access. Retry when your connection is stable.";
 }
 
 function DealSwitcher({ deals, selectedId, onSelect }: { deals: DealFacts[]; selectedId?: string; onSelect: (id: string) => void }) {

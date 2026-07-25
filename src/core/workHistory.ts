@@ -117,11 +117,11 @@ export async function loadDealTimeline(dealId: string, beforeTime?: string): Pro
   return Array.isArray(data) ? data.map(normalizeTimelineItem).filter(isTimelineItem) : [];
 }
 
-export async function createDealTask(dealId: string, draft: TaskDraft) {
+export async function createDealTask(dealId: string, draft: TaskDraft, idempotencyKeyOverride?: string) {
   const { error } = await supabase.rpc("create_deal_task", {
     target_deal_id: dealId,
     task_input: taskInput(draft),
-    idempotency_key: `task:${dealId}:${crypto.randomUUID()}`,
+    idempotency_key: idempotencyKeyOverride ?? `task:${dealId}:${crypto.randomUUID()}`,
   });
   if (error) throw error;
 }
@@ -145,11 +145,11 @@ export async function cancelDealTask(item: DealWorkItem) {
   if (error) throw error;
 }
 
-export async function createDealDeadline(dealId: string, draft: DeadlineDraft) {
+export async function createDealDeadline(dealId: string, draft: DeadlineDraft, idempotencyKeyOverride?: string) {
   const { error } = await supabase.rpc("create_deal_deadline", {
     target_deal_id: dealId,
     deadline_input: deadlineInput(draft),
-    idempotency_key: `deadline:${dealId}:${crypto.randomUUID()}`,
+    idempotency_key: idempotencyKeyOverride ?? `deadline:${dealId}:${crypto.randomUUID()}`,
   });
   if (error) throw error;
 }
@@ -168,11 +168,11 @@ export async function completeDealDeadline(item: DealWorkItem) {
   if (error) throw error;
 }
 
-export async function createDealNote(dealId: string, draft: NoteDraft) {
+export async function createDealNote(dealId: string, draft: NoteDraft, idempotencyKeyOverride?: string) {
   const { error } = await supabase.rpc("create_deal_note", {
     target_deal_id: dealId,
     note_input: noteInput(draft),
-    idempotency_key: `note:${dealId}:${crypto.randomUUID()}`,
+    idempotency_key: idempotencyKeyOverride ?? `note:${dealId}:${crypto.randomUUID()}`,
   });
   if (error) throw error;
 }

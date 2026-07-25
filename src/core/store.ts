@@ -136,11 +136,11 @@ type CanonicalDealCreateResult = {
   idempotency_key_out: string;
 };
 
-export async function createRemoteDeal(deal: DealFacts, userId: string, workspaceId: string): Promise<DealFacts> {
+export async function createRemoteDeal(deal: DealFacts, userId: string, workspaceId: string, idempotencyKeyOverride?: string): Promise<DealFacts> {
   await requireAuthenticatedUser(userId);
   const canonicalDeal = normalizeDealRecord(deal);
   if (!canonicalDeal) throw new Error("Deal record is missing a usable ID.");
-  const idempotencyKey = `deal:create:${canonicalDeal.id}`;
+  const idempotencyKey = idempotencyKeyOverride ?? `deal:create:${canonicalDeal.id}`;
   const { data, error } = await supabase.rpc("create_canonical_deal", {
     target_workspace_id: workspaceId,
     idempotency_key: idempotencyKey,

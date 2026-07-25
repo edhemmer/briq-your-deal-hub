@@ -112,3 +112,164 @@ struct DealAnalysis {
     var strategyTradeoffs: [String]
     var strategyVerification: [String]
 }
+
+enum OfflineDraftStatus: String, Codable, CaseIterable {
+    case local
+    case queued
+    case syncing
+    case synced
+    case conflicted
+    case failed
+    case cancelled
+
+    func canTransition(to next: OfflineDraftStatus) -> Bool {
+        switch self {
+        case .local:
+            return next == .queued || next == .cancelled
+        case .queued:
+            return next == .syncing || next == .cancelled
+        case .syncing:
+            return next == .synced || next == .failed || next == .conflicted
+        case .failed, .conflicted:
+            return next == .queued || next == .cancelled
+        case .synced, .cancelled:
+            return false
+        }
+    }
+}
+
+enum OfflineDraftType: String, Codable, CaseIterable {
+    case newDeal = "new_deal"
+    case dealCoreUpdate = "deal_core_update"
+    case propertyUpdate = "property_update"
+    case noteCreate = "note_create"
+    case noteUpdate = "note_update"
+    case taskCreate = "task_create"
+    case taskUpdate = "task_update"
+    case deadlineCreate = "deadline_create"
+    case deadlineUpdate = "deadline_update"
+}
+
+enum OfflineCommandType: String, Codable, CaseIterable {
+    case createCanonicalDeal = "create_canonical_deal"
+    case updateCanonicalDeal = "update_canonical_deal"
+    case updateCanonicalProperty = "update_canonical_property"
+    case createDealNote = "create_deal_note"
+    case updateDealNote = "update_deal_note"
+    case createDealTask = "create_deal_task"
+    case updateDealTask = "update_deal_task"
+    case createDealDeadline = "create_deal_deadline"
+    case updateDealDeadline = "update_deal_deadline"
+}
+
+struct OfflineDraftScope: Codable, Equatable {
+    enum Kind: String, Codable {
+        case anonymous
+        case authenticated
+    }
+
+    var kind: Kind
+    var userId: String?
+    var workspaceId: String?
+
+    var storageKey: String {
+        switch kind {
+        case .anonymous:
+            return "anonymous"
+        case .authenticated:
+            return "user:\(userId ?? "unknown"):workspace:\(workspaceId ?? "unknown")"
+        }
+    }
+}
+
+struct LocalCanonicalMapping: Codable, Equatable {
+    var localId: String
+    var canonicalId: String
+    var canonicalVersion: Int?
+    var canonicalType: String
+    var updatedAt: Date
+}
+
+struct OfflineDraftRecord: Identifiable, Codable, Equatable {
+    var id: String { localDraftId }
+    var schemaVersion = 1
+    var localDraftId: String
+    var scope: OfflineDraftScope
+    var workspaceId: String?
+    var dealId: String?
+    var propertyId: String?
+    var draftType: OfflineDraftType
+    var commandType: OfflineCommandType
+    var baseRecordId: String?
+    var baseVersion: Int?
+    var createdAt: Date
+    var updatedAt: Date
+    var status: OfflineDraftStatus
+    var retryCount: Int
+    var lastAttemptedAt: Date?
+    var lastSyncedAt: Date?
+    var lastSafeErrorCategory: String
+    var idempotencyKey: String
+    var clientId: String
+    var resultingCanonicalId: String?
+    var resultingCanonicalVersion: Int?
+    var dependencyLocalIds: [String]
+    var mappings: [LocalCanonicalMapping]
+
+    func transitioned(to next: OfflineDraftStatus, at date: Date = Date()) throws -> OfflineDraftRecord {
+        guard status.canTransition(to: next) else {
+            throw OfflineDraftStoreError.invalidTransition
+        }
+        var copy = self
+        copy.status = next
+        copy.updatedAt = date
+        if next == .syncing {
+            copy.lastAttemptedAt = date
+        }
+        return copy
+    }
+}
+
+enum OfflineDraftStoreError: Error {
+    case invalidTransition
+    case invalidAuthenticatedScope
+}
+
+final class UserDefaultsOfflineDraftStore {
+    private let defaults: UserDefaults
+    private let key = "brix.offlineDrafts.v1"
+    private let decoder = JSONDecoder()
+    private let encoder = JSONEncoder()
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        decoder.dateDecodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = .iso8601
+    }
+
+    func list(scope: OfflineDraftScope) -> [OfflineDraftRecord] {
+        loadAll().filter { $0.scope.storageKey == scope.storageKey }
+    }
+
+    func put(_ draft: OfflineDraftRecord) throws {
+        if draft.scope.kind == .authenticated && (draft.scope.userId?.isEmpty ?? true || draft.scope.workspaceId?.isEmpty ?? true) {
+            throw OfflineDraftStoreError.invalidAuthenticatedScope
+        }
+        var drafts = loadAll().filter { $0.localDraftId != draft.localDraftId }
+        drafts.insert(draft, at: 0)
+        defaults.set(try encoder.encode(drafts), forKey: key)
+    }
+
+    func clear(scope: OfflineDraftScope) throws {
+        let drafts = loadAll().filter { $0.scope.storageKey != scope.storageKey }
+        defaults.set(try encoder.encode(drafts), forKey: key)
+    }
+
+    private func loadAll() -> [OfflineDraftRecord] {
+        guard let data = defaults.data(forKey: key),
+              let drafts = try? decoder.decode([OfflineDraftRecord].self, from: data) else {
+            return []
+        }
+        return drafts
+    }
+}

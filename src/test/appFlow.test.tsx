@@ -18,8 +18,8 @@ const mocks = vi.hoisted(() => ({
   invitations: { value: [] as Array<Record<string, unknown>> },
   accessRoles: { value: [
     { role_id: "admin", role_name: "Administrator", role_description: "Can manage workspace settings, invitations, members, and deal work." },
-    { role_id: "analyst", role_name: "Analyst", role_description: "Can review deal information and run analysis without managing trusted access." },
-    { role_id: "contributor", role_name: "Contributor", role_description: "Can add and update deal work without managing trusted access." },
+    { role_id: "analyst", role_name: "Analyst", role_description: "Can review deal information and run analysis without managing workspace access." },
+    { role_id: "contributor", role_name: "Contributor", role_description: "Can add and update deal work without managing workspace access." },
     { role_id: "viewer", role_name: "Viewer", role_description: "Can view workspace information without changing deal work or access." },
     { role_id: "billing_admin", role_name: "Billing Administrator", role_description: "Can manage billing-related settings without managing deal work or access." },
   ] as Array<Record<string, unknown>> },
@@ -780,7 +780,7 @@ describe("BRIX app module flow", () => {
     expect(screen.getAllByText("BRIX could not open that link.").length).toBeGreaterThan(0);
   });
 
-  it("opens Trusted Access as an authenticated secondary settings deep link", async () => {
+  it("opens Workspace Access as an authenticated secondary settings deep link", async () => {
     window.history.replaceState({}, "", "/account/trusted-access");
     render(<App />);
 
@@ -1230,7 +1230,7 @@ describe("BRIX app module flow", () => {
 
     expect(await screen.findByRole("heading", { name: "My Account" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "People with access" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Open Trusted Access" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Workspace Access" }));
     expect(await screen.findByRole("heading", { name: "Share access" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "teammate@example.com" } });
     fireEvent.change(screen.getByLabelText("Access level"), { target: { value: "contributor" } });
@@ -1277,7 +1277,7 @@ describe("BRIX app module flow", () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "My Account" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Open Trusted Access" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Workspace Access" }));
     expect(await screen.findByRole("heading", { name: "People with access" })).toBeInTheDocument();
     const partnerRow = screen.getByText("Partner Investor").closest("article");
     expect(partnerRow).not.toBeNull();
@@ -1319,7 +1319,7 @@ describe("BRIX app module flow", () => {
         full_name: "Analyst User",
         role_id: "analyst",
         role_name: "Analyst",
-        role_description: "Can review deal information and run analysis without managing trusted access.",
+        role_description: "Can review deal information and run analysis without managing workspace access.",
         status: "active",
         joined_at: "2026-01-02T00:00:00.000Z",
         updated_at: "2026-01-02T00:00:00.000Z",
@@ -1331,9 +1331,9 @@ describe("BRIX app module flow", () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "My Account" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Open Trusted Access" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Workspace Access" }));
     expect(await screen.findByRole("heading", { name: "People with access" })).toBeInTheDocument();
-    expect(screen.getByText("Only the account owner or an administrator can change trusted access.")).toBeInTheDocument();
+    expect(screen.getByText("Only the account owner or an administrator can change workspace access.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Change" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Remove access/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Share access" })).not.toBeInTheDocument();
@@ -1362,7 +1362,7 @@ describe("BRIX app module flow", () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "My Account" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Open Trusted Access" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Workspace Access" }));
     const partnerRow = (await screen.findByText("Partner Investor")).closest("article");
     expect(partnerRow).not.toBeNull();
     fireEvent.click(within(partnerRow as HTMLElement).getByRole("button", { name: /Remove access/i }));
@@ -1372,7 +1372,7 @@ describe("BRIX app module flow", () => {
       expected_updated_at: "2026-01-02T00:00:00.000Z",
       revoke_reason: "Removed from workspace access screen",
     }));
-    expect(await screen.findByText("Trusted access removed.")).toBeInTheDocument();
+    expect(await screen.findByText("Workspace access removed.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Delete user/i })).not.toBeInTheDocument();
   });
 
@@ -1406,13 +1406,13 @@ describe("BRIX app module flow", () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "My Account" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Open Trusted Access" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Workspace Access" }));
     const partnerRow = (await screen.findByText("Partner Investor")).closest("article");
     expect(partnerRow).not.toBeNull();
     fireEvent.change(within(partnerRow as HTMLElement).getByLabelText("Access level"), { target: { value: "analyst" } });
     fireEvent.click(within(partnerRow as HTMLElement).getByRole("button", { name: "Change" }));
 
-    expect(await screen.findByText("Trusted access changed. Refresh and try again.")).toBeInTheDocument();
+    expect(await screen.findByText("Workspace access changed. Refresh and try again.")).toBeInTheDocument();
   });
 
   it("accepts an invitation token after sign-in before workspace bootstrap", async () => {
@@ -1447,12 +1447,12 @@ describe("BRIX app module flow", () => {
     window.history.replaceState({}, "", "/account?invite=raw-token-1");
     render(<App />);
 
-    expect(await screen.findByText("Sign in or create an account with the invited email address to accept trusted access.")).toBeInTheDocument();
+    expect(await screen.findByText("Sign in or create an account with the invited email address to accept workspace access.")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "teammate@example.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password123" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in to BRIX" }));
 
-    expect(await screen.findByText("Trusted access accepted.")).toBeInTheDocument();
+    expect(await screen.findByText("Workspace access accepted.")).toBeInTheDocument();
     expect(rpcOrder.slice(0, 2)).toEqual(["accept_workspace_invitation", "ensure_workspace_context"]);
     expect(window.location.search).not.toContain("invite=");
     expect(screen.getByText("Invited Workspace")).toBeInTheDocument();
@@ -1465,7 +1465,7 @@ describe("BRIX app module flow", () => {
 
     expect(await screen.findByText("Sign in required")).toBeInTheDocument();
     expect(screen.getByText(/Your session has expired. Sign in again to continue./i)).toBeInTheDocument();
-    expect(screen.queryByText("Trusted access accepted.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Workspace access accepted.")).not.toBeInTheDocument();
     expect(mocks.queriedOwnerIds.value).toEqual([]);
   });
 

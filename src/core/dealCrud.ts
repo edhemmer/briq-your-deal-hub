@@ -78,23 +78,23 @@ export async function loadPropertySummary(propertyId: string): Promise<PropertyS
   return summary;
 }
 
-export async function updateDealCore(deal: DealFacts, update: DealCoreUpdate): Promise<DealDetailProjection> {
+export async function updateDealCore(deal: DealFacts, update: DealCoreUpdate, idempotencyKeyOverride?: string): Promise<DealDetailProjection> {
   if (!deal.dealVersion) throw new Error("Reload this Deal before saving.");
   const { error } = await supabase.rpc("update_canonical_deal", {
     target_deal_id: deal.id,
     expected_version: deal.dealVersion,
-    idempotency_key: `deal:update:${deal.id}:${crypto.randomUUID()}`,
+    idempotency_key: idempotencyKeyOverride ?? `deal:update:${deal.id}:${crypto.randomUUID()}`,
     deal_input: dealCoreInput(update),
   });
   if (error) throw error;
   return loadDealDetail(deal.id);
 }
 
-export async function updateProperty(property: PropertySummary, update: PropertyUpdate): Promise<PropertySummary> {
+export async function updateProperty(property: PropertySummary, update: PropertyUpdate, idempotencyKeyOverride?: string): Promise<PropertySummary> {
   const { data, error } = await supabase.rpc("update_canonical_property", {
     target_property_id: property.propertyId,
     expected_version: property.propertyVersion,
-    idempotency_key: `property:update:${property.propertyId}:${crypto.randomUUID()}`,
+    idempotency_key: idempotencyKeyOverride ?? `property:update:${property.propertyId}:${crypto.randomUUID()}`,
     property_input: propertyInput(update),
   });
   if (error) throw error;
@@ -103,12 +103,12 @@ export async function updateProperty(property: PropertySummary, update: Property
   return summary;
 }
 
-export async function updateDealLifecycle(deal: DealFacts, update: DealLifecycleUpdate): Promise<DealDetailProjection> {
+export async function updateDealLifecycle(deal: DealFacts, update: DealLifecycleUpdate, idempotencyKeyOverride?: string): Promise<DealDetailProjection> {
   if (!deal.dealVersion) throw new Error("Reload this Deal before saving.");
   const { error } = await supabase.rpc("update_deal_lifecycle", {
     target_deal_id: deal.id,
     expected_version: deal.dealVersion,
-    idempotency_key: `deal:lifecycle:${deal.id}:${crypto.randomUUID()}`,
+    idempotency_key: idempotencyKeyOverride ?? `deal:lifecycle:${deal.id}:${crypto.randomUUID()}`,
     lifecycle_input: {
       stage: update.stage ?? null,
       operating_status: update.operatingStatus ?? null,
