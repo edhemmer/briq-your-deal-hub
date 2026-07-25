@@ -2275,6 +2275,77 @@ export type Database = {
         }
         Relationships: []
       }
+      manual_source_records: {
+        Row: {
+          classification: Json
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          effective_date: string | null
+          entered_at: string
+          id: string
+          intake_id: string
+          original_values: Json
+          property_id: string
+          source_contact: string | null
+          source_name: string | null
+          source_type: string
+          source_version: number
+          status: string
+          updated_at: string
+          verification_state: string
+          workspace_id: string
+        }
+        Insert: {
+          classification?: Json
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          effective_date?: string | null
+          entered_at?: string
+          id?: string
+          intake_id: string
+          original_values?: Json
+          property_id: string
+          source_contact?: string | null
+          source_name?: string | null
+          source_type?: string
+          source_version?: number
+          status?: string
+          updated_at?: string
+          verification_state?: string
+          workspace_id: string
+        }
+        Update: {
+          classification?: Json
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          effective_date?: string | null
+          entered_at?: string
+          id?: string
+          intake_id?: string
+          original_values?: Json
+          property_id?: string
+          source_contact?: string | null
+          source_name?: string | null
+          source_type?: string
+          source_version?: number
+          status?: string
+          updated_at?: string
+          verification_state?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_source_records_intake_id_fkey"
+            columns: ["intake_id"]
+            isOneToOne: false
+            referencedRelation: "property_intakes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       properties: {
         Row: {
           address_line1: string | null
@@ -2434,6 +2505,77 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_intakes: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          duplicate_decision: string | null
+          failed_at: string | null
+          id: string
+          idempotency_key: string
+          normalized_location: Json
+          original_input: Json
+          resulting_deal_id: string | null
+          resulting_property_id: string | null
+          safe_error_category: string | null
+          selected_property_id: string | null
+          source_type: string
+          state: string
+          updated_at: string
+          user_id: string
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          duplicate_decision?: string | null
+          failed_at?: string | null
+          id?: string
+          idempotency_key: string
+          normalized_location?: Json
+          original_input?: Json
+          resulting_deal_id?: string | null
+          resulting_property_id?: string | null
+          safe_error_category?: string | null
+          selected_property_id?: string | null
+          source_type?: string
+          state?: string
+          updated_at?: string
+          user_id: string
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          duplicate_decision?: string | null
+          failed_at?: string | null
+          id?: string
+          idempotency_key?: string
+          normalized_location?: Json
+          original_input?: Json
+          resulting_deal_id?: string | null
+          resulting_property_id?: string | null
+          safe_error_category?: string | null
+          selected_property_id?: string | null
+          source_type?: string
+          state?: string
+          updated_at?: string
+          user_id?: string
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_intakes_selected_property_id_fkey"
+            columns: ["selected_property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]
@@ -2877,6 +3019,26 @@ export type Database = {
         Args: { idempotency_key: string; target_deal_id: string; task_input: Json }
         Returns: { task_id: string; task_version: number }[]
       }
+      complete_manual_property_intake: {
+        Args: {
+          duplicate_decision: string
+          idempotency_key: string
+          manual_input: Json
+          selected_property_id?: string | null
+          target_workspace_id: string
+        }
+        Returns: {
+          deal_id: string
+          deal_property_id: string
+          deal_version: number
+          idempotency_key_out: string
+          intake_id: string
+          intake_state: string
+          property_id: string
+          property_version: number
+          source_record_id: string
+        }[]
+      }
       list_deal_projection: {
         Args: {
           filter_input?: Json
@@ -2927,6 +3089,26 @@ export type Database = {
           status: string
           updated_at: string
           workspace_id: string
+        }[]
+      }
+      search_manual_property_candidates: {
+        Args: {
+          candidate_limit?: number
+          manual_input: Json
+          target_workspace_id: string
+        }
+        Returns: {
+          active_deal_count: number
+          city: string | null
+          country: string | null
+          display_address: string
+          match_reasons: string[]
+          material_differences: string[]
+          postal_code: string | null
+          property_id: string
+          property_version: number
+          region: string | null
+          updated_at: string
         }[]
       }
       load_deal_detail_projection: {

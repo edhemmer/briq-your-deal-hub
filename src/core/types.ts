@@ -379,3 +379,52 @@ export type DealTimelineItem = {
   occurredAt: string;
   canonicalOrder: string;
 };
+
+export type ManualIntakeDecision = "use_existing_property" | "create_new_property";
+
+export type ManualIntakeDraft = {
+  id: string;
+  opportunityName: string;
+  address: string;
+  unitNumber?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  country?: string;
+  propertyType?: string;
+  askingPrice?: string;
+  expectedPrice?: string;
+  intendedStrategy?: StrategyId;
+  source?: string;
+  sourceContact?: string;
+  notes?: string;
+  duplicateDecision?: ManualIntakeDecision;
+  selectedPropertyId?: string;
+  updatedAt: string;
+};
+
+export type ManualPropertyCandidate = {
+  propertyId: string;
+  propertyVersion: number;
+  displayAddress: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  country: string;
+  matchReasons: string[];
+  materialDifferences: string[];
+  activeDealCount: number;
+  updatedAt: string;
+};
+
+export type ManualIntakeResult = {
+  intakeId: string;
+  intakeState: string;
+  propertyId: string;
+  propertyVersion: number;
+  dealId: string;
+  dealVersion: number;
+  dealPropertyId: string;
+  sourceRecordId: string;
+  idempotencyKeyOut: string;
+};

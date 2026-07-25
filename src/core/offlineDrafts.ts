@@ -1,4 +1,5 @@
 import { updateDealCore, updateProperty as updateCanonicalProperty } from "./dealCrud";
+import { completeManualPropertyIntake, manualIntakeDealFromResult, normalizeManualIntakeDraft } from "./propertyIntake";
 import { createRemoteDeal } from "./store";
 import {
   createDealDeadline,
@@ -132,6 +133,10 @@ export type SyncCanonicalResult = {
   propertyId?: string;
   propertyVersion?: number;
   mappings?: LocalCanonicalMapping[];
+};
+
+type ManualIntakeDraftPayload = {
+  manualIntake: unknown;
 };
 
 export type SyncQueueResult = {
@@ -395,6 +400,22 @@ function defaultSyncCommands(userId?: string, workspaceId?: string): OfflineSync
   return {
     async createDeal(draft) {
       if (!userId || !workspaceId) throw new Error("Sign in before synchronizing Deal drafts.");
+      if (isManualIntakeDraftPayload(draft.payload)) {
+        const manualDraft = normalizeManualIntakeDraft(draft.payload.manualIntake);
+        if (!manualDraft) throw new Error("Manual intake draft is no longer usable.");
+        const result = await completeManualPropertyIntake(workspaceId, manualDraft, draft.idempotencyKey);
+        const deal = manualIntakeDealFromResult(manualDraft, result);
+        return {
+          canonicalId: result.dealId,
+          canonicalVersion: result.dealVersion,
+          propertyId: result.propertyId,
+          propertyVersion: result.propertyVersion,
+          mappings: [
+            mapping(manualDraft.id, deal.id, deal.dealVersion, "deal"),
+            mapping(`${manualDraft.id}:property`, result.propertyId, result.propertyVersion, "property"),
+          ],
+        };
+      }
       const deal = await createRemoteDeal(draft.payload.deal, userId, workspaceId, draft.idempotencyKey);
       return {
         canonicalId: deal.id,
@@ -585,6 +606,10 @@ function compareDraftDependencyOrder(a: OfflineDraft, b: OfflineDraft) {
 
 function mapping(localId: string, canonicalId: string, canonicalVersion: number | undefined, canonicalType: LocalCanonicalMapping["canonicalType"]): LocalCanonicalMapping {
   return { localId, canonicalId, canonicalVersion, canonicalType, updatedAt: new Date().toISOString() };
+}
+
+function isManualIntakeDraftPayload(value: unknown): value is ManualIntakeDraftPayload {
+  return isRecord(value) && "manualIntake" in value;
 }
 
 function normalizeMapping(value: unknown): LocalCanonicalMapping | null {

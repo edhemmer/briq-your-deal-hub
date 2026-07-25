@@ -3,9 +3,9 @@ import type { Dispatch, FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNod
 import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch, Eye, EyeOff, AlertTriangle, CheckCircle2, Users, UserMinus, Home, Menu, X, WifiOff, RefreshCw, CalendarClock, Pin, Archive, CheckSquare } from "lucide-react";
 import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
-import { createDealFromInput, createRemoteDeal, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
+import { createRemoteDeal, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
 import { archiveDeal, listDealProjections, loadDealDetail, restoreDeal, updateDealCore, updateDealLifecycle, updateProperty } from "./core/dealCrud";
-import type { CanonicalDealOperatingStatus, CanonicalDealStage, DealAttentionState, DealDetailProjection, DealFacts, DealListProjection, DealNote, DealPriority, DealProjectionFilters, DealProjectionSort, DealRelationship, DealRelationshipRole, DealRelationshipStatus, DealStatus, DealTimelineItem, DealWorkItem, DuplicateCandidate, PropertySummary, RelationshipTargetType } from "./core/types";
+import type { CanonicalDealOperatingStatus, CanonicalDealStage, DealAttentionState, DealDetailProjection, DealFacts, DealListProjection, DealNote, DealPriority, DealProjectionFilters, DealProjectionSort, DealRelationship, DealRelationshipRole, DealRelationshipStatus, DealStatus, DealTimelineItem, DealWorkItem, DuplicateCandidate, ManualIntakeDraft, ManualPropertyCandidate, PropertySummary, RelationshipTargetType } from "./core/types";
 import { supabase } from "./core/supabase";
 import { downloadDecisionPdf, downloadWorkbook } from "./core/reportExports";
 import { analyzePhotoEvidence } from "./core/photoAnalysis";
@@ -77,6 +77,16 @@ import {
   type WorkspaceAccessMember,
   type WorkspaceAccessRole,
 } from "./core/workspaceAccess";
+import {
+  clearManualIntakeDraft,
+  completeManualPropertyIntake,
+  createManualIntakeDraft,
+  loadManualIntakeDraft,
+  manualIntakeDealFromResult,
+  saveManualIntakeDraft,
+  searchManualPropertyCandidates,
+  validateManualIntakeDraft,
+} from "./core/propertyIntake";
 import {
   brixLink,
   parseBrixDeepLink,
@@ -241,6 +251,7 @@ function BrixApp() {
   const [offlineDrafts, setOfflineDrafts] = useState<OfflineDraft[]>([]);
   const [draftSyncStatus, setDraftSyncStatus] = useState<"idle" | "loading" | "syncing" | "ready" | "failed">("idle");
   const [draftSyncMessage, setDraftSyncMessage] = useState("");
+  const [manualIntakeOpen, setManualIntakeOpen] = useState(false);
   const recentDeals = useMemo(() => recentDealIds
     .map((id) => deals.find((deal) => deal.id === id))
     .filter((deal): deal is DealFacts => Boolean(deal)), [deals, recentDealIds]);
@@ -307,6 +318,59 @@ function BrixApp() {
   async function cancelQueuedDraft(draft: OfflineDraft) {
     await draftRepository.put(cancelOfflineDraft(draft));
     await loadOfflineDrafts();
+  }
+
+  async function completeManualIntake(draft: ManualIntakeDraft) {
+    const errors = validateManualIntakeDraft(draft);
+    if (errors.length) throw new Error(errors[0]);
+    if (!authUserId) throw new Error("Sign in before creating a canonical Deal.");
+    const context = await prepareWorkspaceForCloudAction();
+    if (!context) throw new Error("BRIX workspace is not ready.");
+
+    if (!isOnline) {
+      const localDeal: DealFacts = {
+        id: draft.id,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: "draft",
+        address: draft.address.trim(),
+        city: draft.city?.trim() || undefined,
+        state: draft.region?.trim() || undefined,
+        zip: draft.postalCode?.trim() || undefined,
+        propertyType: draft.propertyType?.trim() || undefined,
+        listPrice: draft.askingPrice ? Number(draft.askingPrice.replace(/[$,]/g, "")) : undefined,
+        strategyId: draft.intendedStrategy || "owner_occupant",
+        notes: draft.notes?.trim() ? [draft.notes.trim()] : [],
+        photoUrls: [],
+        uploadedPhotoNames: [],
+        verification: { address: "entered", manual_source: "entered" },
+      };
+      await enqueueOfflineDraft(createOfflineDraft({
+        scope: { kind: "authenticated", userId: authUserId, workspaceId: context.workspaceId },
+        workspaceId: context.workspaceId,
+        dealId: draft.id,
+        draftType: "new_deal",
+        commandType: "create_canonical_deal",
+        payload: { manualIntake: draft },
+      }), "Manual intake saved on this device and waiting to synchronize with BRIX.");
+      putDealInState(localDeal);
+      rememberDealContext(localDeal.id);
+      setManualIntakeOpen(false);
+      setModuleState("deal");
+      window.history.pushState({}, "", dealPath(localDeal.id));
+      return localDeal;
+    }
+
+    const result = await completeManualPropertyIntake(context.workspaceId, draft);
+    const confirmedDeal = manualIntakeDealFromResult(draft, result);
+    recentCloudCreatesRef.current.set(confirmedDeal.id, { ownerId: authUserId, deal: confirmedDeal });
+    putDealInState(confirmedDeal);
+    rememberDealContext(confirmedDeal.id);
+    setSyncMessage(null);
+    setManualIntakeOpen(false);
+    setModuleState("deal");
+    window.history.pushState({}, "", dealPath(confirmedDeal.id));
+    return confirmedDeal;
   }
 
   useEffect(() => {
@@ -1205,8 +1269,8 @@ function BrixApp() {
         {routeMessage && (
           <ShellNotice tone="warning" title="Deal unavailable">{routeMessage}</ShellNotice>
         )}
-        {module === "home" && <HomeSurface presentationMode={presentationMode} isAuthenticated={isAuthenticated} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} isOnline={isOnline} deals={deals} selectedDeal={selectedDeal ?? deals[0]} syncMessage={syncMessage} routeMessage={routeMessage} onOpenDeal={(dealId?: string) => dealId ? openDeal(dealId) : selectedDeal ? openDeal(selectedDeal.id) : setModule("deals")} onOpenDeals={() => setModule("deals")} onOpenSettings={() => setModule("account")} onRetry={retryWorkspaceBootstrap} />}
-        {module === "deals" && <DealsSurface presentationMode={presentationMode} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} workspaceId={workspaceContext?.workspaceId} storageScope={storageScope} isAuthenticated={isAuthenticated} isOnline={isOnline} deals={deals} recentDeals={recentDeals} selectedId={selectedId} onOpenDeal={openDeal} onRetry={retryWorkspaceBootstrap} onArchived={markDealArchived} onRestored={putDealInState} />}
+        {module === "home" && <HomeSurface presentationMode={presentationMode} isAuthenticated={isAuthenticated} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} isOnline={isOnline} deals={deals} selectedDeal={selectedDeal ?? deals[0]} syncMessage={syncMessage} routeMessage={routeMessage} onOpenDeal={(dealId?: string) => dealId ? openDeal(dealId) : selectedDeal ? openDeal(selectedDeal.id) : setModule("deals")} onOpenDeals={() => setModule("deals")} onOpenSettings={() => setModule("account")} onStartIntake={() => setManualIntakeOpen(true)} onRetry={retryWorkspaceBootstrap} />}
+        {module === "deals" && <DealsSurface presentationMode={presentationMode} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} workspaceId={workspaceContext?.workspaceId} storageScope={storageScope} isAuthenticated={isAuthenticated} isOnline={isOnline} deals={deals} recentDeals={recentDeals} selectedId={selectedId} onOpenDeal={openDeal} onStartIntake={() => setManualIntakeOpen(true)} onRetry={retryWorkspaceBootstrap} onArchived={markDealArchived} onRestored={putDealInState} />}
         {module === "deal" && <DealIQ deal={selectedDeal} workspaceId={workspaceContext?.workspaceId} userId={authUserId} draftScope={draftScope} offlineDrafts={selectedDealDrafts} isAuthenticated={isAuthenticated} isOnline={isOnline} onChange={upsertDeal} onCanonicalSaved={putDealInState} onDelete={deleteDeal} onDraftQueued={enqueueOfflineDraft} onDraftRetry={retryOfflineDrafts} onDraftCancel={cancelQueuedDraft} />}
         {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceContext={workspaceContext} invitationToken={invitationToken} recoveryActive={passwordRecoveryActive} onAuthChanged={(userId) => {
           setDeals([]);
@@ -1259,6 +1323,19 @@ function BrixApp() {
           presentationMode={presentationMode}
         />
       )}
+      {manualIntakeOpen && (
+        <ManualPropertyIntakeDialog
+          presentationMode={presentationMode}
+          storageScope={storageScope}
+          workspaceId={workspaceContext?.workspaceId}
+          isAuthenticated={isAuthenticated}
+          isOnline={isOnline}
+          onClose={() => setManualIntakeOpen(false)}
+          onOpenSettings={() => { setManualIntakeOpen(false); setModule("account"); }}
+          onSearchCandidates={searchManualPropertyCandidates}
+          onComplete={completeManualIntake}
+        />
+      )}
     </div>
   );
 }
@@ -1276,7 +1353,7 @@ function Landing() {
         <button className="primary" onClick={() => window.location.assign("/app")}>Open BRIX</button>
       </section>
       <section className="landing-grid">
-        <Step n="1" title="Start with one property" text="Address, listing URL, or listing text. No browsing maze." />
+        <Step n="1" title="Start with one property" text="Enter the address or descriptive location, then BRIX creates one Deal workspace." />
         <Step n="2" title="Choose the strategy" text="Owner occupied, rental, BRRRR, flip, seller finance, refinance, tax, development, and partnership paths." />
         <Step n="3" title="Get decision intelligence" text="Confidence, readiness, missing data, strategy comparison, report export, and next actions." />
       </section>
@@ -1460,6 +1537,7 @@ function HomeSurface({
   onOpenDeal,
   onOpenDeals,
   onOpenSettings,
+  onStartIntake,
   onRetry,
 }: {
   presentationMode: PresentationMode;
@@ -1474,6 +1552,7 @@ function HomeSurface({
   onOpenDeal: (dealId?: string) => void;
   onOpenDeals: () => void;
   onOpenSettings: () => void;
+  onStartIntake: () => void;
   onRetry: () => void;
 }) {
   const hasDeals = deals.length > 0;
@@ -1499,12 +1578,13 @@ function HomeSurface({
           {accountReady
             ? isProfessional
               ? "Saved records, account state, and available actions are loaded from your authorized BRIX data."
-              : "The shell is ready for verified Deal work. BRIX will only show account and Deal information that exists in your saved records."
+              : "The shell only shows records that exist in your saved workspace. Start a Deal when you are ready to investigate a Property."
             : isAuthenticated
               ? "Cloud Deal information stays hidden until BRIX confirms your account workspace and permissions."
             : "Local drafts stay on this device until you sign in. Cloud Deals remain separated from local drafts."}
         </p>
         <div className="button-row">
+          <button className="primary" onClick={onStartIntake}><Plus size={18} /> Add Deal</button>
           {hasDeals && <button className="primary" onClick={() => onOpenDeal()}><BarChart3 size={18} /> Open Deals</button>}
           <button className="secondary" onClick={onOpenSettings}><UserCircle size={18} /> {isAuthenticated ? "Account settings" : "Sign in"}</button>
         </div>
@@ -1535,9 +1615,9 @@ function HomeSurface({
       ) : (
         <EmptyState
           title="No saved Deals yet"
-          text="Saved Deal work appears here after a Deal is created or imported. The shell only shows records that exist in your account or on this device."
-          actionLabel={isAuthenticated ? "Review account settings" : "Sign in"}
-          onAction={onOpenSettings}
+          text="Start with an address or descriptive location. Optional details can stay blank until you know them."
+          actionLabel="Add Deal"
+          onAction={onStartIntake}
         />
       )}
     </section>
@@ -1615,6 +1695,7 @@ function DealsSurface({
   recentDeals,
   selectedId,
   onOpenDeal,
+  onStartIntake,
   onRetry,
   onArchived,
   onRestored,
@@ -1630,6 +1711,7 @@ function DealsSurface({
   recentDeals: DealFacts[];
   selectedId: string | null;
   onOpenDeal: (id: string) => void;
+  onStartIntake: () => void;
   onRetry: () => void;
   onArchived: (id: string) => void;
   onRestored: (deal: DealFacts) => void;
@@ -1790,7 +1872,10 @@ function DealsSurface({
             <h2>{isProfessional ? "Deal records" : "Authorized Deal records"}</h2>
             <p className="quiet">{isAuthenticated ? "Search, filters, sorting, archive, and restore use canonical account records." : "Local drafts are shown from this device until you sign in."}</p>
           </div>
-          <StatusBadge tone="neutral">{isAuthenticated ? `${page.totalCount} matching` : `${deals.length} local`}</StatusBadge>
+          <div className="button-row">
+            <button className="primary compact" type="button" onClick={onStartIntake}><Plus size={16} /> Add Deal</button>
+            <StatusBadge tone="neutral">{isAuthenticated ? `${page.totalCount} matching` : `${deals.length} local`}</StatusBadge>
+          </div>
         </div>
 
         {isAuthenticated && (
@@ -1871,6 +1956,8 @@ function DealsSurface({
           <EmptyState
             title={isFiltered ? "No matching Deals" : includeArchived ? "No archived Deals" : "No active Deals"}
             text={isFiltered ? "Clear a search term or filter to widen the canonical Deal list." : includeArchived ? "Archived Deals will appear here after you explicitly show archived records." : "Active Deals appear here after they are created or restored."}
+            actionLabel={!isFiltered && !includeArchived ? "Add Deal" : undefined}
+            onAction={!isFiltered && !includeArchived ? onStartIntake : undefined}
           />
         )}
 
@@ -2026,53 +2113,263 @@ function isCanonicalDealStage(value: unknown): value is CanonicalDealStage {
   return typeof value === "string" && dealStageOptions.some((item) => item.id === value);
 }
 
-function FindIQ({ onCreate }: { onCreate: (deal: DealFacts) => Promise<boolean> }) {
-  const [input, setInput] = useState("");
-  const [strategyId, setStrategyId] = useState<StrategyId>("owner_occupant");
-  const [error, setError] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
+function ManualPropertyIntakeDialog({
+  presentationMode,
+  storageScope,
+  workspaceId,
+  isAuthenticated,
+  isOnline,
+  onClose,
+  onOpenSettings,
+  onSearchCandidates,
+  onComplete,
+}: {
+  presentationMode: PresentationMode;
+  storageScope: string;
+  workspaceId?: string;
+  isAuthenticated: boolean;
+  isOnline: boolean;
+  onClose: () => void;
+  onOpenSettings: () => void;
+  onSearchCandidates: (workspaceId: string, draft: ManualIntakeDraft) => Promise<ManualPropertyCandidate[]>;
+  onComplete: (draft: ManualIntakeDraft) => Promise<DealFacts>;
+}) {
+  const [draft, setDraft] = useState<ManualIntakeDraft>(() => loadManualIntakeDraft(storageScope) ?? createManualIntakeDraft());
+  const [step, setStep] = useState<"property" | "match" | "review" | "complete">("property");
+  const [candidates, setCandidates] = useState<ManualPropertyCandidate[]>([]);
+  const [status, setStatus] = useState<"draft" | "local" | "searching" | "awaiting_decision" | "creating" | "complete" | "failed" | "offline" | "permission" | "conflict" | "cancelled">("draft");
+  const [message, setMessage] = useState("");
+  const [errorSummary, setErrorSummary] = useState<string[]>([]);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const isProfessional = presentationMode === "professional";
 
-  async function create() {
-    const cleaned = input.trim();
-    if (!cleaned) {
-      setError("Enter an address, listing URL, or listing text.");
-      return;
-    }
-    setError("");
-    setIsCreating(true);
-    const deal = createDealFromInput(cleaned, strategyId);
-    const created = await onCreate(deal);
-    setIsCreating(false);
-    if (!created) setError("BRIX could not save this deal. Check your account access and try again.");
+  useEffect(() => {
+    headingRef.current?.focus({ preventScroll: true });
+  }, [step]);
+
+  function updateDraft(update: Partial<ManualIntakeDraft>) {
+    const next = saveManualIntakeDraft(storageScope, { ...draft, ...update });
+    setDraft(next);
+    setStatus("local");
+    setMessage("Saved on this device.");
   }
 
+  async function searchMatches() {
+    const errors = validateManualIntakeDraft(draft);
+    setErrorSummary(errors);
+    if (errors.length) {
+      setStatus("failed");
+      setMessage("Fix the highlighted fields and try again.");
+      return;
+    }
+    if (!isAuthenticated) {
+      setStatus("permission");
+      setMessage("Sign in before creating a canonical Property and Deal.");
+      return;
+    }
+    if (!isOnline || !workspaceId) {
+      setCandidates([]);
+      updateDraft({ duplicateDecision: "create_new_property", selectedPropertyId: undefined });
+      setStatus("offline");
+      setMessage("Saved on this device. BRIX will re-check existing Properties before syncing.");
+      setStep("review");
+      return;
+    }
+    setStatus("searching");
+    setMessage("Checking your existing Properties.");
+    try {
+      const results = await onSearchCandidates(workspaceId, draft);
+      setCandidates(results);
+      setStatus(results.length ? "awaiting_decision" : "draft");
+      setMessage(results.length ? "Review possible matches before creating the Deal." : "No existing Property match was found in this workspace.");
+      if (!results.length) updateDraft({ duplicateDecision: "create_new_property", selectedPropertyId: undefined });
+      setStep(results.length ? "match" : "review");
+    } catch (error) {
+      const safe = safeDealCommandMessage(error);
+      setStatus(safe.status === "permission" ? "permission" : "failed");
+      setMessage(safe.message);
+    }
+  }
+
+  async function createDealFromIntake() {
+    const errors = validateManualIntakeDraft(draft);
+    if (draft.duplicateDecision === "use_existing_property" && !draft.selectedPropertyId) errors.push("Choose the existing Property to use.");
+    setErrorSummary(errors);
+    if (errors.length) {
+      setStatus("failed");
+      setMessage("Resolve the missing manual intake items before creating the Deal.");
+      return;
+    }
+    setStatus(isOnline ? "creating" : "offline");
+    setMessage(isOnline ? "Creating the canonical Property and Deal." : "Saving this intake on your device.");
+    try {
+      await onComplete(draft);
+      clearManualIntakeDraft(storageScope);
+    } catch (error) {
+      const safe = safeDealCommandMessage(error);
+      setStatus(safe.status === "permission" ? "permission" : safe.status === "stale" ? "conflict" : "failed");
+      setMessage(safe.message);
+    }
+  }
+
+  function cancelIntake() {
+    if (!window.confirm("Cancel this manual intake? Saved local input for this intake will be removed.")) return;
+    clearManualIntakeDraft(storageScope);
+    setStatus("cancelled");
+    onClose();
+  }
+
+  const classificationItems = [
+    { label: "Location", value: draft.address ? "User-entered fact, unverified" : "Unknown" },
+    { label: "Asking price", value: draft.askingPrice ? "User-entered fact, unverified" : "Unknown" },
+    { label: "Expected price", value: draft.expectedPrice ? "User assumption" : "Unknown" },
+    { label: "Strategy", value: draft.intendedStrategy ? "User intent" : "Unknown" },
+  ];
+
   return (
-    <section className="two-column">
-      <div className="panel hero-panel focus-panel">
-        <p className="eyebrow">Start the deal file</p>
-        <h2>One property. One strategy. Then BRIX analyzes.</h2>
-        <label className="field">
-          <span>Address, listing URL, or listing text</span>
-          <textarea value={input} onChange={(event) => setInput(event.target.value)} rows={7} />
-        </label>
-        <label className="field">
-          <span>Primary strategy</span>
-          <select value={strategyId} onChange={(event) => setStrategyId(event.target.value as StrategyId)}>
-            {strategyCatalog.map((strategy) => <option value={strategy.id} key={strategy.id}>{strategy.name}</option>)}
-          </select>
-        </label>
-        {error && <p className="error">{error}</p>}
-        <button className="primary" onClick={create} disabled={isCreating}><Plus size={18} /> {isCreating ? "Creating deal file" : "Create deal file"}</button>
-      </div>
-      <div className="panel focus-panel">
-        <p className="eyebrow">After create</p>
-        <div className="flow-steps">
-          <Step n="1" title="Captured facts appear in DealIQ" text="Known listing facts fill the deal file. Unknown facts stay empty and reduce confidence." />
-          <Step n="2" title="Strategy rules run immediately" text="The selected strategy controls required inputs, calculations, risks, and success conditions." />
-          <Step n="3" title="Decision output is provisional until verified" text="BRIX gives a visit, research-first, or do-not-visit-yet signal with missing data and next actions." />
+    <div className="modal-backdrop" role="presentation">
+      <section className="manual-intake-dialog" role="dialog" aria-modal="true" aria-labelledby="manual-intake-title">
+        <div className="panel-heading-row">
+          <div>
+            <p className="eyebrow">Manual Property Intake</p>
+            <h2 id="manual-intake-title" ref={headingRef} tabIndex={-1}>{step === "property" ? "Property and opportunity" : step === "match" ? "Possible Property match" : step === "review" ? "Review manual intake" : "Intake complete"}</h2>
+            <p className="quiet">{isProfessional ? "Manual intake creates one canonical Deal through the server command." : "Start with what you know. Unknown optional values can stay blank and be verified later."}</p>
+          </div>
+          <button className="icon-button" type="button" aria-label="Close manual intake" onClick={onClose}><X size={18} /></button>
         </div>
-      </div>
-    </section>
+
+        {message && <p className={status === "failed" || status === "permission" || status === "conflict" ? "error" : "quiet"} role="status" aria-live="polite">{message}</p>}
+        {errorSummary.length > 0 && (
+          <div className="intake-error-summary" role="alert">
+            <strong>Review before continuing</strong>
+            {errorSummary.map((item) => <span key={item}>{item}</span>)}
+          </div>
+        )}
+        {!isAuthenticated && (
+          <ShellNotice tone="warning" title="Sign in required">
+            <span>Manual intake creates protected Property and Deal records in your BRIX account.</span>
+            <button className="secondary compact" type="button" onClick={onOpenSettings}>Sign in</button>
+          </ShellNotice>
+        )}
+
+        {step === "property" && (
+          <div className="manual-intake-grid">
+            <label className="field wide">
+              <span>Opportunity name <small>Required</small></span>
+              <input value={draft.opportunityName} onChange={(event) => updateDraft({ opportunityName: event.target.value })} placeholder="Maple Street duplex lead" />
+            </label>
+            <label className="field wide">
+              <span>Address or descriptive location <small>Required</small></span>
+              <input value={draft.address} onChange={(event) => updateDraft({ address: event.target.value })} placeholder="123 Maple St or 10-acre parcel near Highway 8" />
+            </label>
+            <label className="field">
+              <span>Unit number <small>Optional</small></span>
+              <input value={draft.unitNumber ?? ""} onChange={(event) => updateDraft({ unitNumber: event.target.value })} />
+            </label>
+            <label className="field">
+              <span>City <small>Optional</small></span>
+              <input value={draft.city ?? ""} onChange={(event) => updateDraft({ city: event.target.value })} />
+            </label>
+            <label className="field">
+              <span>State or region <small>Optional</small></span>
+              <input value={draft.region ?? ""} onChange={(event) => updateDraft({ region: event.target.value.toUpperCase() })} />
+            </label>
+            <label className="field">
+              <span>Postal code <small>Optional</small></span>
+              <input value={draft.postalCode ?? ""} onChange={(event) => updateDraft({ postalCode: event.target.value })} />
+            </label>
+            <label className="field">
+              <span>Property type <small>Optional</small></span>
+              <input value={draft.propertyType ?? ""} onChange={(event) => updateDraft({ propertyType: event.target.value })} placeholder="Single family, duplex, land" />
+            </label>
+            <label className="field">
+              <span>Asking price <small>Optional</small></span>
+              <input inputMode="decimal" value={draft.askingPrice ?? ""} onChange={(event) => updateDraft({ askingPrice: event.target.value })} />
+            </label>
+            <label className="field">
+              <span>Expected price <small>Optional assumption</small></span>
+              <input inputMode="decimal" value={draft.expectedPrice ?? ""} onChange={(event) => updateDraft({ expectedPrice: event.target.value })} />
+            </label>
+            <label className="field">
+              <span>Intended strategy <small>Optional</small></span>
+              <select value={draft.intendedStrategy ?? "owner_occupant"} onChange={(event) => updateDraft({ intendedStrategy: event.target.value as StrategyId })}>
+                {strategyCatalog.map((strategy) => <option value={strategy.id} key={strategy.id}>{strategy.name}</option>)}
+              </select>
+            </label>
+            <label className="field">
+              <span>Source <small>Optional</small></span>
+              <input value={draft.source ?? ""} onChange={(event) => updateDraft({ source: event.target.value })} placeholder="Seller, drive-by, broker call" />
+            </label>
+            <label className="field">
+              <span>Source contact <small>Optional</small></span>
+              <input value={draft.sourceContact ?? ""} onChange={(event) => updateDraft({ sourceContact: event.target.value })} />
+            </label>
+            <label className="field wide">
+              <span>Notes <small>Optional</small></span>
+              <textarea rows={3} value={draft.notes ?? ""} onChange={(event) => updateDraft({ notes: event.target.value })} />
+            </label>
+          </div>
+        )}
+
+        {step === "match" && (
+          <div className="candidate-list" role="list" aria-label="Possible Property matches">
+            {candidates.map((candidate) => (
+              <article className={draft.selectedPropertyId === candidate.propertyId ? "candidate-card selected" : "candidate-card"} key={candidate.propertyId} role="listitem">
+                <div>
+                  <strong>{candidate.displayAddress}</strong>
+                  <span>{[candidate.city, candidate.region, candidate.postalCode].filter(Boolean).join(", ") || candidate.country}</span>
+                </div>
+                <p>{candidate.matchReasons.join(", ")}</p>
+                {candidate.materialDifferences.length > 0 && <small>Differences: {candidate.materialDifferences.join(", ")}</small>}
+                <small>{candidate.activeDealCount} active Deal{candidate.activeDealCount === 1 ? "" : "s"} linked</small>
+                <button className="secondary compact" type="button" onClick={() => updateDraft({ duplicateDecision: "use_existing_property", selectedPropertyId: candidate.propertyId })}>Use this Property</button>
+              </article>
+            ))}
+            <button className="secondary" type="button" onClick={() => { updateDraft({ duplicateDecision: "create_new_property", selectedPropertyId: undefined }); setStep("review"); }}>Create a new Property instead</button>
+          </div>
+        )}
+
+        {step === "review" && (
+          <div className="review-grid">
+            <section className="workspace-card">
+              <p className="eyebrow">Entered values</p>
+              <DefinitionList items={[
+                { label: "Opportunity", value: draft.opportunityName },
+                { label: "Location", value: draft.address },
+                { label: "Unit", value: draft.unitNumber },
+                { label: "City", value: draft.city },
+                { label: "State", value: draft.region },
+                { label: "Postal", value: draft.postalCode },
+                { label: "Type", value: draft.propertyType },
+                { label: "Source", value: draft.source },
+              ]} />
+            </section>
+            <section className="workspace-card">
+              <p className="eyebrow">Classification</p>
+              <DefinitionList items={classificationItems} />
+            </section>
+            <section className="workspace-card wide">
+              <p className="eyebrow">Duplicate decision</p>
+              <div className="button-row">
+                <button className={draft.duplicateDecision === "create_new_property" ? "primary compact" : "secondary compact"} type="button" onClick={() => updateDraft({ duplicateDecision: "create_new_property", selectedPropertyId: undefined })}>Create new Property</button>
+                {candidates.length > 0 && <button className="secondary compact" type="button" onClick={() => setStep("match")}>Review matches</button>}
+              </div>
+              <p className="quiet">{draft.duplicateDecision === "use_existing_property" ? "This Deal will use the selected existing Property." : "BRIX will create a new canonical Property for this Deal."}</p>
+            </section>
+          </div>
+        )}
+
+        {step === "complete" && <EmptyState title="Manual intake complete" text="The canonical Deal workspace is opening with the saved Property, source, and manual classifications." />}
+
+        <div className="manual-intake-actions">
+          <button className="secondary" type="button" onClick={cancelIntake}>Cancel intake</button>
+          {step !== "property" && step !== "complete" && <button className="secondary" type="button" onClick={() => setStep(step === "match" ? "property" : candidates.length ? "match" : "property")}>Back</button>}
+          {step === "property" && <button className="primary" type="button" onClick={() => void searchMatches()} disabled={status === "searching"}>{status === "searching" ? "Searching..." : "Next: check matches"}</button>}
+          {step === "match" && <button className="primary" type="button" onClick={() => setStep("review")} disabled={!draft.duplicateDecision}>Review intake</button>}
+          {step === "review" && <button className="primary" type="button" onClick={() => void createDealFromIntake()} disabled={status === "creating"}>{status === "creating" ? "Creating..." : isOnline ? "Create Deal" : "Save on this device"}</button>}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -2132,7 +2429,7 @@ type DealIQProps = {
 };
 
 function DealIQ(props: DealIQProps) {
-  if (!props.deal) return <Empty title="No deal file yet" text="Start in FindIQ with an address, listing URL, or listing text." />;
+  if (!props.deal) return <Empty title="No deal file yet" text="Add a Deal from the Deals workspace to start with a Property and source record." />;
   return <DealWorkspace {...props} deal={props.deal} />;
 }
 
@@ -3616,7 +3913,7 @@ function RelationshipPanel({
 }
 
 function PipelineIQ({ deals, onOpen, onStatusChange }: { deals: DealFacts[]; onOpen: (id: string) => void; onStatusChange: (deal: DealFacts) => void }) {
-  if (!deals.length) return <Empty title="No active properties" text="Create a deal in FindIQ to begin tracking it." />;
+  if (!deals.length) return <Empty title="No active properties" text="Add a Deal to begin tracking the Property, source, work, and next steps." />;
   const stages: DealStatus[] = ["draft", "reviewing", "underwriting", "pursuing", "under_contract", "closed", "passed"];
   return (
     <section className="panel wide">
@@ -4486,7 +4783,7 @@ function Account({
         {showTrustedAccess && canInvite && (
           <section className="invitation-panel" aria-labelledby="trusted-invitations-title">
             <div>
-              <p className="eyebrow">Trusted invitation</p>
+              <p className="eyebrow">Workspace invitation</p>
               <h3 id="trusted-invitations-title">Share access</h3>
               <p className="quiet">Send an expiring invitation to someone approved to work in this BRIX account.</p>
             </div>

@@ -32,6 +32,7 @@ describe("Specification 003 offline draft UI source", () => {
     expect(app).toContain("Retry sync");
     expect(app).toContain("You have saved device work that has not reached BRIX. Sign out anyway?");
     expect(app).not.toContain("Trusted Access");
+    expect(app).not.toContain("Trusted invitation");
     expect(app).not.toContain("trusted people");
     expect(app).not.toContain("trusted partner");
     expect(app).not.toContain("trusted access");

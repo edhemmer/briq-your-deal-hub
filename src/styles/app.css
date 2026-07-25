@@ -151,6 +151,21 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .deal-row-actions { display: flex !important; grid-auto-flow: column; grid-auto-columns: max-content; gap: 8px !important; align-items: center; }
 .archive-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; border-radius: 12px; padding: 0 14px; border: 1px solid rgba(245,158,11,.42); background: rgba(245,158,11,.12); color: #fde68a; font-weight: 900; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(2,6,23,.72); backdrop-filter: blur(10px); }
+.manual-intake-dialog { width: min(980px, 100%); max-height: min(92vh, 920px); overflow: auto; display: grid; gap: 16px; border: 1px solid rgba(59,130,246,.36); border-radius: 20px; background: linear-gradient(160deg, rgba(17,29,48,.98), rgba(8,15,29,.99)); box-shadow: 0 30px 90px rgba(0,0,0,.5); padding: 22px; }
+.manual-intake-dialog .icon-button { position: static; transform: none; }
+.manual-intake-grid, .review-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.manual-intake-grid .field { margin: 0; }
+.manual-intake-grid .wide, .review-grid .wide { grid-column: 1 / -1; }
+.candidate-list { display: grid; gap: 12px; }
+.candidate-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; align-items: center; border: 1px solid var(--line); border-radius: 16px; background: rgba(8,15,29,.68); padding: 14px; }
+.candidate-card div { display: grid; gap: 4px; min-width: 0; }
+.candidate-card strong { color: white; overflow-wrap: anywhere; }
+.candidate-card span, .candidate-card p, .candidate-card small { color: var(--muted); margin: 0; }
+.candidate-card p, .candidate-card small { grid-column: 1 / -1; }
+.candidate-card.selected { border-color: rgba(59,130,246,.78); background: linear-gradient(145deg, rgba(59,130,246,.18), rgba(32,211,194,.07)); box-shadow: inset 0 0 0 1px rgba(59,130,246,.18); }
+.intake-error-summary { display: grid; gap: 6px; border: 1px solid rgba(241,92,92,.48); border-radius: 14px; background: rgba(127,29,29,.13); color: #ffb3b3; padding: 12px 14px; }
+.intake-error-summary strong { color: white; }
+.manual-intake-actions { position: sticky; bottom: -22px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin: 0 -22px -22px; padding: 14px 22px 22px; border-top: 1px solid rgba(34,49,76,.78); background: linear-gradient(180deg, rgba(8,15,29,.72), rgba(8,15,29,.98) 38%); }
 .confirm-dialog { width: min(460px, 100%); display: grid; gap: 14px; border: 1px solid var(--line); border-radius: 18px; background: #08111f; box-shadow: 0 24px 80px rgba(0,0,0,.45); padding: 22px; }
 .confirm-dialog h2 { margin: 0; }
 
@@ -406,7 +421,10 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 
 @media (max-width: 640px) {
   .workspace, .rail { padding: 16px; }
-  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row, .trusted-access-entry, .presentation-options, .state-grid, .attention-item, .relationship-card, .relationship-form, .duplicate-candidates article, .canonical-edit-grid, .work-history-grid, .work-edit-row, .definition-list, .workspace-count-row { grid-template-columns: 1fr; }
+  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row, .trusted-access-entry, .presentation-options, .state-grid, .attention-item, .relationship-card, .relationship-form, .duplicate-candidates article, .canonical-edit-grid, .work-history-grid, .work-edit-row, .definition-list, .workspace-count-row, .manual-intake-grid, .review-grid, .candidate-card { grid-template-columns: 1fr; }
+  .manual-intake-dialog { max-height: calc(100vh - 24px); border-radius: 18px; padding: 16px; }
+  .manual-intake-actions { bottom: -16px; justify-content: stretch; margin: 0 -16px -16px; padding: 12px 16px 16px; }
+  .manual-intake-actions button { flex: 1 1 150px; }
   .relationship-toolbar { justify-content: flex-start; flex-wrap: wrap; }
   .topbar { display: grid; }
   .workspace-pill, .active-deal-pill, .deal-switcher, .shell-search-trigger { min-width: 0; width: 100%; }
