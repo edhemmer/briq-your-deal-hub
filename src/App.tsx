@@ -4019,25 +4019,8 @@ function Account({
   }
 
   async function recordPasswordSecurityEvent() {
-    try {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData.user?.id;
-      if (!userId) return;
-      await supabase.from("audit_events").insert({
-        actor_id: userId,
-        action: "account.password_updated",
-        target_table: "profiles",
-        target_id: userId,
-        metadata: { source_client: "web" },
-      });
-      await supabase.from("domain_events").insert({
-        actor_id: userId,
-        event_type: "account.password_updated",
-        payload: { source_client: "web" },
-      });
-    } catch {
-      // Password changes remain owned by Supabase Auth; audit write failure must not expose internals to the user.
-    }
+    // Canonical event and audit rows are server-owned; Supabase Auth owns password persistence.
+    return Promise.resolve();
   }
 
   async function submitPasswordResetRequest() {

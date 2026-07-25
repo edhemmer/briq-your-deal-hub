@@ -130,31 +130,76 @@ export type Database = {
         Row: {
           action: string
           actor_id: string | null
+          actor_type: string
+          after_values: Json
+          before_values: Json
+          causation_id: string | null
+          changed_fields: string[]
           created_at: string
+          correlation_id: string
+          deal_id: string | null
           id: string
+          idempotency_key: string | null
           metadata: Json
+          occurred_at: string
+          property_id: string | null
+          reason: string | null
+          source_client: string
+          source_command: string | null
+          success: boolean
           target_id: string | null
           target_table: string | null
+          target_type: string | null
           workspace_id: string | null
         }
         Insert: {
           action: string
           actor_id?: string | null
+          actor_type?: string
+          after_values?: Json
+          before_values?: Json
+          causation_id?: string | null
+          changed_fields?: string[]
           created_at?: string
+          correlation_id?: string
+          deal_id?: string | null
           id?: string
+          idempotency_key?: string | null
           metadata?: Json
+          occurred_at?: string
+          property_id?: string | null
+          reason?: string | null
+          source_client?: string
+          source_command?: string | null
+          success?: boolean
           target_id?: string | null
           target_table?: string | null
+          target_type?: string | null
           workspace_id?: string | null
         }
         Update: {
           action?: string
           actor_id?: string | null
+          actor_type?: string
+          after_values?: Json
+          before_values?: Json
+          causation_id?: string | null
+          changed_fields?: string[]
           created_at?: string
+          correlation_id?: string
+          deal_id?: string | null
           id?: string
+          idempotency_key?: string | null
           metadata?: Json
+          occurred_at?: string
+          property_id?: string | null
+          reason?: string | null
+          source_client?: string
+          source_command?: string | null
+          success?: boolean
           target_id?: string | null
           target_table?: string | null
+          target_type?: string | null
           workspace_id?: string | null
         }
         Relationships: [
@@ -1867,26 +1912,71 @@ export type Database = {
       domain_events: {
         Row: {
           actor_id: string | null
+          actor_type: string
+          causation_id: string | null
           created_at: string
+          correlation_id: string
+          deal_id: string | null
+          entity_id: string | null
+          entity_type: string | null
+          entity_version: number | null
+          event_version: number
           event_type: string
           id: string
+          idempotency_key: string | null
+          metadata: Json
+          occurred_at: string
           payload: Json
+          persisted_at: string
+          property_id: string | null
+          source_client: string
+          source_command: string | null
           workspace_id: string | null
         }
         Insert: {
           actor_id?: string | null
+          actor_type?: string
+          causation_id?: string | null
           created_at?: string
+          correlation_id?: string
+          deal_id?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          entity_version?: number | null
+          event_version?: number
           event_type: string
           id?: string
+          idempotency_key?: string | null
+          metadata?: Json
+          occurred_at?: string
           payload?: Json
+          persisted_at?: string
+          property_id?: string | null
+          source_client?: string
+          source_command?: string | null
           workspace_id?: string | null
         }
         Update: {
           actor_id?: string | null
+          actor_type?: string
+          causation_id?: string | null
           created_at?: string
+          correlation_id?: string
+          deal_id?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          entity_version?: number | null
+          event_version?: number
           event_type?: string
           id?: string
+          idempotency_key?: string | null
+          metadata?: Json
+          occurred_at?: string
           payload?: Json
+          persisted_at?: string
+          property_id?: string | null
+          source_client?: string
+          source_command?: string | null
           workspace_id?: string | null
         }
         Relationships: [

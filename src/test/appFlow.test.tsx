@@ -1186,7 +1186,7 @@ describe("BRIX app module flow", () => {
     expect(mocks.updateUser).not.toHaveBeenCalled();
   });
 
-  it("completes password recovery, records security events, and returns to the workspace", async () => {
+  it("completes password recovery without client-authored ledger events and returns to the workspace", async () => {
     mocks.session.value = { user: { id: "user-1" } };
     mocks.user.value = { id: "user-1", email: "edhemmer@gmail.com" };
     window.history.replaceState({}, "", "/account?flow=reset-password");
@@ -1198,8 +1198,7 @@ describe("BRIX app module flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Update password" }));
 
     await waitFor(() => expect(mocks.updateUser).toHaveBeenCalledWith({ password: "newpassword1" }));
-    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ action: "account.password_updated" }));
-    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ event_type: "account.password_updated" }));
+    expect(mocks.insert).not.toHaveBeenCalled();
     expect(await screen.findByRole("heading", { name: "Home" })).toBeInTheDocument();
     expect(window.location.pathname).toBe("/app");
   });
@@ -1218,8 +1217,7 @@ describe("BRIX app module flow", () => {
 
     await waitFor(() => expect(mocks.signInWithPassword).toHaveBeenCalledWith({ email: "edhemmer@gmail.com", password: "oldpassword1" }));
     expect(mocks.updateUser).toHaveBeenCalledWith({ password: "newpassword1" });
-    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ action: "account.password_updated" }));
-    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ event_type: "account.password_updated" }));
+    expect(mocks.insert).not.toHaveBeenCalled();
     expect(await screen.findByText("Password updated.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "My Account" })).toBeInTheDocument();
   });
