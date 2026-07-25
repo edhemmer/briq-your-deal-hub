@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   session: { value: { user: { id: "user-1" } } as { user: { id: string } } | null },
   user: { value: { id: "user-1", email: "edhemmer@gmail.com" } as { id: string; email: string } | null },
   remoteDeals: { value: [] as Array<Record<string, unknown>> },
+  archiveError: { value: null as Error | null },
   profileModes: { value: {} as Record<string, "guided" | "professional" | undefined> },
   profileSelectError: { value: null as Error | null },
   profileUpdateError: { value: null as Error | null },
@@ -305,7 +306,21 @@ vi.mock("../core/reportExports", () => ({
 function installDefaultRpcMock() {
   mocks.rpc.mockImplementation(async (name: string, args?: Record<string, unknown>) => {
     if (name === "ensure_workspace_context") return { data: [mocks.workspaceContext.value], error: null };
-    if (name === "list_deal_projection") return { data: mocks.remoteDeals.value.filter((row) => row.deleted_at === undefined || row.deleted_at === null).map((row) => dealListProjectionRow(row)), error: null };
+    if (name === "list_deal_projection") {
+      const includeArchived = args?.include_archived === true;
+      const search = String(args?.search_query ?? "").toLowerCase().trim();
+      const filterInput = args?.filter_input as Record<string, unknown> | undefined;
+      const pageSize = Number(args?.page_size ?? 50);
+      const pageOffset = Number(args?.page_offset ?? 0);
+      let rows = mocks.remoteDeals.value.filter((row) => row.deleted_at === undefined || row.deleted_at === null);
+      if (!includeArchived) rows = rows.filter((row) => row.archived_at === undefined || row.archived_at === null);
+      if (search) rows = rows.filter((row) => `${row.display_name ?? row.address ?? ""} ${row.address ?? ""}`.toLowerCase().includes(search));
+      const statusFilters = Array.isArray(filterInput?.statuses) ? filterInput.statuses : [];
+      if (statusFilters.length) rows = rows.filter((row) => statusFilters.includes(row.operating_status ?? "active"));
+      const activeCount = mocks.remoteDeals.value.filter((row) => (row.deleted_at === undefined || row.deleted_at === null) && (row.archived_at === undefined || row.archived_at === null)).length;
+      const archivedCount = mocks.remoteDeals.value.filter((row) => (row.deleted_at === undefined || row.deleted_at === null) && row.archived_at).length;
+      return { data: rows.slice(pageOffset, pageOffset + pageSize).map((row) => dealListProjectionRow(row, rows.length, activeCount, archivedCount)), error: null };
+    }
     if (name === "load_deal_detail_projection") {
       const row = mocks.remoteDeals.value.find((deal) => deal.id === args?.target_deal_id);
       return { data: row ? [dealDetailProjectionRow(row)] : [], error: row ? null : new Error("Deal is not available.") };
@@ -331,6 +346,15 @@ function installDefaultRpcMock() {
       return { data: [{ property_id: args?.target_property_id, property_version: 2, workspace_id: "workspace-1", display_address: propertyInput?.display_address ?? "Updated Property", address_line1: propertyInput?.address_line1 ?? null, address_line2: propertyInput?.address_line2 ?? null, city: propertyInput?.city ?? null, region: propertyInput?.region ?? null, postal_code: propertyInput?.postal_code ?? null, country: "US", parcel_identifier: propertyInput?.parcel_identifier ?? null, updated_at: "2026-01-02T00:00:00.000Z" }], error: null };
     }
     if (name === "update_deal_lifecycle") return { data: [{ deal_id: args?.target_deal_id, deal_version: 2, workspace_id: "workspace-1", stage: "lead", status: "active", updated_at: "2026-01-02T00:00:00.000Z" }], error: null };
+    if (name === "archive_deal") {
+      if (mocks.archiveError.value) return { data: null, error: mocks.archiveError.value };
+      mocks.remoteDeals.value = mocks.remoteDeals.value.map((row) => row.id === args?.target_deal_id ? { ...row, version: Number(row.version ?? 1) + 1, stage: "archived", operating_status: "archived", archived_at: "2026-01-03T00:00:00.000Z", updated_at: "2026-01-03T00:00:00.000Z" } : row);
+      return { data: [{ deal_id: args?.target_deal_id, deal_version: 2, workspace_id: "workspace-1", stage: "archived", status: "archived", archived_at: "2026-01-03T00:00:00.000Z", updated_at: "2026-01-03T00:00:00.000Z" }], error: null };
+    }
+    if (name === "restore_deal") {
+      mocks.remoteDeals.value = mocks.remoteDeals.value.map((row) => row.id === args?.target_deal_id ? { ...row, version: Number(row.version ?? 1) + 1, stage: "research", operating_status: "needs_attention", archived_at: null, updated_at: "2026-01-04T00:00:00.000Z" } : row);
+      return { data: [{ deal_id: args?.target_deal_id, deal_version: 3, workspace_id: "workspace-1", stage: "research", status: "needs_attention", archived_at: null, updated_at: "2026-01-04T00:00:00.000Z" }], error: null };
+    }
     if (name === "list_deal_relationships" || name === "list_deal_work" || name === "list_deal_notes" || name === "load_deal_timeline") return { data: [], error: null };
     if (name === "create_canonical_deal") {
       const dealInput = args?.deal_input as Record<string, unknown> | undefined;
@@ -552,7 +576,7 @@ function remoteDealRow(id: string, ownerId: string, address: string, extra: Reco
   };
 }
 
-function dealListProjectionRow(row: Record<string, unknown>) {
+function dealListProjectionRow(row: Record<string, unknown>, totalCount = mocks.remoteDeals.value.length, activeCount = totalCount, archivedCount = 0) {
   return {
     deal_id: row.id,
     deal_version: row.version ?? 1,
@@ -566,11 +590,16 @@ function dealListProjectionRow(row: Record<string, unknown>) {
     priority: row.priority ?? "normal",
     source: row.source ?? "manual",
     strategy_intent: row.strategy_intent ?? row.strategy_id,
+    created_at: row.created_at ?? "2026-01-01T00:00:00.000Z",
     updated_at: row.updated_at ?? "2026-01-01T00:00:00.000Z",
+    archived_at: row.archived_at ?? null,
+    attention_state: row.attention_state ?? "none",
     open_work_count: 0,
     relationship_count: 0,
     next_due_at: null,
-    total_count: mocks.remoteDeals.value.length,
+    total_count: totalCount,
+    active_count: activeCount,
+    archived_count: archivedCount,
   };
 }
 
@@ -623,6 +652,7 @@ describe("BRIX app module flow", () => {
     mocks.session.value = { user: { id: "user-1" } };
     mocks.user.value = { id: "user-1", email: "edhemmer@gmail.com" };
     mocks.remoteDeals.value = [];
+    mocks.archiveError.value = null;
     mocks.profileModes.value = {};
     mocks.profileSelectError.value = null;
     mocks.profileUpdateError.value = null;
@@ -1071,7 +1101,7 @@ describe("BRIX app module flow", () => {
 
     await screen.findByRole("heading", { name: "Home" });
     fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
-    fireEvent.click(screen.getAllByRole("button", { name: "Open Deal" })[0]);
+    fireEvent.click((await screen.findAllByRole("button", { name: "Open Deal" }))[0]);
     await waitFor(() => expect(window.location.pathname).toBe("/deals/recent-a"));
     fireEvent.change(screen.getByRole("combobox", { name: "Deal switcher" }), { target: { value: "recent-b" } });
 
@@ -1676,7 +1706,7 @@ describe("BRIX app module flow", () => {
     expect(await screen.findByText("Delete This Deal")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
     fireEvent.click(screen.getAllByRole("button", { name: "Open Deal" })[0]);
-    fireEvent.click(screen.getByRole("button", { name: /Delete deal/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Delete local draft/i }));
 
     await waitFor(() => expect(screen.queryByText("Delete This Deal")).not.toBeInTheDocument());
     expect(screen.getAllByText("Keep This Deal").length).toBeGreaterThan(0);
@@ -1686,23 +1716,15 @@ describe("BRIX app module flow", () => {
 
   it("mocked: failed authenticated delete leaves the deal visible", async () => {
     mocks.remoteDeals.value = [remoteDealRow("remote-delete-fails", "user-1", "Still Visible Deal")];
-    mocks.update.mockReturnValueOnce({
-      eq: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          select: vi.fn(() => ({
-            single: vi.fn(async () => ({ data: null, error: new Error("delete failed") })),
-          })),
-        })),
-      })),
-    });
+    mocks.archiveError.value = new Error("archive failed");
     render(<App />);
 
     expect(await screen.findByText("Still Visible Deal")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
-    fireEvent.click(screen.getAllByRole("button", { name: "Open Deal" })[0]);
-    fireEvent.click(screen.getByRole("button", { name: /Delete deal/i }));
+    fireEvent.click((await screen.findAllByRole("button", { name: "Open Deal" }))[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Archive Deal/i }));
 
-    expect(await screen.findByText(/Deal was not deleted: delete failed/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Deal was not archived: archive failed/i)).toBeInTheDocument();
     expect(screen.getAllByText("Still Visible Deal").length).toBeGreaterThan(0);
   });
 

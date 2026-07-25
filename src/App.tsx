@@ -4,8 +4,8 @@ import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, U
 import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
 import { createDealFromInput, createRemoteDeal, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
-import { loadDealDetail, updateDealCore, updateDealLifecycle, updateProperty } from "./core/dealCrud";
-import type { CanonicalDealOperatingStatus, CanonicalDealStage, DealFacts, DealNote, DealPriority, DealRelationship, DealRelationshipRole, DealRelationshipStatus, DealStatus, DealTimelineItem, DealWorkItem, DuplicateCandidate, PropertySummary, RelationshipTargetType } from "./core/types";
+import { archiveDeal, listDealProjections, loadDealDetail, restoreDeal, updateDealCore, updateDealLifecycle, updateProperty } from "./core/dealCrud";
+import type { CanonicalDealOperatingStatus, CanonicalDealStage, DealAttentionState, DealFacts, DealListProjection, DealNote, DealPriority, DealProjectionFilters, DealProjectionSort, DealRelationship, DealRelationshipRole, DealRelationshipStatus, DealStatus, DealTimelineItem, DealWorkItem, DuplicateCandidate, PropertySummary, RelationshipTargetType } from "./core/types";
 import { supabase } from "./core/supabase";
 import { downloadDecisionPdf, downloadWorkbook } from "./core/reportExports";
 import { analyzePhotoEvidence } from "./core/photoAnalysis";
@@ -905,7 +905,7 @@ function BrixApp() {
       setSyncMessage("Deal removed from this device.");
       return;
     }
-    setSyncMessage("Deleting deal from BRIX cloud...");
+    setSyncMessage("Archiving Deal in BRIX cloud...");
     try {
       await prepareWorkspaceForCloudAction();
       await softDeleteRemoteDeal(id, authUserId);
@@ -923,7 +923,22 @@ function BrixApp() {
       }
       setSyncMessage(null);
     } catch (error) {
-      setSyncMessage(`Deal was not deleted: ${error instanceof Error ? error.message : "check your connection."}`);
+      setSyncMessage(`Deal was not archived: ${error instanceof Error ? error.message : "check your connection."}`);
+    }
+  }
+
+  function markDealArchived(id: string) {
+    setDeals((current) => current.filter((deal) => deal.id !== id));
+    setRecentDealIds((current) => {
+      const nextRecent = current.filter((dealId) => dealId !== id);
+      writeScopedDealIds(SHELL_RECENT_DEALS_PREFIX, storageScope, nextRecent);
+      return nextRecent;
+    });
+    if (selectedId === id) {
+      setSelectedId(null);
+      setModuleState("deals");
+      setRouteMessage("That Deal was archived and removed from the active list.");
+      window.history.replaceState({}, "", "/deals");
     }
   }
 
@@ -1015,7 +1030,7 @@ function BrixApp() {
           <ShellNotice tone="warning" title="Deal unavailable">{routeMessage}</ShellNotice>
         )}
         {module === "home" && <HomeSurface presentationMode={presentationMode} isAuthenticated={isAuthenticated} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} isOnline={isOnline} deals={deals} selectedDeal={selectedDeal ?? deals[0]} syncMessage={syncMessage} routeMessage={routeMessage} onOpenDeal={(dealId?: string) => dealId ? openDeal(dealId) : selectedDeal ? openDeal(selectedDeal.id) : setModule("deals")} onOpenDeals={() => setModule("deals")} onOpenSettings={() => setModule("account")} onRetry={retryWorkspaceBootstrap} />}
-        {module === "deals" && <DealsSurface presentationMode={presentationMode} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} deals={deals} recentDeals={recentDeals} selectedId={selectedId} onOpenDeal={openDeal} onRetry={retryWorkspaceBootstrap} />}
+        {module === "deals" && <DealsSurface presentationMode={presentationMode} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} workspaceId={workspaceContext?.workspaceId} storageScope={storageScope} isAuthenticated={isAuthenticated} isOnline={isOnline} deals={deals} recentDeals={recentDeals} selectedId={selectedId} onOpenDeal={openDeal} onRetry={retryWorkspaceBootstrap} onArchived={markDealArchived} onRestored={putDealInState} />}
         {module === "deal" && <DealIQ deal={selectedDeal} workspaceId={workspaceContext?.workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} onChange={upsertDeal} onCanonicalSaved={putDealInState} onDelete={deleteDeal} />}
         {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceContext={workspaceContext} invitationToken={invitationToken} recoveryActive={passwordRecoveryActive} onAuthChanged={(userId) => {
           setDeals([]);
@@ -1414,23 +1429,135 @@ function DealsSurface({
   presentationMode,
   authLifecycle,
   workspaceStatus,
+  workspaceId,
+  storageScope,
+  isAuthenticated,
+  isOnline,
   deals,
   recentDeals,
   selectedId,
   onOpenDeal,
   onRetry,
+  onArchived,
+  onRestored,
 }: {
   presentationMode: PresentationMode;
   authLifecycle: "restoring" | "signed_out" | "bootstrapping" | "ready" | "failed" | "signing_out" | "expired";
   workspaceStatus: "loading" | "ready" | "failed" | "signed_out";
+  workspaceId?: string;
+  storageScope: string;
+  isAuthenticated: boolean;
+  isOnline: boolean;
   deals: DealFacts[];
   recentDeals: DealFacts[];
   selectedId: string | null;
   onOpenDeal: (id: string) => void;
   onRetry: () => void;
+  onArchived: (id: string) => void;
+  onRestored: (deal: DealFacts) => void;
 }) {
   const isPreparing = authLifecycle === "restoring" || authLifecycle === "bootstrapping" || workspaceStatus === "loading";
   const isProfessional = presentationMode === "professional";
+  const filterStorageKey = `brix.deals.filters:${storageScope}`;
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<DealProjectionSort>("updated_desc");
+  const [includeArchived, setIncludeArchived] = useState(false);
+  const [pageOffset, setPageOffset] = useState(0);
+  const [filters, setFilters] = useState<DealProjectionFilters>(() => readDealProjectionFilters(filterStorageKey));
+  const [page, setPage] = useState<ProjectionPageState>({ status: "idle", deals: [], totalCount: 0, activeCount: 0, archivedCount: 0 });
+  const [message, setMessage] = useState("");
+  const [pendingAction, setPendingAction] = useState<null | { type: "archive" | "restore"; deal: DealListProjection }>(null);
+  const requestRef = useRef(0);
+  const pageSize = 10;
+
+  useEffect(() => {
+    if (!isAuthenticated || workspaceStatus !== "ready" || !workspaceId) return;
+    writeDealProjectionFilters(filterStorageKey, filters);
+  }, [filterStorageKey, filters, isAuthenticated, workspaceId, workspaceStatus]);
+
+  const loadPage = useCallback(async () => {
+    if (!isAuthenticated || workspaceStatus !== "ready" || !workspaceId) return;
+    if (!isOnline) {
+      setPage((current) => ({ ...current, status: "offline" }));
+      setMessage("Connection is unavailable. Existing results are preserved; retry when you are back online.");
+      return;
+    }
+    const requestId = requestRef.current + 1;
+    requestRef.current = requestId;
+    setPage((current) => ({ ...current, status: current.deals.length ? "stale" : "loading" }));
+    setMessage("");
+    try {
+      const next = await listDealProjections(workspaceId, {
+        pageSize,
+        pageOffset,
+        sort,
+        search,
+        filters,
+        includeArchived,
+      });
+      if (requestRef.current !== requestId) return;
+      setPage({
+        status: "ready",
+        deals: next.deals,
+        totalCount: next.totalCount,
+        activeCount: next.activeCount,
+        archivedCount: next.archivedCount,
+      });
+    } catch (error) {
+      if (requestRef.current !== requestId) return;
+      const safe = safeDealCommandMessage(error);
+      setPage((current) => ({ ...current, status: safe.status === "permission" ? "permission" : "failed" }));
+      setMessage(safe.message);
+    }
+  }, [filters, includeArchived, isAuthenticated, isOnline, pageOffset, search, sort, workspaceId, workspaceStatus]);
+
+  useEffect(() => {
+    void loadPage();
+  }, [loadPage]);
+
+  function updateFilters(update: DealProjectionFilters) {
+    setFilters(update);
+    setPageOffset(0);
+  }
+
+  function clearOneFilter(key: keyof DealProjectionFilters) {
+    const next = { ...filters };
+    delete next[key];
+    updateFilters(next);
+  }
+
+  async function confirmArchiveOrRestore() {
+    if (!pendingAction) return;
+    if (!isOnline) {
+      setMessage("Connection is unavailable. Retry when you are back online.");
+      return;
+    }
+    setPage((current) => ({ ...current, status: "saving" }));
+    setMessage(pendingAction.type === "archive" ? "Archiving Deal..." : "Restoring Deal...");
+    try {
+      if (pendingAction.type === "archive") {
+        await archiveDeal(pendingAction.deal);
+        onArchived(pendingAction.deal.dealId);
+        setMessage("Deal archived. Related records and history were preserved.");
+      } else {
+        await restoreDeal(pendingAction.deal);
+        const detail = await loadDealDetail(pendingAction.deal.dealId);
+        onRestored(detail.deal);
+        setMessage("Deal restored. Review the restored Deal before relying on old assumptions.");
+      }
+      setPendingAction(null);
+      await loadPage();
+    } catch (error) {
+      const safe = safeDealCommandMessage(error);
+      setPage((current) => ({ ...current, status: safe.status === "stale" ? "stale" : "failed" }));
+      setMessage(safe.message);
+    }
+  }
+
+  const isFiltered = Boolean(search.trim()) || hasDealProjectionFilters(filters);
+  const finalPage = pageOffset + pageSize >= page.totalCount;
+  const visibleDeals = isAuthenticated ? page.deals : deals.map(localDealProjection);
+
   if (workspaceStatus === "failed") {
     return (
       <EmptyState
@@ -1449,7 +1576,7 @@ function DealsSurface({
       />
     );
   }
-  if (!deals.length) {
+  if (!isAuthenticated && !deals.length) {
     return (
       <EmptyState
         title="No Deals yet"
@@ -1483,39 +1610,242 @@ function DealsSurface({
           <div>
             <p className="eyebrow">Saved Deals</p>
             <h2>{isProfessional ? "Deal records" : "Authorized Deal records"}</h2>
-            <p className="quiet">{isProfessional ? "Scoped to the current account." : "Only records available to the current account and workspace are shown."}</p>
+            <p className="quiet">{isAuthenticated ? "Search, filters, sorting, archive, and restore use canonical account records." : "Local drafts are shown from this device until you sign in."}</p>
           </div>
-          <StatusBadge tone="neutral">{deals.length} {deals.length === 1 ? "Deal" : "Deals"}</StatusBadge>
+          <StatusBadge tone="neutral">{isAuthenticated ? `${page.totalCount} matching` : `${deals.length} local`}</StatusBadge>
         </div>
-        <div className="deal-list" role="list" aria-label="Saved Deals">
-          {deals.map((deal) => {
-            const analysis = analyzeDeal(deal);
+
+        {isAuthenticated && (
+          <div className="deal-controls" aria-label="Deal search and filters">
+            <label className="field deal-search-field">
+              <span>Search Deals</span>
+              <input value={search} onChange={(event) => { setSearch(event.target.value); setPageOffset(0); }} placeholder="Name, address, contact, organization" />
+            </label>
+            <label className="field compact-field">
+              <span>Stage</span>
+              <select value={filters.stages?.[0] ?? ""} onChange={(event) => updateFilters({ ...filters, stages: event.target.value ? [event.target.value as CanonicalDealStage] : undefined })}>
+                <option value="">Any stage</option>
+                {dealStageOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </select>
+            </label>
+            <label className="field compact-field">
+              <span>Status</span>
+              <select value={filters.statuses?.[0] ?? ""} onChange={(event) => updateFilters({ ...filters, statuses: event.target.value ? [event.target.value as CanonicalDealOperatingStatus] : undefined })}>
+                <option value="">Any status</option>
+                {dealOperatingStatusOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </select>
+            </label>
+            <label className="field compact-field">
+              <span>Priority</span>
+              <select value={filters.priorities?.[0] ?? ""} onChange={(event) => updateFilters({ ...filters, priorities: event.target.value ? [event.target.value as DealPriority] : undefined })}>
+                <option value="">Any priority</option>
+                <option value="urgent">Urgent</option>
+                <option value="high">High</option>
+                <option value="normal">Normal</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+            <label className="field compact-field">
+              <span>Attention</span>
+              <select value={filters.attention ?? "any"} onChange={(event) => updateFilters({ ...filters, attention: event.target.value as "any" | DealAttentionState })}>
+                <option value="any">Any</option>
+                <option value="overdue">Overdue</option>
+                <option value="open_work">Open work</option>
+                <option value="none">No open work</option>
+              </select>
+            </label>
+            <label className="field compact-field">
+              <span>Sort</span>
+              <select value={sort} onChange={(event) => { setSort(event.target.value as DealProjectionSort); setPageOffset(0); }}>
+                <option value="updated_desc">Recently updated</option>
+                <option value="updated_asc">Oldest updated</option>
+                <option value="created_desc">Newest created</option>
+                <option value="created_asc">Oldest created</option>
+                <option value="name_asc">Deal name</option>
+                <option value="address_asc">Property address</option>
+                <option value="priority_desc">Priority</option>
+                <option value="stage_asc">Stage</option>
+              </select>
+            </label>
+            <label className="toggle-field">
+              <input type="checkbox" checked={includeArchived} onChange={(event) => { setIncludeArchived(event.target.checked); setPageOffset(0); }} />
+              <span>Show archived Deals</span>
+            </label>
+          </div>
+        )}
+
+        {isAuthenticated && isFiltered && (
+          <div className="active-filter-row" aria-label="Active Deal filters">
+            {search.trim() && <button type="button" className="filter-chip" onClick={() => { setSearch(""); setPageOffset(0); }}>Search: {search}</button>}
+            {filters.stages?.[0] && <button type="button" className="filter-chip" onClick={() => clearOneFilter("stages")}>Stage: {labelForStage(filters.stages[0])}</button>}
+            {filters.statuses?.[0] && <button type="button" className="filter-chip" onClick={() => clearOneFilter("statuses")}>Status: {labelForOperatingStatus(filters.statuses[0])}</button>}
+            {filters.priorities?.[0] && <button type="button" className="filter-chip" onClick={() => clearOneFilter("priorities")}>Priority: {filters.priorities[0]}</button>}
+            {filters.attention && filters.attention !== "any" && <button type="button" className="filter-chip" onClick={() => clearOneFilter("attention")}>Attention: {attentionLabel(filters.attention)}</button>}
+            <button type="button" className="secondary compact" onClick={() => { setSearch(""); updateFilters({}); }}>Clear all</button>
+          </div>
+        )}
+
+        {message && <p className={page.status === "failed" || page.status === "permission" ? "error" : "quiet"} role="status">{message}</p>}
+        {isAuthenticated && page.status === "loading" && <p className="quiet" role="status">Loading Deals...</p>}
+        {isAuthenticated && page.status === "offline" && <p className="error" role="status">Deals cannot refresh while offline.</p>}
+        {isAuthenticated && page.status === "permission" && <EmptyState title="Deals are unavailable" text="Your current access does not allow this Deal list." actionLabel="Retry" onAction={() => void loadPage()} />}
+        {isAuthenticated && page.status !== "permission" && page.status !== "loading" && !visibleDeals.length && (
+          <EmptyState
+            title={isFiltered ? "No matching Deals" : includeArchived ? "No archived Deals" : "No active Deals"}
+            text={isFiltered ? "Clear a search term or filter to widen the canonical Deal list." : includeArchived ? "Archived Deals will appear here after you explicitly show archived records." : "Active Deals appear here after they are created or restored."}
+          />
+        )}
+
+        {visibleDeals.length > 0 && (
+          <div className="deal-list" role="list" aria-label="Saved Deals">
+            {visibleDeals.map((deal) => {
+            const sourceDeal = isAuthenticated ? null : deals.find((localDeal) => localDeal.id === deal.dealId);
+            const analysis = sourceDeal ? analyzeDeal(sourceDeal) : null;
+            const secondaryLocation = deal.primaryPropertyAddress && deal.primaryPropertyAddress !== deal.displayName ? deal.primaryPropertyAddress : "Location not entered";
             return (
-              <article key={deal.id} className={deal.id === selectedId ? "deal-list-row active" : "deal-list-row"} role="listitem">
+              <article key={deal.dealId} className={deal.dealId === selectedId ? "deal-list-row active" : "deal-list-row"} role="listitem">
                 <div>
-                  <strong>{dealTitle(deal)}</strong>
-                  <span>{dealLocation(deal)}</span>
+                  <strong>{deal.displayName}</strong>
+                  <span>{secondaryLocation}</span>
                 </div>
                 <div>
-                  <small>Status</small>
-                  <b>{statusLabel(deal.status)}</b>
+                  <small>State</small>
+                  <b>{deal.archivedAt ? "Archived" : labelForOperatingStatus(deal.status)}</b>
                 </div>
                 <div>
-                  <small>Decision</small>
-                  <b>{analysis.decision}</b>
+                  <small>{isAuthenticated ? "Attention" : "Decision"}</small>
+                  <b>{isAuthenticated ? attentionLabel(deal.attentionState) : analysis?.decision}</b>
                 </div>
                 <div>
                   <small>Updated</small>
                   <b>{formatShortDate(deal.updatedAt)}</b>
                 </div>
-                <button className="primary" type="button" onClick={() => onOpenDeal(deal.id)}>Open Deal</button>
+                <div className="deal-row-actions">
+                  <button className="primary" type="button" onClick={() => onOpenDeal(deal.dealId)}>Open Deal</button>
+                  {isAuthenticated && !deal.archivedAt && <button className="archive-button" type="button" onClick={() => setPendingAction({ type: "archive", deal })}>Archive</button>}
+                  {isAuthenticated && deal.archivedAt && <button className="secondary compact" type="button" onClick={() => setPendingAction({ type: "restore", deal })}>Restore</button>}
+                </div>
               </article>
             );
           })}
-        </div>
+          </div>
+        )}
+
+        {isAuthenticated && page.totalCount > 0 && (
+          <div className="pagination-row">
+            <span>Showing {pageOffset + 1}-{Math.min(pageOffset + pageSize, page.totalCount)} of {page.totalCount}. Active {page.activeCount}, archived {page.archivedCount}.</span>
+            <div className="button-row">
+              <button className="secondary compact" type="button" disabled={pageOffset === 0 || page.status === "saving"} onClick={() => setPageOffset(Math.max(0, pageOffset - pageSize))}>Previous</button>
+              <button className="secondary compact" type="button" disabled={finalPage || page.status === "saving"} onClick={() => setPageOffset(pageOffset + pageSize)}>Next</button>
+            </div>
+          </div>
+        )}
       </div>
+      {pendingAction && (
+        <div className="modal-backdrop" role="presentation">
+          <section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="deal-archive-title">
+            <p className="eyebrow">{pendingAction.type === "archive" ? "Archive Deal" : "Restore Deal"}</p>
+            <h2 id="deal-archive-title">{pendingAction.type === "archive" ? "Archive this Deal?" : "Restore this Deal?"}</h2>
+            <p className="quiet">
+              {pendingAction.type === "archive"
+                ? "The Deal will leave the active list. Property, people, tasks, notes, and history stay intact."
+                : "The same canonical Deal will return to the active list. Review stale assumptions before acting on it."}
+            </p>
+            <strong>{pendingAction.deal.displayName}</strong>
+            <div className="button-row">
+              <button className="secondary" type="button" onClick={() => setPendingAction(null)}>Cancel</button>
+              <button className={pendingAction.type === "archive" ? "archive-button" : "primary"} type="button" onClick={confirmArchiveOrRestore} disabled={page.status === "saving"}>
+                {page.status === "saving" ? "Saving..." : pendingAction.type === "archive" ? "Archive Deal" : "Restore Deal"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </section>
   );
+}
+
+type ProjectionPageState = {
+  status: "idle" | "loading" | "ready" | "stale" | "saving" | "offline" | "permission" | "failed";
+  deals: DealListProjection[];
+  totalCount: number;
+  activeCount: number;
+  archivedCount: number;
+};
+
+function localDealProjection(deal: DealFacts): DealListProjection {
+  return {
+    dealId: deal.id,
+    dealVersion: deal.dealVersion ?? 1,
+    workspaceId: "local",
+    displayName: dealTitle(deal),
+    primaryPropertyId: deal.propertyId,
+    primaryPropertyVersion: deal.propertyVersion,
+    primaryPropertyAddress: dealLocation(deal),
+    stage: deal.status === "passed" ? "passed" : deal.status === "closed" ? "sold" : deal.status === "under_contract" ? "under_contract" : "lead",
+    status: deal.status === "passed" ? "passed" : deal.status === "closed" ? "closed_won" : "active",
+    priority: "normal",
+    source: "local",
+    strategyIntent: deal.strategyId,
+    createdAt: deal.createdAt,
+    updatedAt: deal.updatedAt,
+    attentionState: "none",
+    openWorkCount: 0,
+    relationshipCount: 0,
+    totalCount: 1,
+    activeCount: 1,
+    archivedCount: 0,
+  };
+}
+
+function readDealProjectionFilters(storageKey: string): DealProjectionFilters {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(storageKey) ?? "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return {
+      stages: Array.isArray(parsed.stages) ? parsed.stages.filter(isCanonicalDealStage) : undefined,
+      statuses: Array.isArray(parsed.statuses) ? parsed.statuses.filter(isCanonicalDealOperatingStatus) : undefined,
+      priorities: Array.isArray(parsed.priorities) ? parsed.priorities.filter(isDealPriority) : undefined,
+      attention: parsed.attention === "open_work" || parsed.attention === "overdue" || parsed.attention === "none" || parsed.attention === "any" ? parsed.attention : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+function writeDealProjectionFilters(storageKey: string, filters: DealProjectionFilters) {
+  localStorage.setItem(storageKey, JSON.stringify(filters));
+}
+
+function hasDealProjectionFilters(filters: DealProjectionFilters) {
+  return Boolean(filters.stages?.length || filters.statuses?.length || filters.priorities?.length || filters.sources?.length || filters.attention && filters.attention !== "any" || filters.propertyText || filters.createdFrom || filters.createdTo || filters.updatedFrom || filters.updatedTo);
+}
+
+function labelForStage(stage: CanonicalDealStage) {
+  return dealStageOptions.find((item) => item.id === stage)?.label ?? stage;
+}
+
+function labelForOperatingStatus(status: CanonicalDealOperatingStatus) {
+  return dealOperatingStatusOptions.find((item) => item.id === status)?.label ?? status;
+}
+
+function attentionLabel(attention: DealAttentionState | "any") {
+  if (attention === "overdue") return "Overdue";
+  if (attention === "open_work") return "Open work";
+  if (attention === "none") return "No open work";
+  return "Any";
+}
+
+function isDealPriority(value: unknown): value is DealPriority {
+  return value === "low" || value === "normal" || value === "high" || value === "urgent";
+}
+
+function isCanonicalDealOperatingStatus(value: unknown): value is CanonicalDealOperatingStatus {
+  return typeof value === "string" && dealOperatingStatusOptions.some((item) => item.id === value);
+}
+
+function isCanonicalDealStage(value: unknown): value is CanonicalDealStage {
+  return typeof value === "string" && dealStageOptions.some((item) => item.id === value);
 }
 
 function FindIQ({ onCreate }: { onCreate: (deal: DealFacts) => Promise<boolean> }) {
@@ -1734,7 +2064,7 @@ function DealIQ({
         <button className="secondary" onClick={() => patch({ status: nextStatus(deal.status) })}>Advance status</button>
         <button className="secondary" onClick={() => downloadDecisionPdf(deal, analysis)}><FileDown size={16} /> PDF memo</button>
         <button className="secondary" onClick={() => downloadWorkbook(deal, analysis)}><Table2 size={16} /> XLS workbook</button>
-        <button className="danger" onClick={() => onDelete(deal.id)}><Trash2 size={16} /> Delete deal</button>
+        <button className="danger" onClick={() => onDelete(deal.id)}><Trash2 size={16} /> {isAuthenticated ? "Archive Deal" : "Delete local draft"}</button>
       </section>
     </div>
   );

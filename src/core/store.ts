@@ -1,5 +1,5 @@
 import { createBlankDeal, parseListingInput } from "./listingParser";
-import { listDealProjections, projectionToDealFacts, updateDealCore } from "./dealCrud";
+import { archiveDeal, listDealProjections, loadDealDetail, projectionToDealFacts, updateDealCore } from "./dealCrud";
 import { getStrategy, normalizeStrategy, type StrategyId } from "./strategyCatalog";
 import type { DealFacts, DealStatus, VerificationState } from "./types";
 import { supabase } from "./supabase";
@@ -103,7 +103,7 @@ async function requireAuthenticatedUser(expectedUserId?: string) {
 export async function loadRemoteDeals(userId: string, workspaceId?: string): Promise<DealFacts[]> {
   await requireAuthenticatedUser(userId);
   if (!workspaceId) throw new Error("BRIX workspace is not ready.");
-  const { deals } = await listDealProjections(workspaceId, 50, 0);
+  const { deals } = await listDealProjections(workspaceId, { pageSize: 50, pageOffset: 0, includeArchived: false });
   return deals.map(projectionToDealFacts);
 }
 
@@ -188,14 +188,8 @@ export async function createRemoteDeal(deal: DealFacts, userId: string, workspac
 
 export async function softDeleteRemoteDeal(id: string, userId: string) {
   await requireAuthenticatedUser(userId);
-  const { error } = await supabase
-    .from("brix_deals")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("owner_id", userId)
-    .select("id")
-    .single();
-  if (error) throw error;
+  const detail = await loadDealDetail(id);
+  await archiveDeal(detail.deal, "legacy_delete_button_archive");
 }
 
 export function normalizeDealRow(row: unknown): DealFacts | null {

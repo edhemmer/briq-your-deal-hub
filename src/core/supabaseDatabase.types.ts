@@ -2789,12 +2789,20 @@ export type Database = {
       }
       list_deal_projection: {
         Args: {
+          filter_input?: Json
+          include_archived?: boolean
           page_offset?: number
           page_size?: number
-          sort_direction?: string
+          search_query?: string
+          sort_key?: string
           target_workspace_id: string
         }
         Returns: {
+          active_count: number
+          archived_at: string | null
+          archived_count: number
+          attention_state: string
+          created_at: string
           deal_id: string
           deal_version: number
           display_name: string
@@ -2810,6 +2818,23 @@ export type Database = {
           status: string
           strategy_intent: string | null
           total_count: number
+          updated_at: string
+          workspace_id: string
+        }[]
+      }
+      archive_deal: {
+        Args: {
+          archive_reason?: string
+          expected_version: number
+          idempotency_key: string
+          target_deal_id: string
+        }
+        Returns: {
+          archived_at: string | null
+          deal_id: string
+          deal_version: number
+          stage: string
+          status: string
           updated_at: string
           workspace_id: string
         }[]
@@ -3222,6 +3247,23 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          workspace_id: string
+        }[]
+      }
+      restore_deal: {
+        Args: {
+          expected_version: number
+          idempotency_key: string
+          restore_reason?: string
+          target_deal_id: string
+        }
+        Returns: {
+          archived_at: string | null
+          deal_id: string
+          deal_version: number
+          stage: string
+          status: string
+          updated_at: string
           workspace_id: string
         }[]
       }

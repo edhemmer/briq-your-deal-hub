@@ -123,6 +123,17 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .deal-list-row strong, .deal-list-row b { color: white; }
 .deal-list-row span, .deal-list-row small { color: var(--muted); }
 .deal-list-row strong, .deal-list-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deal-controls { display: grid; grid-template-columns: minmax(240px, 1.3fr) repeat(5, minmax(130px, .7fr)); gap: 12px; align-items: end; margin-top: 16px; }
+.deal-search-field { min-width: 0; }
+.compact-field select, .compact-field input { min-width: 0; }
+.toggle-field { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; color: var(--muted); font-weight: 800; }
+.active-filter-row, .pagination-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: center; margin-top: 14px; color: var(--muted); }
+.filter-chip { border: 1px solid rgba(59,130,246,.35); background: rgba(59,130,246,.1); color: #dbeafe; border-radius: 999px; padding: 8px 12px; font-weight: 800; }
+.deal-row-actions { display: flex !important; grid-auto-flow: column; grid-auto-columns: max-content; gap: 8px !important; align-items: center; }
+.archive-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; border-radius: 12px; padding: 0 14px; border: 1px solid rgba(245,158,11,.42); background: rgba(245,158,11,.12); color: #fde68a; font-weight: 900; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(2,6,23,.72); backdrop-filter: blur(10px); }
+.confirm-dialog { width: min(460px, 100%); display: grid; gap: 14px; border: 1px solid var(--line); border-radius: 18px; background: #08111f; box-shadow: 0 24px 80px rgba(0,0,0,.45); padding: 22px; }
+.confirm-dialog h2 { margin: 0; }
 
 .field { display: grid; gap: 8px; margin: 16px 0; color: #c7d8ef; font-weight: 700; }
 .field input, .field textarea, .field select, .deal-switcher { width: 100%; background: #080f1d; border: 1px solid #263956; color: white; border-radius: 12px; padding: 13px 14px; outline: none; }
@@ -373,7 +384,8 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
   .search-input-row kbd { display: none; }
   .search-result { grid-template-columns: 1fr; }
   .search-result em { justify-self: start; }
-  .deal-list-row { grid-template-columns: 1fr; align-items: stretch; }
+  .deal-list-row, .deal-controls { grid-template-columns: 1fr; align-items: stretch; }
+  .deal-row-actions { grid-auto-flow: row; grid-auto-columns: 1fr; }
   .table-row { grid-template-columns: 1fr; }
   .landing { padding: 22px; }
   .workflow-strip { margin-top: 0; }

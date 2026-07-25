@@ -96,11 +96,59 @@ export type DealListProjection = {
   priority: DealPriority;
   source: string;
   strategyIntent?: string;
+  createdAt: string;
   updatedAt: string;
+  archivedAt?: string;
+  attentionState: DealAttentionState;
   openWorkCount: number;
   relationshipCount: number;
   nextDueAt?: string;
   totalCount: number;
+  activeCount: number;
+  archivedCount: number;
+};
+
+export type DealAttentionState = "none" | "open_work" | "overdue";
+export type DealProjectionSort =
+  | "updated_desc"
+  | "updated_asc"
+  | "created_desc"
+  | "created_asc"
+  | "name_asc"
+  | "address_asc"
+  | "priority_desc"
+  | "stage_asc";
+
+export type DealProjectionFilters = {
+  stages?: CanonicalDealStage[];
+  statuses?: CanonicalDealOperatingStatus[];
+  priorities?: DealPriority[];
+  sources?: string[];
+  attention?: "any" | DealAttentionState;
+  propertyText?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  updatedFrom?: string;
+  updatedTo?: string;
+};
+
+export type DealProjectionQuery = {
+  pageSize?: number;
+  pageOffset?: number;
+  sort?: DealProjectionSort;
+  search?: string;
+  filters?: DealProjectionFilters;
+  includeArchived?: boolean;
+};
+
+export type DealArchiveResult = {
+  dealId: string;
+  dealVersion: number;
+  workspaceId: string;
+  stage: CanonicalDealStage;
+  status: CanonicalDealOperatingStatus;
+  archivedAt?: string;
+  updatedAt: string;
 };
 
 export type DealDetailProjection = {

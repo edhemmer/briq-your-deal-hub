@@ -3,7 +3,11 @@ import { supabase } from "./supabase";
 import type {
   CanonicalDealOperatingStatus,
   CanonicalDealStage,
+  DealArchiveResult,
   DealCoreUpdate,
+  DealProjectionFilters,
+  DealProjectionQuery,
+  DealProjectionSort,
   DealDetailProjection,
   DealFacts,
   DealLifecycleUpdate,
@@ -19,18 +23,35 @@ type UnknownRecord = Record<string, unknown>;
 export type ProjectionPage = {
   deals: DealListProjection[];
   totalCount: number;
+  activeCount: number;
+  archivedCount: number;
+  pageSize: number;
+  pageOffset: number;
 };
 
-export async function listDealProjections(workspaceId: string, pageSize = 50, pageOffset = 0): Promise<ProjectionPage> {
+export async function listDealProjections(workspaceId: string, query: DealProjectionQuery = {}): Promise<ProjectionPage> {
+  const pageSize = clampPageSize(query.pageSize ?? 50);
+  const pageOffset = Math.max(0, Math.trunc(query.pageOffset ?? 0));
+  const sort = dealProjectionSort(query.sort);
   const { data, error } = await supabase.rpc("list_deal_projection", {
     target_workspace_id: workspaceId,
     page_size: pageSize,
     page_offset: pageOffset,
-    sort_direction: "desc",
+    sort_key: sort,
+    search_query: query.search?.trim() || null,
+    filter_input: filtersInput(query.filters),
+    include_archived: query.includeArchived ?? false,
   });
   if (error) throw error;
   const deals = Array.isArray(data) ? data.map(normalizeDealListProjection).filter(isDealListProjection) : [];
-  return { deals, totalCount: deals[0]?.totalCount ?? 0 };
+  return {
+    deals,
+    totalCount: deals[0]?.totalCount ?? 0,
+    activeCount: deals[0]?.activeCount ?? 0,
+    archivedCount: deals[0]?.archivedCount ?? 0,
+    pageSize,
+    pageOffset,
+  };
 }
 
 export async function loadDealDetail(dealId: string): Promise<DealDetailProjection> {
@@ -98,15 +119,46 @@ export async function updateDealLifecycle(deal: DealFacts, update: DealLifecycle
   return loadDealDetail(deal.id);
 }
 
+export async function archiveDeal(deal: DealFacts | DealListProjection, reason = "user_archive"): Promise<DealArchiveResult> {
+  const dealId = "dealId" in deal ? deal.dealId : deal.id;
+  const dealVersion = "dealVersion" in deal ? deal.dealVersion : deal.dealVersion;
+  if (!dealVersion) throw new Error("Reload this Deal before archiving.");
+  const { data, error } = await supabase.rpc("archive_deal", {
+    target_deal_id: dealId,
+    expected_version: dealVersion,
+    idempotency_key: `deal:archive:${dealId}:${crypto.randomUUID()}`,
+    archive_reason: reason,
+  });
+  if (error) throw error;
+  const result = normalizeArchiveResult(Array.isArray(data) ? data[0] : data);
+  if (!result) throw new Error("BRIX could not confirm the archived Deal state.");
+  return result;
+}
+
+export async function restoreDeal(deal: DealFacts | DealListProjection, reason = "user_restore"): Promise<DealArchiveResult> {
+  const dealId = "dealId" in deal ? deal.dealId : deal.id;
+  const dealVersion = "dealVersion" in deal ? deal.dealVersion : deal.dealVersion;
+  if (!dealVersion) throw new Error("Reload this Deal before restoring.");
+  const { data, error } = await supabase.rpc("restore_deal", {
+    target_deal_id: dealId,
+    expected_version: dealVersion,
+    idempotency_key: `deal:restore:${dealId}:${crypto.randomUUID()}`,
+    restore_reason: reason,
+  });
+  if (error) throw error;
+  const result = normalizeArchiveResult(Array.isArray(data) ? data[0] : data);
+  if (!result) throw new Error("BRIX could not confirm the restored Deal state.");
+  return result;
+}
+
 export function projectionToDealFacts(projection: DealListProjection): DealFacts {
-  const now = projection.updatedAt;
   return {
     id: projection.dealId,
     dealVersion: projection.dealVersion,
     propertyId: projection.primaryPropertyId,
     propertyVersion: projection.primaryPropertyVersion,
-    createdAt: now,
-    updatedAt: now,
+    createdAt: projection.createdAt,
+    updatedAt: projection.updatedAt,
     status: legacyStatusForOperatingStatus(projection.status),
     address: projection.primaryPropertyAddress ?? projection.displayName,
     strategyId: normalizeStrategy(projection.strategyIntent ?? "owner_occupant"),
@@ -169,11 +221,35 @@ function normalizeDealListProjection(value: unknown): DealListProjection | null 
     priority,
     source,
     strategyIntent: stringValue(value.strategy_intent),
+    createdAt: stringValue(value.created_at) ?? updatedAt,
     updatedAt,
+    archivedAt: stringValue(value.archived_at),
+    attentionState: attentionState(value.attention_state),
     openWorkCount: numberValue(value.open_work_count) ?? 0,
     relationshipCount: numberValue(value.relationship_count) ?? 0,
     nextDueAt: stringValue(value.next_due_at),
     totalCount: numberValue(value.total_count) ?? 0,
+    activeCount: numberValue(value.active_count) ?? 0,
+    archivedCount: numberValue(value.archived_count) ?? 0,
+  };
+}
+
+function normalizeArchiveResult(value: unknown): DealArchiveResult | null {
+  if (!isRecord(value)) return null;
+  const dealId = stringValue(value.deal_id);
+  const workspaceId = stringValue(value.workspace_id);
+  const stage = dealStage(value.stage);
+  const status = operatingStatus(value.status);
+  const updatedAt = stringValue(value.updated_at);
+  if (!dealId || !workspaceId || !stage || !status || !updatedAt) return null;
+  return {
+    dealId,
+    dealVersion: numberValue(value.deal_version) ?? 1,
+    workspaceId,
+    stage,
+    status,
+    archivedAt: stringValue(value.archived_at),
+    updatedAt,
   };
 }
 
@@ -303,8 +379,42 @@ function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+function filtersInput(filters: DealProjectionFilters | undefined) {
+  if (!filters) return {};
+  return {
+    stages: filters.stages,
+    statuses: filters.statuses,
+    priorities: filters.priorities,
+    sources: filters.sources?.map((source) => source.trim()).filter(Boolean),
+    attention: filters.attention,
+    property_text: filters.propertyText?.trim() || undefined,
+    created_from: filters.createdFrom || undefined,
+    created_to: filters.createdTo || undefined,
+    updated_from: filters.updatedFrom || undefined,
+    updated_to: filters.updatedTo || undefined,
+  };
+}
+
+function clampPageSize(value: number) {
+  return Math.max(1, Math.min(100, Math.trunc(value)));
+}
+
+function dealProjectionSort(value: DealProjectionSort | undefined): DealProjectionSort {
+  return value === "updated_asc" ||
+    value === "created_desc" ||
+    value === "created_asc" ||
+    value === "name_asc" ||
+    value === "address_asc" ||
+    value === "priority_desc" ||
+    value === "stage_asc" ? value : "updated_desc";
+}
+
 function dealPriority(value: unknown): DealPriority | undefined {
   return value === "low" || value === "normal" || value === "high" || value === "urgent" ? value : undefined;
+}
+
+function attentionState(value: unknown) {
+  return value === "open_work" || value === "overdue" ? value : "none";
 }
 
 function operatingStatus(value: unknown): CanonicalDealOperatingStatus | undefined {
