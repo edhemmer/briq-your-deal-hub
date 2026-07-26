@@ -132,6 +132,10 @@ final class AppState: ObservableObject {
             authStatus = accessToken.isEmpty ? .authRequired : .invitationValidating
             authMessage = accessToken.isEmpty ? "Sign in with the invited email address to accept this workspace invitation." : "Workspace invitation ready for secure validation."
             tab = .account
+        case .sharedIntake:
+            authStatus = accessToken.isEmpty ? .authRequired : .ready
+            authMessage = accessToken.isEmpty ? "Sign in to review the shared property source." : "Shared property source is ready for review."
+            tab = accessToken.isEmpty ? .account : .find
         case .account:
             authStatus = accessToken.isEmpty ? .authRequired : .ready
             tab = .account

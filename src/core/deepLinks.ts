@@ -4,7 +4,8 @@ export type BrixDeepLinkDestination =
   | { kind: "settings"; panel?: "account" | "trusted-access" }
   | { kind: "password-recovery" }
   | { kind: "invitation"; token: string }
-  | { kind: "deal"; dealId: string };
+  | { kind: "deal"; dealId: string }
+  | { kind: "share-intake"; handoffId: string };
 
 export type BrixDeepLinkResult =
   | { ok: true; destination: BrixDeepLinkDestination; canonicalPath: string; requiresAuth: boolean }
@@ -14,6 +15,7 @@ const PRODUCTION_HOSTS = new Set(["brixrealestate.app", "www.brixrealestate.app"
 const DEVELOPMENT_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
 const SAFE_TOKEN_PATTERN = /^[A-Za-z0-9._~-]{8,512}$/;
 const SAFE_DEAL_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
+const SAFE_SHARE_HANDOFF_PATTERN = /^share_[A-Za-z0-9._:-]{8,160}$/;
 
 export const BRIX_PRODUCTION_ORIGIN = "https://brixrealestate.app";
 
@@ -29,7 +31,7 @@ export function parseBrixDeepLink(input: string | URL, base = globalThis.locatio
   if (!isApprovedHost(url)) return rejected("unapproved_host", "BRIX could not open that link.");
   if (url.username || url.password) return rejected("malformed", "BRIX could not open that link.");
 
-  const path = normalizePath(url.pathname);
+  const path = pathForParsedUrl(url);
   const params = url.searchParams;
 
   if (path === "/" || path === "/app" || path === "/home" || path === "/dashboard") {
@@ -45,6 +47,13 @@ export function parseBrixDeepLink(input: string | URL, base = globalThis.locatio
     const dealId = decodeSegment(path.slice("/deals/".length));
     if (!dealId || !SAFE_DEAL_ID_PATTERN.test(dealId)) return rejected("malformed", "BRIX could not open that Deal link.");
     return { ok: true, destination: { kind: "deal", dealId }, canonicalPath: canonicalDealPath(dealId), requiresAuth: true };
+  }
+
+  if (path.startsWith("/share-intake/")) {
+    if (hasUnknownParams(params, [])) return rejected("unknown_parameters", "BRIX could not open that shared item.");
+    const handoffId = decodeSegment(path.slice("/share-intake/".length));
+    if (!handoffId || !SAFE_SHARE_HANDOFF_PATTERN.test(handoffId)) return rejected("malformed", "This shared item could not be opened safely.");
+    return { ok: true, destination: { kind: "share-intake", handoffId }, canonicalPath: `/share-intake/${encodeURIComponent(handoffId)}`, requiresAuth: true };
   }
 
   if (path === "/settings" || path === "/account") {
@@ -88,6 +97,7 @@ export function pathForBrixDestination(destination: BrixDeepLinkDestination) {
   if (destination.kind === "home") return "/app";
   if (destination.kind === "deals") return "/deals";
   if (destination.kind === "deal") return canonicalDealPath(destination.dealId);
+  if (destination.kind === "share-intake") return `/share-intake/${encodeURIComponent(destination.handoffId)}`;
   if (destination.kind === "password-recovery") return "/account?flow=reset-password";
   if (destination.kind === "invitation") return `/account?invite=${encodeURIComponent(destination.token)}`;
   if (destination.kind === "settings" && destination.panel === "trusted-access") return "/account/trusted-access";
@@ -97,6 +107,7 @@ export function pathForBrixDestination(destination: BrixDeepLinkDestination) {
 export function requiresAuthentication(destination: BrixDeepLinkDestination) {
   return destination.kind === "deals"
     || destination.kind === "deal"
+    || destination.kind === "share-intake"
     || destination.kind === "invitation"
     || (destination.kind === "settings" && destination.panel === "trusted-access");
 }
@@ -116,11 +127,13 @@ function rejected(reason: Extract<BrixDeepLinkResult, { ok: false }>["reason"], 
 }
 
 function isApprovedScheme(url: URL) {
+  if (url.protocol === "brixrealestate:") return true;
   if (url.protocol === "https:") return true;
   return url.protocol === "http:" && DEVELOPMENT_HOSTS.has(url.hostname);
 }
 
 function isApprovedHost(url: URL) {
+  if (url.protocol === "brixrealestate:") return url.hostname === "share-intake" || url.hostname === "app";
   return PRODUCTION_HOSTS.has(url.hostname) || DEVELOPMENT_HOSTS.has(url.hostname);
 }
 
@@ -132,6 +145,13 @@ function hasUnknownParams(params: URLSearchParams, allowed: string[]) {
 function normalizePath(pathname: string) {
   const path = pathname.replace(/\/{2,}/g, "/").replace(/\/+$/, "");
   return path || "/";
+}
+
+function pathForParsedUrl(url: URL) {
+  const path = normalizePath(url.pathname);
+  if (url.protocol !== "brixrealestate:") return path;
+  if (url.hostname === "share-intake") return normalizePath(`/share-intake${path}`);
+  return path;
 }
 
 function decodeSegment(segment: string) {

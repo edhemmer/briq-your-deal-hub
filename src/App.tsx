@@ -98,6 +98,15 @@ import {
   type BrixDeepLinkDestination,
 } from "./core/deepLinks";
 import {
+  createSharedIntakeReview,
+  loadSharedIntakeHandoff,
+  prepareManualDraftFromSharedIntake,
+  removeSharedIntakeHandoff,
+  saveSharedIntakeHandoff,
+  scopeSharedIntakeForReview,
+  transitionSharedIntake,
+} from "./core/shareIntake";
+import {
   cancelOfflineDraft,
   createOfflineDraft,
   createOfflineDraftRepository,
@@ -107,7 +116,8 @@ import {
   type OfflineDraftScope,
 } from "./core/offlineDrafts";
 
-type Module = "home" | "deals" | "deal" | "account";
+type Module = "home" | "deals" | "deal" | "account" | "share-intake";
+type VisibleModule = Exclude<Module, "share-intake">;
 type SearchStatus = "idle" | "loading" | "ready" | "failed";
 type SearchTarget = "home" | "deals" | "account" | "deal";
 type PresentationPreferenceStatus = "loading" | "ready" | "saving" | "saved" | "failed" | "offline" | "unsupported";
@@ -132,7 +142,7 @@ type InvestorAttentionItem = {
   dealId?: string;
 };
 
-const nav: Array<{ id: Module; label: string; icon: typeof Search; purpose: string }> = [
+const nav: Array<{ id: VisibleModule; label: string; icon: typeof Search; purpose: string }> = [
   { id: "home", label: "Home", icon: Home, purpose: "Resume your BRIX account" },
   { id: "deals", label: "Deals", icon: BarChart3, purpose: "Review saved deal work" },
   { id: "account", label: "Settings", icon: UserCircle, purpose: "Account and access" },
@@ -161,6 +171,7 @@ function pathForModule(module: Module) {
     deals: "/deals",
     deal: "/deals",
     account: "/account",
+    "share-intake": "/app",
   };
   return paths[module];
 }
@@ -179,8 +190,14 @@ function dealIdFromPath() {
   return parsed.ok && parsed.destination.kind === "deal" ? parsed.destination.dealId : null;
 }
 
+function shareHandoffIdFromPath() {
+  const parsed = parseBrixDeepLink(window.location.href);
+  return parsed.ok && parsed.destination.kind === "share-intake" ? parsed.destination.handoffId : null;
+}
+
 function moduleForDestination(destination: BrixDeepLinkDestination): Module {
   if (destination.kind === "deals" || destination.kind === "deal") return destination.kind === "deal" ? "deal" : "deals";
+  if (destination.kind === "share-intake") return "share-intake";
   if (destination.kind === "settings" || destination.kind === "password-recovery" || destination.kind === "invitation") return "account";
   return "home";
 }
@@ -882,6 +899,14 @@ function BrixApp() {
       setPendingDeepLink(null);
       return;
     }
+    if (pendingDeepLink.kind === "share-intake") {
+      setModuleState("share-intake");
+      setRouteMessage(null);
+      const path = pathForBrixDestination(pendingDeepLink);
+      if (window.location.pathname !== path) window.history.replaceState({}, "", path);
+      setPendingDeepLink(null);
+      return;
+    }
     if (pendingDeepLink.kind === "settings") {
       setModuleState("account");
       setRouteMessage(null);
@@ -1275,6 +1300,7 @@ function BrixApp() {
         {module === "home" && <HomeSurface presentationMode={presentationMode} isAuthenticated={isAuthenticated} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} isOnline={isOnline} deals={deals} selectedDeal={selectedDeal ?? deals[0]} syncMessage={syncMessage} routeMessage={routeMessage} onOpenDeal={(dealId?: string) => dealId ? openDeal(dealId) : selectedDeal ? openDeal(selectedDeal.id) : setModule("deals")} onOpenDeals={() => setModule("deals")} onOpenSettings={() => setModule("account")} onStartIntake={() => setManualIntakeOpen(true)} onRetry={retryWorkspaceBootstrap} />}
         {module === "deals" && <DealsSurface presentationMode={presentationMode} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} workspaceId={workspaceContext?.workspaceId} storageScope={storageScope} isAuthenticated={isAuthenticated} isOnline={isOnline} deals={deals} recentDeals={recentDeals} selectedId={selectedId} onOpenDeal={openDeal} onStartIntake={() => setManualIntakeOpen(true)} onRetry={retryWorkspaceBootstrap} onArchived={markDealArchived} onRestored={putDealInState} />}
         {module === "deal" && <DealIQ deal={selectedDeal} workspaceId={workspaceContext?.workspaceId} userId={authUserId} draftScope={draftScope} offlineDrafts={selectedDealDrafts} isAuthenticated={isAuthenticated} isOnline={isOnline} onChange={upsertDeal} onCanonicalSaved={putDealInState} onDelete={deleteDeal} onDraftQueued={enqueueOfflineDraft} onDraftRetry={retryOfflineDrafts} onDraftCancel={cancelQueuedDraft} />}
+        {module === "share-intake" && <SharedIntakeReviewSurface handoffId={shareHandoffIdFromPath()} storageScope={storageScope} isAuthenticated={isAuthenticated} workspaceId={workspaceContext?.workspaceId} userId={authUserId} onOpenSettings={() => setModule("account")} onOpenDeals={() => setModule("deals")} onContinue={() => setManualIntakeOpen(true)} onCancel={() => setModule("home")} />}
         {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceContext={workspaceContext} invitationToken={invitationToken} recoveryActive={passwordRecoveryActive} onAuthChanged={(userId) => {
           setDeals([]);
           setSelectedId(null);
@@ -5547,6 +5573,126 @@ function Step({ n, title, text }: { n: string; title: string; text: string }) {
 
 function Empty({ title, text }: { title: string; text: string }) {
   return <section className="panel empty"><h2>{title}</h2><p>{text}</p></section>;
+}
+
+function SharedIntakeReviewSurface({
+  handoffId,
+  storageScope,
+  isAuthenticated,
+  workspaceId,
+  userId,
+  onOpenSettings,
+  onOpenDeals,
+  onContinue,
+  onCancel,
+}: {
+  handoffId: string | null;
+  storageScope: string;
+  isAuthenticated: boolean;
+  workspaceId?: string;
+  userId: string | null;
+  onOpenSettings: () => void;
+  onOpenDeals: () => void;
+  onContinue: () => void;
+  onCancel: () => void;
+}) {
+  const [message, setMessage] = useState<string | null>(null);
+  const payload = useMemo(() => handoffId ? loadSharedIntakeHandoff(handoffId) : null, [handoffId]);
+  const scopedPayload = useMemo(() => payload ? scopeSharedIntakeForReview(payload, { userId, workspaceId }) : null, [payload, userId, workspaceId]);
+  const review = scopedPayload ? createSharedIntakeReview(scopedPayload) : null;
+
+  function continueWithExistingIntake() {
+    if (!scopedPayload) return;
+    if (!isAuthenticated) {
+      setMessage("Sign in before importing shared content.");
+      onOpenSettings();
+      return;
+    }
+    if (!workspaceId) {
+      setMessage("Choose an authorized workspace before importing shared content.");
+      return;
+    }
+    try {
+      const reviewing = scopedPayload.status === "awaiting_review" ? scopedPayload : scopeSharedIntakeForReview(scopedPayload, { userId, workspaceId });
+      saveSharedIntakeHandoff(reviewing);
+      prepareManualDraftFromSharedIntake(reviewing, storageScope);
+      setMessage("Shared item is ready for review in Deal intake.");
+      onContinue();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Shared item could not be prepared.");
+    }
+  }
+
+  function cancelSharedHandoff() {
+    if (scopedPayload && handoffId) {
+      try {
+        saveSharedIntakeHandoff(transitionSharedIntake(scopedPayload, "cancelled"));
+      } catch {
+        removeSharedIntakeHandoff(handoffId);
+      }
+    }
+    onCancel();
+  }
+
+  if (!review) {
+    return (
+      <section className="panel empty state-card" aria-labelledby="share-intake-title">
+        <div className="state-icon warning"><FileSearch size={28} /></div>
+        <h2 id="share-intake-title">Shared item unavailable</h2>
+        <p className="quiet">This shared item could not be opened. It may have expired, been cancelled, or been stored on another device.</p>
+        <button className="secondary" type="button" onClick={onOpenDeals}>Open Deals</button>
+      </section>
+    );
+  }
+
+  const actionLabel = review.selectedRoute === "listing_url"
+    ? "Review listing URL"
+    : review.selectedRoute === "file_evidence"
+      ? "Review evidence file"
+      : review.selectedRoute === "email_intake"
+        ? "Review email source"
+        : "Continue manually";
+
+  return (
+    <section className="panel shared-intake-review" aria-labelledby="share-intake-title">
+      <div className="section-heading">
+        <div>
+          <StatusBadge tone={review.localOnly ? "warning" : "success"}>{review.localOnly ? "Saved on this device" : "Saved to BRIX"}</StatusBadge>
+          <h2 id="share-intake-title">Review shared property source</h2>
+          <p className="quiet">{review.statusMessage}</p>
+        </div>
+        <FileSearch aria-hidden="true" />
+      </div>
+      <div className="state-grid">
+        <article className="metric-card">
+          <span>Source</span>
+          <strong>{review.primarySource ?? "Shared item"}</strong>
+          {review.sourceApplication && <small>{review.sourceApplication}</small>}
+        </article>
+        <article className="metric-card">
+          <span>Content</span>
+          <strong>{review.contentType.replace(/_/g, " ")}</strong>
+          <small>{review.selectedRoute.replace(/_/g, " ")}</small>
+        </article>
+        <article className="metric-card">
+          <span>State</span>
+          <strong>{review.status.replace(/_/g, " ")}</strong>
+          <small>{review.handoffId}</small>
+        </article>
+      </div>
+      <ShellNotice tone="info" title={review.displayTitle}>
+        Shared content is source material. BRIX will not create facts or a Deal until you review and confirm the intake.
+      </ShellNotice>
+      {message && <p className="quiet" role="status" aria-live="polite">{message}</p>}
+      <div className="button-row">
+        {review.nextAction === "sign_in" && <button className="primary" type="button" onClick={onOpenSettings}>Sign in</button>}
+        {review.nextAction !== "sign_in" && review.actions.includes("create_new_deal") && <button className="primary" type="button" onClick={continueWithExistingIntake}>{actionLabel}</button>}
+        {review.actions.includes("attach_existing_deal") && <button className="secondary" type="button" onClick={onOpenDeals}>Attach to existing Deal</button>}
+        {review.actions.includes("cancel") && <button className="secondary" type="button" onClick={cancelSharedHandoff}>Cancel shared item</button>}
+        {review.actions.includes("open_result") && <button className="secondary" type="button" onClick={onOpenDeals}>Open result</button>}
+      </div>
+    </section>
+  );
 }
 
 function EmptyState({ title, text, actionLabel, onAction }: { title: string; text: string; actionLabel?: string; onAction?: () => void }) {

@@ -235,6 +235,12 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .state-icon.warning { color: var(--amber); background: rgba(246,182,63,.12); }
 .recoverable-state { text-align: center; justify-items: center; }
 .state-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.shared-intake-review { display: grid; gap: 18px; max-width: 980px; }
+.shared-intake-review .section-heading svg { color: var(--blue); }
+.metric-card { display: grid; gap: 6px; min-width: 0; border: 1px solid var(--line); border-radius: 16px; background: rgba(8,15,29,.64); padding: 16px; }
+.metric-card span { color: var(--muted); font-weight: 800; }
+.metric-card strong { color: #fff; overflow-wrap: anywhere; }
+.metric-card small { color: var(--muted); overflow-wrap: anywhere; }
 .state-primitive { display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: rgba(8,15,29,.58); }
 .state-primitive strong { color: #fff; }
 .state-primitive span { color: var(--muted); line-height: 1.45; }

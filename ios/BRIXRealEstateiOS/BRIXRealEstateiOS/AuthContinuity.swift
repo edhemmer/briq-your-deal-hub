@@ -40,12 +40,13 @@ enum NativeAuthStatus: Equatable {
 enum NativeAuthDestination: Equatable {
     case passwordRecovery(token: String?)
     case invitation(token: String)
+    case sharedIntake(handoffId: String)
     case account
 
     var requiresAuthentication: Bool {
         switch self {
         case .passwordRecovery: return false
-        case .invitation, .account: return true
+        case .invitation, .sharedIntake, .account: return true
         }
     }
 }
@@ -61,7 +62,7 @@ enum NativeDeepLinkRouter {
         }
 
         let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        let path = url.path.lowercased()
+        let path = canonicalPath(for: url)
         let query = allItems(from: components)
 
         if let invite = query.first(where: { $0.name == "invite" })?.value, !invite.isEmpty {
@@ -78,7 +79,25 @@ enum NativeDeepLinkRouter {
             return .account
         }
 
+        if path.hasPrefix("/share-intake/") {
+            let handoffId = String(path.dropFirst("/share-intake/".count))
+            guard isSafeShareHandoffId(handoffId) else { return nil }
+            return .sharedIntake(handoffId: handoffId)
+        }
+
         return nil
+    }
+
+    private static func canonicalPath(for url: URL) -> String {
+        let path = url.path.lowercased()
+        guard url.scheme?.lowercased() == "brixrealestate" else { return path }
+        if url.host?.lowercased() == "share-intake" { return "/share-intake\(path)" }
+        return path
+    }
+
+    private static func isSafeShareHandoffId(_ value: String) -> Bool {
+        let pattern = #"^share_[A-Za-z0-9._:-]{8,160}$"#
+        return value.range(of: pattern, options: .regularExpression) != nil
     }
 
     private static func allItems(from components: URLComponents?) -> [URLQueryItem] {
