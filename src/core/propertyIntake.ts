@@ -1,6 +1,8 @@
 import { getStrategy, normalizeStrategy } from "./strategyCatalog";
 import { supabase } from "./supabase";
-import type { DealFacts, ListingUrlImportResult, ListingUrlProposal, ManualIntakeDraft, ManualIntakeResult, ManualPropertyCandidate } from "./types";
+import { attachFileEvidenceToDeal, normalizeFileEvidenceImportResult } from "./fileEvidenceIntake";
+import type { Json } from "./supabaseDatabase.types";
+import type { DealFacts, FileEvidenceImportResult, FileEvidenceProposal, ListingUrlImportResult, ListingUrlProposal, ManualIntakeDraft, ManualIntakeResult, ManualPropertyCandidate } from "./types";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -42,6 +44,8 @@ export function normalizeManualIntakeDraft(value: unknown): ManualIntakeDraft | 
     notes: stringValue(value.notes),
     listingImport: normalizeListingImport(value.listingImport),
     listingProposals: Array.isArray(value.listingProposals) ? value.listingProposals.map(normalizeListingProposal).filter(isListingProposal) : undefined,
+    fileEvidenceImport: normalizeFileEvidenceImport(value.fileEvidenceImport),
+    fileEvidenceProposals: Array.isArray(value.fileEvidenceProposals) ? value.fileEvidenceProposals.map(normalizeFileEvidenceProposal).filter(isFileEvidenceProposal) : undefined,
     duplicateDecision: value.duplicateDecision === "use_existing_property" || value.duplicateDecision === "create_new_property" ? value.duplicateDecision : undefined,
     selectedPropertyId: stringValue(value.selectedPropertyId),
     updatedAt: stringValue(value.updatedAt) ?? new Date().toISOString(),
@@ -86,6 +90,8 @@ export function manualIntakeInput(draft: ManualIntakeDraft) {
     notes: draft.notes?.trim() || null,
     listing_import: draft.listingImport ?? null,
     listing_proposals: draft.listingProposals ?? [],
+    file_evidence_import: draft.fileEvidenceImport ?? null,
+    file_evidence_proposals: draft.fileEvidenceProposals ?? [],
   };
 }
 
@@ -123,6 +129,9 @@ export async function completeManualPropertyIntake(workspaceId: string, draft: M
   if (draft.sourceUrl && draft.listingImport) {
     await recordListingUrlImportResult(workspaceId, result, draft);
   }
+  if (draft.fileEvidenceImport) {
+    await attachFileEvidenceToDeal(workspaceId, result, draft.fileEvidenceImport);
+  }
   return result;
 }
 
@@ -152,6 +161,7 @@ export function manualIntakeDealFromResult(draft: ManualIntakeDraft, result: Man
       address: "entered",
       manual_source: "entered",
       listing_url: draft.sourceUrl ? "source_backed" : "missing",
+      evidence: draft.fileEvidenceImport ? "source_backed" : "missing",
       propertyType: draft.propertyType ? "entered" : "missing",
       listPrice: draft.askingPrice ? "entered" : "missing",
     },
@@ -259,7 +269,31 @@ function normalizeListingProposal(value: unknown): ListingUrlProposal | null {
   };
 }
 
+function normalizeFileEvidenceImport(value: unknown): FileEvidenceImportResult | undefined {
+  try {
+    return normalizeFileEvidenceImportResult(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeFileEvidenceProposal(value: unknown): FileEvidenceProposal | null {
+  const proposal = normalizeListingProposal(value);
+  if (!proposal || !isRecord(value)) return proposal;
+  return {
+    ...proposal,
+    sourceAnchor: jsonRecord(value.sourceAnchor),
+    extractorVersion: stringValue(value.extractorVersion),
+    unit: stringValue(value.unit),
+    currency: stringValue(value.currency),
+  };
+}
+
 function isListingProposal(value: ListingUrlProposal | null): value is ListingUrlProposal {
+  return value !== null;
+}
+
+function isFileEvidenceProposal(value: FileEvidenceProposal | null): value is FileEvidenceProposal {
   return value !== null;
 }
 
@@ -288,6 +322,20 @@ function stringValue(value: unknown) {
 
 function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function jsonRecord(value: unknown): Record<string, Json> | undefined {
+  if (!isRecord(value)) return undefined;
+  const entries = Object.entries(value).filter((entry): entry is [string, Json] => isJson(entry[1]));
+  return entries.length ? Object.fromEntries(entries) : undefined;
+}
+
+function isJson(value: unknown): value is Json {
+  if (value === null) return true;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return true;
+  if (Array.isArray(value)) return value.every(isJson);
+  if (!isRecord(value)) return false;
+  return Object.values(value).every(isJson);
 }
 
 function isCandidate(value: ManualPropertyCandidate | null): value is ManualPropertyCandidate {

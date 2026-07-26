@@ -22,7 +22,7 @@ describe("Specification 004 manual address and Property intake slice", () => {
     expect(offlineDrafts).toContain('"create_canonical_deal"');
   });
 
-  it("keeps the original slice manual-only and defers file, email, package, and enrichment intake", () => {
+  it("keeps the original manual slice from growing into email, package, or enrichment intake", () => {
     expect(propertyIntake).toContain("manualIntakeInput");
     expect(propertyIntake).not.toMatch(/email_intake|batch_intake|package_intake|general_enrichment/i);
     expect(app).not.toContain("Address, listing URL, or listing text");

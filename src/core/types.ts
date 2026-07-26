@@ -1,4 +1,5 @@
 import type { StrategyId } from "./strategyCatalog";
+import type { Json } from "./supabaseDatabase.types";
 
 export type DealStatus = "draft" | "reviewing" | "underwriting" | "pursuing" | "under_contract" | "closed" | "passed";
 
@@ -401,6 +402,8 @@ export type ManualIntakeDraft = {
   notes?: string;
   listingImport?: ListingUrlImportResult;
   listingProposals?: ListingUrlProposal[];
+  fileEvidenceImport?: FileEvidenceImportResult;
+  fileEvidenceProposals?: FileEvidenceProposal[];
   duplicateDecision?: ManualIntakeDecision;
   selectedPropertyId?: string;
   updatedAt: string;
@@ -409,6 +412,8 @@ export type ManualIntakeDraft = {
 export type ListingSourceSupport = "supported" | "limited" | "unsupported";
 export type ListingImportStatus = "complete" | "partially_complete" | "failed" | "unsupported";
 export type ListingProposalStatus = "pending" | "accepted" | "rejected" | "edited" | "deferred" | "conflicted" | "superseded";
+export type FileEvidenceStatus = "duplicate" | "complete" | "partially_complete" | "preserved" | "failed" | "unsupported";
+export type FileEvidenceType = "file" | "image" | "document";
 
 export type ListingUrlProposal = {
   id: string;
@@ -425,6 +430,13 @@ export type ListingUrlProposal = {
   evidenceRule: string;
 };
 
+export type FileEvidenceProposal = ListingUrlProposal & {
+  sourceAnchor?: Record<string, Json>;
+  extractorVersion?: string;
+  unit?: string;
+  currency?: string;
+};
+
 export type ListingUrlImportResult = {
   originalUrl: string;
   normalizedUrl: string;
@@ -438,6 +450,25 @@ export type ListingUrlImportResult = {
   safeMessage: string;
   licensingNotes: string;
   proposals: ListingUrlProposal[];
+};
+
+export type FileEvidenceImportResult = {
+  evidenceId: string;
+  intakeId: string;
+  sourceRecordId: string;
+  jobId?: string;
+  duplicateOfEvidenceId?: string;
+  status: FileEvidenceStatus;
+  safeMessage: string;
+  originalFilename: string;
+  sanitizedFilename: string;
+  detectedMimeType: string;
+  evidenceType: FileEvidenceType;
+  byteSize: number;
+  contentHash: string;
+  uploadedAt: string;
+  extractionStatus: "not_started" | "complete" | "partially_complete" | "unsupported" | "failed";
+  proposals: FileEvidenceProposal[];
 };
 
 export type ManualPropertyCandidate = {

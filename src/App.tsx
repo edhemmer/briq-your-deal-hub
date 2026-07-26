@@ -88,6 +88,7 @@ import {
   validateManualIntakeDraft,
 } from "./core/propertyIntake";
 import { applyListingProposal, attachListingImportToDraft, importListingUrl, proposalSummary } from "./core/listingUrlIntake";
+import { applyFileEvidenceProposal, attachFileEvidenceToDraft, fileEvidenceProposalSummary, importEvidenceFile, validateEvidenceFile } from "./core/fileEvidenceIntake";
 import {
   brixLink,
   parseBrixDeepLink,
@@ -2140,8 +2141,11 @@ function ManualPropertyIntakeDialog({
   const [candidates, setCandidates] = useState<ManualPropertyCandidate[]>([]);
   const [status, setStatus] = useState<"draft" | "local" | "searching" | "awaiting_decision" | "creating" | "complete" | "failed" | "offline" | "permission" | "conflict" | "cancelled">("draft");
   const [listingStatus, setListingStatus] = useState<"idle" | "importing" | "complete" | "failed" | "unsupported">("idle");
+  const [evidenceStatus, setEvidenceStatus] = useState<"idle" | "selected" | "validating" | "uploading" | "complete" | "duplicate" | "failed" | "unsupported">("idle");
+  const [selectedEvidenceFile, setSelectedEvidenceFile] = useState<File | null>(null);
   const [message, setMessage] = useState("");
   const [listingMessage, setListingMessage] = useState("");
+  const [evidenceMessage, setEvidenceMessage] = useState("");
   const [errorSummary, setErrorSummary] = useState<string[]>([]);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const isProfessional = presentationMode === "professional";
@@ -2182,6 +2186,61 @@ function ManualPropertyIntakeDialog({
     setDraft(next);
     setStatus("local");
     setMessage(proposalStatus === "accepted" || proposalStatus === "edited" ? "Proposal accepted into editable fields." : "Proposal decision saved.");
+  }
+
+  function selectEvidenceFile(file?: File) {
+    if (!file) return;
+    setEvidenceStatus("validating");
+    setEvidenceMessage("Checking file type and size.");
+    file.arrayBuffer()
+      .then((buffer) => {
+        validateEvidenceFile(file.name, file.type, new Uint8Array(buffer));
+        setSelectedEvidenceFile(file);
+        setEvidenceStatus("selected");
+        setEvidenceMessage("File is ready to upload.");
+      })
+      .catch((error) => {
+        setSelectedEvidenceFile(null);
+        setEvidenceStatus("failed");
+        setEvidenceMessage(safeDealCommandMessage(error).message);
+      });
+  }
+
+  async function uploadEvidenceFile() {
+    if (!selectedEvidenceFile) {
+      setEvidenceStatus("failed");
+      setEvidenceMessage("Choose one supported file before uploading.");
+      return;
+    }
+    if (!isAuthenticated || !workspaceId) {
+      setEvidenceStatus("failed");
+      setEvidenceMessage("Sign in before preserving Evidence in your BRIX account.");
+      return;
+    }
+    if (!isOnline) {
+      setEvidenceStatus("failed");
+      setEvidenceMessage("Evidence upload needs a connection. Your typed intake remains saved on this device.");
+      return;
+    }
+    setEvidenceStatus("uploading");
+    setEvidenceMessage("Uploading and preserving Evidence.");
+    try {
+      const fileImport = await importEvidenceFile(workspaceId, selectedEvidenceFile);
+      const next = saveManualIntakeDraft(storageScope, attachFileEvidenceToDraft(draft, fileImport));
+      setDraft(next);
+      setEvidenceStatus(fileImport.status === "duplicate" ? "duplicate" : fileImport.extractionStatus === "unsupported" ? "unsupported" : "complete");
+      setEvidenceMessage(fileImport.safeMessage);
+    } catch (error) {
+      setEvidenceStatus("failed");
+      setEvidenceMessage(safeDealCommandMessage(error).message);
+    }
+  }
+
+  function updateEvidenceProposal(proposalId: string, proposalStatus: "accepted" | "edited" | "rejected" | "deferred") {
+    const next = saveManualIntakeDraft(storageScope, applyFileEvidenceProposal(draft, proposalId, proposalStatus));
+    setDraft(next);
+    setStatus("local");
+    setMessage(proposalStatus === "accepted" || proposalStatus === "edited" ? "Evidence proposal accepted into editable fields." : "Evidence proposal decision saved.");
   }
 
   async function searchMatches() {
@@ -2255,8 +2314,10 @@ function ManualPropertyIntakeDialog({
     { label: "Expected price", value: draft.expectedPrice ? "User assumption" : "Unknown" },
     { label: "Strategy", value: draft.intendedStrategy ? "User intent" : "Unknown" },
     { label: "Listing URL", value: draft.sourceUrl ? "Source-linked candidate values, unverified" : "Not supplied" },
+    { label: "Evidence file", value: draft.fileEvidenceImport ? "Private Evidence saved, unverified" : "Not supplied" },
   ];
   const listingSummary = proposalSummary(draft.listingProposals);
+  const evidenceSummary = fileEvidenceProposalSummary(draft.fileEvidenceProposals);
 
   return (
     <div className="modal-backdrop" role="presentation">
@@ -2335,9 +2396,68 @@ function ManualPropertyIntakeDialog({
                 </div>
               )}
             </section>
+            <section className="workspace-card wide source-review-panel">
+              <div className="panel-heading-row">
+                <div>
+                  <p className="eyebrow">File, Image, or Document</p>
+                  <h3>Preserve source evidence</h3>
+                  <p className="quiet">Upload one PDF, text, CSV, XLSX, DOCX, JPEG, PNG, or WebP file. BRIX stores the original privately and only proposes values for your review.</p>
+                </div>
+                {draft.fileEvidenceImport && <span className={draft.fileEvidenceImport.status === "duplicate" ? "status-chip warning" : "status-chip info"}>{draft.fileEvidenceImport.status}</span>}
+              </div>
+              <label className="upload-zone evidence-upload-zone">
+                <FileSearch size={26} />
+                <strong>{selectedEvidenceFile ? selectedEvidenceFile.name : draft.fileEvidenceImport?.originalFilename ?? "Choose one file"}</strong>
+                <span>{selectedEvidenceFile ? formatFileSize(selectedEvidenceFile.size) : "Supported: PDF, TXT, CSV, XLSX, DOCX, JPEG, PNG, WebP. Maximum 5 MB."}</span>
+                <input
+                  type="file"
+                  accept=".pdf,.txt,.csv,.xlsx,.docx,.jpg,.jpeg,.png,.webp,application/pdf,text/plain,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp"
+                  onChange={(event) => selectEvidenceFile(event.target.files?.[0])}
+                />
+              </label>
+              <div className="button-row">
+                <button className="secondary compact" type="button" onClick={() => void uploadEvidenceFile()} disabled={evidenceStatus === "uploading" || evidenceStatus === "validating"}>
+                  {evidenceStatus === "uploading" ? "Uploading..." : evidenceStatus === "validating" ? "Checking..." : "Upload Evidence"}
+                </button>
+                <button className="ghost compact" type="button" onClick={() => document.getElementById("manual-intake-opportunity-name")?.focus()}>Continue manually</button>
+                {draft.fileEvidenceImport && <span className="quiet">{evidenceSummary.accepted} accepted, {evidenceSummary.deferred} deferred, {evidenceSummary.rejected} rejected</span>}
+              </div>
+              {evidenceMessage && <p className={evidenceStatus === "failed" ? "error" : "quiet"} role="status" aria-live="polite">{evidenceMessage}</p>}
+              {draft.fileEvidenceImport && (
+                <div className="source-facts">
+                  <DefinitionList items={[
+                    { label: "File", value: draft.fileEvidenceImport.originalFilename },
+                    { label: "Type", value: draft.fileEvidenceImport.detectedMimeType },
+                    { label: "Size", value: formatFileSize(draft.fileEvidenceImport.byteSize) },
+                    { label: "Saved", value: formatIntakeDateTime(draft.fileEvidenceImport.uploadedAt) },
+                  ]} />
+                  <p className="quiet">Original Evidence is private to this BRIX account. Extracted values stay unverified until you accept and verify them.</p>
+                </div>
+              )}
+              {draft.fileEvidenceProposals && draft.fileEvidenceProposals.length > 0 && (
+                <div className="proposal-list" role="list" aria-label="Evidence proposed values">
+                  <p className="eyebrow">Extracted proposals</p>
+                  {draft.fileEvidenceProposals.map((proposal) => (
+                    <article key={proposal.id} className="proposal-card" role="listitem">
+                      <div>
+                        <strong>{proposal.label}</strong>
+                        <span>{proposal.displayValue}</span>
+                        <small>{proposal.classification}; confidence {proposal.confidence}/100; line {typeof proposal.sourceAnchor?.line === "number" ? proposal.sourceAnchor.line : "unknown"}</small>
+                      </div>
+                      <div className="button-row">
+                        <button className={proposal.status === "accepted" || proposal.status === "edited" ? "primary compact" : "secondary compact"} type="button" onClick={() => updateEvidenceProposal(proposal.id, "accepted")}>Accept</button>
+                        <button className={proposal.status === "edited" ? "primary compact" : "secondary compact"} type="button" onClick={() => updateEvidenceProposal(proposal.id, "edited")}>Accept/edit</button>
+                        <button className={proposal.status === "rejected" ? "primary compact" : "secondary compact"} type="button" onClick={() => updateEvidenceProposal(proposal.id, "rejected")}>Reject</button>
+                        <button className={proposal.status === "deferred" ? "primary compact" : "secondary compact"} type="button" onClick={() => updateEvidenceProposal(proposal.id, "deferred")}>Defer</button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
             <label className="field wide">
               <span>Opportunity name <small>Required</small></span>
-              <input value={draft.opportunityName} onChange={(event) => updateDraft({ opportunityName: event.target.value })} placeholder="Maple Street duplex lead" />
+              <input id="manual-intake-opportunity-name" value={draft.opportunityName} onChange={(event) => updateDraft({ opportunityName: event.target.value })} placeholder="Maple Street duplex lead" />
             </label>
             <label className="field wide">
               <span>Address or descriptive location <small>Required</small></span>
@@ -2424,6 +2544,7 @@ function ManualPropertyIntakeDialog({
                 { label: "Type", value: draft.propertyType },
                 { label: "Source", value: draft.source },
                 { label: "Listing URL", value: draft.sourceUrl },
+                { label: "Evidence", value: draft.fileEvidenceImport?.originalFilename },
               ]} />
             </section>
             <section className="workspace-card">
@@ -2478,6 +2599,13 @@ function formatIntakeDateTime(value?: string) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function formatFileSize(bytes?: number) {
+  if (!bytes || bytes <= 0) return undefined;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 type DealWorkspaceSection = "overview" | "property" | "people" | "work" | "notes" | "history";

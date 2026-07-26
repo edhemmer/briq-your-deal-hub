@@ -312,6 +312,10 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .comparison-detail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
 .upload-zone { position: relative; display: grid; place-items: center; gap: 8px; min-height: 160px; border: 1px dashed #3a557c; border-radius: 18px; color: #b5c9e6; }
 .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.evidence-upload-zone { min-height: 138px; background: rgba(4, 12, 24, .36); text-align: center; transition: border-color .18s ease, background .18s ease; }
+.evidence-upload-zone:hover, .evidence-upload-zone:focus-within { border-color: rgba(59,130,246,.78); background: rgba(15,23,42,.78); }
+.evidence-upload-zone strong { color: var(--text); overflow-wrap: anywhere; }
+.evidence-upload-zone span { max-width: 560px; color: var(--muted); font-size: 13px; line-height: 1.45; }
 .compact-list, .check-list { color: var(--muted); line-height: 1.7; padding-left: 20px; }
 .findings { display: grid; gap: 10px; margin-top: 14px; }
 .findings article { display: grid; gap: 5px; border: 1px solid #3a557c; background: rgba(59,130,246,.08); border-radius: 14px; padding: 12px; color: var(--muted); }
