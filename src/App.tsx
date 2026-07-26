@@ -89,6 +89,7 @@ import {
 } from "./core/propertyIntake";
 import { applyListingProposal, attachListingImportToDraft, importListingUrl, proposalSummary } from "./core/listingUrlIntake";
 import { applyFileEvidenceProposal, attachFileEvidenceToDraft, fileEvidenceProposalSummary, importEvidenceFile, validateEvidenceFile } from "./core/fileEvidenceIntake";
+import { applyEmailProposal, attachEmailImportToDraft, emailProposalSummary, importEmailSource, validateEmailInput } from "./core/emailIntake";
 import {
   brixLink,
   parseBrixDeepLink,
@@ -2142,10 +2143,13 @@ function ManualPropertyIntakeDialog({
   const [status, setStatus] = useState<"draft" | "local" | "searching" | "awaiting_decision" | "creating" | "complete" | "failed" | "offline" | "permission" | "conflict" | "cancelled">("draft");
   const [listingStatus, setListingStatus] = useState<"idle" | "importing" | "complete" | "failed" | "unsupported">("idle");
   const [evidenceStatus, setEvidenceStatus] = useState<"idle" | "selected" | "validating" | "uploading" | "complete" | "duplicate" | "failed" | "unsupported">("idle");
+  const [emailStatus, setEmailStatus] = useState<"idle" | "selected" | "validating" | "importing" | "complete" | "duplicate" | "failed">("idle");
   const [selectedEvidenceFile, setSelectedEvidenceFile] = useState<File | null>(null);
+  const [selectedEmailFile, setSelectedEmailFile] = useState<File | null>(null);
   const [message, setMessage] = useState("");
   const [listingMessage, setListingMessage] = useState("");
   const [evidenceMessage, setEvidenceMessage] = useState("");
+  const [emailMessage, setEmailMessage] = useState("");
   const [errorSummary, setErrorSummary] = useState<string[]>([]);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const isProfessional = presentationMode === "professional";
@@ -2243,6 +2247,62 @@ function ManualPropertyIntakeDialog({
     setMessage(proposalStatus === "accepted" || proposalStatus === "edited" ? "Evidence proposal accepted into editable fields." : "Evidence proposal decision saved.");
   }
 
+  function selectEmailFile(file?: File) {
+    if (!file) return;
+    setEmailStatus("validating");
+    setEmailMessage("Checking email file.");
+    file.arrayBuffer()
+      .then((buffer) => {
+        validateEmailInput(file.name, new Uint8Array(buffer));
+        setSelectedEmailFile(file);
+        setEmailStatus("selected");
+        setEmailMessage("Email file is ready to import.");
+      })
+      .catch((error) => {
+        setSelectedEmailFile(null);
+        setEmailStatus("failed");
+        setEmailMessage(safeDealCommandMessage(error).message);
+      });
+  }
+
+  async function importEmail() {
+    const pasted = draft.source?.trim();
+    if (!selectedEmailFile && !pasted) {
+      setEmailStatus("failed");
+      setEmailMessage("Paste email text or choose an email file before importing.");
+      return;
+    }
+    if (!isAuthenticated || !workspaceId) {
+      setEmailStatus("failed");
+      setEmailMessage("Sign in before saving email sources in your BRIX account.");
+      return;
+    }
+    if (!isOnline) {
+      setEmailStatus("failed");
+      setEmailMessage("Email import needs a connection. Your typed intake remains saved on this device.");
+      return;
+    }
+    setEmailStatus("importing");
+    setEmailMessage("Saving email source and deterministic proposals.");
+    try {
+      const emailImport = await importEmailSource(workspaceId, { emailText: pasted, file: selectedEmailFile ?? undefined });
+      const next = saveManualIntakeDraft(storageScope, attachEmailImportToDraft(draft, emailImport));
+      setDraft(next);
+      setEmailStatus(emailImport.status === "duplicate" ? "duplicate" : "complete");
+      setEmailMessage(emailImport.safeMessage);
+    } catch (error) {
+      setEmailStatus("failed");
+      setEmailMessage(safeDealCommandMessage(error).message);
+    }
+  }
+
+  function updateEmailProposal(proposalId: string, proposalStatus: "accepted" | "edited" | "rejected" | "deferred") {
+    const next = saveManualIntakeDraft(storageScope, applyEmailProposal(draft, proposalId, proposalStatus));
+    setDraft(next);
+    setStatus("local");
+    setMessage(proposalStatus === "accepted" || proposalStatus === "edited" ? "Email proposal accepted into editable fields." : "Email proposal decision saved.");
+  }
+
   async function searchMatches() {
     const errors = validateManualIntakeDraft(draft);
     setErrorSummary(errors);
@@ -2315,9 +2375,11 @@ function ManualPropertyIntakeDialog({
     { label: "Strategy", value: draft.intendedStrategy ? "User intent" : "Unknown" },
     { label: "Listing URL", value: draft.sourceUrl ? "Source-linked candidate values, unverified" : "Not supplied" },
     { label: "Evidence file", value: draft.fileEvidenceImport ? "Private Evidence saved, unverified" : "Not supplied" },
+    { label: "Email source", value: draft.emailImport ? "Email source saved, unverified" : "Not supplied" },
   ];
   const listingSummary = proposalSummary(draft.listingProposals);
   const evidenceSummary = fileEvidenceProposalSummary(draft.fileEvidenceProposals);
+  const emailSummary = emailProposalSummary(draft.emailProposals);
 
   return (
     <div className="modal-backdrop" role="presentation">
@@ -2455,6 +2517,83 @@ function ManualPropertyIntakeDialog({
                 </div>
               )}
             </section>
+            <section className="workspace-card wide source-review-panel">
+              <div className="panel-heading-row">
+                <div>
+                  <p className="eyebrow">Email</p>
+                  <h3>Save forwarded source material</h3>
+                  <p className="quiet">Paste email text or upload .eml, .msg, or raw MIME. BRIX preserves metadata and proposes only deterministic candidate values.</p>
+                </div>
+                {draft.emailImport && <span className={draft.emailImport.status === "duplicate" ? "status-chip warning" : "status-chip info"}>{draft.emailImport.status}</span>}
+              </div>
+              <label className="upload-zone evidence-upload-zone">
+                <FileSearch size={26} />
+                <strong>{selectedEmailFile ? selectedEmailFile.name : draft.emailImport?.subject ?? "Choose email file"}</strong>
+                <span>{selectedEmailFile ? formatFileSize(selectedEmailFile.size) : "Supported: .eml, .msg, raw MIME, or pasted email text. Maximum 5 MB."}</span>
+                <input
+                  type="file"
+                  accept=".eml,.msg,.txt,message/rfc822,text/plain,application/vnd.ms-outlook,application/octet-stream"
+                  onChange={(event) => selectEmailFile(event.target.files?.[0])}
+                />
+              </label>
+              <label className="field wide">
+                <span>Pasted email text <small>Optional</small></span>
+                <textarea rows={4} value={draft.source ?? ""} onChange={(event) => updateDraft({ source: event.target.value, emailImport: undefined, emailProposals: undefined })} />
+              </label>
+              <div className="button-row">
+                <button className="secondary compact" type="button" onClick={() => void importEmail()} disabled={emailStatus === "importing" || emailStatus === "validating"}>
+                  {emailStatus === "importing" ? "Importing..." : emailStatus === "validating" ? "Checking..." : "Import Email"}
+                </button>
+                {draft.emailImport && <span className="quiet">{emailSummary.accepted} accepted, {emailSummary.deferred} deferred, {emailSummary.rejected} rejected</span>}
+              </div>
+              {emailMessage && <p className={emailStatus === "failed" ? "error" : "quiet"} role="status" aria-live="polite">{emailMessage}</p>}
+              {draft.emailImport && (
+                <div className="source-facts">
+                  <DefinitionList items={[
+                    { label: "Subject", value: draft.emailImport.subject },
+                    { label: "From", value: draft.emailImport.fromAddress },
+                    { label: "Sent", value: formatIntakeDateTime(draft.emailImport.sentAt) },
+                    { label: "Attachments", value: String(draft.emailImport.attachmentCount) },
+                    { label: "Received headers", value: String(draft.emailImport.receivedHeaderCount) },
+                  ]} />
+                  <p className="quiet">Email content is saved as source material only. Nothing becomes a Deal fact until you accept and verify it.</p>
+                </div>
+              )}
+              {draft.emailImport?.attachments.length ? (
+                <div className="proposal-list" role="list" aria-label="Email attachments">
+                  <p className="eyebrow">Attachments</p>
+                  {draft.emailImport.attachments.map((attachment) => (
+                    <article key={attachment.attachmentId} className="proposal-card" role="listitem">
+                      <div>
+                        <strong>{attachment.originalFilename}</strong>
+                        <span>{attachment.detectedMimeType ?? "Metadata only"}</span>
+                        <small>{attachment.status}; {attachment.safeMessage}</small>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
+              {draft.emailProposals && draft.emailProposals.length > 0 && (
+                <div className="proposal-list" role="list" aria-label="Email proposed values">
+                  <p className="eyebrow">Email proposals</p>
+                  {draft.emailProposals.map((proposal) => (
+                    <article key={proposal.id} className="proposal-card" role="listitem">
+                      <div>
+                        <strong>{proposal.label}</strong>
+                        <span>{proposal.displayValue}</span>
+                        <small>{proposal.classification}; confidence {proposal.confidence}/100; {proposal.verificationState}</small>
+                      </div>
+                      <div className="button-row">
+                        <button className={proposal.status === "accepted" || proposal.status === "edited" ? "primary compact" : "secondary compact"} type="button" onClick={() => updateEmailProposal(proposal.id, "accepted")}>Accept</button>
+                        <button className={proposal.status === "edited" ? "primary compact" : "secondary compact"} type="button" onClick={() => updateEmailProposal(proposal.id, "edited")}>Accept/edit</button>
+                        <button className={proposal.status === "rejected" ? "primary compact" : "secondary compact"} type="button" onClick={() => updateEmailProposal(proposal.id, "rejected")}>Reject</button>
+                        <button className={proposal.status === "deferred" ? "primary compact" : "secondary compact"} type="button" onClick={() => updateEmailProposal(proposal.id, "deferred")}>Defer</button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
             <label className="field wide">
               <span>Opportunity name <small>Required</small></span>
               <input id="manual-intake-opportunity-name" value={draft.opportunityName} onChange={(event) => updateDraft({ opportunityName: event.target.value })} placeholder="Maple Street duplex lead" />
@@ -2545,6 +2684,7 @@ function ManualPropertyIntakeDialog({
                 { label: "Source", value: draft.source },
                 { label: "Listing URL", value: draft.sourceUrl },
                 { label: "Evidence", value: draft.fileEvidenceImport?.originalFilename },
+                { label: "Email", value: draft.emailImport?.subject ?? draft.emailImport?.fromAddress },
               ]} />
             </section>
             <section className="workspace-card">

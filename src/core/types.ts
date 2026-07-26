@@ -404,6 +404,8 @@ export type ManualIntakeDraft = {
   listingProposals?: ListingUrlProposal[];
   fileEvidenceImport?: FileEvidenceImportResult;
   fileEvidenceProposals?: FileEvidenceProposal[];
+  emailImport?: EmailIntakeImportResult;
+  emailProposals?: FileEvidenceProposal[];
   duplicateDecision?: ManualIntakeDecision;
   selectedPropertyId?: string;
   updatedAt: string;
@@ -468,6 +470,42 @@ export type FileEvidenceImportResult = {
   contentHash: string;
   uploadedAt: string;
   extractionStatus: "not_started" | "complete" | "partially_complete" | "unsupported" | "failed";
+  proposals: FileEvidenceProposal[];
+};
+
+export type EmailAttachmentImportResult = {
+  attachmentId: string;
+  evidenceId?: string;
+  originalFilename: string;
+  detectedMimeType?: string;
+  byteSize?: number;
+  contentHash?: string;
+  status: "imported" | "duplicate" | "rejected" | "metadata_only";
+  safeMessage: string;
+};
+
+export type EmailIntakeImportResult = {
+  intakeId: string;
+  sourceRecordId: string;
+  emailSourceId: string;
+  duplicateOfEmailSourceId?: string;
+  jobId?: string;
+  status: "complete" | "duplicate" | "partially_complete" | "failed";
+  safeMessage: string;
+  subject?: string;
+  fromAddress?: string;
+  toAddresses: string[];
+  ccAddresses: string[];
+  bccAddresses: string[];
+  replyToAddress?: string;
+  messageId?: string;
+  threadId?: string;
+  sentAt?: string;
+  bodyHash: string;
+  receivedHeaderCount: number;
+  attachmentCount: number;
+  importedAt: string;
+  attachments: EmailAttachmentImportResult[];
   proposals: FileEvidenceProposal[];
 };
 

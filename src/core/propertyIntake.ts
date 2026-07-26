@@ -1,8 +1,9 @@
 import { getStrategy, normalizeStrategy } from "./strategyCatalog";
 import { supabase } from "./supabase";
 import { attachFileEvidenceToDeal, normalizeFileEvidenceImportResult } from "./fileEvidenceIntake";
+import { attachEmailSourceToDeal, normalizeEmailIntakeImportResult } from "./emailIntake";
 import type { Json } from "./supabaseDatabase.types";
-import type { DealFacts, FileEvidenceImportResult, FileEvidenceProposal, ListingUrlImportResult, ListingUrlProposal, ManualIntakeDraft, ManualIntakeResult, ManualPropertyCandidate } from "./types";
+import type { DealFacts, EmailIntakeImportResult, FileEvidenceImportResult, FileEvidenceProposal, ListingUrlImportResult, ListingUrlProposal, ManualIntakeDraft, ManualIntakeResult, ManualPropertyCandidate } from "./types";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -46,6 +47,8 @@ export function normalizeManualIntakeDraft(value: unknown): ManualIntakeDraft | 
     listingProposals: Array.isArray(value.listingProposals) ? value.listingProposals.map(normalizeListingProposal).filter(isListingProposal) : undefined,
     fileEvidenceImport: normalizeFileEvidenceImport(value.fileEvidenceImport),
     fileEvidenceProposals: Array.isArray(value.fileEvidenceProposals) ? value.fileEvidenceProposals.map(normalizeFileEvidenceProposal).filter(isFileEvidenceProposal) : undefined,
+    emailImport: normalizeEmailImport(value.emailImport),
+    emailProposals: Array.isArray(value.emailProposals) ? value.emailProposals.map(normalizeFileEvidenceProposal).filter(isFileEvidenceProposal) : undefined,
     duplicateDecision: value.duplicateDecision === "use_existing_property" || value.duplicateDecision === "create_new_property" ? value.duplicateDecision : undefined,
     selectedPropertyId: stringValue(value.selectedPropertyId),
     updatedAt: stringValue(value.updatedAt) ?? new Date().toISOString(),
@@ -92,6 +95,8 @@ export function manualIntakeInput(draft: ManualIntakeDraft) {
     listing_proposals: draft.listingProposals ?? [],
     file_evidence_import: draft.fileEvidenceImport ?? null,
     file_evidence_proposals: draft.fileEvidenceProposals ?? [],
+    email_import: draft.emailImport ?? null,
+    email_proposals: draft.emailProposals ?? [],
   };
 }
 
@@ -132,6 +137,9 @@ export async function completeManualPropertyIntake(workspaceId: string, draft: M
   if (draft.fileEvidenceImport) {
     await attachFileEvidenceToDeal(workspaceId, result, draft.fileEvidenceImport);
   }
+  if (draft.emailImport) {
+    await attachEmailSourceToDeal(workspaceId, result, draft.emailImport);
+  }
   return result;
 }
 
@@ -162,6 +170,7 @@ export function manualIntakeDealFromResult(draft: ManualIntakeDraft, result: Man
       manual_source: "entered",
       listing_url: draft.sourceUrl ? "source_backed" : "missing",
       evidence: draft.fileEvidenceImport ? "source_backed" : "missing",
+      email_source: draft.emailImport ? "source_backed" : "missing",
       propertyType: draft.propertyType ? "entered" : "missing",
       listPrice: draft.askingPrice ? "entered" : "missing",
     },
@@ -272,6 +281,14 @@ function normalizeListingProposal(value: unknown): ListingUrlProposal | null {
 function normalizeFileEvidenceImport(value: unknown): FileEvidenceImportResult | undefined {
   try {
     return normalizeFileEvidenceImportResult(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeEmailImport(value: unknown): EmailIntakeImportResult | undefined {
+  try {
+    return normalizeEmailIntakeImportResult(value);
   } catch {
     return undefined;
   }
