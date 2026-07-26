@@ -396,11 +396,48 @@ export type ManualIntakeDraft = {
   expectedPrice?: string;
   intendedStrategy?: StrategyId;
   source?: string;
+  sourceUrl?: string;
   sourceContact?: string;
   notes?: string;
+  listingImport?: ListingUrlImportResult;
+  listingProposals?: ListingUrlProposal[];
   duplicateDecision?: ManualIntakeDecision;
   selectedPropertyId?: string;
   updatedAt: string;
+};
+
+export type ListingSourceSupport = "supported" | "limited" | "unsupported";
+export type ListingImportStatus = "complete" | "partially_complete" | "failed" | "unsupported";
+export type ListingProposalStatus = "pending" | "accepted" | "rejected" | "edited" | "deferred" | "conflicted" | "superseded";
+
+export type ListingUrlProposal = {
+  id: string;
+  field: "address" | "city" | "region" | "postal_code" | "property_type" | "asking_price";
+  label: string;
+  rawValue: string;
+  normalizedValue: string;
+  displayValue: string;
+  classification: "source_backed_candidate" | "external_estimate" | "unknown";
+  verificationState: "unverified";
+  confidence: number;
+  status: ListingProposalStatus;
+  sourceKey: string;
+  evidenceRule: string;
+};
+
+export type ListingUrlImportResult = {
+  originalUrl: string;
+  normalizedUrl: string;
+  sourceKey: string;
+  sourceDisplayName: string;
+  supportLevel: ListingSourceSupport;
+  retrievalMethod: string;
+  adapterVersion: string;
+  status: ListingImportStatus;
+  retrievedAt: string;
+  safeMessage: string;
+  licensingNotes: string;
+  proposals: ListingUrlProposal[];
 };
 
 export type ManualPropertyCandidate = {

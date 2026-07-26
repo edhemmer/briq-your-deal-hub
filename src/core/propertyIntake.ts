@@ -1,6 +1,6 @@
 import { getStrategy, normalizeStrategy } from "./strategyCatalog";
 import { supabase } from "./supabase";
-import type { DealFacts, ManualIntakeDraft, ManualIntakeResult, ManualPropertyCandidate } from "./types";
+import type { DealFacts, ListingUrlImportResult, ListingUrlProposal, ManualIntakeDraft, ManualIntakeResult, ManualPropertyCandidate } from "./types";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -37,8 +37,11 @@ export function normalizeManualIntakeDraft(value: unknown): ManualIntakeDraft | 
     expectedPrice: stringValue(value.expectedPrice),
     intendedStrategy,
     source: stringValue(value.source),
+    sourceUrl: stringValue(value.sourceUrl),
     sourceContact: stringValue(value.sourceContact),
     notes: stringValue(value.notes),
+    listingImport: normalizeListingImport(value.listingImport),
+    listingProposals: Array.isArray(value.listingProposals) ? value.listingProposals.map(normalizeListingProposal).filter(isListingProposal) : undefined,
     duplicateDecision: value.duplicateDecision === "use_existing_property" || value.duplicateDecision === "create_new_property" ? value.duplicateDecision : undefined,
     selectedPropertyId: stringValue(value.selectedPropertyId),
     updatedAt: stringValue(value.updatedAt) ?? new Date().toISOString(),
@@ -78,8 +81,11 @@ export function manualIntakeInput(draft: ManualIntakeDraft) {
     expected_price: numericString(draft.expectedPrice),
     intended_strategy: draft.intendedStrategy || null,
     source: draft.source?.trim() || null,
+    source_url: draft.sourceUrl?.trim() || null,
     source_contact: draft.sourceContact?.trim() || null,
     notes: draft.notes?.trim() || null,
+    listing_import: draft.listingImport ?? null,
+    listing_proposals: draft.listingProposals ?? [],
   };
 }
 
@@ -114,6 +120,9 @@ export async function completeManualPropertyIntake(workspaceId: string, draft: M
   if (error) throw error;
   const result = normalizeManualIntakeResult(Array.isArray(data) ? data[0] : data);
   if (!result) throw new Error("BRIX could not confirm the manual intake result.");
+  if (draft.sourceUrl && draft.listingImport) {
+    await recordListingUrlImportResult(workspaceId, result, draft);
+  }
   return result;
 }
 
@@ -132,6 +141,8 @@ export function manualIntakeDealFromResult(draft: ManualIntakeDraft, result: Man
     state: draft.region?.trim() || undefined,
     zip: draft.postalCode?.trim() || undefined,
     propertyType: draft.propertyType?.trim() || undefined,
+    sourceUrl: draft.sourceUrl?.trim() || undefined,
+    sourceText: draft.source?.trim() || undefined,
     listPrice: numberValue(draft.askingPrice),
     strategyId: draft.intendedStrategy || "owner_occupant",
     notes: draft.notes?.trim() ? [draft.notes.trim()] : [],
@@ -140,10 +151,23 @@ export function manualIntakeDealFromResult(draft: ManualIntakeDraft, result: Man
     verification: {
       address: "entered",
       manual_source: "entered",
+      listing_url: draft.sourceUrl ? "source_backed" : "missing",
       propertyType: draft.propertyType ? "entered" : "missing",
       listPrice: draft.askingPrice ? "entered" : "missing",
     },
   };
+}
+
+async function recordListingUrlImportResult(workspaceId: string, result: ManualIntakeResult, draft: ManualIntakeDraft) {
+  const rpc = supabase.rpc as unknown as (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }>;
+  const { error } = await rpc("record_listing_url_import_result", {
+    target_workspace_id: workspaceId,
+    target_intake_id: result.intakeId,
+    target_source_record_id: result.sourceRecordId,
+    listing_import: draft.listingImport,
+    listing_proposals: draft.listingProposals ?? [],
+  });
+  if (error) throw error;
 }
 
 function normalizeCandidate(value: unknown): ManualPropertyCandidate | null {
@@ -187,6 +211,56 @@ function normalizeManualIntakeResult(value: unknown): ManualIntakeResult | null 
     sourceRecordId,
     idempotencyKeyOut,
   };
+}
+
+function normalizeListingImport(value: unknown): ListingUrlImportResult | undefined {
+  if (!isRecord(value)) return undefined;
+  const originalUrl = stringValue(value.originalUrl);
+  const normalizedUrl = stringValue(value.normalizedUrl);
+  if (!originalUrl || !normalizedUrl) return undefined;
+  const supportLevel = value.supportLevel === "supported" || value.supportLevel === "limited" || value.supportLevel === "unsupported" ? value.supportLevel : "unsupported";
+  const status = value.status === "complete" || value.status === "partially_complete" || value.status === "failed" || value.status === "unsupported" ? value.status : "failed";
+  return {
+    originalUrl,
+    normalizedUrl,
+    sourceKey: stringValue(value.sourceKey) ?? "unknown",
+    sourceDisplayName: stringValue(value.sourceDisplayName) ?? "Unsupported source",
+    supportLevel,
+    retrievalMethod: stringValue(value.retrievalMethod) ?? "none",
+    adapterVersion: stringValue(value.adapterVersion) ?? "unknown",
+    status,
+    retrievedAt: stringValue(value.retrievedAt) ?? new Date().toISOString(),
+    safeMessage: stringValue(value.safeMessage) ?? "BRIX saved the URL and left missing facts blank.",
+    licensingNotes: stringValue(value.licensingNotes) ?? "Only permitted source metadata and user-provided values are retained.",
+    proposals: Array.isArray(value.proposals) ? value.proposals.map(normalizeListingProposal).filter(isListingProposal) : [],
+  };
+}
+
+function normalizeListingProposal(value: unknown): ListingUrlProposal | null {
+  if (!isRecord(value)) return null;
+  const id = stringValue(value.id);
+  const field = value.field === "address" || value.field === "city" || value.field === "region" || value.field === "postal_code" || value.field === "property_type" || value.field === "asking_price" ? value.field : undefined;
+  const normalizedValue = stringValue(value.normalizedValue);
+  if (!id || !field || !normalizedValue) return null;
+  const status = value.status === "accepted" || value.status === "rejected" || value.status === "edited" || value.status === "deferred" || value.status === "conflicted" || value.status === "superseded" ? value.status : "pending";
+  return {
+    id,
+    field,
+    label: stringValue(value.label) ?? field,
+    rawValue: stringValue(value.rawValue) ?? normalizedValue,
+    normalizedValue,
+    displayValue: stringValue(value.displayValue) ?? normalizedValue,
+    classification: value.classification === "external_estimate" || value.classification === "unknown" ? value.classification : "source_backed_candidate",
+    verificationState: "unverified",
+    confidence: numberValue(value.confidence) ?? 50,
+    status,
+    sourceKey: stringValue(value.sourceKey) ?? "unknown",
+    evidenceRule: stringValue(value.evidenceRule) ?? "URL-derived candidate value",
+  };
+}
+
+function isListingProposal(value: ListingUrlProposal | null): value is ListingUrlProposal {
+  return value !== null;
 }
 
 function numericString(value?: string) {

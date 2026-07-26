@@ -166,6 +166,15 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .intake-error-summary { display: grid; gap: 6px; border: 1px solid rgba(241,92,92,.48); border-radius: 14px; background: rgba(127,29,29,.13); color: #ffb3b3; padding: 12px 14px; }
 .intake-error-summary strong { color: white; }
 .manual-intake-actions { position: sticky; bottom: -22px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin: 0 -22px -22px; padding: 14px 22px 22px; border-top: 1px solid rgba(34,49,76,.78); background: linear-gradient(180deg, rgba(8,15,29,.72), rgba(8,15,29,.98) 38%); }
+.source-review-panel { border-color: rgba(59,130,246,.28); background: rgba(15,23,42,.7); }
+.source-facts, .proposal-list { display: grid; gap: 10px; margin-top: 12px; }
+.proposal-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px; border: 1px solid rgba(38,57,86,.95); border-radius: 14px; background: rgba(8,15,29,.74); }
+.proposal-card div:first-child { display: grid; gap: 4px; }
+.proposal-card span { color: #e5f0ff; font-weight: 800; overflow-wrap: anywhere; }
+.proposal-card small { color: var(--muted); font-weight: 700; }
+.status-chip { display: inline-flex; align-items: center; justify-content: center; min-height: 30px; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 900; text-transform: capitalize; border: 1px solid rgba(59,130,246,.35); color: #bfdbfe; background: rgba(59,130,246,.12); }
+.status-chip.warning { border-color: rgba(245,158,11,.45); color: #fbbf24; background: rgba(245,158,11,.12); }
+.status-chip.info { border-color: rgba(59,130,246,.45); color: #bfdbfe; background: rgba(59,130,246,.12); }
 .confirm-dialog { width: min(460px, 100%); display: grid; gap: 14px; border: 1px solid var(--line); border-radius: 18px; background: #08111f; box-shadow: 0 24px 80px rgba(0,0,0,.45); padding: 22px; }
 .confirm-dialog h2 { margin: 0; }
 
@@ -421,7 +430,7 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 
 @media (max-width: 640px) {
   .workspace, .rail { padding: 16px; }
-  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row, .trusted-access-entry, .presentation-options, .state-grid, .attention-item, .relationship-card, .relationship-form, .duplicate-candidates article, .canonical-edit-grid, .work-history-grid, .work-edit-row, .definition-list, .workspace-count-row, .manual-intake-grid, .review-grid, .candidate-card { grid-template-columns: 1fr; }
+  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row, .trusted-access-entry, .presentation-options, .state-grid, .attention-item, .relationship-card, .relationship-form, .duplicate-candidates article, .canonical-edit-grid, .work-history-grid, .work-edit-row, .definition-list, .workspace-count-row, .manual-intake-grid, .review-grid, .candidate-card, .proposal-card { grid-template-columns: 1fr; }
   .manual-intake-dialog { max-height: calc(100vh - 24px); border-radius: 18px; padding: 16px; }
   .manual-intake-actions { bottom: -16px; justify-content: stretch; margin: 0 -16px -16px; padding: 12px 16px 16px; }
   .manual-intake-actions button { flex: 1 1 150px; }

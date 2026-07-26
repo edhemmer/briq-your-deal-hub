@@ -4,8 +4,11 @@ import { describe, expect, it } from "vitest";
 const migration = readFileSync("supabase/migrations/20260725152000_manual_property_intake.sql", "utf8");
 const app = readFileSync("src/App.tsx", "utf8");
 const propertyIntake = readFileSync("src/core/propertyIntake.ts", "utf8");
+const listingUrlIntake = readFileSync("src/core/listingUrlIntake.ts", "utf8");
 const offlineDrafts = readFileSync("src/core/offlineDrafts.ts", "utf8");
 const dbTypes = readFileSync("src/core/supabaseDatabase.types.ts", "utf8");
+const listingMigration = readFileSync("supabase/migrations/20260725170000_listing_url_intake.sql", "utf8");
+const extractListing = readFileSync("supabase/functions/extract-listing/index.ts", "utf8");
 
 describe("Specification 004 manual address and Property intake slice", () => {
   it("adds manual intake/source records without duplicating canonical Deal or Property foundations", () => {
@@ -19,9 +22,9 @@ describe("Specification 004 manual address and Property intake slice", () => {
     expect(offlineDrafts).toContain('"create_canonical_deal"');
   });
 
-  it("keeps the slice manual-only and defers listing, file, email, package, and enrichment intake", () => {
+  it("keeps the original slice manual-only and defers file, email, package, and enrichment intake", () => {
     expect(propertyIntake).toContain("manualIntakeInput");
-    expect(propertyIntake).not.toMatch(/listing_url|listingUrl|extract-listing|sourceUrl|email_intake|batch_intake|package_intake|enrichment/i);
+    expect(propertyIntake).not.toMatch(/email_intake|batch_intake|package_intake|general_enrichment/i);
     expect(app).not.toContain("Address, listing URL, or listing text");
     expect(app).not.toMatch(/Create deal file/i);
   });
@@ -94,5 +97,31 @@ describe("Specification 004 manual address and Property intake slice", () => {
     expect(dbTypes).toContain("search_manual_property_candidates:");
     expect(dbTypes).toContain("complete_manual_property_intake:");
     expect(dbTypes).toContain("source_record_id: string");
+  });
+
+  it("adds listing URL intake as proposals without introducing a second canonical Deal path", () => {
+    expect(listingUrlIntake).toContain('invokeBrixFunction<unknown>("extract-listing"');
+    expect(propertyIntake).toContain("record_listing_url_import_result");
+    expect(propertyIntake).toContain("source_url: draft.sourceUrl?.trim() || null");
+    expect(app).toContain("Import source candidates");
+    expect(app).toContain("Accept/edit");
+    expect(app).toContain("Review URL");
+    expect(listingMigration).toContain("create table if not exists public.intake_value_proposals");
+    expect(listingMigration).toContain("record_listing_url_import_result");
+    expect(listingMigration).toContain("value.proposed");
+    expect(listingMigration).toContain("value.accepted");
+    expect(listingMigration).toContain("value.rejected");
+    expect(listingMigration).not.toContain("create or replace function public.create_listing_url_deal");
+    expect(listingMigration).not.toContain("public.create_canonical_deal(");
+  });
+
+  it("hardens listing URL import at the server boundary", () => {
+    expect(extractListing).toContain("BRIX accepts secure HTTPS listing URLs only.");
+    expect(extractListing).toContain("Remove credentials from the URL before importing.");
+    expect(extractListing).toContain("BRIX cannot import URLs from local or private network addresses.");
+    expect(extractListing).toContain("supportLevel: \"limited\"");
+    expect(extractListing).toContain("supportLevel: \"unsupported\"");
+    expect(extractListing).toContain("Full listing enrichment requires an authorized provider.");
+    expect(extractListing).not.toContain("fetch(");
   });
 });

@@ -87,6 +87,7 @@ import {
   searchManualPropertyCandidates,
   validateManualIntakeDraft,
 } from "./core/propertyIntake";
+import { applyListingProposal, attachListingImportToDraft, importListingUrl, proposalSummary } from "./core/listingUrlIntake";
 import {
   brixLink,
   parseBrixDeepLink,
@@ -2138,7 +2139,9 @@ function ManualPropertyIntakeDialog({
   const [step, setStep] = useState<"property" | "match" | "review" | "complete">("property");
   const [candidates, setCandidates] = useState<ManualPropertyCandidate[]>([]);
   const [status, setStatus] = useState<"draft" | "local" | "searching" | "awaiting_decision" | "creating" | "complete" | "failed" | "offline" | "permission" | "conflict" | "cancelled">("draft");
+  const [listingStatus, setListingStatus] = useState<"idle" | "importing" | "complete" | "failed" | "unsupported">("idle");
   const [message, setMessage] = useState("");
+  const [listingMessage, setListingMessage] = useState("");
   const [errorSummary, setErrorSummary] = useState<string[]>([]);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const isProfessional = presentationMode === "professional";
@@ -2152,6 +2155,33 @@ function ManualPropertyIntakeDialog({
     setDraft(next);
     setStatus("local");
     setMessage("Saved on this device.");
+  }
+
+  async function reviewListingUrl() {
+    if (!draft.sourceUrl?.trim()) {
+      setListingStatus("failed");
+      setListingMessage("Paste a listing URL before importing.");
+      return;
+    }
+    setListingStatus("importing");
+    setListingMessage("Reviewing the listing URL.");
+    try {
+      const listingImport = await importListingUrl(draft.sourceUrl);
+      const next = saveManualIntakeDraft(storageScope, attachListingImportToDraft(draft, listingImport));
+      setDraft(next);
+      setListingStatus(listingImport.status === "unsupported" ? "unsupported" : listingImport.status === "failed" ? "failed" : "complete");
+      setListingMessage(listingImport.safeMessage);
+    } catch (error) {
+      setListingStatus("failed");
+      setListingMessage(safeDealCommandMessage(error).message);
+    }
+  }
+
+  function updateProposal(proposalId: string, proposalStatus: "accepted" | "edited" | "rejected" | "deferred") {
+    const next = saveManualIntakeDraft(storageScope, applyListingProposal(draft, proposalId, proposalStatus));
+    setDraft(next);
+    setStatus("local");
+    setMessage(proposalStatus === "accepted" || proposalStatus === "edited" ? "Proposal accepted into editable fields." : "Proposal decision saved.");
   }
 
   async function searchMatches() {
@@ -2224,7 +2254,9 @@ function ManualPropertyIntakeDialog({
     { label: "Asking price", value: draft.askingPrice ? "User-entered fact, unverified" : "Unknown" },
     { label: "Expected price", value: draft.expectedPrice ? "User assumption" : "Unknown" },
     { label: "Strategy", value: draft.intendedStrategy ? "User intent" : "Unknown" },
+    { label: "Listing URL", value: draft.sourceUrl ? "Source-linked candidate values, unverified" : "Not supplied" },
   ];
+  const listingSummary = proposalSummary(draft.listingProposals);
 
   return (
     <div className="modal-backdrop" role="presentation">
@@ -2254,6 +2286,55 @@ function ManualPropertyIntakeDialog({
 
         {step === "property" && (
           <div className="manual-intake-grid">
+            <section className="workspace-card wide source-review-panel">
+              <div className="panel-heading-row">
+                <div>
+                  <p className="eyebrow">Listing URL</p>
+                  <h3>Import source candidates</h3>
+                  <p className="quiet">BRIX stores the URL, classifies the source, and proposes only values it can safely identify. You decide what enters the Deal.</p>
+                </div>
+                {draft.listingImport && <span className={draft.listingImport.supportLevel === "unsupported" ? "status-chip warning" : "status-chip info"}>{draft.listingImport.supportLevel}</span>}
+              </div>
+              <label className="field">
+                <span>Listing URL <small>Optional</small></span>
+                <input value={draft.sourceUrl ?? ""} onChange={(event) => updateDraft({ sourceUrl: event.target.value, listingImport: undefined, listingProposals: undefined })} />
+              </label>
+              <div className="button-row">
+                <button className="secondary compact" type="button" onClick={() => void reviewListingUrl()} disabled={listingStatus === "importing"}>{listingStatus === "importing" ? "Reviewing..." : "Review URL"}</button>
+                {draft.listingImport && <span className="quiet">{listingSummary.accepted} accepted, {listingSummary.deferred} deferred, {listingSummary.rejected} rejected</span>}
+              </div>
+              {listingMessage && <p className={listingStatus === "failed" || listingStatus === "unsupported" ? "error" : "quiet"} role="status" aria-live="polite">{listingMessage}</p>}
+              {draft.listingImport && (
+                <div className="source-facts">
+                  <DefinitionList items={[
+                    { label: "Source", value: draft.listingImport.sourceDisplayName },
+                    { label: "Support", value: draft.listingImport.supportLevel },
+                    { label: "Retrieved", value: formatIntakeDateTime(draft.listingImport.retrievedAt) },
+                    { label: "Adapter", value: draft.listingImport.adapterVersion },
+                  ]} />
+                  <p className="quiet">{draft.listingImport.licensingNotes}</p>
+                </div>
+              )}
+              {draft.listingProposals && draft.listingProposals.length > 0 && (
+                <div className="proposal-list" role="list" aria-label="Listing URL proposed values">
+                  {draft.listingProposals.map((proposal) => (
+                    <article key={proposal.id} className="proposal-card" role="listitem">
+                      <div>
+                        <strong>{proposal.label}</strong>
+                        <span>{proposal.displayValue}</span>
+                        <small>{proposal.classification}; confidence {proposal.confidence}/100; {proposal.verificationState}</small>
+                      </div>
+                      <div className="button-row">
+                        <button className={proposal.status === "accepted" || proposal.status === "edited" ? "primary compact" : "secondary compact"} type="button" onClick={() => updateProposal(proposal.id, "accepted")}>Accept</button>
+                        <button className={proposal.status === "edited" ? "primary compact" : "secondary compact"} type="button" onClick={() => updateProposal(proposal.id, "edited")}>Accept/edit</button>
+                        <button className={proposal.status === "rejected" ? "primary compact" : "secondary compact"} type="button" onClick={() => updateProposal(proposal.id, "rejected")}>Reject</button>
+                        <button className={proposal.status === "deferred" ? "primary compact" : "secondary compact"} type="button" onClick={() => updateProposal(proposal.id, "deferred")}>Defer</button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
             <label className="field wide">
               <span>Opportunity name <small>Required</small></span>
               <input value={draft.opportunityName} onChange={(event) => updateDraft({ opportunityName: event.target.value })} placeholder="Maple Street duplex lead" />
@@ -2342,6 +2423,7 @@ function ManualPropertyIntakeDialog({
                 { label: "Postal", value: draft.postalCode },
                 { label: "Type", value: draft.propertyType },
                 { label: "Source", value: draft.source },
+                { label: "Listing URL", value: draft.sourceUrl },
               ]} />
             </section>
             <section className="workspace-card">
@@ -2389,6 +2471,13 @@ function WorkflowStrip({ active, onSelect }: { active: Module; onSelect: (module
       ))}
     </div>
   );
+}
+
+function formatIntakeDateTime(value?: string) {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 type DealWorkspaceSection = "overview" | "property" | "people" | "work" | "notes" | "history";
