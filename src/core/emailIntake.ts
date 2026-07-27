@@ -1,4 +1,5 @@
 import { createDuplicateDetectionRequest } from "./duplicateDetection";
+import { classificationForEmailAttachment, classificationForEmailSource } from "./sourceClassification";
 import { invokeBrixFunction, supabase } from "./supabase";
 import type { FileEvidenceProposal, ListingProposalStatus, ManualIntakeDraft, EmailIntakeImportResult, EmailAttachmentImportResult } from "./types";
 
@@ -118,6 +119,11 @@ export function normalizeEmailIntakeImportResult(value: unknown): EmailIntakeImp
     receivedHeaderCount: numberValue(value.receivedHeaderCount) ?? 0,
     attachmentCount: numberValue(value.attachmentCount) ?? 0,
     importedAt: stringValue(value.importedAt) ?? new Date().toISOString(),
+    sourceClassification: classificationForEmailSource({
+      subject: stringValue(value.subject),
+      originalFilename: stringValue(value.originalFilename),
+      declaredMimeType: stringValue(value.detectedMimeType),
+    }),
     attachments: Array.isArray(value.attachments) ? value.attachments.map(normalizeAttachment).filter(isAttachment) : [],
     proposals: Array.isArray(value.proposals) ? value.proposals.map(normalizeEmailProposal).filter(isEmailProposal) : [],
   };
@@ -176,6 +182,7 @@ function normalizeAttachment(value: unknown): EmailAttachmentImportResult | null
     contentHash: stringValue(value.contentHash),
     status,
     safeMessage: stringValue(value.safeMessage) ?? "Attachment recorded.",
+    sourceClassification: classificationForEmailAttachment({ originalFilename, detectedMimeType: stringValue(value.detectedMimeType) }),
   };
 }
 

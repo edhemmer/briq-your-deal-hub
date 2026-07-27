@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyFileEvidenceProposal, attachFileEvidenceToDraft, fileEvidenceProposalSummary, normalizeFileEvidenceImportResult, validateEvidenceFile } from "../core/fileEvidenceIntake";
 import { createManualIntakeDraft } from "../core/propertyIntake";
+import { classificationForEvidenceFile } from "../core/sourceClassification";
 
 describe("file Evidence intake helpers", () => {
   it("validates supported file sizes and rejects unsafe extensions", () => {
@@ -61,6 +62,7 @@ describe("file Evidence intake helpers", () => {
       contentHash: "b".repeat(64),
       uploadedAt: "2026-07-25T00:00:00.000Z",
       extractionStatus: "partially_complete",
+      sourceClassification: classificationForEvidenceFile({ originalFilename: "listing.txt", detectedMimeType: "text/plain", evidenceType: "document" }),
       proposals: [{
         id: "address:1",
         field: "address",

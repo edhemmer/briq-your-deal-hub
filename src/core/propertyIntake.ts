@@ -1,4 +1,5 @@
 import { getStrategy, normalizeStrategy } from "./strategyCatalog";
+import { classificationForManualDraft, serializeSourceClassification } from "./sourceClassification";
 import { supabase } from "./supabase";
 import { attachFileEvidenceToDeal, normalizeFileEvidenceImportResult } from "./fileEvidenceIntake";
 import { attachEmailSourceToDeal, normalizeEmailIntakeImportResult } from "./emailIntake";
@@ -50,6 +51,7 @@ export function normalizeManualIntakeDraft(value: unknown): ManualIntakeDraft | 
     fileEvidenceProposals: Array.isArray(value.fileEvidenceProposals) ? value.fileEvidenceProposals.map(normalizeFileEvidenceProposal).filter(isFileEvidenceProposal) : undefined,
     emailImport: normalizeEmailImport(value.emailImport),
     emailProposals: Array.isArray(value.emailProposals) ? value.emailProposals.map(normalizeFileEvidenceProposal).filter(isFileEvidenceProposal) : undefined,
+    sourceClassification: classificationForManualDraft({ source: stringValue(value.source), sourceUrl: stringValue(value.sourceUrl) }),
     duplicateDecision: value.duplicateDecision === "use_existing_property" || value.duplicateDecision === "create_new_property" ? value.duplicateDecision : undefined,
     selectedPropertyId: stringValue(value.selectedPropertyId),
     updatedAt: stringValue(value.updatedAt) ?? new Date().toISOString(),
@@ -98,6 +100,7 @@ export function manualIntakeInput(draft: ManualIntakeDraft) {
     file_evidence_proposals: draft.fileEvidenceProposals ?? [],
     email_import: draft.emailImport ?? null,
     email_proposals: draft.emailProposals ?? [],
+    source_classification: serializeSourceClassification(classificationForManualDraft(draft)),
   };
 }
 
@@ -265,6 +268,7 @@ function normalizeListingImport(value: unknown): ListingUrlImportResult | undefi
     retrievedAt: stringValue(value.retrievedAt) ?? new Date().toISOString(),
     safeMessage: stringValue(value.safeMessage) ?? "BRIX saved the URL and left missing facts blank.",
     licensingNotes: stringValue(value.licensingNotes) ?? "Only permitted source metadata and user-provided values are retained.",
+    sourceClassification: classificationForManualDraft({ sourceUrl: normalizedUrl }),
     proposals: Array.isArray(value.proposals) ? value.proposals.map(normalizeListingProposal).filter(isListingProposal) : [],
   };
 }

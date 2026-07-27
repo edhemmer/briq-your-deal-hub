@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import { createDuplicateDetectionRequest, findDuplicateCandidates, packageBatchDuplicateCandidate } from "./duplicateDetection";
 import { createManualIntakeDraft } from "./propertyIntake";
+import { classificationForPackageSource, serializeSourceClassification, type SourceClassificationResult } from "./sourceClassification";
 import { supabase } from "./supabase";
 import type { ManualIntakeDraft } from "./types";
 
@@ -90,6 +91,7 @@ export type PackageBatchSource = {
   contentHash: string;
   preservedAsEvidence: boolean;
   originalText?: string;
+  sourceClassification: SourceClassificationResult;
 };
 
 export type PackageColumnMapping = Record<string, PackageBatchField>;
@@ -174,14 +176,16 @@ export async function createPackageBatchFromFiles(files: File[], input: { batchT
   for (const file of files) {
     const bytes = await readFileBytes(file);
     const contentHash = stableHash(`${file.name}:${file.type}:${bytes.byteLength}:${bytesToTextSample(bytes)}`);
+    const sourceType = detectSourceType(file.name, file.type);
     const source: PackageBatchSource = {
       sourceId: `src_${stableHash(`${file.name}:${contentHash}`)}`,
-      sourceType: detectSourceType(file.name, file.type),
+      sourceType,
       originalFilename: file.name,
       declaredMimeType: file.type || undefined,
       byteSize: bytes.byteLength,
       contentHash,
       preservedAsEvidence: true,
+      sourceClassification: classificationForPackageSource({ sourceType, originalFilename: file.name, declaredMimeType: file.type || undefined }),
     };
     sources.push(source);
 
@@ -374,6 +378,7 @@ export async function recordPackageBatchReview(workspaceId: string, batch: Packa
       sourceAnchor: item.sourceAnchor,
       safeError: item.safeErrors[0],
       retryCount: item.retryCount,
+      sourceClassification: serializeSourceClassification(batch.sources.find((source) => source.sourceId === item.sourceId)?.sourceClassification ?? classificationForPackageSource(item)),
     })),
   });
   if (error) throw error;
@@ -629,15 +634,19 @@ function normalizeSource(value: unknown): PackageBatchSource | null {
   const sourceId = stringValue(value.sourceId);
   const contentHash = stringValue(value.contentHash);
   if (!sourceId || !contentHash) return null;
+  const sourceType = ["csv", "xlsx", "file", "image", "document", "listing_url", "email", "manual_row", "unknown"].includes(value.sourceType as string) ? value.sourceType as PackageBatchSourceType : "unknown";
+  const originalFilename = stringValue(value.originalFilename);
+  const declaredMimeType = stringValue(value.declaredMimeType);
   return {
     sourceId,
-    sourceType: ["csv", "xlsx", "file", "image", "document", "listing_url", "email", "manual_row", "unknown"].includes(value.sourceType as string) ? value.sourceType as PackageBatchSourceType : "unknown",
-    originalFilename: stringValue(value.originalFilename),
-    declaredMimeType: stringValue(value.declaredMimeType),
+    sourceType,
+    originalFilename,
+    declaredMimeType,
     byteSize: numberValue(value.byteSize),
     contentHash,
     preservedAsEvidence: Boolean(value.preservedAsEvidence),
     originalText: stringValue(value.originalText),
+    sourceClassification: classificationForPackageSource({ sourceType, originalFilename, declaredMimeType }),
   };
 }
 

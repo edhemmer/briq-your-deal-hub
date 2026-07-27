@@ -1,4 +1,5 @@
 import { createDuplicateDetectionRequest } from "./duplicateDetection";
+import { classificationForEvidenceFile } from "./sourceClassification";
 import { invokeBrixFunction, supabase } from "./supabase";
 import type { Json } from "./supabaseDatabase.types";
 import type { FileEvidenceImportResult, FileEvidenceProposal, FileEvidenceStatus, FileEvidenceType, ListingProposalStatus, ManualIntakeDraft } from "./types";
@@ -132,6 +133,7 @@ export function normalizeFileEvidenceImportResult(value: unknown): FileEvidenceI
     contentHash,
     uploadedAt: stringValue(value.uploadedAt) ?? new Date().toISOString(),
     extractionStatus,
+    sourceClassification: classificationForEvidenceFile({ originalFilename, detectedMimeType, evidenceType }),
     proposals: Array.isArray(value.proposals) ? value.proposals.map(normalizeFileProposal).filter(isFileProposal) : [],
   };
 }

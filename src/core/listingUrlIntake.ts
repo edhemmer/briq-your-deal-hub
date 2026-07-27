@@ -1,4 +1,5 @@
 import { createDuplicateDetectionRequest } from "./duplicateDetection";
+import { classificationForListingUrl } from "./sourceClassification";
 import { invokeBrixFunction } from "./supabase";
 import type { ListingImportStatus, ListingProposalStatus, ListingSourceSupport, ListingUrlImportResult, ListingUrlProposal, ManualIntakeDraft } from "./types";
 
@@ -33,6 +34,7 @@ export function normalizeListingImportResult(value: unknown): ListingUrlImportRe
     retrievedAt: stringValue(value.retrievedAt) ?? new Date().toISOString(),
     safeMessage: stringValue(value.safeMessage) ?? "BRIX saved the URL and left missing facts blank.",
     licensingNotes: stringValue(value.licensingNotes) ?? "Only permitted source metadata and user-provided values are retained.",
+    sourceClassification: classificationForListingUrl(normalizedUrl),
     proposals: Array.isArray(value.proposals) ? value.proposals.map(normalizeProposal).filter(isProposal) : [],
   };
 }

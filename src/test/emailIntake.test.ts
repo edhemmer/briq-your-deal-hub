@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyEmailProposal, attachEmailImportToDraft, emailProposalSummary, normalizeEmailIntakeImportResult, validateEmailInput } from "../core/emailIntake";
 import { createManualIntakeDraft } from "../core/propertyIntake";
+import { classificationForEmailSource } from "../core/sourceClassification";
 
 describe("email intake helpers", () => {
   it("validates pasted email and supported email files", () => {
@@ -58,6 +59,7 @@ describe("email intake helpers", () => {
       receivedHeaderCount: 0,
       attachmentCount: 0,
       importedAt: "2026-07-26T00:00:00.000Z",
+      sourceClassification: classificationForEmailSource({ subject: "Property lead" }),
       attachments: [],
       proposals: [{
         id: "email:address:1",

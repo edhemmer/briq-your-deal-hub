@@ -2251,7 +2251,17 @@ export type Database = {
       }
       email_source_attachments: {
         Row: {
+          allowed_extraction_engines: string[]
           byte_size: number | null
+          canonical_source_class: string | null
+          canonical_source_subtype: string | null
+          classification_confidence_tier: string | null
+          classification_evidence: Json
+          classification_method: string | null
+          classification_review_status: string
+          classification_version: string | null
+          classified_at: string | null
+          classified_by: string | null
           content_hash: string | null
           content_id: string | null
           content_type: string | null
@@ -2263,12 +2273,24 @@ export type Database = {
           id: string
           import_status: string
           parser_version: string
+          processing_eligibility: Json
           safe_message: string | null
+          supported_downstream_modules: string[]
           updated_at: string
           workspace_id: string
         }
         Insert: {
+          allowed_extraction_engines?: string[]
           byte_size?: number | null
+          canonical_source_class?: string | null
+          canonical_source_subtype?: string | null
+          classification_confidence_tier?: string | null
+          classification_evidence?: Json
+          classification_method?: string | null
+          classification_review_status?: string
+          classification_version?: string | null
+          classified_at?: string | null
+          classified_by?: string | null
           content_hash?: string | null
           content_id?: string | null
           content_type?: string | null
@@ -2280,12 +2302,24 @@ export type Database = {
           id?: string
           import_status?: string
           parser_version?: string
+          processing_eligibility?: Json
           safe_message?: string | null
+          supported_downstream_modules?: string[]
           updated_at?: string
           workspace_id: string
         }
         Update: {
+          allowed_extraction_engines?: string[]
           byte_size?: number | null
+          canonical_source_class?: string | null
+          canonical_source_subtype?: string | null
+          classification_confidence_tier?: string | null
+          classification_evidence?: Json
+          classification_method?: string | null
+          classification_review_status?: string
+          classification_version?: string | null
+          classified_at?: string | null
+          classified_by?: string | null
           content_hash?: string | null
           content_id?: string | null
           content_type?: string | null
@@ -2297,7 +2331,9 @@ export type Database = {
           id?: string
           import_status?: string
           parser_version?: string
+          processing_eligibility?: Json
           safe_message?: string | null
+          supported_downstream_modules?: string[]
           updated_at?: string
           workspace_id?: string
         }
@@ -2327,10 +2363,20 @@ export type Database = {
       }
       email_sources: {
         Row: {
+          allowed_extraction_engines: string[]
           attachment_count: number
           bcc_addresses: string[]
           body_hash: string
+          canonical_source_class: string | null
+          canonical_source_subtype: string | null
           cc_addresses: string[]
+          classification_confidence_tier: string | null
+          classification_evidence: Json
+          classification_method: string | null
+          classification_review_status: string
+          classification_version: string | null
+          classified_at: string | null
+          classified_by: string | null
           created_at: string
           deal_id: string | null
           duplicate_of_email_source_id: string | null
@@ -2343,6 +2389,7 @@ export type Database = {
           message_id: string | null
           parser_version: string
           plain_text_body: string | null
+          processing_eligibility: Json
           processing_status: string
           property_id: string | null
           received_headers: Json
@@ -2352,6 +2399,7 @@ export type Database = {
           sent_at: string | null
           source_record_id: string | null
           subject: string | null
+          supported_downstream_modules: string[]
           thread_id: string | null
           to_addresses: string[]
           updated_at: string
@@ -2360,10 +2408,20 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          allowed_extraction_engines?: string[]
           attachment_count?: number
           bcc_addresses?: string[]
           body_hash: string
+          canonical_source_class?: string | null
+          canonical_source_subtype?: string | null
           cc_addresses?: string[]
+          classification_confidence_tier?: string | null
+          classification_evidence?: Json
+          classification_method?: string | null
+          classification_review_status?: string
+          classification_version?: string | null
+          classified_at?: string | null
+          classified_by?: string | null
           created_at?: string
           deal_id?: string | null
           duplicate_of_email_source_id?: string | null
@@ -2376,6 +2434,7 @@ export type Database = {
           message_id?: string | null
           parser_version?: string
           plain_text_body?: string | null
+          processing_eligibility?: Json
           processing_status?: string
           property_id?: string | null
           received_headers?: Json
@@ -2385,6 +2444,7 @@ export type Database = {
           sent_at?: string | null
           source_record_id?: string | null
           subject?: string | null
+          supported_downstream_modules?: string[]
           thread_id?: string | null
           to_addresses?: string[]
           updated_at?: string
@@ -2393,10 +2453,20 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          allowed_extraction_engines?: string[]
           attachment_count?: number
           bcc_addresses?: string[]
           body_hash?: string
+          canonical_source_class?: string | null
+          canonical_source_subtype?: string | null
           cc_addresses?: string[]
+          classification_confidence_tier?: string | null
+          classification_evidence?: Json
+          classification_method?: string | null
+          classification_review_status?: string
+          classification_version?: string | null
+          classified_at?: string | null
+          classified_by?: string | null
           created_at?: string
           deal_id?: string | null
           duplicate_of_email_source_id?: string | null
@@ -2409,6 +2479,7 @@ export type Database = {
           message_id?: string | null
           parser_version?: string
           plain_text_body?: string | null
+          processing_eligibility?: Json
           processing_status?: string
           property_id?: string | null
           received_headers?: Json
@@ -2418,6 +2489,7 @@ export type Database = {
           sent_at?: string | null
           source_record_id?: string | null
           subject?: string | null
+          supported_downstream_modules?: string[]
           thread_id?: string | null
           to_addresses?: string[]
           updated_at?: string
@@ -2472,7 +2544,17 @@ export type Database = {
       }
       evidence_items: {
         Row: {
+          allowed_extraction_engines: string[]
           byte_size: number
+          canonical_source_class: string | null
+          canonical_source_subtype: string | null
+          classification_confidence_tier: string | null
+          classification_evidence: Json
+          classification_method: string | null
+          classification_review_status: string
+          classification_version: string | null
+          classified_at: string | null
+          classified_by: string | null
           content_hash: string
           created_at: string
           deal_id: string | null
@@ -2488,6 +2570,7 @@ export type Database = {
           license_use_restrictions: string | null
           original_filename: string
           page_count: number | null
+          processing_eligibility: Json
           processing_status: string
           property_id: string | null
           retention_state: string
@@ -2498,6 +2581,7 @@ export type Database = {
           storage_object_key: string
           storage_version: number
           supersedes_evidence_id: string | null
+          supported_downstream_modules: string[]
           updated_at: string
           uploaded_at: string
           uploaded_by: string | null
@@ -2505,7 +2589,17 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          allowed_extraction_engines?: string[]
           byte_size: number
+          canonical_source_class?: string | null
+          canonical_source_subtype?: string | null
+          classification_confidence_tier?: string | null
+          classification_evidence?: Json
+          classification_method?: string | null
+          classification_review_status?: string
+          classification_version?: string | null
+          classified_at?: string | null
+          classified_by?: string | null
           content_hash: string
           created_at?: string
           deal_id?: string | null
@@ -2521,6 +2615,7 @@ export type Database = {
           license_use_restrictions?: string | null
           original_filename: string
           page_count?: number | null
+          processing_eligibility?: Json
           processing_status?: string
           property_id?: string | null
           retention_state?: string
@@ -2531,6 +2626,7 @@ export type Database = {
           storage_object_key: string
           storage_version?: number
           supersedes_evidence_id?: string | null
+          supported_downstream_modules?: string[]
           updated_at?: string
           uploaded_at?: string
           uploaded_by?: string | null
@@ -2538,7 +2634,17 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          allowed_extraction_engines?: string[]
           byte_size?: number
+          canonical_source_class?: string | null
+          canonical_source_subtype?: string | null
+          classification_confidence_tier?: string | null
+          classification_evidence?: Json
+          classification_method?: string | null
+          classification_review_status?: string
+          classification_version?: string | null
+          classified_at?: string | null
+          classified_by?: string | null
           content_hash?: string
           created_at?: string
           deal_id?: string | null
@@ -2554,6 +2660,7 @@ export type Database = {
           license_use_restrictions?: string | null
           original_filename?: string
           page_count?: number | null
+          processing_eligibility?: Json
           processing_status?: string
           property_id?: string | null
           retention_state?: string
@@ -2564,6 +2671,7 @@ export type Database = {
           storage_object_key?: string
           storage_version?: number
           supersedes_evidence_id?: string | null
+          supported_downstream_modules?: string[]
           updated_at?: string
           uploaded_at?: string
           uploaded_by?: string | null
@@ -2617,8 +2725,18 @@ export type Database = {
       }
       intake_batch_items: {
         Row: {
+          allowed_extraction_engines: string[]
           assignment: Json
           batch_id: string
+          canonical_source_class: string | null
+          canonical_source_subtype: string | null
+          classification_confidence_tier: string | null
+          classification_evidence: Json
+          classification_method: string | null
+          classification_review_status: string
+          classification_version: string | null
+          classified_at: string | null
+          classified_by: string | null
           content_hash: string | null
           created_at: string
           deal_id: string | null
@@ -2630,6 +2748,7 @@ export type Database = {
           item_type: string
           mapped_values: Json
           original_filename: string | null
+          processing_eligibility: Json
           property_id: string | null
           proposals: Json
           retry_count: number
@@ -2638,14 +2757,25 @@ export type Database = {
           source_record_id: string | null
           source_url: string | null
           status: string
+          supported_downstream_modules: string[]
           target_deal_group_key: string | null
           updated_at: string
           version: number
           workspace_id: string
         }
         Insert: {
+          allowed_extraction_engines?: string[]
           assignment?: Json
           batch_id: string
+          canonical_source_class?: string | null
+          canonical_source_subtype?: string | null
+          classification_confidence_tier?: string | null
+          classification_evidence?: Json
+          classification_method?: string | null
+          classification_review_status?: string
+          classification_version?: string | null
+          classified_at?: string | null
+          classified_by?: string | null
           content_hash?: string | null
           created_at?: string
           deal_id?: string | null
@@ -2657,6 +2787,7 @@ export type Database = {
           item_type: string
           mapped_values?: Json
           original_filename?: string | null
+          processing_eligibility?: Json
           property_id?: string | null
           proposals?: Json
           retry_count?: number
@@ -2665,14 +2796,25 @@ export type Database = {
           source_record_id?: string | null
           source_url?: string | null
           status?: string
+          supported_downstream_modules?: string[]
           target_deal_group_key?: string | null
           updated_at?: string
           version?: number
           workspace_id: string
         }
         Update: {
+          allowed_extraction_engines?: string[]
           assignment?: Json
           batch_id?: string
+          canonical_source_class?: string | null
+          canonical_source_subtype?: string | null
+          classification_confidence_tier?: string | null
+          classification_evidence?: Json
+          classification_method?: string | null
+          classification_review_status?: string
+          classification_version?: string | null
+          classified_at?: string | null
+          classified_by?: string | null
           content_hash?: string | null
           created_at?: string
           deal_id?: string | null
@@ -2684,6 +2826,7 @@ export type Database = {
           item_type?: string
           mapped_values?: Json
           original_filename?: string | null
+          processing_eligibility?: Json
           property_id?: string | null
           proposals?: Json
           retry_count?: number
@@ -2692,6 +2835,7 @@ export type Database = {
           source_record_id?: string | null
           source_url?: string | null
           status?: string
+          supported_downstream_modules?: string[]
           target_deal_group_key?: string | null
           updated_at?: string
           version?: number
@@ -3044,7 +3188,17 @@ export type Database = {
       manual_source_records: {
         Row: {
           adapter_version: string | null
+          allowed_extraction_engines: string[]
+          canonical_source_class: string | null
+          canonical_source_subtype: string | null
           classification: Json
+          classification_confidence_tier: string | null
+          classification_evidence: Json
+          classification_method: string | null
+          classification_review_status: string
+          classification_version: string | null
+          classified_at: string | null
+          classified_by: string | null
           content_hash: string | null
           created_at: string
           created_by: string | null
@@ -3056,6 +3210,7 @@ export type Database = {
           intake_id: string
           license_use_restrictions: string | null
           original_values: Json
+          processing_eligibility: Json
           processing_version: string | null
           property_id: string | null
           retrieved_at: string | null
@@ -3068,13 +3223,24 @@ export type Database = {
           source_version: number
           status: string
           support_level: string | null
+          supported_downstream_modules: string[]
           updated_at: string
           verification_state: string
           workspace_id: string
         }
         Insert: {
           adapter_version?: string | null
+          allowed_extraction_engines?: string[]
+          canonical_source_class?: string | null
+          canonical_source_subtype?: string | null
           classification?: Json
+          classification_confidence_tier?: string | null
+          classification_evidence?: Json
+          classification_method?: string | null
+          classification_review_status?: string
+          classification_version?: string | null
+          classified_at?: string | null
+          classified_by?: string | null
           content_hash?: string | null
           created_at?: string
           created_by?: string | null
@@ -3086,6 +3252,7 @@ export type Database = {
           intake_id: string
           license_use_restrictions?: string | null
           original_values?: Json
+          processing_eligibility?: Json
           processing_version?: string | null
           property_id?: string | null
           retrieved_at?: string | null
@@ -3098,13 +3265,24 @@ export type Database = {
           source_version?: number
           status?: string
           support_level?: string | null
+          supported_downstream_modules?: string[]
           updated_at?: string
           verification_state?: string
           workspace_id: string
         }
         Update: {
           adapter_version?: string | null
+          allowed_extraction_engines?: string[]
+          canonical_source_class?: string | null
+          canonical_source_subtype?: string | null
           classification?: Json
+          classification_confidence_tier?: string | null
+          classification_evidence?: Json
+          classification_method?: string | null
+          classification_review_status?: string
+          classification_version?: string | null
+          classified_at?: string | null
+          classified_by?: string | null
           content_hash?: string | null
           created_at?: string
           created_by?: string | null
@@ -3116,6 +3294,7 @@ export type Database = {
           intake_id?: string
           license_use_restrictions?: string | null
           original_values?: Json
+          processing_eligibility?: Json
           processing_version?: string | null
           property_id?: string | null
           retrieved_at?: string | null
@@ -3128,6 +3307,7 @@ export type Database = {
           source_version?: number
           status?: string
           support_level?: string | null
+          supported_downstream_modules?: string[]
           updated_at?: string
           verification_state?: string
           workspace_id?: string
@@ -5284,6 +5464,25 @@ export type Database = {
           proposal_count: number
           rejected_count: number
           source_record_id: string
+        }[]
+      }
+      record_source_classification: {
+        Args: {
+          classification_input: Json
+          idempotency_key: string
+          target_id: string
+          target_table: string
+          target_workspace_id: string
+        }
+        Returns: {
+          canonical_source_class: string
+          canonical_source_subtype: string
+          classification_confidence_tier: string
+          classification_review_status: string
+          classification_version: string
+          classified_target_id: string
+          classified_target_table: string
+          event_type: string
         }[]
       }
       relationship_workspace_for_deal: {

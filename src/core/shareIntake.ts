@@ -1,5 +1,6 @@
 import { createDuplicateDetectionRequest } from "./duplicateDetection";
 import { createManualIntakeDraft, saveManualIntakeDraft } from "./propertyIntake";
+import { classifySource, type SourceClassificationResult } from "./sourceClassification";
 import type { ManualIntakeDraft } from "./types";
 
 type UnknownRecord = Record<string, unknown>;
@@ -84,6 +85,7 @@ export type SharedIntakePayload = {
   payloadHash: string;
   status: SharedIntakeStatus;
   result?: SharedIntakeResult;
+  sourceClassification: SourceClassificationResult;
   safeErrorCategory: SharedIntakeSafeErrorCategory;
 };
 
@@ -173,6 +175,7 @@ export function createSharedIntakePayload(input: SharedIntakeInput): SharedIntak
     intendedPropertyId: stringValue(input.intendedPropertyId),
   };
   const payloadHash = stableHash(stableSerialize(payloadBasis));
+  const sourceClassification = classifySharedIntakeSource({ contentType, normalizedUrl, file });
   const payload: SharedIntakePayload = {
     version: SHARED_INTAKE_SCHEMA_VERSION,
     handoffId,
@@ -193,6 +196,7 @@ export function createSharedIntakePayload(input: SharedIntakeInput): SharedIntak
     idempotencyKey: `share-intake:${payloadHash}`,
     payloadHash,
     status: "received_locally",
+    sourceClassification,
     safeErrorCategory: "none",
   };
   validateSharedIntakePayload(payload);
@@ -246,6 +250,7 @@ export function normalizeSharedIntakePayload(value: unknown): SharedIntakePayloa
     payloadHash,
     status,
     result: normalizeResult(value.result),
+    sourceClassification: classifySharedIntakeSource({ contentType, normalizedUrl: stringValue(value.normalizedUrl), file: normalizeFileReference(value.file) }),
     safeErrorCategory: isSafeError(value.safeErrorCategory) ? value.safeErrorCategory : "none",
   };
   try {
@@ -287,6 +292,22 @@ export function routeSharedIntakePayload(payload: SharedIntakePayload): SharedIn
   if (payload.contentType === "image" || payload.contentType === "file") return "file_evidence";
   if (payload.contentType === "email_file") return "email_intake";
   return "manual_review";
+}
+
+export function classifySharedIntakeSource(input: { contentType: SharedIntakeContentType; normalizedUrl?: string; file?: SharedIntakeFileReference }) {
+  if (input.contentType === "url" || input.contentType === "mixed_url_text") {
+    return classifySource({ sourceType: "listing_url", sourceUrl: input.normalizedUrl });
+  }
+  if (input.contentType === "email_file") {
+    return classifySource({ sourceType: "email", originalFilename: input.file?.originalFilename, declaredMimeType: input.file?.declaredMimeType, detectedMimeType: input.file?.detectedMimeType });
+  }
+  if (input.contentType === "image") {
+    return classifySource({ sourceType: "image", originalFilename: input.file?.originalFilename, declaredMimeType: input.file?.declaredMimeType, detectedMimeType: input.file?.detectedMimeType, evidenceType: "image" });
+  }
+  if (input.contentType === "file") {
+    return classifySource({ sourceType: "file", originalFilename: input.file?.originalFilename, declaredMimeType: input.file?.declaredMimeType, detectedMimeType: input.file?.detectedMimeType });
+  }
+  return classifySource({ sourceType: "manual", sourceName: "shared text" });
 }
 
 export function scopeSharedIntakeForReview(payload: SharedIntakePayload, scope: { userId?: string | null; workspaceId?: string | null }): SharedIntakePayload {

@@ -1,4 +1,5 @@
 import type { StrategyId } from "./strategyCatalog";
+import type { SourceClassificationResult } from "./sourceClassification";
 import type { Json } from "./supabaseDatabase.types";
 
 export type DealStatus = "draft" | "reviewing" | "underwriting" | "pursuing" | "under_contract" | "closed" | "passed";
@@ -406,6 +407,7 @@ export type ManualIntakeDraft = {
   fileEvidenceProposals?: FileEvidenceProposal[];
   emailImport?: EmailIntakeImportResult;
   emailProposals?: FileEvidenceProposal[];
+  sourceClassification?: SourceClassificationResult;
   duplicateDecision?: ManualIntakeDecision;
   selectedPropertyId?: string;
   updatedAt: string;
@@ -451,6 +453,7 @@ export type ListingUrlImportResult = {
   retrievedAt: string;
   safeMessage: string;
   licensingNotes: string;
+  sourceClassification: SourceClassificationResult;
   proposals: ListingUrlProposal[];
 };
 
@@ -470,6 +473,7 @@ export type FileEvidenceImportResult = {
   contentHash: string;
   uploadedAt: string;
   extractionStatus: "not_started" | "complete" | "partially_complete" | "unsupported" | "failed";
+  sourceClassification: SourceClassificationResult;
   proposals: FileEvidenceProposal[];
 };
 
@@ -482,6 +486,7 @@ export type EmailAttachmentImportResult = {
   contentHash?: string;
   status: "imported" | "duplicate" | "rejected" | "metadata_only";
   safeMessage: string;
+  sourceClassification: SourceClassificationResult;
 };
 
 export type EmailIntakeImportResult = {
@@ -505,6 +510,7 @@ export type EmailIntakeImportResult = {
   receivedHeaderCount: number;
   attachmentCount: number;
   importedAt: string;
+  sourceClassification: SourceClassificationResult;
   attachments: EmailAttachmentImportResult[];
   proposals: FileEvidenceProposal[];
 };
