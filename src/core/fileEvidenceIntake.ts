@@ -1,3 +1,4 @@
+import { createDuplicateDetectionRequest } from "./duplicateDetection";
 import { invokeBrixFunction, supabase } from "./supabase";
 import type { Json } from "./supabaseDatabase.types";
 import type { FileEvidenceImportResult, FileEvidenceProposal, FileEvidenceStatus, FileEvidenceType, ListingProposalStatus, ManualIntakeDraft } from "./types";
@@ -70,6 +71,20 @@ export function fileEvidenceProposalSummary(proposals?: FileEvidenceProposal[]) 
     rejected: list.filter((proposal) => proposal.status === "rejected").length,
     deferred: list.filter((proposal) => proposal.status === "deferred").length,
   };
+}
+
+export function createFileEvidenceDuplicateRequest(workspaceId: string, fileImport: FileEvidenceImportResult) {
+  return createDuplicateDetectionRequest({
+    workspaceId,
+    subjectType: "evidence",
+    identity: {
+      canonicalId: fileImport.evidenceId,
+      evidenceId: fileImport.evidenceId,
+      intakeId: fileImport.intakeId,
+      sourceRecordId: fileImport.sourceRecordId,
+      contentHash: fileImport.contentHash,
+    },
+  });
 }
 
 export async function attachFileEvidenceToDeal(workspaceId: string, result: { dealId: string; propertyId: string }, fileImport: FileEvidenceImportResult) {

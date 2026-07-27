@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       account_deletion_requests: {
@@ -2187,6 +2162,86 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "domain_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      duplicate_decisions: {
+        Row: {
+          candidate_canonical_id: string | null
+          candidate_identity: Json
+          candidate_subject_type: string | null
+          created_at: string
+          decided_at: string
+          decided_by: string
+          decision: string
+          duplicate_confidence: string | null
+          duplicate_rule_id: string | null
+          duplicate_rule_registry_version: string
+          duplicate_rule_version: number | null
+          duplicate_score: number | null
+          id: string
+          idempotency_key: string
+          rationale_category: string
+          request_hash: string
+          safe_user_note: string | null
+          subject_identity: Json
+          subject_type: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          candidate_canonical_id?: string | null
+          candidate_identity?: Json
+          candidate_subject_type?: string | null
+          created_at?: string
+          decided_at?: string
+          decided_by: string
+          decision: string
+          duplicate_confidence?: string | null
+          duplicate_rule_id?: string | null
+          duplicate_rule_registry_version: string
+          duplicate_rule_version?: number | null
+          duplicate_score?: number | null
+          id?: string
+          idempotency_key: string
+          rationale_category: string
+          request_hash: string
+          safe_user_note?: string | null
+          subject_identity?: Json
+          subject_type: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          candidate_canonical_id?: string | null
+          candidate_identity?: Json
+          candidate_subject_type?: string | null
+          created_at?: string
+          decided_at?: string
+          decided_by?: string
+          decision?: string
+          duplicate_confidence?: string | null
+          duplicate_rule_id?: string | null
+          duplicate_rule_registry_version?: string
+          duplicate_rule_version?: number | null
+          duplicate_score?: number | null
+          id?: string
+          idempotency_key?: string
+          rationale_category?: string
+          request_hash?: string
+          safe_user_note?: string | null
+          subject_identity?: Json
+          subject_type?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duplicate_decisions_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -5146,6 +5201,20 @@ export type Database = {
         Args: { raw_website: string }
         Returns: string
       }
+      record_duplicate_decision: {
+        Args: {
+          decision_input: Json
+          idempotency_key: string
+          target_workspace_id: string
+        }
+        Returns: {
+          candidate_subject_type: string
+          decision: string
+          duplicate_decision_id: string
+          idempotency_key_out: string
+          subject_type: string
+        }[]
+      }
       record_email_intake_result: {
         Args: {
           attachment_metadata?: Json
@@ -5570,9 +5639,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user", "superadmin"],

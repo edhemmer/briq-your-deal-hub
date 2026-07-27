@@ -1,3 +1,4 @@
+import { createDuplicateDetectionRequest } from "./duplicateDetection";
 import { invokeBrixFunction } from "./supabase";
 import type { ListingImportStatus, ListingProposalStatus, ListingSourceSupport, ListingUrlImportResult, ListingUrlProposal, ManualIntakeDraft } from "./types";
 
@@ -56,6 +57,18 @@ export function attachListingImportToDraft(draft: ManualIntakeDraft, listingImpo
     listingProposals: listingImport.proposals,
     updatedAt: new Date().toISOString(),
   };
+}
+
+export function createListingSourceDuplicateRequest(workspaceId: string, listingImport: ListingUrlImportResult) {
+  return createDuplicateDetectionRequest({
+    workspaceId,
+    subjectType: "listing_source",
+    identity: {
+      listingProviderKey: listingImport.sourceKey,
+      sourceUrl: listingImport.normalizedUrl,
+      idempotencyKey: `listing-url:${listingImport.normalizedUrl}`,
+    },
+  });
 }
 
 export function proposalSummary(proposals?: ListingUrlProposal[]) {

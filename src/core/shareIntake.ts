@@ -1,3 +1,4 @@
+import { createDuplicateDetectionRequest } from "./duplicateDetection";
 import { createManualIntakeDraft, saveManualIntakeDraft } from "./propertyIntake";
 import type { ManualIntakeDraft } from "./types";
 
@@ -311,6 +312,19 @@ export function createSharedIntakeReview(payload: SharedIntakePayload): SharedIn
     statusMessage: messageForStatus(payload),
     actions: actionsForStatus(payload),
   };
+}
+
+export function createSharedHandoffDuplicateRequest(workspaceId: string, payload: SharedIntakePayload) {
+  return createDuplicateDetectionRequest({
+    workspaceId,
+    subjectType: "shared_handoff",
+    identity: {
+      handoffId: payload.handoffId,
+      sourceUrl: payload.normalizedUrl,
+      contentHash: payload.file?.contentHash ?? payload.payloadHash,
+      idempotencyKey: payload.idempotencyKey,
+    },
+  });
 }
 
 export function sharedIntakeDeepLink(handoffId: string) {

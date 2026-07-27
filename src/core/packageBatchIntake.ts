@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { createDuplicateDetectionRequest, findDuplicateCandidates, packageBatchDuplicateCandidate } from "./duplicateDetection";
 import { createManualIntakeDraft } from "./propertyIntake";
 import { supabase } from "./supabase";
 import type { ManualIntakeDraft } from "./types";
@@ -519,22 +520,34 @@ function createPackageItem(input: {
 }
 
 function detectPackageDuplicates(batch: PackageBatchDraft): PackageBatchDraft {
-  const seen = new Map<string, PackageBatchItem>();
+  const priorCandidates: ReturnType<typeof packageBatchDuplicateCandidate>[] = [];
   const items = batch.items.map((item) => {
-    const key = duplicateKey(item);
-    if (!key) return item;
-    const first = seen.get(key);
-    if (!first) {
-      seen.set(key, item);
+    const candidateInput = packageBatchDuplicateCandidate({
+      workspaceId: batch.workspaceId ?? `local:${batch.id}`,
+      batchId: batch.id,
+      itemId: item.id,
+      address: item.mappedValues.address,
+      sourceUrl: item.mappedValues.source_url,
+      contentHash: batch.sources.find((source) => source.sourceId === item.sourceId)?.contentHash,
+    });
+    const request = createDuplicateDetectionRequest({
+      workspaceId: candidateInput.identity.workspaceId,
+      subjectType: "batch_item",
+      identity: candidateInput.identity,
+      candidateLimit: 1,
+    });
+    const [match] = findDuplicateCandidates(request, priorCandidates);
+    priorCandidates.push(candidateInput);
+    if (!match) {
       return item;
     }
     return {
       ...item,
       status: "duplicate_candidate" as const,
       duplicateCandidates: [{
-        itemId: first.id,
-        reason: "Same normalized address or source URL appears earlier in this package.",
-        displayAddress: first.mappedValues.address ?? first.mappedValues.source_url ?? "Earlier package item",
+        itemId: match.identity.batchItemId,
+        reason: match.explanation[0] ?? "This item may already exist in the package.",
+        displayAddress: match.identity.displayName ?? match.identity.normalizedAddress ?? match.identity.sourceUrl ?? "Earlier package item",
       }],
     };
   });
@@ -544,12 +557,6 @@ function detectPackageDuplicates(batch: PackageBatchDraft): PackageBatchDraft {
     items,
     status: summary.failed > 0 && summary.ready > 0 ? "partially_complete" : batch.status,
   };
-}
-
-function duplicateKey(item: PackageBatchItem) {
-  const address = normalizeKey(item.mappedValues.address);
-  const url = normalizeKey(item.mappedValues.source_url);
-  return address || url;
 }
 
 function suggestColumnMapping(headers: string[]): PackageColumnMapping {
@@ -714,10 +721,6 @@ function bytesToTextSample(bytes: Uint8Array) {
 
 function normalizeHeader(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-}
-
-function normalizeKey(value?: string) {
-  return value?.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function stableSerialize(value: unknown): string {

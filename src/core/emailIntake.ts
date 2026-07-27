@@ -1,3 +1,4 @@
+import { createDuplicateDetectionRequest } from "./duplicateDetection";
 import { invokeBrixFunction, supabase } from "./supabase";
 import type { FileEvidenceProposal, ListingProposalStatus, ManualIntakeDraft, EmailIntakeImportResult, EmailAttachmentImportResult } from "./types";
 
@@ -60,6 +61,21 @@ export function emailProposalSummary(proposals?: FileEvidenceProposal[]) {
     rejected: list.filter((proposal) => proposal.status === "rejected").length,
     deferred: list.filter((proposal) => proposal.status === "deferred").length,
   };
+}
+
+export function createEmailSourceDuplicateRequest(workspaceId: string, emailImport: EmailIntakeImportResult) {
+  return createDuplicateDetectionRequest({
+    workspaceId,
+    subjectType: "email_source",
+    identity: {
+      canonicalId: emailImport.emailSourceId,
+      intakeId: emailImport.intakeId,
+      sourceRecordId: emailImport.sourceRecordId,
+      messageId: emailImport.messageId,
+      bodyHash: emailImport.bodyHash,
+      attachmentHashes: emailImport.attachments.map((attachment) => attachment.contentHash).filter((hash): hash is string => Boolean(hash)),
+    },
+  });
 }
 
 export async function attachEmailSourceToDeal(workspaceId: string, result: { dealId: string; propertyId: string }, emailImport: EmailIntakeImportResult) {

@@ -2,6 +2,7 @@ import { getStrategy, normalizeStrategy } from "./strategyCatalog";
 import { supabase } from "./supabase";
 import { attachFileEvidenceToDeal, normalizeFileEvidenceImportResult } from "./fileEvidenceIntake";
 import { attachEmailSourceToDeal, normalizeEmailIntakeImportResult } from "./emailIntake";
+import { createDuplicateDetectionRequest } from "./duplicateDetection";
 import type { Json } from "./supabaseDatabase.types";
 import type { DealFacts, EmailIntakeImportResult, FileEvidenceImportResult, FileEvidenceProposal, ListingUrlImportResult, ListingUrlProposal, ManualIntakeDraft, ManualIntakeResult, ManualPropertyCandidate } from "./types";
 
@@ -107,6 +108,19 @@ export function validateManualIntakeDraft(draft: ManualIntakeDraft) {
   if (draft.askingPrice && numericString(draft.askingPrice) === null) errors.push("Asking price must be a number when supplied.");
   if (draft.expectedPrice && numericString(draft.expectedPrice) === null) errors.push("Expected price must be a number when supplied.");
   return errors;
+}
+
+export function createManualIntakeDuplicateRequest(workspaceId: string, draft: ManualIntakeDraft) {
+  return createDuplicateDetectionRequest({
+    workspaceId,
+    subjectType: "property",
+    identity: {
+      normalizedAddress: [draft.address, draft.city, draft.region, draft.postalCode].filter(Boolean).join(" "),
+      unitNumber: draft.unitNumber,
+      sourceUrl: draft.sourceUrl,
+      idempotencyKey: `manual-intake:${draft.id}`,
+    },
+  });
 }
 
 export async function searchManualPropertyCandidates(workspaceId: string, draft: ManualIntakeDraft): Promise<ManualPropertyCandidate[]> {
