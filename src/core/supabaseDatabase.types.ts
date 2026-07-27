@@ -4143,6 +4143,195 @@ export type Database = {
         }
         Relationships: []
       }
+      source_conflict_resolutions: {
+        Row: {
+          canonical_target_field: string
+          conflict_key: string
+          conflict_rule_registry_version: string
+          created_at: string
+          decided_at: string
+          decided_by: string
+          decision_input_hash: string
+          edited_value: Json
+          id: string
+          idempotency_key: string
+          prior_accepted_value_version: number | null
+          rationale_category: string
+          resolution_action: string
+          resulting_accepted_value_version: number | null
+          safe_note: string | null
+          selected_proposal_id: string | null
+          source_conflict_id: string
+          subject_id: string | null
+          subject_type: string
+          workspace_id: string
+        }
+        Insert: {
+          canonical_target_field: string
+          conflict_key: string
+          conflict_rule_registry_version: string
+          created_at?: string
+          decided_at?: string
+          decided_by: string
+          decision_input_hash: string
+          edited_value?: Json
+          id?: string
+          idempotency_key: string
+          prior_accepted_value_version?: number | null
+          rationale_category: string
+          resolution_action: string
+          resulting_accepted_value_version?: number | null
+          safe_note?: string | null
+          selected_proposal_id?: string | null
+          source_conflict_id: string
+          subject_id?: string | null
+          subject_type: string
+          workspace_id: string
+        }
+        Update: {
+          canonical_target_field?: string
+          conflict_key?: string
+          conflict_rule_registry_version?: string
+          created_at?: string
+          decided_at?: string
+          decided_by?: string
+          decision_input_hash?: string
+          edited_value?: Json
+          id?: string
+          idempotency_key?: string
+          prior_accepted_value_version?: number | null
+          rationale_category?: string
+          resolution_action?: string
+          resulting_accepted_value_version?: number | null
+          safe_note?: string | null
+          selected_proposal_id?: string | null
+          source_conflict_id?: string
+          subject_id?: string | null
+          subject_type?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_conflict_resolutions_selected_proposal_id_fkey"
+            columns: ["selected_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "intake_value_proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "source_conflict_resolutions_source_conflict_id_fkey"
+            columns: ["source_conflict_id"]
+            isOneToOne: false
+            referencedRelation: "source_conflicts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "source_conflict_resolutions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      source_conflicts: {
+        Row: {
+          canonical_target_field: string
+          compared_normalized_values: Json
+          conflict_classification: string
+          conflict_context: Json
+          conflict_key: string
+          conflict_rule_id: string
+          conflict_rule_registry_version: string
+          conflict_rule_version: number
+          detected_at: string
+          detected_by: string
+          deterministic_explanation: string
+          downstream_safety: Json
+          id: string
+          idempotency_key: string
+          involved_accepted_value_version: number | null
+          involved_proposal_ids: string[]
+          last_resolution_id: string | null
+          lifecycle_state: string
+          materiality_tier: string
+          request_hash: string
+          safe_summary: string
+          source_summaries: Json
+          stable_ordering_key: string
+          subject_id: string | null
+          subject_type: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          canonical_target_field: string
+          compared_normalized_values?: Json
+          conflict_classification: string
+          conflict_context?: Json
+          conflict_key: string
+          conflict_rule_id: string
+          conflict_rule_registry_version: string
+          conflict_rule_version: number
+          detected_at?: string
+          detected_by: string
+          deterministic_explanation: string
+          downstream_safety?: Json
+          id?: string
+          idempotency_key: string
+          involved_accepted_value_version?: number | null
+          involved_proposal_ids?: string[]
+          last_resolution_id?: string | null
+          lifecycle_state?: string
+          materiality_tier: string
+          request_hash: string
+          safe_summary: string
+          source_summaries?: Json
+          stable_ordering_key: string
+          subject_id?: string | null
+          subject_type: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          canonical_target_field?: string
+          compared_normalized_values?: Json
+          conflict_classification?: string
+          conflict_context?: Json
+          conflict_key?: string
+          conflict_rule_id?: string
+          conflict_rule_registry_version?: string
+          conflict_rule_version?: number
+          detected_at?: string
+          detected_by?: string
+          deterministic_explanation?: string
+          downstream_safety?: Json
+          id?: string
+          idempotency_key?: string
+          involved_accepted_value_version?: number | null
+          involved_proposal_ids?: string[]
+          last_resolution_id?: string | null
+          lifecycle_state?: string
+          materiality_tier?: string
+          request_hash?: string
+          safe_summary?: string
+          source_summaries?: Json
+          stable_ordering_key?: string
+          subject_id?: string | null
+          subject_type?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_conflicts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_priority_definitions: {
         Row: {
           created_at: string
@@ -5485,6 +5674,35 @@ export type Database = {
           event_type: string
         }[]
       }
+      record_source_conflict: {
+        Args: {
+          conflict_input: Json
+          idempotency_key: string
+          target_workspace_id: string
+        }
+        Returns: {
+          conflict_key: string
+          idempotency_key_out: string
+          lifecycle_state: string
+          source_conflict_id: string
+        }[]
+      }
+      record_source_conflict_resolution: {
+        Args: {
+          idempotency_key: string
+          resolution_input: Json
+          target_conflict_key: string
+          target_workspace_id: string
+        }
+        Returns: {
+          conflict_key: string
+          idempotency_key_out: string
+          lifecycle_state: string
+          resolution_action: string
+          source_conflict_id: string
+          source_conflict_resolution_id: string
+        }[]
+      }
       relationship_workspace_for_deal: {
         Args: { target_deal_id: string }
         Returns: string
@@ -5576,6 +5794,7 @@ export type Database = {
           updated_at: string
         }[]
       }
+      source_conflict_uuid_array: { Args: { value: Json }; Returns: string[] }
       update_brix_contact: {
         Args: {
           contact_input?: Json
