@@ -91,6 +91,19 @@ import { applyListingProposal, attachListingImportToDraft, importListingUrl, pro
 import { applyFileEvidenceProposal, attachFileEvidenceToDraft, fileEvidenceProposalSummary, importEvidenceFile, validateEvidenceFile } from "./core/fileEvidenceIntake";
 import { applyEmailProposal, attachEmailImportToDraft, emailProposalSummary, importEmailSource, validateEmailInput } from "./core/emailIntake";
 import {
+  PACKAGE_BATCH_LIMITS,
+  clearPackageBatchDraft,
+  createManualDraftFromPackageItem,
+  createPackageBatchFromFiles,
+  loadPackageBatchDraft,
+  recordPackageBatchReview,
+  savePackageBatchDraft,
+  summarizePackageBatch,
+  transitionPackageBatchItem,
+  type PackageBatchDraft,
+  type PackageBatchItem,
+} from "./core/packageBatchIntake";
+import {
   brixLink,
   parseBrixDeepLink,
   pathForBrixDestination,
@@ -2170,6 +2183,8 @@ function ManualPropertyIntakeDialog({
   const [listingStatus, setListingStatus] = useState<"idle" | "importing" | "complete" | "failed" | "unsupported">("idle");
   const [evidenceStatus, setEvidenceStatus] = useState<"idle" | "selected" | "validating" | "uploading" | "complete" | "duplicate" | "failed" | "unsupported">("idle");
   const [emailStatus, setEmailStatus] = useState<"idle" | "selected" | "validating" | "importing" | "complete" | "duplicate" | "failed">("idle");
+  const [packageStatus, setPackageStatus] = useState<"idle" | "validating" | "ready" | "recording" | "failed">("idle");
+  const [packageDraft, setPackageDraft] = useState<PackageBatchDraft | null>(() => loadPackageBatchDraft(storageScope));
   const [selectedEvidenceFile, setSelectedEvidenceFile] = useState<File | null>(null);
   const [selectedEmailFile, setSelectedEmailFile] = useState<File | null>(null);
   const [message, setMessage] = useState("");
@@ -2329,6 +2344,53 @@ function ManualPropertyIntakeDialog({
     setMessage(proposalStatus === "accepted" || proposalStatus === "edited" ? "Email proposal accepted into editable fields." : "Email proposal decision saved.");
   }
 
+  async function importPackageFiles(files?: FileList | null) {
+    const selectedFiles = Array.from(files ?? []);
+    if (!selectedFiles.length) return;
+    setPackageStatus("validating");
+    setMessage("Reviewing package items.");
+    try {
+      const batch = await createPackageBatchFromFiles(selectedFiles, { workspaceId });
+      const saved = savePackageBatchDraft(storageScope, batch);
+      setPackageDraft(saved);
+      if (isAuthenticated && isOnline && workspaceId) {
+        setPackageStatus("recording");
+        await recordPackageBatchReview(workspaceId, saved);
+      }
+      setPackageStatus("ready");
+      const summary = summarizePackageBatch(saved);
+      setMessage(`${summary.total} package item${summary.total === 1 ? "" : "s"} reviewed. ${summary.ready} ready for explicit Deal review.`);
+    } catch (error) {
+      setPackageStatus("failed");
+      setMessage(safeDealCommandMessage(error).message);
+    }
+  }
+
+  function updatePackageItem(item: PackageBatchItem, action: "retry" | "skip" | "cancel") {
+    if (!packageDraft) return;
+    const next = savePackageBatchDraft(storageScope, {
+      ...packageDraft,
+      items: packageDraft.items.map((candidate) => candidate.id === item.id ? transitionPackageBatchItem(candidate, action) : candidate),
+      updatedAt: new Date().toISOString(),
+    });
+    setPackageDraft(next);
+    setPackageStatus("ready");
+  }
+
+  function selectPackageItem(item: PackageBatchItem) {
+    try {
+      const nextDraft = saveManualIntakeDraft(storageScope, createManualDraftFromPackageItem(item, draft));
+      setDraft(nextDraft);
+      setStatus("local");
+      setMessage("Package item moved into Deal review. Confirm the values before creating the Deal.");
+      setStep("property");
+      document.getElementById("manual-intake-opportunity-name")?.focus();
+    } catch (error) {
+      setPackageStatus("failed");
+      setMessage(safeDealCommandMessage(error).message);
+    }
+  }
+
   async function searchMatches() {
     const errors = validateManualIntakeDraft(draft);
     setErrorSummary(errors);
@@ -2390,6 +2452,7 @@ function ManualPropertyIntakeDialog({
   function cancelIntake() {
     if (!window.confirm("Cancel this manual intake? Saved local input for this intake will be removed.")) return;
     clearManualIntakeDraft(storageScope);
+    clearPackageBatchDraft(storageScope);
     setStatus("cancelled");
     onClose();
   }
@@ -2406,6 +2469,7 @@ function ManualPropertyIntakeDialog({
   const listingSummary = proposalSummary(draft.listingProposals);
   const evidenceSummary = fileEvidenceProposalSummary(draft.fileEvidenceProposals);
   const emailSummary = emailProposalSummary(draft.emailProposals);
+  const packageSummary = packageDraft ? summarizePackageBatch(packageDraft) : null;
 
   return (
     <div className="modal-backdrop" role="presentation">
@@ -2435,6 +2499,60 @@ function ManualPropertyIntakeDialog({
 
         {step === "property" && (
           <div className="manual-intake-grid">
+            <section className="workspace-card wide source-review-panel package-batch-panel">
+              <div className="panel-heading-row">
+                <div>
+                  <p className="eyebrow">Package / Batch</p>
+                  <h3>Review multiple sources</h3>
+                  <p className="quiet">Upload a CSV/XLSX opportunity list or multiple related files. BRIX separates each item, keeps item-level errors, and waits for your explicit review before any Deal is created.</p>
+                </div>
+                {packageDraft && <span className="status-chip info">{packageDraft.status.replace(/_/g, " ")}</span>}
+              </div>
+              <label className="upload-zone evidence-upload-zone">
+                <FileSearch size={26} />
+                <strong>{packageDraft ? `${packageDraft.items.length} item${packageDraft.items.length === 1 ? "" : "s"} in package` : "Choose package files"}</strong>
+                <span>CSV, XLSX, PDF, TXT, DOCX, images, or email files. Maximum {PACKAGE_BATCH_LIMITS.maxItems} items after parsing.</span>
+                <input
+                  type="file"
+                  multiple
+                  accept=".csv,.xlsx,.pdf,.txt,.docx,.jpg,.jpeg,.png,.webp,.eml,.msg,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp,message/rfc822"
+                  onChange={(event) => void importPackageFiles(event.target.files)}
+                />
+              </label>
+              {packageSummary && (
+                <div className="package-summary-grid" aria-label="Package intake summary">
+                  <Stat label="Items" value={String(packageSummary.total)} />
+                  <Stat label="Ready" value={String(packageSummary.ready)} />
+                  <Stat label="Needs review" value={String(packageSummary.needsMapping)} />
+                  <Stat label="Duplicates" value={String(packageSummary.duplicates)} />
+                </div>
+              )}
+              {packageDraft && (
+                <div className="package-item-list" role="list" aria-label="Package intake items">
+                  {packageDraft.items.slice(0, 8).map((item) => (
+                    <article className="package-item-card" key={item.id} role="listitem">
+                      <div>
+                        <strong>{item.mappedValues.opportunity_name || item.mappedValues.address || packageDraft.sources.find((source) => source.sourceId === item.sourceId)?.originalFilename || `Item ${item.itemIndex + 1}`}</strong>
+                        <span>{item.mappedValues.address || item.safeErrors[0] || item.status.replace(/_/g, " ")}</span>
+                        {item.duplicateCandidates.length > 0 && <small>Possible duplicate: {item.duplicateCandidates[0].displayAddress}</small>}
+                      </div>
+                      <div className="button-row">
+                        {(item.status === "awaiting_review" || item.status === "duplicate_candidate") && (
+                          <button className="primary compact" type="button" onClick={() => selectPackageItem(item)}>Use item</button>
+                        )}
+                        {(item.status === "awaiting_mapping" || item.status === "failed" || item.status === "invalid") && (
+                          <button className="secondary compact" type="button" onClick={() => updatePackageItem(item, "retry")}>Retry</button>
+                        )}
+                        <button className="ghost compact" type="button" onClick={() => updatePackageItem(item, "skip")}>Skip</button>
+                        <button className="ghost compact" type="button" onClick={() => updatePackageItem(item, "cancel")}>Cancel</button>
+                      </div>
+                    </article>
+                  ))}
+                  {packageDraft.items.length > 8 && <p className="quiet">Showing first 8 items. Remaining items stay saved in the package draft.</p>}
+                </div>
+              )}
+              {packageStatus === "failed" && <p className="error" role="alert">Package intake needs attention before continuing.</p>}
+            </section>
             <section className="workspace-card wide source-review-panel">
               <div className="panel-heading-row">
                 <div>

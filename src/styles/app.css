@@ -168,6 +168,12 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .manual-intake-actions { position: sticky; bottom: -22px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin: 0 -22px -22px; padding: 14px 22px 22px; border-top: 1px solid rgba(34,49,76,.78); background: linear-gradient(180deg, rgba(8,15,29,.72), rgba(8,15,29,.98) 38%); }
 .source-review-panel { border-color: rgba(59,130,246,.28); background: rgba(15,23,42,.7); }
 .source-facts, .proposal-list { display: grid; gap: 10px; margin-top: 12px; }
+.package-batch-panel { border-color: rgba(34,211,238,.32); background: linear-gradient(145deg, rgba(15,23,42,.86), rgba(8,21,39,.82)); }
+.package-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.package-item-list { display: grid; gap: 10px; margin-top: 12px; }
+.package-item-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; border: 1px solid rgba(38,57,86,.95); border-radius: 14px; background: rgba(4,12,24,.62); padding: 12px; }
+.package-item-card div:first-child { display: grid; gap: 4px; min-width: 0; }
+.package-item-card span, .package-item-card small { color: var(--muted); overflow-wrap: anywhere; }
 .proposal-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px; border: 1px solid rgba(38,57,86,.95); border-radius: 14px; background: rgba(8,15,29,.74); }
 .proposal-card div:first-child { display: grid; gap: 4px; }
 .proposal-card span { color: #e5f0ff; font-weight: 800; overflow-wrap: anywhere; }
@@ -440,7 +446,7 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 
 @media (max-width: 640px) {
   .workspace, .rail { padding: 16px; }
-  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row, .trusted-access-entry, .presentation-options, .state-grid, .attention-item, .relationship-card, .relationship-form, .duplicate-candidates article, .canonical-edit-grid, .work-history-grid, .work-edit-row, .definition-list, .workspace-count-row, .manual-intake-grid, .review-grid, .candidate-card, .proposal-card { grid-template-columns: 1fr; }
+  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row, .trusted-access-entry, .presentation-options, .state-grid, .attention-item, .relationship-card, .relationship-form, .duplicate-candidates article, .canonical-edit-grid, .work-history-grid, .work-edit-row, .definition-list, .workspace-count-row, .manual-intake-grid, .review-grid, .candidate-card, .proposal-card, .package-summary-grid, .package-item-card { grid-template-columns: 1fr; }
   .manual-intake-dialog { max-height: calc(100vh - 24px); border-radius: 18px; padding: 16px; }
   .manual-intake-actions { bottom: -16px; justify-content: stretch; margin: 0 -16px -16px; padding: 12px 16px 16px; }
   .manual-intake-actions button { flex: 1 1 150px; }

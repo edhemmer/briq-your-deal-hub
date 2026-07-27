@@ -86,6 +86,5 @@ describe("Specification 004 file, image, and document intake source controls", (
     expect(app).toContain("Reject");
     expect(app).toContain("Import Email");
     expect(app).not.toContain("Share extension");
-    expect(app).not.toContain("Package intake");
   });
 });

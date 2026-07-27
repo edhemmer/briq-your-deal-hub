@@ -135,8 +135,8 @@ export type Database = {
           before_values: Json
           causation_id: string | null
           changed_fields: string[]
-          created_at: string
           correlation_id: string
+          created_at: string
           deal_id: string | null
           id: string
           idempotency_key: string | null
@@ -160,8 +160,8 @@ export type Database = {
           before_values?: Json
           causation_id?: string | null
           changed_fields?: string[]
-          created_at?: string
           correlation_id?: string
+          created_at?: string
           deal_id?: string | null
           id?: string
           idempotency_key?: string | null
@@ -185,8 +185,8 @@ export type Database = {
           before_values?: Json
           causation_id?: string | null
           changed_fields?: string[]
-          created_at?: string
           correlation_id?: string
+          created_at?: string
           deal_id?: string | null
           id?: string
           idempotency_key?: string | null
@@ -1222,6 +1222,211 @@ export type Database = {
           },
         ]
       }
+      deadline_status_definitions: {
+        Row: {
+          created_at: string
+          is_terminal: boolean
+          label: string
+          sort_order: number
+          status_key: string
+        }
+        Insert: {
+          created_at?: string
+          is_terminal?: boolean
+          label: string
+          sort_order: number
+          status_key: string
+        }
+        Update: {
+          created_at?: string
+          is_terminal?: boolean
+          label?: string
+          sort_order?: number
+          status_key?: string
+        }
+        Relationships: []
+      }
+      deadline_verification_state_definitions: {
+        Row: {
+          created_at: string
+          label: string
+          requires_review: boolean
+          sort_order: number
+          state_key: string
+        }
+        Insert: {
+          created_at?: string
+          label: string
+          requires_review?: boolean
+          sort_order: number
+          state_key: string
+        }
+        Update: {
+          created_at?: string
+          label?: string
+          requires_review?: boolean
+          sort_order?: number
+          state_key?: string
+        }
+        Relationships: []
+      }
+      deadlines: {
+        Row: {
+          archived_at: string | null
+          calculation_rule: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          due_at: string | null
+          due_date: string | null
+          id: string
+          is_all_day: boolean
+          source_description: string | null
+          source_record_id: string | null
+          source_term: string | null
+          source_type: string
+          status: string
+          timezone: string
+          title: string
+          trigger_date: string | null
+          updated_at: string
+          updated_by: string | null
+          verification_state: string
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          calculation_rule?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          due_at?: string | null
+          due_date?: string | null
+          id?: string
+          is_all_day?: boolean
+          source_description?: string | null
+          source_record_id?: string | null
+          source_term?: string | null
+          source_type?: string
+          status?: string
+          timezone?: string
+          title: string
+          trigger_date?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          verification_state?: string
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          calculation_rule?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          due_at?: string | null
+          due_date?: string | null
+          id?: string
+          is_all_day?: boolean
+          source_description?: string | null
+          source_record_id?: string | null
+          source_term?: string | null
+          source_type?: string
+          status?: string
+          timezone?: string
+          title?: string
+          trigger_date?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          verification_state?: string
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deadlines_deal_fk"
+            columns: ["workspace_id", "deal_id"]
+            isOneToOne: false
+            referencedRelation: "brix_deals"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "deadlines_status_fkey"
+            columns: ["status"]
+            isOneToOne: false
+            referencedRelation: "deadline_status_definitions"
+            referencedColumns: ["status_key"]
+          },
+          {
+            foreignKeyName: "deadlines_verification_state_fkey"
+            columns: ["verification_state"]
+            isOneToOne: false
+            referencedRelation: "deadline_verification_state_definitions"
+            referencedColumns: ["state_key"]
+          },
+          {
+            foreignKeyName: "deadlines_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_command_requests: {
+        Row: {
+          command_name: string
+          created_at: string
+          created_by: string | null
+          deal_id: string | null
+          id: string
+          idempotency_key: string
+          property_id: string | null
+          request_hash: string
+          result: Json
+          workspace_id: string
+        }
+        Insert: {
+          command_name: string
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          id?: string
+          idempotency_key: string
+          property_id?: string | null
+          request_hash: string
+          result?: Json
+          workspace_id: string
+        }
+        Update: {
+          command_name?: string
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          id?: string
+          idempotency_key?: string
+          property_id?: string | null
+          request_hash?: string
+          result?: Json
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_command_requests_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_creation_requests: {
         Row: {
           created_at: string
@@ -1914,14 +2119,14 @@ export type Database = {
           actor_id: string | null
           actor_type: string
           causation_id: string | null
-          created_at: string
           correlation_id: string
+          created_at: string
           deal_id: string | null
           entity_id: string | null
           entity_type: string | null
           entity_version: number | null
-          event_version: number
           event_type: string
+          event_version: number
           id: string
           idempotency_key: string | null
           metadata: Json
@@ -1937,14 +2142,14 @@ export type Database = {
           actor_id?: string | null
           actor_type?: string
           causation_id?: string | null
-          created_at?: string
           correlation_id?: string
+          created_at?: string
           deal_id?: string | null
           entity_id?: string | null
           entity_type?: string | null
           entity_version?: number | null
-          event_version?: number
           event_type: string
+          event_version?: number
           id?: string
           idempotency_key?: string | null
           metadata?: Json
@@ -1960,14 +2165,14 @@ export type Database = {
           actor_id?: string | null
           actor_type?: string
           causation_id?: string | null
-          created_at?: string
           correlation_id?: string
+          created_at?: string
           deal_id?: string | null
           entity_id?: string | null
           entity_type?: string | null
           entity_version?: number | null
-          event_version?: number
           event_type?: string
+          event_version?: number
           id?: string
           idempotency_key?: string | null
           metadata?: Json
@@ -1982,6 +2187,927 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "domain_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_source_attachments: {
+        Row: {
+          byte_size: number | null
+          content_hash: string | null
+          content_id: string | null
+          content_type: string | null
+          created_at: string
+          disposition: string | null
+          email_source_id: string
+          evidence_id: string | null
+          filename: string
+          id: string
+          import_status: string
+          parser_version: string
+          safe_message: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          byte_size?: number | null
+          content_hash?: string | null
+          content_id?: string | null
+          content_type?: string | null
+          created_at?: string
+          disposition?: string | null
+          email_source_id: string
+          evidence_id?: string | null
+          filename: string
+          id?: string
+          import_status?: string
+          parser_version?: string
+          safe_message?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          byte_size?: number | null
+          content_hash?: string | null
+          content_id?: string | null
+          content_type?: string | null
+          created_at?: string
+          disposition?: string | null
+          email_source_id?: string
+          evidence_id?: string | null
+          filename?: string
+          id?: string
+          import_status?: string
+          parser_version?: string
+          safe_message?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_source_attachments_email_source_id_fkey"
+            columns: ["email_source_id"]
+            isOneToOne: false
+            referencedRelation: "email_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_source_attachments_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_source_attachments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_sources: {
+        Row: {
+          attachment_count: number
+          bcc_addresses: string[]
+          body_hash: string
+          cc_addresses: string[]
+          created_at: string
+          deal_id: string | null
+          duplicate_of_email_source_id: string | null
+          from_address: string | null
+          html_body: string | null
+          id: string
+          imported_at: string
+          imported_by: string | null
+          intake_id: string | null
+          message_id: string | null
+          parser_version: string
+          plain_text_body: string | null
+          processing_status: string
+          property_id: string | null
+          received_headers: Json
+          reply_to_address: string | null
+          retention_state: string
+          safe_error: string | null
+          sent_at: string | null
+          source_record_id: string | null
+          subject: string | null
+          thread_id: string | null
+          to_addresses: string[]
+          updated_at: string
+          verification_state: string
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          attachment_count?: number
+          bcc_addresses?: string[]
+          body_hash: string
+          cc_addresses?: string[]
+          created_at?: string
+          deal_id?: string | null
+          duplicate_of_email_source_id?: string | null
+          from_address?: string | null
+          html_body?: string | null
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          intake_id?: string | null
+          message_id?: string | null
+          parser_version?: string
+          plain_text_body?: string | null
+          processing_status?: string
+          property_id?: string | null
+          received_headers?: Json
+          reply_to_address?: string | null
+          retention_state?: string
+          safe_error?: string | null
+          sent_at?: string | null
+          source_record_id?: string | null
+          subject?: string | null
+          thread_id?: string | null
+          to_addresses?: string[]
+          updated_at?: string
+          verification_state?: string
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          attachment_count?: number
+          bcc_addresses?: string[]
+          body_hash?: string
+          cc_addresses?: string[]
+          created_at?: string
+          deal_id?: string | null
+          duplicate_of_email_source_id?: string | null
+          from_address?: string | null
+          html_body?: string | null
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          intake_id?: string | null
+          message_id?: string | null
+          parser_version?: string
+          plain_text_body?: string | null
+          processing_status?: string
+          property_id?: string | null
+          received_headers?: Json
+          reply_to_address?: string | null
+          retention_state?: string
+          safe_error?: string | null
+          sent_at?: string | null
+          source_record_id?: string | null
+          subject?: string | null
+          thread_id?: string | null
+          to_addresses?: string[]
+          updated_at?: string
+          verification_state?: string
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_sources_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "brix_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_sources_duplicate_of_email_source_id_fkey"
+            columns: ["duplicate_of_email_source_id"]
+            isOneToOne: false
+            referencedRelation: "email_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_sources_intake_id_fkey"
+            columns: ["intake_id"]
+            isOneToOne: false
+            referencedRelation: "property_intakes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_sources_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_sources_source_record_id_fkey"
+            columns: ["source_record_id"]
+            isOneToOne: false
+            referencedRelation: "manual_source_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_sources_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidence_items: {
+        Row: {
+          byte_size: number
+          content_hash: string
+          created_at: string
+          deal_id: string | null
+          declared_mime_type: string | null
+          detected_mime_type: string
+          evidence_type: string
+          extraction_status: string
+          extraction_version: string | null
+          id: string
+          image_height: number | null
+          image_width: number | null
+          intake_id: string | null
+          license_use_restrictions: string | null
+          original_filename: string
+          page_count: number | null
+          processing_status: string
+          property_id: string | null
+          retention_state: string
+          safe_error: string | null
+          sanitized_filename: string
+          source_record_id: string | null
+          storage_bucket: string
+          storage_object_key: string
+          storage_version: number
+          supersedes_evidence_id: string | null
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string | null
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          byte_size: number
+          content_hash: string
+          created_at?: string
+          deal_id?: string | null
+          declared_mime_type?: string | null
+          detected_mime_type: string
+          evidence_type: string
+          extraction_status?: string
+          extraction_version?: string | null
+          id?: string
+          image_height?: number | null
+          image_width?: number | null
+          intake_id?: string | null
+          license_use_restrictions?: string | null
+          original_filename: string
+          page_count?: number | null
+          processing_status?: string
+          property_id?: string | null
+          retention_state?: string
+          safe_error?: string | null
+          sanitized_filename: string
+          source_record_id?: string | null
+          storage_bucket?: string
+          storage_object_key: string
+          storage_version?: number
+          supersedes_evidence_id?: string | null
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          byte_size?: number
+          content_hash?: string
+          created_at?: string
+          deal_id?: string | null
+          declared_mime_type?: string | null
+          detected_mime_type?: string
+          evidence_type?: string
+          extraction_status?: string
+          extraction_version?: string | null
+          id?: string
+          image_height?: number | null
+          image_width?: number | null
+          intake_id?: string | null
+          license_use_restrictions?: string | null
+          original_filename?: string
+          page_count?: number | null
+          processing_status?: string
+          property_id?: string | null
+          retention_state?: string
+          safe_error?: string | null
+          sanitized_filename?: string
+          source_record_id?: string | null
+          storage_bucket?: string
+          storage_object_key?: string
+          storage_version?: number
+          supersedes_evidence_id?: string | null
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_items_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "brix_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_items_intake_id_fkey"
+            columns: ["intake_id"]
+            isOneToOne: false
+            referencedRelation: "property_intakes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_items_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_items_source_record_id_fkey"
+            columns: ["source_record_id"]
+            isOneToOne: false
+            referencedRelation: "manual_source_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_items_supersedes_evidence_id_fkey"
+            columns: ["supersedes_evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_items_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_batch_items: {
+        Row: {
+          assignment: Json
+          batch_id: string
+          content_hash: string | null
+          created_at: string
+          deal_id: string | null
+          duplicate_candidates: Json
+          evidence_id: string | null
+          id: string
+          intake_id: string | null
+          item_index: number
+          item_type: string
+          mapped_values: Json
+          original_filename: string | null
+          property_id: string | null
+          proposals: Json
+          retry_count: number
+          safe_error: string | null
+          source_anchor: Json
+          source_record_id: string | null
+          source_url: string | null
+          status: string
+          target_deal_group_key: string | null
+          updated_at: string
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          assignment?: Json
+          batch_id: string
+          content_hash?: string | null
+          created_at?: string
+          deal_id?: string | null
+          duplicate_candidates?: Json
+          evidence_id?: string | null
+          id?: string
+          intake_id?: string | null
+          item_index: number
+          item_type: string
+          mapped_values?: Json
+          original_filename?: string | null
+          property_id?: string | null
+          proposals?: Json
+          retry_count?: number
+          safe_error?: string | null
+          source_anchor?: Json
+          source_record_id?: string | null
+          source_url?: string | null
+          status?: string
+          target_deal_group_key?: string | null
+          updated_at?: string
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          assignment?: Json
+          batch_id?: string
+          content_hash?: string | null
+          created_at?: string
+          deal_id?: string | null
+          duplicate_candidates?: Json
+          evidence_id?: string | null
+          id?: string
+          intake_id?: string | null
+          item_index?: number
+          item_type?: string
+          mapped_values?: Json
+          original_filename?: string | null
+          property_id?: string | null
+          proposals?: Json
+          retry_count?: number
+          safe_error?: string | null
+          source_anchor?: Json
+          source_record_id?: string | null
+          source_url?: string | null
+          status?: string
+          target_deal_group_key?: string | null
+          updated_at?: string
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_batch_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "intake_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_batch_items_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "brix_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_batch_items_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_batch_items_intake_id_fkey"
+            columns: ["intake_id"]
+            isOneToOne: false
+            referencedRelation: "property_intakes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_batch_items_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_batch_items_source_record_id_fkey"
+            columns: ["source_record_id"]
+            isOneToOne: false
+            referencedRelation: "manual_source_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_batch_items_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_batches: {
+        Row: {
+          batch_type: string
+          created_at: string
+          created_by: string | null
+          duplicate_candidate_count: number
+          failed_item_count: number
+          id: string
+          idempotency_key: string
+          item_count: number
+          limits: Json
+          ready_item_count: number
+          safe_error: string | null
+          skipped_item_count: number
+          source_summary: Json
+          status: string
+          updated_at: string
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          batch_type: string
+          created_at?: string
+          created_by?: string | null
+          duplicate_candidate_count?: number
+          failed_item_count?: number
+          id?: string
+          idempotency_key: string
+          item_count?: number
+          limits?: Json
+          ready_item_count?: number
+          safe_error?: string | null
+          skipped_item_count?: number
+          source_summary?: Json
+          status?: string
+          updated_at?: string
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          batch_type?: string
+          created_at?: string
+          created_by?: string | null
+          duplicate_candidate_count?: number
+          failed_item_count?: number
+          id?: string
+          idempotency_key?: string
+          item_count?: number
+          limits?: Json
+          ready_item_count?: number
+          safe_error?: string | null
+          skipped_item_count?: number
+          source_summary?: Json
+          status?: string
+          updated_at?: string
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_batches_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_processing_jobs: {
+        Row: {
+          attempt_count: number
+          completed_at: string | null
+          created_at: string
+          evidence_id: string | null
+          failed_at: string | null
+          id: string
+          idempotency_key: string
+          intake_id: string | null
+          job_type: string
+          output_refs: Json
+          progress: number
+          requested_by: string | null
+          safe_error_category: string | null
+          safe_error_message: string | null
+          started_at: string | null
+          status: string
+          updated_at: string
+          workflow_version: string
+          workspace_id: string
+        }
+        Insert: {
+          attempt_count?: number
+          completed_at?: string | null
+          created_at?: string
+          evidence_id?: string | null
+          failed_at?: string | null
+          id?: string
+          idempotency_key: string
+          intake_id?: string | null
+          job_type: string
+          output_refs?: Json
+          progress?: number
+          requested_by?: string | null
+          safe_error_category?: string | null
+          safe_error_message?: string | null
+          started_at?: string | null
+          status: string
+          updated_at?: string
+          workflow_version?: string
+          workspace_id: string
+        }
+        Update: {
+          attempt_count?: number
+          completed_at?: string | null
+          created_at?: string
+          evidence_id?: string | null
+          failed_at?: string | null
+          id?: string
+          idempotency_key?: string
+          intake_id?: string | null
+          job_type?: string
+          output_refs?: Json
+          progress?: number
+          requested_by?: string | null
+          safe_error_category?: string | null
+          safe_error_message?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          workflow_version?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_processing_jobs_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_processing_jobs_intake_id_fkey"
+            columns: ["intake_id"]
+            isOneToOne: false
+            referencedRelation: "property_intakes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_processing_jobs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_value_proposals: {
+        Row: {
+          canonical_field: string
+          canonical_subject: string
+          classification: string
+          confidence: number
+          created_at: string
+          created_by: string | null
+          currency: string | null
+          deal_id: string | null
+          display_value: string | null
+          effective_date: string | null
+          evidence_id: string | null
+          evidence_rule: string | null
+          extractor_version: string | null
+          freshness_state: string
+          id: string
+          intake_id: string
+          normalized_value: string | null
+          property_id: string | null
+          proposal_status: string
+          proposed_action: string
+          raw_value: string | null
+          source_anchor: Json
+          source_key: string | null
+          source_record_id: string
+          unit: string | null
+          updated_at: string
+          verification_state: string
+          workspace_id: string
+        }
+        Insert: {
+          canonical_field: string
+          canonical_subject?: string
+          classification: string
+          confidence: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          deal_id?: string | null
+          display_value?: string | null
+          effective_date?: string | null
+          evidence_id?: string | null
+          evidence_rule?: string | null
+          extractor_version?: string | null
+          freshness_state?: string
+          id?: string
+          intake_id: string
+          normalized_value?: string | null
+          property_id?: string | null
+          proposal_status?: string
+          proposed_action?: string
+          raw_value?: string | null
+          source_anchor?: Json
+          source_key?: string | null
+          source_record_id: string
+          unit?: string | null
+          updated_at?: string
+          verification_state?: string
+          workspace_id: string
+        }
+        Update: {
+          canonical_field?: string
+          canonical_subject?: string
+          classification?: string
+          confidence?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          deal_id?: string | null
+          display_value?: string | null
+          effective_date?: string | null
+          evidence_id?: string | null
+          evidence_rule?: string | null
+          extractor_version?: string | null
+          freshness_state?: string
+          id?: string
+          intake_id?: string
+          normalized_value?: string | null
+          property_id?: string | null
+          proposal_status?: string
+          proposed_action?: string
+          raw_value?: string | null
+          source_anchor?: Json
+          source_key?: string | null
+          source_record_id?: string
+          unit?: string | null
+          updated_at?: string
+          verification_state?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_value_proposals_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "brix_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_value_proposals_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_value_proposals_intake_id_fkey"
+            columns: ["intake_id"]
+            isOneToOne: false
+            referencedRelation: "property_intakes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_value_proposals_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_value_proposals_source_record_id_fkey"
+            columns: ["source_record_id"]
+            isOneToOne: false
+            referencedRelation: "manual_source_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_value_proposals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manual_source_records: {
+        Row: {
+          adapter_version: string | null
+          classification: Json
+          content_hash: string | null
+          created_at: string
+          created_by: string | null
+          deal_id: string | null
+          effective_date: string | null
+          entered_at: string
+          evidence_id: string | null
+          id: string
+          intake_id: string
+          license_use_restrictions: string | null
+          original_values: Json
+          processing_version: string | null
+          property_id: string | null
+          retrieved_at: string | null
+          safe_error: string | null
+          source_contact: string | null
+          source_key: string | null
+          source_name: string | null
+          source_type: string
+          source_url: string | null
+          source_version: number
+          status: string
+          support_level: string | null
+          updated_at: string
+          verification_state: string
+          workspace_id: string
+        }
+        Insert: {
+          adapter_version?: string | null
+          classification?: Json
+          content_hash?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          effective_date?: string | null
+          entered_at?: string
+          evidence_id?: string | null
+          id?: string
+          intake_id: string
+          license_use_restrictions?: string | null
+          original_values?: Json
+          processing_version?: string | null
+          property_id?: string | null
+          retrieved_at?: string | null
+          safe_error?: string | null
+          source_contact?: string | null
+          source_key?: string | null
+          source_name?: string | null
+          source_type?: string
+          source_url?: string | null
+          source_version?: number
+          status?: string
+          support_level?: string | null
+          updated_at?: string
+          verification_state?: string
+          workspace_id: string
+        }
+        Update: {
+          adapter_version?: string | null
+          classification?: Json
+          content_hash?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          effective_date?: string | null
+          entered_at?: string
+          evidence_id?: string | null
+          id?: string
+          intake_id?: string
+          license_use_restrictions?: string | null
+          original_values?: Json
+          processing_version?: string | null
+          property_id?: string | null
+          retrieved_at?: string | null
+          safe_error?: string | null
+          source_contact?: string | null
+          source_key?: string | null
+          source_name?: string | null
+          source_type?: string
+          source_url?: string | null
+          source_version?: number
+          status?: string
+          support_level?: string | null
+          updated_at?: string
+          verification_state?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_source_records_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "brix_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_source_records_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_source_records_intake_id_fkey"
+            columns: ["intake_id"]
+            isOneToOne: false
+            referencedRelation: "property_intakes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_source_records_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_source_records_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -2086,6 +3212,161 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      note_type_definitions: {
+        Row: {
+          created_at: string
+          label: string
+          sort_order: number
+          type_key: string
+        }
+        Insert: {
+          created_at?: string
+          label: string
+          sort_order: number
+          type_key: string
+        }
+        Update: {
+          created_at?: string
+          label?: string
+          sort_order?: number
+          type_key?: string
+        }
+        Relationships: []
+      }
+      note_versions: {
+        Row: {
+          body: string
+          changed_at: string
+          changed_by: string | null
+          deal_id: string
+          id: string
+          note_id: string
+          note_type: string
+          pinned: boolean
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          body: string
+          changed_at?: string
+          changed_by?: string | null
+          deal_id: string
+          id?: string
+          note_id: string
+          note_type: string
+          pinned?: boolean
+          version: number
+          workspace_id: string
+        }
+        Update: {
+          body?: string
+          changed_at?: string
+          changed_by?: string | null
+          deal_id?: string
+          id?: string
+          note_id?: string
+          note_type?: string
+          pinned?: boolean
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_versions_deal_fk"
+            columns: ["workspace_id", "deal_id"]
+            isOneToOne: false
+            referencedRelation: "brix_deals"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "note_versions_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "note_versions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notes: {
+        Row: {
+          archived_at: string | null
+          body: string
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          id: string
+          note_type: string
+          pinned: boolean
+          source_record_id: string | null
+          source_type: string
+          updated_at: string
+          updated_by: string | null
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          body: string
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          id?: string
+          note_type?: string
+          pinned?: boolean
+          source_record_id?: string | null
+          source_type?: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          id?: string
+          note_type?: string
+          pinned?: boolean
+          source_record_id?: string | null
+          source_type?: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_deal_fk"
+            columns: ["workspace_id", "deal_id"]
+            isOneToOne: false
+            referencedRelation: "brix_deals"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "notes_note_type_fkey"
+            columns: ["note_type"]
+            isOneToOne: false
+            referencedRelation: "note_type_definitions"
+            referencedColumns: ["type_key"]
+          },
+          {
+            foreignKeyName: "notes_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -2275,77 +3556,6 @@ export type Database = {
         }
         Relationships: []
       }
-      manual_source_records: {
-        Row: {
-          classification: Json
-          created_at: string
-          created_by: string | null
-          deal_id: string
-          effective_date: string | null
-          entered_at: string
-          id: string
-          intake_id: string
-          original_values: Json
-          property_id: string
-          source_contact: string | null
-          source_name: string | null
-          source_type: string
-          source_version: number
-          status: string
-          updated_at: string
-          verification_state: string
-          workspace_id: string
-        }
-        Insert: {
-          classification?: Json
-          created_at?: string
-          created_by?: string | null
-          deal_id: string
-          effective_date?: string | null
-          entered_at?: string
-          id?: string
-          intake_id: string
-          original_values?: Json
-          property_id: string
-          source_contact?: string | null
-          source_name?: string | null
-          source_type?: string
-          source_version?: number
-          status?: string
-          updated_at?: string
-          verification_state?: string
-          workspace_id: string
-        }
-        Update: {
-          classification?: Json
-          created_at?: string
-          created_by?: string | null
-          deal_id?: string
-          effective_date?: string | null
-          entered_at?: string
-          id?: string
-          intake_id?: string
-          original_values?: Json
-          property_id?: string
-          source_contact?: string | null
-          source_name?: string | null
-          source_type?: string
-          source_version?: number
-          status?: string
-          updated_at?: string
-          verification_state?: string
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "manual_source_records_intake_id_fkey"
-            columns: ["intake_id"]
-            isOneToOne: false
-            referencedRelation: "property_intakes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       properties: {
         Row: {
           address_line1: string | null
@@ -2511,6 +3721,7 @@ export type Database = {
       }
       property_intakes: {
         Row: {
+          cancelled_at: string | null
           completed_at: string | null
           created_at: string
           duplicate_decision: string | null
@@ -2526,11 +3737,12 @@ export type Database = {
           source_type: string
           state: string
           updated_at: string
-          user_id: string
+          user_id: string | null
           version: number
           workspace_id: string
         }
         Insert: {
+          cancelled_at?: string | null
           completed_at?: string | null
           created_at?: string
           duplicate_decision?: string | null
@@ -2546,11 +3758,12 @@ export type Database = {
           source_type?: string
           state?: string
           updated_at?: string
-          user_id: string
+          user_id?: string | null
           version?: number
           workspace_id: string
         }
         Update: {
+          cancelled_at?: string | null
           completed_at?: string | null
           created_at?: string
           duplicate_decision?: string | null
@@ -2566,16 +3779,37 @@ export type Database = {
           source_type?: string
           state?: string
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
           version?: number
           workspace_id?: string
         }
         Relationships: [
           {
+            foreignKeyName: "property_intakes_resulting_deal_id_fkey"
+            columns: ["resulting_deal_id"]
+            isOneToOne: false
+            referencedRelation: "brix_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_intakes_resulting_property_id_fkey"
+            columns: ["resulting_property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "property_intakes_selected_property_id_fkey"
             columns: ["selected_property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_intakes_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -2674,6 +3908,183 @@ export type Database = {
         }
         Relationships: []
       }
+      task_priority_definitions: {
+        Row: {
+          created_at: string
+          label: string
+          priority_key: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          label: string
+          priority_key: string
+          sort_order: number
+        }
+        Update: {
+          created_at?: string
+          label?: string
+          priority_key?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      task_status_definitions: {
+        Row: {
+          created_at: string
+          is_terminal: boolean
+          label: string
+          sort_order: number
+          status_key: string
+        }
+        Insert: {
+          created_at?: string
+          is_terminal?: boolean
+          label: string
+          sort_order: number
+          status_key: string
+        }
+        Update: {
+          created_at?: string
+          is_terminal?: boolean
+          label?: string
+          sort_order?: number
+          status_key?: string
+        }
+        Relationships: []
+      }
+      task_type_definitions: {
+        Row: {
+          created_at: string
+          label: string
+          sort_order: number
+          type_key: string
+        }
+        Insert: {
+          created_at?: string
+          label: string
+          sort_order: number
+          type_key: string
+        }
+        Update: {
+          created_at?: string
+          label?: string
+          sort_order?: number
+          type_key?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          archived_at: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          description: string | null
+          due_at: string | null
+          due_date: string | null
+          id: string
+          is_all_day: boolean
+          priority: string
+          source_record_id: string | null
+          source_type: string
+          status: string
+          task_type: string
+          timezone: string
+          title: string
+          updated_at: string
+          updated_by: string | null
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          description?: string | null
+          due_at?: string | null
+          due_date?: string | null
+          id?: string
+          is_all_day?: boolean
+          priority?: string
+          source_record_id?: string | null
+          source_type?: string
+          status?: string
+          task_type?: string
+          timezone?: string
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          description?: string | null
+          due_at?: string | null
+          due_date?: string | null
+          id?: string
+          is_all_day?: boolean
+          priority?: string
+          source_record_id?: string | null
+          source_type?: string
+          status?: string
+          task_type?: string
+          timezone?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_deal_fk"
+            columns: ["workspace_id", "deal_id"]
+            isOneToOne: false
+            referencedRelation: "brix_deals"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "tasks_priority_fkey"
+            columns: ["priority"]
+            isOneToOne: false
+            referencedRelation: "task_priority_definitions"
+            referencedColumns: ["priority_key"]
+          },
+          {
+            foreignKeyName: "tasks_status_fkey"
+            columns: ["status"]
+            isOneToOne: false
+            referencedRelation: "task_status_definitions"
+            referencedColumns: ["status_key"]
+          },
+          {
+            foreignKeyName: "tasks_task_type_fkey"
+            columns: ["task_type"]
+            isOneToOne: false
+            referencedRelation: "task_type_definitions"
+            referencedColumns: ["type_key"]
+          },
+          {
+            foreignKeyName: "tasks_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -2691,6 +4102,56 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      work_command_requests: {
+        Row: {
+          command_name: string
+          created_at: string
+          created_by: string | null
+          deadline_id: string | null
+          deal_id: string | null
+          id: string
+          idempotency_key: string
+          note_id: string | null
+          request_hash: string
+          task_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          command_name: string
+          created_at?: string
+          created_by?: string | null
+          deadline_id?: string | null
+          deal_id?: string | null
+          id?: string
+          idempotency_key: string
+          note_id?: string | null
+          request_hash: string
+          task_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          command_name?: string
+          created_at?: string
+          created_by?: string | null
+          deadline_id?: string | null
+          deal_id?: string | null
+          id?: string
+          idempotency_key?: string
+          note_id?: string | null
+          request_hash?: string
+          task_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_command_requests_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workspace_invitations: {
         Row: {
@@ -2919,6 +4380,30 @@ export type Database = {
           workspace_name: string
         }[]
       }
+      archive_deal: {
+        Args: {
+          archive_reason?: string
+          expected_version: number
+          idempotency_key: string
+          target_deal_id: string
+        }
+        Returns: {
+          archived_at: string
+          deal_id: string
+          deal_version: number
+          stage: string
+          status: string
+          updated_at: string
+          workspace_id: string
+        }[]
+      }
+      archive_deal_note: {
+        Args: { expected_version?: number; target_note_id: string }
+        Returns: {
+          note_id: string
+          note_version: number
+        }[]
+      }
       attach_contact_to_deal: {
         Args: {
           idempotency_key?: string
@@ -2930,6 +4415,38 @@ export type Database = {
           idempotency_key_out: string
           relationship_id: string
           relationship_version: number
+        }[]
+      }
+      attach_email_source_to_deal: {
+        Args: {
+          target_deal_id: string
+          target_email_source_id: string
+          target_intake_id: string
+          target_property_id: string
+          target_workspace_id: string
+        }
+        Returns: {
+          deal_id: string
+          email_source_id: string
+          intake_id: string
+          property_id: string
+          source_record_id: string
+        }[]
+      }
+      attach_file_evidence_to_deal: {
+        Args: {
+          target_deal_id: string
+          target_evidence_id: string
+          target_intake_id: string
+          target_property_id: string
+          target_workspace_id: string
+        }
+        Returns: {
+          deal_id: string
+          evidence_id: string
+          intake_id: string
+          property_id: string
+          source_record_id: string
         }[]
       }
       attach_organization_to_deal: {
@@ -2945,7 +4462,62 @@ export type Database = {
           relationship_version: number
         }[]
       }
+      authorized_deal_for_read: {
+        Args: { target_deal_id: string }
+        Returns: {
+          address: string
+          analysis: Json
+          archived_at: string | null
+          city: string | null
+          county: string | null
+          created_at: string
+          created_by: string | null
+          deal_type: string
+          deleted_at: string | null
+          display_name: string
+          facts: Json
+          id: string
+          operating_status: string
+          owner_id: string
+          priority: string
+          source: string
+          source_text: string | null
+          source_url: string | null
+          stage: string
+          state: string | null
+          status: Database["public"]["Enums"]["brix_deal_status"]
+          strategy_id: string
+          strategy_intent: string | null
+          updated_at: string
+          updated_by: string | null
+          verification: Json
+          version: number
+          workspace_id: string
+          zip: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "brix_deals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       can_create_brix_deal: { Args: never; Returns: boolean }
+      can_record_email_intake: {
+        Args: { target_workspace_id: string }
+        Returns: boolean
+      }
+      can_record_file_evidence_intake: {
+        Args: { target_workspace_id: string }
+        Returns: boolean
+      }
+      cancel_deal_task: {
+        Args: { expected_version?: number; target_task_id: string }
+        Returns: {
+          task_id: string
+          task_version: number
+        }[]
+      }
       change_workspace_member_role: {
         Args: {
           expected_updated_at?: string
@@ -2959,6 +4531,44 @@ export type Database = {
           updated_at: string
           user_id: string
           workspace_id: string
+        }[]
+      }
+      classify_manual_intake_values: {
+        Args: { manual_input: Json }
+        Returns: Json
+      }
+      complete_deal_deadline: {
+        Args: { expected_version?: number; target_deadline_id: string }
+        Returns: {
+          deadline_id: string
+          deadline_version: number
+        }[]
+      }
+      complete_deal_task: {
+        Args: { expected_version?: number; target_task_id: string }
+        Returns: {
+          task_id: string
+          task_version: number
+        }[]
+      }
+      complete_manual_property_intake: {
+        Args: {
+          duplicate_decision: string
+          idempotency_key: string
+          manual_input: Json
+          selected_property_id?: string
+          target_workspace_id: string
+        }
+        Returns: {
+          deal_id: string
+          deal_property_id: string
+          deal_version: number
+          idempotency_key_out: string
+          intake_id: string
+          intake_state: string
+          property_id: string
+          property_version: number
+          source_record_id: string
         }[]
       }
       create_brix_contact: {
@@ -3008,180 +4618,36 @@ export type Database = {
         }[]
       }
       create_deal_deadline: {
-        Args: { deadline_input: Json; idempotency_key: string; target_deal_id: string }
-        Returns: { deadline_id: string; deadline_version: number }[]
-      }
-      create_deal_note: {
-        Args: { idempotency_key: string; note_input: Json; target_deal_id: string }
-        Returns: { note_id: string; note_version: number }[]
-      }
-      create_deal_task: {
-        Args: { idempotency_key: string; target_deal_id: string; task_input: Json }
-        Returns: { task_id: string; task_version: number }[]
-      }
-      complete_manual_property_intake: {
         Args: {
-          duplicate_decision: string
-          idempotency_key: string
-          manual_input: Json
-          selected_property_id?: string | null
-          target_workspace_id: string
-        }
-        Returns: {
-          deal_id: string
-          deal_property_id: string
-          deal_version: number
-          idempotency_key_out: string
-          intake_id: string
-          intake_state: string
-          property_id: string
-          property_version: number
-          source_record_id: string
-        }[]
-      }
-      list_deal_projection: {
-        Args: {
-          filter_input?: Json
-          include_archived?: boolean
-          page_offset?: number
-          page_size?: number
-          search_query?: string
-          sort_key?: string
-          target_workspace_id: string
-        }
-        Returns: {
-          active_count: number
-          archived_at: string | null
-          archived_count: number
-          attention_state: string
-          created_at: string
-          deal_id: string
-          deal_version: number
-          display_name: string
-          next_due_at: string | null
-          open_work_count: number
-          primary_property_address: string | null
-          primary_property_id: string | null
-          primary_property_version: number | null
-          priority: string
-          relationship_count: number
-          source: string
-          stage: string
-          status: string
-          strategy_intent: string | null
-          total_count: number
-          updated_at: string
-          workspace_id: string
-        }[]
-      }
-      archive_deal: {
-        Args: {
-          archive_reason?: string
-          expected_version: number
+          deadline_input: Json
           idempotency_key: string
           target_deal_id: string
         }
         Returns: {
-          archived_at: string | null
-          deal_id: string
-          deal_version: number
-          stage: string
-          status: string
-          updated_at: string
-          workspace_id: string
+          deadline_id: string
+          deadline_version: number
         }[]
       }
-      search_manual_property_candidates: {
+      create_deal_note: {
         Args: {
-          candidate_limit?: number
-          manual_input: Json
-          target_workspace_id: string
+          idempotency_key: string
+          note_input: Json
+          target_deal_id: string
         }
         Returns: {
-          active_deal_count: number
-          city: string | null
-          country: string | null
-          display_address: string
-          match_reasons: string[]
-          material_differences: string[]
-          postal_code: string | null
-          property_id: string
-          property_version: number
-          region: string | null
-          updated_at: string
+          note_id: string
+          note_version: number
         }[]
       }
-      load_deal_detail_projection: {
-        Args: { target_deal_id: string }
+      create_deal_task: {
+        Args: {
+          idempotency_key: string
+          target_deal_id: string
+          task_input: Json
+        }
         Returns: {
-          deal_id: string
-          deal_type: string
-          deal_updated_at: string
-          deal_version: number
-          display_name: string
-          facts: Json
-          loaded_at: string
-          open_deadline_count: number
-          open_task_count: number
-          pinned_note_count: number
-          primary_property_address: string | null
-          primary_property_address_line1: string | null
-          primary_property_address_line2: string | null
-          primary_property_city: string | null
-          primary_property_country: string | null
-          primary_property_id: string | null
-          primary_property_parcel_identifier: string | null
-          primary_property_postal_code: string | null
-          primary_property_region: string | null
-          primary_property_version: number | null
-          priority: string
-          property_updated_at: string | null
-          recent_event_count: number
-          relationship_count: number
-          source: string
-          source_text: string | null
-          source_url: string | null
-          stage: string
-          status: string
-          strategy_id: string
-          strategy_intent: string | null
-          verification: Json
-          workspace_id: string
-        }[]
-      }
-      load_property_summary: {
-        Args: { target_property_id: string }
-        Returns: {
-          active_deal_count: number
-          address_line1: string | null
-          address_line2: string | null
-          city: string | null
-          country: string
-          display_address: string
-          parcel_identifier: string | null
-          postal_code: string | null
-          property_id: string
-          property_version: number
-          region: string | null
-          updated_at: string
-          workspace_id: string
-        }[]
-      }
-      load_active_deal_shell_projection: {
-        Args: { target_deal_id: string }
-        Returns: {
-          deal_id: string
-          deal_version: number
-          display_name: string
-          loaded_at: string
-          next_due_at: string | null
-          open_work_count: number
-          primary_property_address: string | null
-          priority: string
-          stage: string
-          status: string
-          updated_at: string
-          workspace_id: string
+          task_id: string
+          task_version: number
         }[]
       }
       create_workspace_invitation: {
@@ -3206,21 +4672,9 @@ export type Database = {
           relationship_version: number
         }[]
       }
-      archive_deal_note: {
-        Args: { expected_version?: number; target_note_id: string }
-        Returns: { note_id: string; note_version: number }[]
-      }
-      cancel_deal_task: {
-        Args: { expected_version?: number; target_task_id: string }
-        Returns: { task_id: string; task_version: number }[]
-      }
-      complete_deal_deadline: {
-        Args: { expected_version?: number; target_deadline_id: string }
-        Returns: { deadline_id: string; deadline_version: number }[]
-      }
-      complete_deal_task: {
-        Args: { expected_version?: number; target_task_id: string }
-        Returns: { task_id: string; task_version: number }[]
+      deal_projection_attention_state: {
+        Args: { target_deal_id: string; target_workspace_id: string }
+        Returns: string
       }
       ensure_current_profile: {
         Args: never
@@ -3262,6 +4716,62 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      ensure_deal_command: {
+        Args: {
+          command_name: string
+          idempotency_key: string
+          request_body: Json
+          target_deal_id: string
+          target_property_id: string
+          target_workspace_id: string
+        }
+        Returns: {
+          command_name: string
+          created_at: string
+          created_by: string | null
+          deal_id: string | null
+          id: string
+          idempotency_key: string
+          property_id: string | null
+          request_hash: string
+          result: Json
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "deal_command_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      ensure_work_command: {
+        Args: {
+          command_name: string
+          idempotency_key: string
+          request_body: Json
+          target_deal_id: string
+          target_workspace_id: string
+        }
+        Returns: {
+          command_name: string
+          created_at: string
+          created_by: string | null
+          deadline_id: string | null
+          deal_id: string | null
+          id: string
+          idempotency_key: string
+          note_id: string | null
+          request_hash: string
+          task_id: string | null
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "work_command_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       ensure_workspace_context: {
         Args: never
         Returns: {
@@ -3270,6 +4780,15 @@ export type Database = {
           workspace_id: string
           workspace_name: string
         }[]
+      }
+      event_entity_id: {
+        Args: { event_name: string; event_payload: Json }
+        Returns: string
+      }
+      event_entity_type: { Args: { event_name: string }; Returns: string }
+      event_entity_version: {
+        Args: { event_name: string; event_payload: Json }
+        Returns: number
       }
       find_contact_candidates: {
         Args: { contact_input?: Json; target_workspace_id: string }
@@ -3294,6 +4813,46 @@ export type Database = {
           website: string
         }[]
       }
+      get_authorized_deal: {
+        Args: { target_deal_id: string }
+        Returns: {
+          address: string
+          analysis: Json
+          archived_at: string | null
+          city: string | null
+          county: string | null
+          created_at: string
+          created_by: string | null
+          deal_type: string
+          deleted_at: string | null
+          display_name: string
+          facts: Json
+          id: string
+          operating_status: string
+          owner_id: string
+          priority: string
+          source: string
+          source_text: string | null
+          source_url: string | null
+          stage: string
+          state: string | null
+          status: Database["public"]["Enums"]["brix_deal_status"]
+          strategy_id: string
+          strategy_intent: string | null
+          updated_at: string
+          updated_by: string | null
+          verification: Json
+          version: number
+          workspace_id: string
+          zip: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "brix_deals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       has_admin_access: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
@@ -3314,6 +4873,58 @@ export type Database = {
       is_workspace_member: {
         Args: { target_workspace_id: string }
         Returns: boolean
+      }
+      list_deal_notes: {
+        Args: { target_deal_id: string }
+        Returns: {
+          archived_at: string
+          body: string
+          created_at: string
+          deal_id: string
+          note_id: string
+          note_type: string
+          note_version: number
+          pinned: boolean
+          source_record_id: string
+          source_type: string
+          updated_at: string
+          workspace_id: string
+        }[]
+      }
+      list_deal_projection: {
+        Args: {
+          filter_input?: Json
+          include_archived?: boolean
+          page_offset?: number
+          page_size?: number
+          search_query?: string
+          sort_key?: string
+          target_workspace_id: string
+        }
+        Returns: {
+          active_count: number
+          archived_at: string
+          archived_count: number
+          attention_state: string
+          created_at: string
+          deal_id: string
+          deal_version: number
+          display_name: string
+          next_due_at: string
+          open_work_count: number
+          primary_property_address: string
+          primary_property_id: string
+          primary_property_version: number
+          priority: string
+          relationship_count: number
+          source: string
+          stage: string
+          status: string
+          strategy_intent: string
+          total_count: number
+          updated_at: string
+          workspace_id: string
+        }[]
       }
       list_deal_relationships: {
         Args: { target_deal_id: string }
@@ -3340,63 +4951,30 @@ export type Database = {
           workspace_id: string
         }[]
       }
-      list_deal_notes: {
-        Args: { target_deal_id: string }
-        Returns: {
-          archived_at: string | null
-          body: string
-          created_at: string
-          deal_id: string
-          note_id: string
-          note_type: string
-          note_version: number
-          pinned: boolean
-          source_record_id: string | null
-          source_type: string
-          updated_at: string
-          workspace_id: string
-        }[]
-      }
       list_deal_work: {
         Args: { target_deal_id: string }
         Returns: {
-          archived_at: string | null
-          body: string | null
-          completed_at: string | null
+          archived_at: string
+          body: string
+          completed_at: string
           created_at: string
           deal_id: string
-          due_at: string | null
-          due_date: string | null
+          due_at: string
+          due_date: string
           is_all_day: boolean
           pinned: boolean
-          priority: string | null
+          priority: string
           record_id: string
           record_type: string
           record_version: number
-          source_record_id: string | null
+          source_record_id: string
           source_type: string
           status: string
           timezone: string
           title: string
           updated_at: string
-          verification_state: string | null
+          verification_state: string
           work_type: string
-          workspace_id: string
-        }[]
-      }
-      load_deal_timeline: {
-        Args: { before_time?: string | null; page_size?: number; target_deal_id: string }
-        Returns: {
-          actor_id: string | null
-          canonical_order: string
-          deal_id: string
-          event_type: string
-          occurred_at: string
-          safe_summary: string
-          safe_title: string
-          source_record_id: string | null
-          source_type: string
-          timeline_id: string
           workspace_id: string
         }[]
       }
@@ -3425,6 +5003,23 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          workspace_id: string
+        }[]
+      }
+      load_active_deal_shell_projection: {
+        Args: { target_deal_id: string }
+        Returns: {
+          deal_id: string
+          deal_version: number
+          display_name: string
+          loaded_at: string
+          next_due_at: string
+          open_work_count: number
+          primary_property_address: string
+          priority: string
+          stage: string
+          status: string
+          updated_at: string
           workspace_id: string
         }[]
       }
@@ -3465,14 +5060,162 @@ export type Database = {
           workspace_id: string
         }[]
       }
+      load_deal_detail_projection: {
+        Args: { target_deal_id: string }
+        Returns: {
+          deal_id: string
+          deal_type: string
+          deal_updated_at: string
+          deal_version: number
+          display_name: string
+          facts: Json
+          loaded_at: string
+          open_deadline_count: number
+          open_task_count: number
+          pinned_note_count: number
+          primary_property_address: string
+          primary_property_address_line1: string
+          primary_property_address_line2: string
+          primary_property_city: string
+          primary_property_country: string
+          primary_property_id: string
+          primary_property_parcel_identifier: string
+          primary_property_postal_code: string
+          primary_property_region: string
+          primary_property_version: number
+          priority: string
+          property_updated_at: string
+          recent_event_count: number
+          relationship_count: number
+          source: string
+          source_text: string
+          source_url: string
+          stage: string
+          status: string
+          strategy_id: string
+          strategy_intent: string
+          verification: Json
+          workspace_id: string
+        }[]
+      }
+      load_deal_timeline: {
+        Args: {
+          before_time?: string
+          page_size?: number
+          target_deal_id: string
+        }
+        Returns: {
+          actor_id: string
+          canonical_order: string
+          deal_id: string
+          event_type: string
+          occurred_at: string
+          safe_summary: string
+          safe_title: string
+          source_record_id: string
+          source_type: string
+          timeline_id: string
+          workspace_id: string
+        }[]
+      }
+      load_property_summary: {
+        Args: { target_property_id: string }
+        Returns: {
+          active_deal_count: number
+          address_line1: string
+          address_line2: string
+          city: string
+          country: string
+          display_address: string
+          parcel_identifier: string
+          postal_code: string
+          property_id: string
+          property_version: number
+          region: string
+          updated_at: string
+          workspace_id: string
+        }[]
+      }
       normalize_contact_phone: { Args: { raw_phone: string }; Returns: string }
       normalize_invitation_email: {
         Args: { invite_email: string }
         Returns: string
       }
+      normalize_manual_location: { Args: { manual_input: Json }; Returns: Json }
       normalize_website_domain: {
         Args: { raw_website: string }
         Returns: string
+      }
+      record_email_intake_result: {
+        Args: {
+          attachment_metadata?: Json
+          email_metadata: Json
+          extracted_proposals?: Json
+          idempotency_key: string
+          target_workspace_id: string
+        }
+        Returns: {
+          attachment_count: number
+          duplicate_of_email_source_id: string
+          email_source_id: string
+          import_status: string
+          intake_id: string
+          job_id: string
+          proposal_count: number
+          safe_message: string
+          source_record_id: string
+        }[]
+      }
+      record_file_evidence_intake_result: {
+        Args: {
+          extracted_proposals?: Json
+          file_metadata: Json
+          idempotency_key: string
+          target_workspace_id: string
+        }
+        Returns: {
+          duplicate_of_evidence_id: string
+          evidence_id: string
+          import_status: string
+          intake_id: string
+          job_id: string
+          proposal_count: number
+          safe_message: string
+          source_record_id: string
+        }[]
+      }
+      record_intake_batch_review: {
+        Args: {
+          batch_input: Json
+          idempotency_key: string
+          item_inputs?: Json
+          target_workspace_id: string
+        }
+        Returns: {
+          batch_id: string
+          batch_status: string
+          duplicate_candidate_count: number
+          failed_item_count: number
+          item_count: number
+          ready_item_count: number
+          skipped_item_count: number
+        }[]
+      }
+      record_listing_url_import_result: {
+        Args: {
+          listing_import: Json
+          listing_proposals?: Json
+          target_intake_id: string
+          target_source_record_id: string
+          target_workspace_id: string
+        }
+        Returns: {
+          accepted_count: number
+          deferred_count: number
+          proposal_count: number
+          rejected_count: number
+          source_record_id: string
+        }[]
       }
       relationship_workspace_for_deal: {
         Args: { target_deal_id: string }
@@ -3495,6 +5238,23 @@ export type Database = {
           invited_email: string
           role_id: string
           status: string
+        }[]
+      }
+      restore_deal: {
+        Args: {
+          expected_version: number
+          idempotency_key: string
+          restore_reason?: string
+          target_deal_id: string
+        }
+        Returns: {
+          archived_at: string
+          deal_id: string
+          deal_version: number
+          stage: string
+          status: string
+          updated_at: string
+          workspace_id: string
         }[]
       }
       revoke_workspace_invitation: {
@@ -3522,21 +5282,30 @@ export type Database = {
           workspace_id: string
         }[]
       }
-      restore_deal: {
+      safe_changed_fields: {
+        Args: { after_state: Json; before_state: Json }
+        Returns: string[]
+      }
+      safe_event_jsonb: { Args: { input_value: Json }; Returns: Json }
+      safe_uuid: { Args: { value: string }; Returns: string }
+      search_manual_property_candidates: {
         Args: {
-          expected_version: number
-          idempotency_key: string
-          restore_reason?: string
-          target_deal_id: string
+          candidate_limit?: number
+          manual_input: Json
+          target_workspace_id: string
         }
         Returns: {
-          archived_at: string | null
-          deal_id: string
-          deal_version: number
-          stage: string
-          status: string
+          active_deal_count: number
+          city: string
+          country: string
+          display_address: string
+          match_reasons: string[]
+          material_differences: string[]
+          postal_code: string
+          property_id: string
+          property_version: number
+          region: string
           updated_at: string
-          workspace_id: string
         }[]
       }
       update_brix_contact: {
@@ -3561,25 +5330,6 @@ export type Database = {
           organization_version: number
         }[]
       }
-      update_deal_relationship: {
-        Args: {
-          expected_version: number
-          relationship_input?: Json
-          target_relationship_id: string
-        }
-        Returns: {
-          relationship_id: string
-          relationship_version: number
-        }[]
-      }
-      update_deal_deadline: {
-        Args: {
-          deadline_input: Json
-          expected_version?: number
-          target_deadline_id: string
-        }
-        Returns: { deadline_id: string; deadline_version: number }[]
-      }
       update_canonical_deal: {
         Args: {
           deal_input: Json
@@ -3596,7 +5346,7 @@ export type Database = {
           source: string
           stage: string
           status: string
-          strategy_intent: string | null
+          strategy_intent: string
           updated_at: string
           workspace_id: string
         }[]
@@ -3609,18 +5359,29 @@ export type Database = {
           target_property_id: string
         }
         Returns: {
-          address_line1: string | null
-          address_line2: string | null
-          city: string | null
+          address_line1: string
+          address_line2: string
+          city: string
           country: string
           display_address: string
-          parcel_identifier: string | null
-          postal_code: string | null
+          parcel_identifier: string
+          postal_code: string
           property_id: string
           property_version: number
-          region: string | null
+          region: string
           updated_at: string
           workspace_id: string
+        }[]
+      }
+      update_deal_deadline: {
+        Args: {
+          deadline_input: Json
+          expected_version?: number
+          target_deadline_id: string
+        }
+        Returns: {
+          deadline_id: string
+          deadline_version: number
         }[]
       }
       update_deal_lifecycle: {
@@ -3645,7 +5406,21 @@ export type Database = {
           note_input: Json
           target_note_id: string
         }
-        Returns: { note_id: string; note_version: number }[]
+        Returns: {
+          note_id: string
+          note_version: number
+        }[]
+      }
+      update_deal_relationship: {
+        Args: {
+          expected_version: number
+          relationship_input?: Json
+          target_relationship_id: string
+        }
+        Returns: {
+          relationship_id: string
+          relationship_version: number
+        }[]
       }
       update_deal_task: {
         Args: {
@@ -3653,7 +5428,10 @@ export type Database = {
           target_task_id: string
           task_input: Json
         }
-        Returns: { task_id: string; task_version: number }[]
+        Returns: {
+          task_id: string
+          task_version: number
+        }[]
       }
     }
     Enums: {
