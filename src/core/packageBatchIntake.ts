@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { createDuplicateDetectionRequest, findDuplicateCandidates, packageBatchDuplicateCandidate } from "./duplicateDetection";
+import { createManualFallbackPlan } from "./manualFallback";
 import { createManualIntakeDraft } from "./propertyIntake";
 import { classificationForPackageSource, serializeSourceClassification, type SourceClassificationResult } from "./sourceClassification";
 import { supabase } from "./supabase";
@@ -307,6 +308,22 @@ export function createManualDraftFromPackageItem(item: PackageBatchItem, base: P
     notes: values.notes,
     updatedAt: new Date().toISOString(),
   };
+}
+
+export function createPackageItemManualFallback(item: PackageBatchItem, base: Partial<ManualIntakeDraft> = {}, workspaceId?: string) {
+  return createManualFallbackPlan({
+    workspaceId,
+    source: "package_intake",
+    draft: createManualDraftFromPackageItem(item, base),
+  });
+}
+
+export function createBatchItemManualFallback(item: PackageBatchItem, base: Partial<ManualIntakeDraft> = {}, workspaceId?: string) {
+  return createManualFallbackPlan({
+    workspaceId,
+    source: "batch_intake",
+    draft: createManualDraftFromPackageItem(item, base),
+  });
 }
 
 export function transitionPackageBatchItem(item: PackageBatchItem, action: "retry" | "skip" | "cancel" | "complete" | "fail"): PackageBatchItem {

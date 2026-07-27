@@ -1,4 +1,5 @@
 import { createDuplicateDetectionRequest } from "./duplicateDetection";
+import { createManualFallbackPlan } from "./manualFallback";
 import { createManualIntakeDraft, saveManualIntakeDraft } from "./propertyIntake";
 import { classifySource, type SourceClassificationResult } from "./sourceClassification";
 import type { ManualIntakeDraft } from "./types";
@@ -406,6 +407,14 @@ export function prepareManualDraftFromSharedIntake(payload: SharedIntakePayload,
     notes,
   };
   return saveManualIntakeDraft(storageScope, next);
+}
+
+export function createSharedIntakeManualFallback(payload: SharedIntakePayload, storageScope: string, workspaceId?: string) {
+  return createManualFallbackPlan({
+    workspaceId,
+    source: "share_extension",
+    draft: prepareManualDraftFromSharedIntake(payload, storageScope),
+  });
 }
 
 export function sharedIntakeDiagnosticsEvent(

@@ -1,4 +1,5 @@
 import { createDuplicateDetectionRequest } from "./duplicateDetection";
+import { createManualFallbackPlan, type ManualFallbackSource } from "./manualFallback";
 import { classificationForEvidenceFile } from "./sourceClassification";
 import { invokeBrixFunction, supabase } from "./supabase";
 import type { Json } from "./supabaseDatabase.types";
@@ -72,6 +73,16 @@ export function fileEvidenceProposalSummary(proposals?: FileEvidenceProposal[]) 
     rejected: list.filter((proposal) => proposal.status === "rejected").length,
     deferred: list.filter((proposal) => proposal.status === "deferred").length,
   };
+}
+
+export function createFileEvidenceManualFallback(draft: ManualIntakeDraft, fileImport: FileEvidenceImportResult, workspaceId?: string) {
+  const nextDraft = attachFileEvidenceToDraft(draft, fileImport);
+  return createManualFallbackPlan({
+    workspaceId,
+    source: fallbackSourceForEvidence(fileImport.evidenceType),
+    draft: nextDraft,
+    proposals: nextDraft.fileEvidenceProposals,
+  });
 }
 
 export function createFileEvidenceDuplicateRequest(workspaceId: string, fileImport: FileEvidenceImportResult) {
@@ -191,6 +202,12 @@ function normalizeStatus(value: unknown): FileEvidenceStatus {
 
 function normalizeEvidenceType(value: unknown): FileEvidenceType {
   return value === "image" || value === "document" ? value : "file";
+}
+
+function fallbackSourceForEvidence(evidenceType: FileEvidenceType): ManualFallbackSource {
+  if (evidenceType === "image") return "image_intake";
+  if (evidenceType === "document") return "document_intake";
+  return "file_intake";
 }
 
 function clampNumber(value: unknown, min: number, max: number) {

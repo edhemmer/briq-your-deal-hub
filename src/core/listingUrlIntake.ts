@@ -1,4 +1,5 @@
 import { createDuplicateDetectionRequest } from "./duplicateDetection";
+import { createManualFallbackPlan } from "./manualFallback";
 import { classificationForListingUrl } from "./sourceClassification";
 import { invokeBrixFunction } from "./supabase";
 import type { ListingImportStatus, ListingProposalStatus, ListingSourceSupport, ListingUrlImportResult, ListingUrlProposal, ManualIntakeDraft } from "./types";
@@ -59,6 +60,16 @@ export function attachListingImportToDraft(draft: ManualIntakeDraft, listingImpo
     listingProposals: listingImport.proposals,
     updatedAt: new Date().toISOString(),
   };
+}
+
+export function createListingUrlManualFallback(draft: ManualIntakeDraft, listingImport: ListingUrlImportResult, workspaceId?: string) {
+  const nextDraft = attachListingImportToDraft(draft, listingImport);
+  return createManualFallbackPlan({
+    workspaceId,
+    source: "listing_url",
+    draft: nextDraft,
+    proposals: nextDraft.listingProposals,
+  });
 }
 
 export function createListingSourceDuplicateRequest(workspaceId: string, listingImport: ListingUrlImportResult) {

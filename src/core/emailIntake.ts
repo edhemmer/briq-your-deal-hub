@@ -1,4 +1,5 @@
 import { createDuplicateDetectionRequest } from "./duplicateDetection";
+import { createManualFallbackPlan } from "./manualFallback";
 import { classificationForEmailAttachment, classificationForEmailSource } from "./sourceClassification";
 import { invokeBrixFunction, supabase } from "./supabase";
 import type { FileEvidenceProposal, ListingProposalStatus, ManualIntakeDraft, EmailIntakeImportResult, EmailAttachmentImportResult } from "./types";
@@ -45,6 +46,16 @@ export function attachEmailImportToDraft(draft: ManualIntakeDraft, emailImport: 
     emailProposals: emailImport.proposals,
     updatedAt: new Date().toISOString(),
   };
+}
+
+export function createEmailManualFallback(draft: ManualIntakeDraft, emailImport: EmailIntakeImportResult, workspaceId?: string) {
+  const nextDraft = attachEmailImportToDraft(draft, emailImport);
+  return createManualFallbackPlan({
+    workspaceId,
+    source: "email_intake",
+    draft: nextDraft,
+    proposals: nextDraft.emailProposals,
+  });
 }
 
 export function applyEmailProposal(draft: ManualIntakeDraft, proposalId: string, status: ListingProposalStatus): ManualIntakeDraft {
