@@ -18,6 +18,7 @@ export default defineConfig(() => ({
     },
   },
   build: {
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -56,9 +57,6 @@ export default defineConfig(() => ({
           }
           if (id.includes("mammoth")) {
             return "vendor-docx-parser";
-          }
-          if (id.includes("jspdf")) {
-            return "vendor-pdf-export";
           }
           return undefined;
         },
