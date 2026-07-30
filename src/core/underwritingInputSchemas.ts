@@ -928,7 +928,11 @@ function derivedFormulaInputs(schemaItem: PropertyUnderwritingSchema) {
   return sortedUniqueInputIds(schemaItem.supportedFormulaIds.flatMap((formulaId) => {
     const formula = resolveFormulaDefinition(formulaId);
     if (!formula) return [];
-    const candidateIds: string[] = [formula.id, ...formula.dependencies.map((dependency) => dependency.formulaId)];
+    const candidateIds: string[] = [
+      formula.id,
+      ...formula.inputs.map((inputItem) => inputItem.id),
+      ...formula.dependencies.map((dependency) => dependency.formulaId),
+    ];
     return candidateIds.filter((inputId): inputId is UnderwritingInputId => Boolean(resolveUnderwritingInputDefinition(inputId)));
   }));
 }
