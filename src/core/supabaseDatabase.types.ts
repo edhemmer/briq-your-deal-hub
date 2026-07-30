@@ -4509,6 +4509,567 @@ export type Database = {
           },
         ]
       }
+      underwriting_snapshot_formula_manifest: {
+        Row: {
+          assumption_dependent_input_ids: string[]
+          blocked_input_ids: string[]
+          dependency_formula_versions: Json
+          executable: boolean
+          formula_id: string
+          formula_registry_version: string
+          formula_version: string
+          id: string
+          manifest_hash: string
+          missing_input_ids: string[]
+          preliminary_input_ids: string[]
+          readiness_status: string
+          required_input_ids: string[]
+          snapshot_id: string
+          stable_ordinal: number
+          supported_by_schema: boolean
+          workspace_id: string
+        }
+        Insert: {
+          assumption_dependent_input_ids?: string[]
+          blocked_input_ids?: string[]
+          dependency_formula_versions?: Json
+          executable?: boolean
+          formula_id: string
+          formula_registry_version: string
+          formula_version: string
+          id?: string
+          manifest_hash: string
+          missing_input_ids?: string[]
+          preliminary_input_ids?: string[]
+          readiness_status: string
+          required_input_ids?: string[]
+          snapshot_id: string
+          stable_ordinal: number
+          supported_by_schema?: boolean
+          workspace_id: string
+        }
+        Update: {
+          assumption_dependent_input_ids?: string[]
+          blocked_input_ids?: string[]
+          dependency_formula_versions?: Json
+          executable?: boolean
+          formula_id?: string
+          formula_registry_version?: string
+          formula_version?: string
+          id?: string
+          manifest_hash?: string
+          missing_input_ids?: string[]
+          preliminary_input_ids?: string[]
+          readiness_status?: string
+          required_input_ids?: string[]
+          snapshot_id?: string
+          stable_ordinal?: number
+          supported_by_schema?: boolean
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "underwriting_snapshot_formula_manifest_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshot_comparison_basis"
+            referencedColumns: ["snapshot_id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshot_formula_manifest_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshot_summaries"
+            referencedColumns: ["snapshot_id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshot_formula_manifest_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshot_formula_manifest_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      underwriting_snapshot_inputs: {
+        Row: {
+          assumption_state: string
+          canonical_currency: string | null
+          canonical_data_type: string
+          canonical_period: string
+          canonical_unit: string
+          completeness_state: string
+          conflict_state: string
+          conversion_applied: boolean
+          conversion_version: string | null
+          deterministic_input_hash: string
+          display_value: string
+          id: string
+          input_id: string
+          input_version: string | null
+          normalized_value: Json
+          precision_applied: Json
+          raw_accepted_value_ref: Json
+          requirement_state: string
+          rounding_applied: boolean
+          snapshot_id: string
+          stable_ordinal: number
+          validation_status: string
+          workspace_id: string
+        }
+        Insert: {
+          assumption_state: string
+          canonical_currency?: string | null
+          canonical_data_type: string
+          canonical_period: string
+          canonical_unit: string
+          completeness_state: string
+          conflict_state: string
+          conversion_applied?: boolean
+          conversion_version?: string | null
+          deterministic_input_hash: string
+          display_value?: string
+          id?: string
+          input_id: string
+          input_version?: string | null
+          normalized_value?: Json
+          precision_applied?: Json
+          raw_accepted_value_ref?: Json
+          requirement_state: string
+          rounding_applied?: boolean
+          snapshot_id: string
+          stable_ordinal: number
+          validation_status: string
+          workspace_id: string
+        }
+        Update: {
+          assumption_state?: string
+          canonical_currency?: string | null
+          canonical_data_type?: string
+          canonical_period?: string
+          canonical_unit?: string
+          completeness_state?: string
+          conflict_state?: string
+          conversion_applied?: boolean
+          conversion_version?: string | null
+          deterministic_input_hash?: string
+          display_value?: string
+          id?: string
+          input_id?: string
+          input_version?: string | null
+          normalized_value?: Json
+          precision_applied?: Json
+          raw_accepted_value_ref?: Json
+          requirement_state?: string
+          rounding_applied?: boolean
+          snapshot_id?: string
+          stable_ordinal?: number
+          validation_status?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "underwriting_snapshot_inputs_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshot_comparison_basis"
+            referencedColumns: ["snapshot_id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshot_inputs_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshot_summaries"
+            referencedColumns: ["snapshot_id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshot_inputs_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshot_inputs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      underwriting_snapshot_provenance: {
+        Row: {
+          accepted_assumption_id: string | null
+          evidence_id: string | null
+          id: string
+          input_id: string
+          preliminary_assumption_id: string | null
+          snapshot_id: string
+          snapshot_input_id: string | null
+          source_anchor: Json
+          source_classification: string | null
+          source_fact_id: string | null
+          source_record_id: string | null
+          stable_ordinal: number
+          verification_state: string | null
+          workspace_id: string
+        }
+        Insert: {
+          accepted_assumption_id?: string | null
+          evidence_id?: string | null
+          id?: string
+          input_id: string
+          preliminary_assumption_id?: string | null
+          snapshot_id: string
+          snapshot_input_id?: string | null
+          source_anchor?: Json
+          source_classification?: string | null
+          source_fact_id?: string | null
+          source_record_id?: string | null
+          stable_ordinal: number
+          verification_state?: string | null
+          workspace_id: string
+        }
+        Update: {
+          accepted_assumption_id?: string | null
+          evidence_id?: string | null
+          id?: string
+          input_id?: string
+          preliminary_assumption_id?: string | null
+          snapshot_id?: string
+          snapshot_input_id?: string | null
+          source_anchor?: Json
+          source_classification?: string | null
+          source_fact_id?: string | null
+          source_record_id?: string | null
+          stable_ordinal?: number
+          verification_state?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "underwriting_snapshot_provenance_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshot_provenance_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshot_comparison_basis"
+            referencedColumns: ["snapshot_id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshot_provenance_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshot_summaries"
+            referencedColumns: ["snapshot_id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshot_provenance_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshot_provenance_snapshot_input_id_fkey"
+            columns: ["snapshot_input_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshot_inputs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshot_provenance_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      underwriting_snapshot_requests: {
+        Row: {
+          content_hash: string
+          created_at: string
+          created_by: string
+          deal_id: string
+          id: string
+          idempotency_key: string
+          request_hash: string
+          snapshot_id: string
+          workspace_id: string
+        }
+        Insert: {
+          content_hash: string
+          created_at?: string
+          created_by: string
+          deal_id: string
+          id?: string
+          idempotency_key: string
+          request_hash: string
+          snapshot_id: string
+          workspace_id: string
+        }
+        Update: {
+          content_hash?: string
+          created_at?: string
+          created_by?: string
+          deal_id?: string
+          id?: string
+          idempotency_key?: string
+          request_hash?: string
+          snapshot_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "underwriting_snapshot_requests_deal_fk"
+            columns: ["workspace_id", "deal_id"]
+            isOneToOne: false
+            referencedRelation: "brix_deals"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshot_requests_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshot_comparison_basis"
+            referencedColumns: ["snapshot_id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshot_requests_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshot_summaries"
+            referencedColumns: ["snapshot_id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshot_requests_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshot_requests_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      underwriting_snapshots: {
+        Row: {
+          blocking_reasons: Json
+          calculation_currency: string
+          conflicted_required_input_ids: string[]
+          content_hash: string
+          created_at: string
+          created_by: string
+          deal_id: string
+          deal_version: string | null
+          formula_registry_version: string
+          hold_period_months: number | null
+          id: string
+          idempotency_key: string
+          input_count: number
+          input_registry_version: string
+          intended_underwriting_mode: string | null
+          invalid_required_input_ids: string[]
+          is_executable: boolean
+          manifest_hash: string
+          missing_required_input_ids: string[]
+          normalization_registry_version: string
+          primary_property_id: string | null
+          prior_snapshot_id: string | null
+          property_ids: string[]
+          property_versions: Json
+          provisional_required_input_ids: string[]
+          readiness_state: string
+          reason: string
+          reporting_period: string
+          schema_id: string
+          schema_registry_version: string
+          schema_version: string
+          snapshot_contract_version: string
+          snapshot_hash_version: string
+          snapshot_sequence: number
+          source_validation_hash: string
+          source_validation_id: string
+          supersedes_snapshot_id: string | null
+          unit_system: string
+          validation_registry_version: string
+          valuation_date: string | null
+          warnings: Json
+          workspace_id: string
+        }
+        Insert: {
+          blocking_reasons?: Json
+          calculation_currency?: string
+          conflicted_required_input_ids?: string[]
+          content_hash: string
+          created_at?: string
+          created_by: string
+          deal_id: string
+          deal_version?: string | null
+          formula_registry_version: string
+          hold_period_months?: number | null
+          id?: string
+          idempotency_key: string
+          input_count?: number
+          input_registry_version: string
+          intended_underwriting_mode?: string | null
+          invalid_required_input_ids?: string[]
+          is_executable?: boolean
+          manifest_hash: string
+          missing_required_input_ids?: string[]
+          normalization_registry_version: string
+          primary_property_id?: string | null
+          prior_snapshot_id?: string | null
+          property_ids?: string[]
+          property_versions?: Json
+          provisional_required_input_ids?: string[]
+          readiness_state: string
+          reason: string
+          reporting_period?: string
+          schema_id: string
+          schema_registry_version: string
+          schema_version: string
+          snapshot_contract_version?: string
+          snapshot_hash_version?: string
+          snapshot_sequence: number
+          source_validation_hash: string
+          source_validation_id: string
+          supersedes_snapshot_id?: string | null
+          unit_system?: string
+          validation_registry_version: string
+          valuation_date?: string | null
+          warnings?: Json
+          workspace_id: string
+        }
+        Update: {
+          blocking_reasons?: Json
+          calculation_currency?: string
+          conflicted_required_input_ids?: string[]
+          content_hash?: string
+          created_at?: string
+          created_by?: string
+          deal_id?: string
+          deal_version?: string | null
+          formula_registry_version?: string
+          hold_period_months?: number | null
+          id?: string
+          idempotency_key?: string
+          input_count?: number
+          input_registry_version?: string
+          intended_underwriting_mode?: string | null
+          invalid_required_input_ids?: string[]
+          is_executable?: boolean
+          manifest_hash?: string
+          missing_required_input_ids?: string[]
+          normalization_registry_version?: string
+          primary_property_id?: string | null
+          prior_snapshot_id?: string | null
+          property_ids?: string[]
+          property_versions?: Json
+          provisional_required_input_ids?: string[]
+          readiness_state?: string
+          reason?: string
+          reporting_period?: string
+          schema_id?: string
+          schema_registry_version?: string
+          schema_version?: string
+          snapshot_contract_version?: string
+          snapshot_hash_version?: string
+          snapshot_sequence?: number
+          source_validation_hash?: string
+          source_validation_id?: string
+          supersedes_snapshot_id?: string | null
+          unit_system?: string
+          validation_registry_version?: string
+          valuation_date?: string | null
+          warnings?: Json
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "underwriting_snapshots_deal_fk"
+            columns: ["workspace_id", "deal_id"]
+            isOneToOne: false
+            referencedRelation: "brix_deals"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshots_primary_property_fk"
+            columns: ["workspace_id", "primary_property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshots_prior_snapshot_id_fkey"
+            columns: ["prior_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshot_comparison_basis"
+            referencedColumns: ["snapshot_id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshots_prior_snapshot_id_fkey"
+            columns: ["prior_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshot_summaries"
+            referencedColumns: ["snapshot_id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshots_prior_snapshot_id_fkey"
+            columns: ["prior_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshots_supersedes_snapshot_id_fkey"
+            columns: ["supersedes_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshot_comparison_basis"
+            referencedColumns: ["snapshot_id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshots_supersedes_snapshot_id_fkey"
+            columns: ["supersedes_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshot_summaries"
+            referencedColumns: ["snapshot_id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshots_supersedes_snapshot_id_fkey"
+            columns: ["supersedes_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "underwriting_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshots_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -4787,6 +5348,151 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      underwriting_snapshot_comparison_basis: {
+        Row: {
+          conflicted_required_input_ids: string[] | null
+          content_hash: string | null
+          created_at: string | null
+          deal_id: string | null
+          invalid_required_input_ids: string[] | null
+          is_executable: boolean | null
+          manifest_hash: string | null
+          missing_required_input_ids: string[] | null
+          property_versions: Json | null
+          provisional_required_input_ids: string[] | null
+          readiness_state: string | null
+          snapshot_id: string | null
+          snapshot_sequence: number | null
+          workspace_id: string | null
+        }
+        Insert: {
+          conflicted_required_input_ids?: string[] | null
+          content_hash?: string | null
+          created_at?: string | null
+          deal_id?: string | null
+          invalid_required_input_ids?: string[] | null
+          is_executable?: boolean | null
+          manifest_hash?: string | null
+          missing_required_input_ids?: string[] | null
+          property_versions?: Json | null
+          provisional_required_input_ids?: string[] | null
+          readiness_state?: string | null
+          snapshot_id?: string | null
+          snapshot_sequence?: number | null
+          workspace_id?: string | null
+        }
+        Update: {
+          conflicted_required_input_ids?: string[] | null
+          content_hash?: string | null
+          created_at?: string | null
+          deal_id?: string | null
+          invalid_required_input_ids?: string[] | null
+          is_executable?: boolean | null
+          manifest_hash?: string | null
+          missing_required_input_ids?: string[] | null
+          property_versions?: Json | null
+          provisional_required_input_ids?: string[] | null
+          readiness_state?: string | null
+          snapshot_id?: string | null
+          snapshot_sequence?: number | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "underwriting_snapshots_deal_fk"
+            columns: ["workspace_id", "deal_id"]
+            isOneToOne: false
+            referencedRelation: "brix_deals"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshots_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      underwriting_snapshot_summaries: {
+        Row: {
+          conflicted_required_input_count: number | null
+          content_hash: string | null
+          created_at: string | null
+          created_by: string | null
+          deal_id: string | null
+          input_count: number | null
+          is_executable: boolean | null
+          manifest_hash: string | null
+          missing_required_input_count: number | null
+          primary_property_id: string | null
+          provisional_required_input_count: number | null
+          readiness_state: string | null
+          reason: string | null
+          snapshot_id: string | null
+          snapshot_sequence: number | null
+          workspace_id: string | null
+        }
+        Insert: {
+          conflicted_required_input_count?: never
+          content_hash?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deal_id?: string | null
+          input_count?: number | null
+          is_executable?: boolean | null
+          manifest_hash?: string | null
+          missing_required_input_count?: never
+          primary_property_id?: string | null
+          provisional_required_input_count?: never
+          readiness_state?: string | null
+          reason?: string | null
+          snapshot_id?: string | null
+          snapshot_sequence?: number | null
+          workspace_id?: string | null
+        }
+        Update: {
+          conflicted_required_input_count?: never
+          content_hash?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deal_id?: string | null
+          input_count?: number | null
+          is_executable?: boolean | null
+          manifest_hash?: string | null
+          missing_required_input_count?: never
+          primary_property_id?: string | null
+          provisional_required_input_count?: never
+          readiness_state?: string | null
+          reason?: string | null
+          snapshot_id?: string | null
+          snapshot_sequence?: number | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "underwriting_snapshots_deal_fk"
+            columns: ["workspace_id", "deal_id"]
+            isOneToOne: false
+            referencedRelation: "brix_deals"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshots_primary_property_fk"
+            columns: ["workspace_id", "primary_property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "underwriting_snapshots_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -5072,6 +5778,22 @@ export type Database = {
         Returns: {
           task_id: string
           task_version: number
+        }[]
+      }
+      create_underwriting_snapshot: {
+        Args: {
+          idempotency_key: string
+          snapshot_payload: Json
+          target_deal_id: string
+          target_workspace_id: string
+        }
+        Returns: {
+          content_hash: string
+          idempotency_key_out: string
+          readiness_state: string
+          reused: boolean
+          snapshot_id: string
+          snapshot_sequence: number
         }[]
       }
       create_workspace_invitation: {
@@ -5795,6 +6517,14 @@ export type Database = {
         }[]
       }
       source_conflict_uuid_array: { Args: { value: Json }; Returns: string[] }
+      underwriting_snapshot_text_array: {
+        Args: { value: Json }
+        Returns: string[]
+      }
+      underwriting_snapshot_uuid_array: {
+        Args: { value: Json }
+        Returns: string[]
+      }
       update_brix_contact: {
         Args: {
           contact_input?: Json
