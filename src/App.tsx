@@ -13,6 +13,8 @@ import { areaSearchUrl, ownerOccupiedConveniences, taxSearchUrl } from "./core/a
 import { reviewContractText } from "./core/contractReview";
 import { buildOfferStructures, offerSummary } from "./core/offerEngine";
 import { portfolioMetrics } from "./core/portfolioEngine";
+import { UnderwritingWorkspace } from "./components/UnderwritingWorkspace";
+import { buildUnderwritingPresentation } from "./core/underwritingPresentation";
 import {
   attachExistingRelationship,
   createAndAttachRelationship,
@@ -1312,7 +1314,7 @@ function BrixApp() {
         )}
         {module === "home" && <HomeSurface presentationMode={presentationMode} isAuthenticated={isAuthenticated} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} isOnline={isOnline} deals={deals} selectedDeal={selectedDeal ?? deals[0]} syncMessage={syncMessage} routeMessage={routeMessage} onOpenDeal={(dealId?: string) => dealId ? openDeal(dealId) : selectedDeal ? openDeal(selectedDeal.id) : setModule("deals")} onOpenDeals={() => setModule("deals")} onOpenSettings={() => setModule("account")} onStartIntake={() => setManualIntakeOpen(true)} onRetry={retryWorkspaceBootstrap} />}
         {module === "deals" && <DealsSurface presentationMode={presentationMode} authLifecycle={authLifecycle} workspaceStatus={workspaceStatus} workspaceId={workspaceContext?.workspaceId} storageScope={storageScope} isAuthenticated={isAuthenticated} isOnline={isOnline} deals={deals} recentDeals={recentDeals} selectedId={selectedId} onOpenDeal={openDeal} onStartIntake={() => setManualIntakeOpen(true)} onRetry={retryWorkspaceBootstrap} onArchived={markDealArchived} onRestored={putDealInState} />}
-        {module === "deal" && <DealIQ deal={selectedDeal} workspaceId={workspaceContext?.workspaceId} userId={authUserId} draftScope={draftScope} offlineDrafts={selectedDealDrafts} isAuthenticated={isAuthenticated} isOnline={isOnline} onChange={upsertDeal} onCanonicalSaved={putDealInState} onDelete={deleteDeal} onDraftQueued={enqueueOfflineDraft} onDraftRetry={retryOfflineDrafts} onDraftCancel={cancelQueuedDraft} />}
+        {module === "deal" && <DealIQ deal={selectedDeal} workspaceId={workspaceContext?.workspaceId} userId={authUserId} draftScope={draftScope} offlineDrafts={selectedDealDrafts} presentationMode={presentationMode} isAuthenticated={isAuthenticated} isOnline={isOnline} onChange={upsertDeal} onCanonicalSaved={putDealInState} onDelete={deleteDeal} onDraftQueued={enqueueOfflineDraft} onDraftRetry={retryOfflineDrafts} onDraftCancel={cancelQueuedDraft} />}
         {module === "share-intake" && <SharedIntakeReviewSurface handoffId={shareHandoffIdFromPath()} storageScope={storageScope} isAuthenticated={isAuthenticated} workspaceId={workspaceContext?.workspaceId} userId={authUserId} onOpenSettings={() => setModule("account")} onOpenDeals={() => setModule("deals")} onContinue={() => setManualIntakeOpen(true)} onCancel={() => setModule("home")} />}
         {module === "account" && <Account isAuthenticated={isAuthenticated} workspaceContext={workspaceContext} invitationToken={invitationToken} recoveryActive={passwordRecoveryActive} onAuthChanged={(userId) => {
           setDeals([]);
@@ -2892,11 +2894,12 @@ function formatFileSize(bytes?: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-type DealWorkspaceSection = "overview" | "property" | "people" | "work" | "notes" | "history";
+type DealWorkspaceSection = "overview" | "property" | "underwriting" | "people" | "work" | "notes" | "history";
 
 const dealWorkspaceSections: Array<{ id: DealWorkspaceSection; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "property", label: "Property" },
+  { id: "underwriting", label: "Underwriting" },
   { id: "people", label: "People" },
   { id: "work", label: "Work" },
   { id: "notes", label: "Notes" },
@@ -2919,6 +2922,7 @@ type DealIQProps = {
   userId?: string | null;
   draftScope: OfflineDraftScope;
   offlineDrafts: OfflineDraft[];
+  presentationMode: PresentationMode;
   isAuthenticated: boolean;
   isOnline: boolean;
   onChange: (deal: DealFacts) => void;
@@ -2940,6 +2944,7 @@ function DealWorkspace({
   userId,
   draftScope,
   offlineDrafts,
+  presentationMode,
   isAuthenticated,
   isOnline,
   onCanonicalSaved,
@@ -2956,6 +2961,7 @@ function DealWorkspace({
   const tabRefs = useRef<Record<DealWorkspaceSection, HTMLButtonElement | null>>({
     overview: null,
     property: null,
+    underwriting: null,
     people: null,
     work: null,
     notes: null,
@@ -3088,6 +3094,7 @@ function DealWorkspace({
         <h3 ref={sectionHeadingRef} tabIndex={-1}>{dealWorkspaceSections.find((item) => item.id === section)?.label}</h3>
         {section === "overview" && <DealOverviewSection deal={effectiveDeal} detail={detail} property={property} onEdit={() => selectSection("property")} />}
         {section === "property" && <DealPropertySection deal={effectiveDeal} detail={detail} property={property} userId={userId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
+        {section === "underwriting" && <DealUnderwritingSection deal={effectiveDeal} presentationMode={presentationMode} />}
         {section === "people" && <RelationshipPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} />}
         {section === "work" && <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} section="work" />}
         {section === "notes" && <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} section="notes" />}
@@ -3261,6 +3268,19 @@ function DealPropertySection({
       <CanonicalDealEditPanel deal={detail?.deal ?? deal} userId={userId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} onSaved={onSaved} />
     </div>
   );
+}
+
+function DealUnderwritingSection({ deal, presentationMode }: { deal: DealFacts; presentationMode: PresentationMode }) {
+  const model = buildUnderwritingPresentation({
+    dealId: deal.id,
+    dealName: deal.address || "Deal",
+    mode: presentationMode,
+    snapshots: [],
+    runs: [],
+    scenarios: [],
+    sensitivities: [],
+  });
+  return <UnderwritingWorkspace model={model} />;
 }
 
 function DefinitionList({ items }: { items: Array<{ label: string; value?: string }> }) {
