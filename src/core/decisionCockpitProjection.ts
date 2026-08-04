@@ -2,6 +2,7 @@ import type { PresentationMode } from "./presentationMode";
 import type { FormulaId } from "./formulaRegistry";
 import {
   UNDERWRITING_PRESENTATION_CONTRACT_VERSION,
+  type UnderwritingPresentationInputRow,
   type UnderwritingPresentationOutputRow,
   type UnderwritingPresentationModel,
 } from "./underwritingPresentation";
@@ -19,6 +20,9 @@ import {
 export const DECISION_COCKPIT_READ_PROJECTION_CONTRACT_VERSION = "decision-cockpit-read-projection-contract-v1";
 export const DECISION_COCKPIT_RECOMMENDATION_CONTRACT_VERSION = "decision-cockpit-recommendation-contract-v1";
 export const DECISION_COCKPIT_KEY_METRIC_REGISTRY_VERSION = "decision-cockpit-key-metric-registry-v1";
+export const DECISION_COCKPIT_RISK_PANEL_CONTRACT_VERSION = "decision-cockpit-risk-panel-contract-v1";
+export const DECISION_COCKPIT_CONFIDENCE_PANEL_CONTRACT_VERSION = "decision-cockpit-confidence-panel-contract-v1";
+export const DECISION_COCKPIT_MISSING_INPUT_PANEL_CONTRACT_VERSION = "decision-cockpit-missing-input-panel-contract-v1";
 export const DECISION_COCKPIT_PRIMARY_METRIC_LIMIT = 6;
 
 export type DecisionCockpitFreshnessState =
@@ -77,6 +81,110 @@ export type DecisionCockpitWorkflowAvailability =
   | "failed"
   | "permission_restricted"
   | "not_applicable";
+
+export type DecisionCockpitPanelState =
+  | "current"
+  | "stale"
+  | "processing"
+  | "conflicted"
+  | "partial"
+  | "failed"
+  | "unavailable"
+  | "permission_restricted";
+
+export type DecisionCockpitRiskCategory =
+  | "hard_disqualifier"
+  | "confirmed_material_risk"
+  | "potential_concern"
+  | "missing_evidence"
+  | "conflicting_evidence"
+  | "informational_observation";
+
+export type DecisionCockpitRiskSeverity = "critical" | "high" | "medium" | "low" | "unknown";
+
+export type DecisionCockpitRiskGroup = "blocking" | "material" | "moderate" | "informational";
+
+export type DecisionCockpitVerificationState =
+  | "verified"
+  | "source_backed"
+  | "corroborated"
+  | "estimated"
+  | "user_entered"
+  | "missing"
+  | "unknown";
+
+export type DecisionCockpitRiskRecord = {
+  riskId: string;
+  workspaceId?: string;
+  dealId?: string;
+  category: DecisionCockpitRiskCategory;
+  severity: DecisionCockpitRiskSeverity;
+  confidenceState: string;
+  verificationState: DecisionCockpitVerificationState;
+  sourceReference: string;
+  evidenceRefs: string[];
+  governingModule: string;
+  decisionImpact: string;
+  recommendedReviewRef: string;
+  staleState: DecisionCockpitPanelState;
+  currentState: DecisionCockpitPanelState;
+  stableOrdinal: number;
+  deterministicHash?: string;
+};
+
+export type DecisionCockpitRiskProjection = DecisionCockpitRiskRecord & {
+  group: DecisionCockpitRiskGroup;
+  displayLabel: string;
+  sourceBoundary: {
+    clientGeneratedRiskProhibited: true;
+    severityInferenceProhibited: true;
+  };
+};
+
+export type DecisionCockpitMissingInputCategory =
+  | "underwriting"
+  | "financing"
+  | "market"
+  | "governance"
+  | "contract"
+  | "inspection"
+  | "appraisal"
+  | "strategy"
+  | "evidence";
+
+export type DecisionCockpitMissingInputImportance = "blocking" | "material" | "review" | "unknown";
+
+export type DecisionCockpitMissingInputRecord = {
+  missingInputId: string;
+  workspaceId?: string;
+  dealId?: string;
+  category: DecisionCockpitMissingInputCategory;
+  importance: DecisionCockpitMissingInputImportance;
+  explanation: string;
+  sourceModule: string;
+  blocking: boolean;
+  decisionImpact: string;
+  requiredWorkflowRef: string;
+  staleState: DecisionCockpitPanelState;
+  status: "accepted" | "needs_review" | "missing" | "conflicted" | "deferred";
+  stableOrdinal: number;
+  deterministicHash?: string;
+};
+
+export type DecisionCockpitMissingInputProjection = DecisionCockpitMissingInputRecord & {
+  sourceBoundary: {
+    missingInformationIsNotEvidence: true;
+    recommendationMutationProhibited: true;
+  };
+};
+
+export type DecisionCockpitPriorPanelProjection<TItem> = {
+  state: DecisionCockpitPanelState;
+  itemCount: number;
+  panelHash: string;
+  generatedAt?: string;
+  items: TItem[];
+};
 
 export type DecisionCockpitUserDecisionType =
   | "continue_research"
@@ -176,6 +284,9 @@ export type DecisionCockpitAuthorization = {
   canReadRecommendation: boolean;
   canReadMetrics: boolean;
   canReadUserDecision: boolean;
+  canReadRisks?: boolean;
+  canReadConfidence?: boolean;
+  canReadMissingInputs?: boolean;
   reason?: string;
 };
 
@@ -198,6 +309,14 @@ export type DecisionCockpitReadProjectionInput = {
   userDecision?: DecisionCockpitUserDecisionRecord;
   activeScenarioId?: string;
   moduleAvailability?: DecisionCockpitModuleAvailability[];
+  riskRecords?: DecisionCockpitRiskRecord[];
+  missingInputRecords?: DecisionCockpitMissingInputRecord[];
+  riskPanelState?: DecisionCockpitPanelState;
+  confidencePanelState?: DecisionCockpitPanelState;
+  missingInputPanelState?: DecisionCockpitPanelState;
+  priorValidRiskPanel?: DecisionCockpitPriorPanelProjection<DecisionCockpitRiskProjection>;
+  priorValidConfidencePanel?: DecisionCockpitPriorPanelProjection<DecisionCockpitReadProjection["confidence"]>;
+  priorValidMissingInputPanel?: DecisionCockpitPriorPanelProjection<DecisionCockpitMissingInputProjection>;
   authorization?: DecisionCockpitAuthorization;
   report?: UnderwritingReportPayload;
   generatedAt?: string;
@@ -334,12 +453,72 @@ export type DecisionCockpitReadProjection = {
     unavailable: DecisionCockpitUnavailableMetric[];
   };
   confidence: {
+    contractVersion: typeof DECISION_COCKPIT_CONFIDENCE_PANEL_CONTRACT_VERSION;
+    state: DecisionCockpitPanelState;
     primaryLabel?: string;
+    primaryDescription?: string;
+    sourceModule?: "Strategy Intelligence";
+    sourceVersion?: string;
+    evidenceQualityState: string;
+    evidenceCompletenessState: "complete" | "incomplete" | "unknown";
+    acceptedAssumptionCount: number;
+    preliminaryAssumptionCount: number;
+    missingDependencyCount: number;
+    professionalReviewRequired: boolean;
+    professionalReviewCount: number;
+    staleIndicators: string[];
+    explanationRef?: string;
+    sourceIdentity: {
+      rankingId?: string;
+      selectedStrategyId?: string;
+      selectedStrategyVersion?: string;
+      scoreResultId?: string;
+      resultHash?: string;
+    };
     strategyConfidenceLabels: Array<{
       strategyId: string;
       displayName: string;
       label: string;
     }>;
+    priorValid?: DecisionCockpitPriorPanelProjection<DecisionCockpitReadProjection["confidence"]>;
+    deterministicHash: string;
+  };
+  risks: {
+    contractVersion: typeof DECISION_COCKPIT_RISK_PANEL_CONTRACT_VERSION;
+    state: DecisionCockpitPanelState;
+    itemCount: number;
+    groups: Array<{
+      group: DecisionCockpitRiskGroup;
+      itemCount: number;
+    }>;
+    items: DecisionCockpitRiskProjection[];
+    priorValid?: DecisionCockpitPriorPanelProjection<DecisionCockpitRiskProjection>;
+    unavailableModules: DecisionCockpitModuleAvailability[];
+    panelHash: string;
+    sourceBoundary: {
+      canonicalRiskRecordsOnly: true;
+      clientGeneratedRiskProhibited: true;
+      severityInferenceProhibited: true;
+      absenceDoesNotMeanLowRisk: true;
+    };
+  };
+  missingInputs: {
+    contractVersion: typeof DECISION_COCKPIT_MISSING_INPUT_PANEL_CONTRACT_VERSION;
+    state: DecisionCockpitPanelState;
+    itemCount: number;
+    blockingCount: number;
+    categories: Array<{
+      category: DecisionCockpitMissingInputCategory;
+      itemCount: number;
+    }>;
+    items: DecisionCockpitMissingInputProjection[];
+    priorValid?: DecisionCockpitPriorPanelProjection<DecisionCockpitMissingInputProjection>;
+    panelHash: string;
+    sourceBoundary: {
+      canonicalMissingInputsOnly: true;
+      missingInformationIsNotEvidence: true;
+      recommendationMutationProhibited: true;
+    };
   };
   explanations: {
     selectedStrategy?: StrategyPresentationModel["selectedStrategy"]["explanation"];
@@ -506,6 +685,16 @@ export function buildDecisionCockpitReadProjection(
     canReadMetrics: true,
     canReadUserDecision: true,
   };
+  const fullAuthorization: Required<DecisionCockpitAuthorization> = {
+    reason: "",
+    canReadCockpit: authorization.canReadCockpit,
+    canReadRecommendation: authorization.canReadRecommendation,
+    canReadMetrics: authorization.canReadMetrics,
+    canReadUserDecision: authorization.canReadUserDecision,
+    canReadRisks: authorization.canReadRisks ?? true,
+    canReadConfidence: authorization.canReadConfidence ?? true,
+    canReadMissingInputs: authorization.canReadMissingInputs ?? true,
+  };
   const underwritingWarnings = [
     ...(input.underwriting?.readiness.warnings ?? []),
     ...(input.underwriting?.readiness.blockedReasons ?? []),
@@ -523,11 +712,15 @@ export function buildDecisionCockpitReadProjection(
       count: strategy.professionalReviewCount,
     }));
   const strongestSystemRankedStrategy = selectStrongestSystemRankedStrategy(input.strategy);
-  const recommendation = buildRecommendationProjection(input, authorization, strongestSystemRankedStrategy);
-  const rationale = buildRationaleProjection(input, recommendation, strongestSystemRankedStrategy, authorization);
-  const keyMetrics = buildKeyMetricsProjection(input, authorization);
-  const userDecision = buildUserDecisionProjection(input.userDecision, recommendation, strongestSystemRankedStrategy, authorization);
+  const recommendation = buildRecommendationProjection(input, fullAuthorization, strongestSystemRankedStrategy);
+  const rationale = buildRationaleProjection(input, recommendation, strongestSystemRankedStrategy, fullAuthorization);
+  const keyMetrics = buildKeyMetricsProjection(input, fullAuthorization);
+  const userDecision = buildUserDecisionProjection(input.userDecision, recommendation, strongestSystemRankedStrategy, fullAuthorization);
   const moduleAvailability = input.moduleAvailability ?? [];
+  const freshnessState = resolveFreshness(input.underwriting, input.strategy, input.report);
+  const confidence = buildConfidenceProjection(input, fullAuthorization, freshnessState);
+  const risks = buildRiskPanelProjection(input, fullAuthorization, moduleAvailability, freshnessState);
+  const missingInputs = buildMissingInputPanelProjection(input, fullAuthorization, freshnessState);
 
   return {
     contractVersion: DECISION_COCKPIT_READ_PROJECTION_CONTRACT_VERSION,
@@ -538,7 +731,7 @@ export function buildDecisionCockpitReadProjection(
     generatedAt: input.generatedAt,
     property: { ...input.property },
     freshness: {
-      state: resolveFreshness(input.underwriting, input.strategy, input.report),
+      state: freshnessState,
       staleEventCount: input.strategy?.staleEvents.length ?? 0,
       reevaluationRequired: input.strategy?.overview.freshnessState === "stale",
       staleWarnings: [
@@ -597,14 +790,9 @@ export function buildDecisionCockpitReadProjection(
     strongestSystemRankedStrategy,
     userDecision,
     keyMetrics,
-    confidence: {
-      primaryLabel: input.strategy?.selectedStrategy?.confidenceLabel ?? input.strategy?.rankedStrategies[0]?.confidenceLabel,
-      strategyConfidenceLabels: (input.strategy?.rankedStrategies ?? []).map((strategy) => ({
-        strategyId: strategy.strategyId,
-        displayName: strategy.displayName,
-        label: strategy.confidenceLabel,
-      })),
-    },
+    confidence,
+    risks,
+    missingInputs,
     explanations: {
       selectedStrategy: input.strategy?.selectedStrategy?.explanation,
       rankedStrategyExplanations: (input.strategy?.rankedStrategies ?? [])
@@ -674,6 +862,415 @@ function resolveFreshness(
   if (underwriting?.readiness.blockedReasons.length || report?.status.blockingIssueCount) return "blocked";
   if (!underwriting?.hasCanonicalUnderwriting || (strategy && !strategy.hasCanonicalStrategyResults)) return "partial";
   return "current";
+}
+
+function buildRiskPanelProjection(
+  input: DecisionCockpitReadProjectionInput,
+  authorization: Required<DecisionCockpitAuthorization>,
+  moduleAvailability: DecisionCockpitModuleAvailability[],
+  freshnessState: DecisionCockpitFreshnessState,
+): DecisionCockpitReadProjection["risks"] {
+  if (!authorization.canReadCockpit || !authorization.canReadRisks) {
+    const panelHash = stableHash({ dealId: input.dealId, state: "permission_restricted", reason: authorization.reason });
+    return {
+      contractVersion: DECISION_COCKPIT_RISK_PANEL_CONTRACT_VERSION,
+      state: "permission_restricted",
+      itemCount: 0,
+      groups: [],
+      items: [],
+      unavailableModules: [],
+      panelHash,
+      sourceBoundary: riskSourceBoundary(),
+    };
+  }
+
+  const currentItems = canonicalRiskItems(input);
+  const state = input.riskPanelState ?? panelStateFromFreshness(freshnessState, currentItems.length > 0);
+  const items = currentItems.length > 0 ? currentItems : priorItemsWhenNeeded(state, input.priorValidRiskPanel);
+  const groups = groupRiskItems(items);
+  const panelHash = stableHash({
+    contractVersion: DECISION_COCKPIT_RISK_PANEL_CONTRACT_VERSION,
+    state,
+    items: items.map((item) => ({
+      riskId: item.riskId,
+      group: item.group,
+      category: item.category,
+      severity: item.severity,
+      confidenceState: item.confidenceState,
+      verificationState: item.verificationState,
+      sourceReference: item.sourceReference,
+      evidenceRefs: item.evidenceRefs,
+      governingModule: item.governingModule,
+      decisionImpact: item.decisionImpact,
+      recommendedReviewRef: item.recommendedReviewRef,
+      staleState: item.staleState,
+      currentState: item.currentState,
+      stableOrdinal: item.stableOrdinal,
+    })),
+  });
+
+  return {
+    contractVersion: DECISION_COCKPIT_RISK_PANEL_CONTRACT_VERSION,
+    state,
+    itemCount: items.length,
+    groups,
+    items,
+    priorValid: input.priorValidRiskPanel,
+    unavailableModules: moduleAvailability.filter((module) => module.status !== "available" && module.status !== "not_applicable"),
+    panelHash,
+    sourceBoundary: riskSourceBoundary(),
+  };
+}
+
+function buildConfidenceProjection(
+  input: DecisionCockpitReadProjectionInput,
+  authorization: Required<DecisionCockpitAuthorization>,
+  freshnessState: DecisionCockpitFreshnessState,
+): DecisionCockpitReadProjection["confidence"] {
+  if (!authorization.canReadCockpit || !authorization.canReadConfidence) {
+    return {
+      contractVersion: DECISION_COCKPIT_CONFIDENCE_PANEL_CONTRACT_VERSION,
+      state: "permission_restricted",
+      evidenceQualityState: "permission_restricted",
+      evidenceCompletenessState: "unknown",
+      acceptedAssumptionCount: 0,
+      preliminaryAssumptionCount: 0,
+      missingDependencyCount: 0,
+      professionalReviewRequired: false,
+      professionalReviewCount: 0,
+      staleIndicators: [],
+      sourceIdentity: {},
+      strategyConfidenceLabels: [],
+      deterministicHash: stableHash({ dealId: input.dealId, state: "permission_restricted", reason: authorization.reason }),
+    };
+  }
+
+  const selected = input.strategy?.selectedStrategy ?? input.strategy?.rankedStrategies[0];
+  const state = input.confidencePanelState ?? panelStateFromFreshness(freshnessState, Boolean(selected));
+  const staleIndicators = [
+    ...(input.strategy?.overview.staleWarning ? [input.strategy.overview.staleWarning] : []),
+    ...(input.strategy?.staleEvents.map((event) => event.reason) ?? []),
+  ];
+  const missingDependencyCount = selected?.missingDependencyCount ?? input.strategy?.overview.missingDependencyCount ?? 0;
+  const acceptedAssumptionCount = selected?.acceptedAssumptionCount ?? 0;
+  const preliminaryAssumptionCount = selected?.preliminaryAssumptionCount ?? 0;
+  const professionalReviewCount = selected?.professionalReviewCount ?? input.strategy?.overview.professionalReviewCount ?? 0;
+  const evidenceCompletenessState = !selected
+    ? "unknown"
+    : missingDependencyCount > 0 || preliminaryAssumptionCount > 0
+      ? "incomplete"
+      : "complete";
+  const projection = {
+    contractVersion: DECISION_COCKPIT_CONFIDENCE_PANEL_CONTRACT_VERSION,
+    state,
+    primaryLabel: selected?.confidenceLabel,
+    primaryDescription: selected?.confidenceDescription,
+    sourceModule: selected ? "Strategy Intelligence" as const : undefined,
+    sourceVersion: input.strategy?.overview.rankingVersion,
+    evidenceQualityState: selected?.confidenceLabel ?? "unavailable",
+    evidenceCompletenessState,
+    acceptedAssumptionCount,
+    preliminaryAssumptionCount,
+    missingDependencyCount,
+    professionalReviewRequired: professionalReviewCount > 0,
+    professionalReviewCount,
+    staleIndicators,
+    explanationRef: selected?.explanation?.explanationResultId,
+    sourceIdentity: {
+      rankingId: input.strategy?.overview.rankingId,
+      selectedStrategyId: selected?.strategyId,
+      selectedStrategyVersion: selected?.strategyVersion,
+      scoreResultId: selected?.scoreResultId,
+      resultHash: selected?.hash,
+    },
+    strategyConfidenceLabels: (input.strategy?.rankedStrategies ?? []).map((strategy) => ({
+      strategyId: strategy.strategyId,
+      displayName: strategy.displayName,
+      label: strategy.confidenceLabel,
+    })),
+    priorValid: input.priorValidConfidencePanel,
+    deterministicHash: "",
+  } satisfies DecisionCockpitReadProjection["confidence"];
+  projection.deterministicHash = stableHash({
+    contractVersion: projection.contractVersion,
+    state: projection.state,
+    primaryLabel: projection.primaryLabel,
+    evidenceQualityState: projection.evidenceQualityState,
+    evidenceCompletenessState: projection.evidenceCompletenessState,
+    acceptedAssumptionCount: projection.acceptedAssumptionCount,
+    preliminaryAssumptionCount: projection.preliminaryAssumptionCount,
+    missingDependencyCount: projection.missingDependencyCount,
+    professionalReviewRequired: projection.professionalReviewRequired,
+    professionalReviewCount: projection.professionalReviewCount,
+    staleIndicators: projection.staleIndicators,
+    sourceIdentity: projection.sourceIdentity,
+  });
+  return projection;
+}
+
+function buildMissingInputPanelProjection(
+  input: DecisionCockpitReadProjectionInput,
+  authorization: Required<DecisionCockpitAuthorization>,
+  freshnessState: DecisionCockpitFreshnessState,
+): DecisionCockpitReadProjection["missingInputs"] {
+  if (!authorization.canReadCockpit || !authorization.canReadMissingInputs) {
+    const panelHash = stableHash({ dealId: input.dealId, state: "permission_restricted", reason: authorization.reason });
+    return {
+      contractVersion: DECISION_COCKPIT_MISSING_INPUT_PANEL_CONTRACT_VERSION,
+      state: "permission_restricted",
+      itemCount: 0,
+      blockingCount: 0,
+      categories: [],
+      items: [],
+      panelHash,
+      sourceBoundary: missingInputSourceBoundary(),
+    };
+  }
+
+  const currentItems = canonicalMissingInputItems(input);
+  const state = input.missingInputPanelState ?? panelStateFromFreshness(freshnessState, currentItems.length > 0);
+  const items = currentItems.length > 0 ? currentItems : priorItemsWhenNeeded(state, input.priorValidMissingInputPanel);
+  const panelHash = stableHash({
+    contractVersion: DECISION_COCKPIT_MISSING_INPUT_PANEL_CONTRACT_VERSION,
+    state,
+    items: items.map((item) => ({
+      missingInputId: item.missingInputId,
+      category: item.category,
+      importance: item.importance,
+      explanation: item.explanation,
+      sourceModule: item.sourceModule,
+      blocking: item.blocking,
+      decisionImpact: item.decisionImpact,
+      requiredWorkflowRef: item.requiredWorkflowRef,
+      staleState: item.staleState,
+      status: item.status,
+      stableOrdinal: item.stableOrdinal,
+    })),
+  });
+
+  return {
+    contractVersion: DECISION_COCKPIT_MISSING_INPUT_PANEL_CONTRACT_VERSION,
+    state,
+    itemCount: items.length,
+    blockingCount: items.filter((item) => item.blocking).length,
+    categories: groupMissingInputItems(items),
+    items,
+    priorValid: input.priorValidMissingInputPanel,
+    panelHash,
+    sourceBoundary: missingInputSourceBoundary(),
+  };
+}
+
+function canonicalRiskItems(input: DecisionCockpitReadProjectionInput): DecisionCockpitRiskProjection[] {
+  const seen = new Set<string>();
+  return [...(input.riskRecords ?? [])]
+    .filter((record) => belongsToProjection(record.workspaceId, record.dealId, input.workspaceId, input.dealId))
+    .sort((left, right) => left.stableOrdinal - right.stableOrdinal || left.riskId.localeCompare(right.riskId))
+    .filter((record) => {
+      if (seen.has(record.riskId)) return false;
+      seen.add(record.riskId);
+      return true;
+    })
+    .map((record) => {
+      const projection = {
+        ...record,
+        group: riskGroupFor(record.category),
+        displayLabel: label(record.category),
+        sourceBoundary: {
+          clientGeneratedRiskProhibited: true,
+          severityInferenceProhibited: true,
+        },
+      } satisfies Omit<DecisionCockpitRiskProjection, "deterministicHash"> & { deterministicHash?: string };
+      return {
+        ...projection,
+        deterministicHash: record.deterministicHash ?? stableHash({
+          riskId: projection.riskId,
+          category: projection.category,
+          severity: projection.severity,
+          confidenceState: projection.confidenceState,
+          verificationState: projection.verificationState,
+          sourceReference: projection.sourceReference,
+          evidenceRefs: projection.evidenceRefs,
+          governingModule: projection.governingModule,
+          decisionImpact: projection.decisionImpact,
+          recommendedReviewRef: projection.recommendedReviewRef,
+          staleState: projection.staleState,
+          currentState: projection.currentState,
+          stableOrdinal: projection.stableOrdinal,
+        }),
+      };
+    });
+}
+
+function canonicalMissingInputItems(input: DecisionCockpitReadProjectionInput): DecisionCockpitMissingInputProjection[] {
+  const supplied = (input.missingInputRecords ?? [])
+    .filter((record) => belongsToProjection(record.workspaceId, record.dealId, input.workspaceId, input.dealId));
+  const fromUnderwriting = (input.underwriting?.inputs ?? [])
+    .filter((row) => row.needsAttention)
+    .map((row) => missingInputFromUnderwriting(row, input.dealId));
+  const fromStrategy: DecisionCockpitMissingInputRecord[] = input.strategy?.selectedStrategy?.missingInformation.map((item, index) => ({
+    missingInputId: `strategy:${input.strategy?.selectedStrategy?.strategyId}:${index + 1}`,
+    dealId: input.dealId,
+    category: "strategy" as const,
+    importance: "review" as const,
+    explanation: item,
+    sourceModule: "Strategy Intelligence",
+    blocking: false,
+    decisionImpact: "May change strategy compatibility, ranking, or explanation once resolved.",
+    requiredWorkflowRef: `strategy:${input.strategy?.selectedStrategy?.strategyId}:requirements`,
+    staleState: panelStateFromFreshness(resolveFreshness(input.underwriting, input.strategy, input.report), true),
+    status: "missing" as const,
+    stableOrdinal: 5000 + index,
+  })) ?? [];
+
+  const seen = new Set<string>();
+  return [...supplied, ...fromUnderwriting, ...fromStrategy]
+    .sort((left, right) => missingImportanceOrder(left.importance) - missingImportanceOrder(right.importance)
+      || left.stableOrdinal - right.stableOrdinal
+      || left.missingInputId.localeCompare(right.missingInputId))
+    .filter((record) => {
+      if (seen.has(record.missingInputId)) return false;
+      seen.add(record.missingInputId);
+      return true;
+    })
+    .map((record) => ({
+      ...record,
+      deterministicHash: record.deterministicHash ?? stableHash({
+        missingInputId: record.missingInputId,
+        category: record.category,
+        importance: record.importance,
+        explanation: record.explanation,
+        sourceModule: record.sourceModule,
+        blocking: record.blocking,
+        decisionImpact: record.decisionImpact,
+        requiredWorkflowRef: record.requiredWorkflowRef,
+        staleState: record.staleState,
+        status: record.status,
+        stableOrdinal: record.stableOrdinal,
+      }),
+      sourceBoundary: missingInputItemSourceBoundary(),
+    }));
+}
+
+function missingInputFromUnderwriting(
+  row: UnderwritingPresentationInputRow,
+  dealId: string,
+): DecisionCockpitMissingInputRecord {
+  const status = missingInputStatusFromUnderwriting(row);
+  const required = row.requirement.toLowerCase().includes("required");
+  return {
+    missingInputId: `underwriting:${row.inputId}`,
+    dealId,
+    category: "underwriting",
+    importance: required ? "blocking" : "review",
+    explanation: `${row.label} requires ${status === "conflicted" ? "conflict resolution" : "completion"} before this Deal can be relied on.`,
+    sourceModule: "Deterministic Underwriting",
+    blocking: required,
+    decisionImpact: "May change underwriting readiness, core financial outputs, and strategy ranking.",
+    requiredWorkflowRef: `underwriting:inputs:${row.inputId}`,
+    staleState: "current",
+    status,
+    stableOrdinal: row.stableOrdinal,
+  };
+}
+
+function missingInputStatusFromUnderwriting(row: UnderwritingPresentationInputRow): DecisionCockpitMissingInputRecord["status"] {
+  const state = `${row.status} ${row.sourceState}`.toLowerCase();
+  if (state.includes("conflict") || state.includes("unresolved")) return "conflicted";
+  if (state.includes("defer")) return "deferred";
+  if (state.includes("invalid") || state.includes("review")) return "needs_review";
+  if (state.includes("missing")) return "missing";
+  return "needs_review";
+}
+
+function priorItemsWhenNeeded<TItem>(
+  state: DecisionCockpitPanelState,
+  prior?: DecisionCockpitPriorPanelProjection<TItem>,
+): TItem[] {
+  if (!prior) return [];
+  return state === "processing" || state === "failed" || state === "stale" ? prior.items : [];
+}
+
+function belongsToProjection(
+  recordWorkspaceId: string | undefined,
+  recordDealId: string | undefined,
+  workspaceId: string | undefined,
+  dealId: string,
+) {
+  if (recordWorkspaceId && workspaceId && recordWorkspaceId !== workspaceId) return false;
+  if (recordDealId && recordDealId !== dealId) return false;
+  return true;
+}
+
+function panelStateFromFreshness(
+  freshnessState: DecisionCockpitFreshnessState,
+  hasSourceItems: boolean,
+): DecisionCockpitPanelState {
+  if (freshnessState === "stale" || freshnessState === "historical") return "stale";
+  if (freshnessState === "partial" || freshnessState === "blocked") return "partial";
+  if (freshnessState === "no_source_results" && !hasSourceItems) return "unavailable";
+  return "current";
+}
+
+function groupRiskItems(items: DecisionCockpitRiskProjection[]) {
+  return (["blocking", "material", "moderate", "informational"] as const)
+    .map((group) => ({ group, itemCount: items.filter((item) => item.group === group).length }))
+    .filter((group) => group.itemCount > 0);
+}
+
+function groupMissingInputItems(items: DecisionCockpitMissingInputProjection[]) {
+  const categories: DecisionCockpitMissingInputCategory[] = [
+    "underwriting",
+    "financing",
+    "market",
+    "governance",
+    "contract",
+    "inspection",
+    "appraisal",
+    "strategy",
+    "evidence",
+  ];
+  return categories
+    .map((category) => ({ category, itemCount: items.filter((item) => item.category === category).length }))
+    .filter((category) => category.itemCount > 0);
+}
+
+function riskGroupFor(category: DecisionCockpitRiskCategory): DecisionCockpitRiskGroup {
+  if (category === "hard_disqualifier") return "blocking";
+  if (category === "confirmed_material_risk") return "material";
+  if (category === "informational_observation") return "informational";
+  return "moderate";
+}
+
+function missingImportanceOrder(importance: DecisionCockpitMissingInputImportance) {
+  if (importance === "blocking") return 1;
+  if (importance === "material") return 2;
+  if (importance === "review") return 3;
+  return 4;
+}
+
+function riskSourceBoundary() {
+  return {
+    canonicalRiskRecordsOnly: true,
+    clientGeneratedRiskProhibited: true,
+    severityInferenceProhibited: true,
+    absenceDoesNotMeanLowRisk: true,
+  } as const;
+}
+
+function missingInputSourceBoundary() {
+  return {
+    canonicalMissingInputsOnly: true,
+    missingInformationIsNotEvidence: true,
+    recommendationMutationProhibited: true,
+  } as const;
+}
+
+function missingInputItemSourceBoundary() {
+  return {
+    missingInformationIsNotEvidence: true,
+    recommendationMutationProhibited: true,
+  } as const;
 }
 
 function buildRecommendationProjection(

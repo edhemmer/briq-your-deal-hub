@@ -2,17 +2,23 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   DECISION_COCKPIT_KEY_METRIC_REGISTRY_VERSION,
+  DECISION_COCKPIT_CONFIDENCE_PANEL_CONTRACT_VERSION,
+  DECISION_COCKPIT_MISSING_INPUT_PANEL_CONTRACT_VERSION,
   DECISION_COCKPIT_PRIMARY_METRIC_LIMIT,
   DECISION_COCKPIT_READ_PROJECTION_CONTRACT_VERSION,
   DECISION_COCKPIT_RECOMMENDATION_CONTRACT_VERSION,
+  DECISION_COCKPIT_RISK_PANEL_CONTRACT_VERSION,
   buildDecisionCockpitReadProjection,
+  type DecisionCockpitMissingInputRecord,
   type DecisionCockpitRecommendationRecord,
   type DecisionCockpitRecommendedAction,
+  type DecisionCockpitRiskRecord,
   type DecisionCockpitUserDecisionRecord,
 } from "../core/decisionCockpitProjection";
 import { STRATEGY_PRESENTATION_CONTRACT_VERSION, type StrategyPresentationModel } from "../core/strategyPresentation";
 import {
   UNDERWRITING_PRESENTATION_CONTRACT_VERSION,
+  type UnderwritingPresentationInputRow,
   type UnderwritingPresentationOutputRow,
   type UnderwritingPresentationModel,
 } from "../core/underwritingPresentation";
@@ -444,9 +450,237 @@ describe("decision cockpit read projection contract", () => {
     expect(projection.assumptions).toEqual({ count: 1, items: ["Projected monthly rent"] });
     expect(projection.provenance.sourceCount).toBe(1);
     expect(projection.professionalReviewFlags).toEqual({
-      count: 2,
-      strategyFlags: [{ strategyId: "owner_occupied", displayName: "Owner Occupied", count: 2 }],
+      count: 4,
+      strategyFlags: [
+        { strategyId: "owner_occupied", displayName: "Owner Occupied", count: 2 },
+        { strategyId: "brrrr", displayName: "BRRRR", count: 2 },
+      ],
     });
+  });
+
+  it("projects canonical risk records with deterministic ordering, grouping, duplicate elimination, and stable hashes", () => {
+    const projection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      riskRecords: [
+        riskRecord({ riskId: "risk-duplicate", stableOrdinal: 30, category: "potential_concern", severity: "unknown" }),
+        riskRecord({ riskId: "risk-duplicate", stableOrdinal: 40, category: "confirmed_material_risk", severity: "high" }),
+        riskRecord({ riskId: "risk-hard", stableOrdinal: 10, category: "hard_disqualifier", severity: "critical" }),
+        riskRecord({ riskId: "risk-info", stableOrdinal: 50, category: "informational_observation", severity: "low" }),
+        riskRecord({ riskId: "risk-other-workspace", workspaceId: "workspace-2", stableOrdinal: 1 }),
+        riskRecord({ riskId: "risk-conflict", stableOrdinal: 20, category: "conflicting_evidence", severity: "unknown" }),
+      ],
+      generatedAt: "2026-08-04T12:00:00.000Z",
+    });
+    const sameProjection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      riskRecords: [
+        riskRecord({ riskId: "risk-conflict", stableOrdinal: 20, category: "conflicting_evidence", severity: "unknown" }),
+        riskRecord({ riskId: "risk-hard", stableOrdinal: 10, category: "hard_disqualifier", severity: "critical" }),
+        riskRecord({ riskId: "risk-duplicate", stableOrdinal: 30, category: "potential_concern", severity: "unknown" }),
+        riskRecord({ riskId: "risk-info", stableOrdinal: 50, category: "informational_observation", severity: "low" }),
+      ],
+      generatedAt: "2026-08-04T12:30:00.000Z",
+    });
+
+    expect(projection.risks.contractVersion).toBe(DECISION_COCKPIT_RISK_PANEL_CONTRACT_VERSION);
+    expect(projection.risks.items.map((item) => item.riskId)).toEqual(["risk-hard", "risk-conflict", "risk-duplicate", "risk-info"]);
+    expect(projection.risks.items.find((item) => item.riskId === "risk-conflict")).toMatchObject({
+      category: "conflicting_evidence",
+      severity: "unknown",
+      group: "moderate",
+      sourceBoundary: {
+        clientGeneratedRiskProhibited: true,
+        severityInferenceProhibited: true,
+      },
+    });
+    expect(projection.risks.groups).toEqual([
+      { group: "blocking", itemCount: 1 },
+      { group: "moderate", itemCount: 2 },
+      { group: "informational", itemCount: 1 },
+    ]);
+    expect(projection.risks.panelHash).toBe(sameProjection.risks.panelHash);
+    expect(projection.risks.sourceBoundary).toMatchObject({
+      canonicalRiskRecordsOnly: true,
+      clientGeneratedRiskProhibited: true,
+      severityInferenceProhibited: true,
+      absenceDoesNotMeanLowRisk: true,
+    });
+  });
+
+  it("preserves prior valid risk projections during processing and does not hide risks while new records are processing", () => {
+    const priorValid = {
+      state: "current" as const,
+      itemCount: 1,
+      panelHash: "prior-risk-panel-hash",
+      generatedAt: "2026-08-04T11:00:00.000Z",
+      items: [{
+        ...riskRecord({ riskId: "prior-risk", stableOrdinal: 1, category: "confirmed_material_risk", severity: "high" }),
+        group: "material" as const,
+        displayLabel: "Confirmed Material Risk",
+        sourceBoundary: {
+          clientGeneratedRiskProhibited: true as const,
+          severityInferenceProhibited: true as const,
+        },
+      }],
+    };
+    const withCurrent = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      riskPanelState: "processing",
+      priorValidRiskPanel: priorValid,
+      riskRecords: [riskRecord({ riskId: "current-risk", stableOrdinal: 1, category: "missing_evidence", severity: "unknown" })],
+    });
+    const withPriorOnly = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      riskPanelState: "failed",
+      priorValidRiskPanel: priorValid,
+    });
+
+    expect(withCurrent.risks.state).toBe("processing");
+    expect(withCurrent.risks.items.map((item) => item.riskId)).toEqual(["current-risk"]);
+    expect(withCurrent.risks.priorValid?.panelHash).toBe("prior-risk-panel-hash");
+    expect(withPriorOnly.risks.state).toBe("failed");
+    expect(withPriorOnly.risks.items.map((item) => item.riskId)).toEqual(["prior-risk"]);
+  });
+
+  it("projects confidence only from Strategy Intelligence evidence quality and flags completeness and professional review needs", () => {
+    const projection = buildDecisionCockpitReadProjection({
+      dealId: "deal-1",
+      underwriting: underwritingPresentation(),
+      strategy: strategyPresentation({
+        selectedStrategyId: "brrrr",
+        professionalReviewCount: 2,
+        selectedStrategyOverrides: {
+          confidenceLabel: "Moderate",
+          confidenceDescription: "Source quality is mixed.",
+          acceptedAssumptionCount: 2,
+          preliminaryAssumptionCount: 1,
+          missingDependencyCount: 3,
+        },
+      }),
+    });
+
+    expect(projection.confidence).toMatchObject({
+      contractVersion: DECISION_COCKPIT_CONFIDENCE_PANEL_CONTRACT_VERSION,
+      state: "current",
+      primaryLabel: "Moderate",
+      primaryDescription: "Source quality is mixed.",
+      sourceModule: "Strategy Intelligence",
+      evidenceQualityState: "Moderate",
+      evidenceCompletenessState: "incomplete",
+      acceptedAssumptionCount: 2,
+      preliminaryAssumptionCount: 1,
+      missingDependencyCount: 3,
+      professionalReviewRequired: true,
+      professionalReviewCount: 2,
+      sourceIdentity: {
+        selectedStrategyId: "brrrr",
+        selectedStrategyVersion: "1.0.0",
+        scoreResultId: "score-2",
+      },
+    });
+    expect(projection.confidence.deterministicHash).toMatch(/^dc_/);
+    expect(projection.recommendation.available).toBe(false);
+  });
+
+  it("projects missing inputs from canonical underwriting and strategy sources without changing recommendations", () => {
+    const recommendation = recommendationRecord();
+    const projection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      underwriting: underwritingPresentation({
+        inputs: [
+          underwritingInput({ inputId: "monthly_rent", label: "Monthly rent", requirement: "Required", sourceState: "Missing", status: "Missing", stableOrdinal: 20 }),
+          underwritingInput({ inputId: "taxes", label: "Property taxes", requirement: "Required", sourceState: "Complete", status: "Invalid", stableOrdinal: 10 }),
+          underwritingInput({ inputId: "insurance", label: "Insurance", requirement: "Optional", sourceState: "Complete", status: "Valid", needsAttention: false, stableOrdinal: 30 }),
+        ],
+      }),
+      strategy: strategyPresentation({
+        selectedStrategyId: "brrrr",
+        selectedStrategyOverrides: {
+          missingDependencyCount: 1,
+        },
+      }),
+      missingInputRecords: [
+        missingInputRecord({ missingInputId: "market:rent-comps", category: "market", importance: "material", stableOrdinal: 5 }),
+        missingInputRecord({ missingInputId: "other-workspace", workspaceId: "workspace-2", stableOrdinal: 1 }),
+      ],
+      recommendation,
+    });
+
+    expect(projection.missingInputs.contractVersion).toBe(DECISION_COCKPIT_MISSING_INPUT_PANEL_CONTRACT_VERSION);
+    expect(projection.missingInputs.items.map((item) => item.missingInputId)).toEqual([
+      "underwriting:taxes",
+      "underwriting:monthly_rent",
+      "market:rent-comps",
+      "strategy:brrrr:1",
+    ]);
+    expect(projection.missingInputs).toMatchObject({
+      state: "current",
+      itemCount: 4,
+      blockingCount: 2,
+      categories: [
+        { category: "underwriting", itemCount: 2 },
+        { category: "market", itemCount: 1 },
+        { category: "strategy", itemCount: 1 },
+      ],
+      sourceBoundary: {
+        canonicalMissingInputsOnly: true,
+        missingInformationIsNotEvidence: true,
+        recommendationMutationProhibited: true,
+      },
+    });
+    expect(projection.missingInputs.items.find((item) => item.missingInputId === "underwriting:taxes")).toMatchObject({
+      status: "needs_review",
+      blocking: true,
+      requiredWorkflowRef: "underwriting:inputs:taxes",
+    });
+    expect(projection.recommendation.recommendationId).toBe(recommendation.recommendationId);
+    expect(projection.recommendation.deterministicHash).toBe(buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      recommendation,
+    }).recommendation.deterministicHash);
+  });
+
+  it("handles unavailable, partial, stale, failed, and permission-restricted panel states without fabricating data", () => {
+    const unavailable = buildDecisionCockpitReadProjection({ dealId: "deal-empty" });
+    const partial = buildDecisionCockpitReadProjection({
+      dealId: "deal-1",
+      underwriting: underwritingPresentation({ blockedReasons: ["Required insurance input missing"] }),
+    });
+    const stale = buildDecisionCockpitReadProjection({
+      dealId: "deal-1",
+      strategy: strategyPresentation({ stale: true }),
+    });
+    const permission = buildDecisionCockpitReadProjection({
+      dealId: "deal-1",
+      riskRecords: [riskRecord()],
+      missingInputRecords: [missingInputRecord()],
+      authorization: {
+        canReadCockpit: true,
+        canReadRecommendation: true,
+        canReadMetrics: true,
+        canReadUserDecision: true,
+        canReadRisks: false,
+        canReadConfidence: false,
+        canReadMissingInputs: false,
+        reason: "membership revoked",
+      },
+    });
+
+    expect(unavailable.risks.state).toBe("unavailable");
+    expect(unavailable.missingInputs.state).toBe("unavailable");
+    expect(partial.risks.state).toBe("partial");
+    expect(partial.missingInputs.state).toBe("partial");
+    expect(stale.confidence.state).toBe("stale");
+    expect(permission.risks).toMatchObject({ state: "permission_restricted", items: [] });
+    expect(permission.confidence).toMatchObject({ state: "permission_restricted" });
+    expect(permission.confidence.primaryLabel).toBeUndefined();
+    expect(permission.missingInputs).toMatchObject({ state: "permission_restricted", items: [] });
   });
 
   it("does not import or call calculators, rankers, UI, Supabase, providers, or persistence paths", () => {
@@ -473,6 +707,7 @@ function underwritingPresentation(overrides: {
   blockedReasons?: string[];
   sourceWarnings?: string[];
   outputs?: UnderwritingPresentationOutputRow[];
+  inputs?: UnderwritingPresentationInputRow[];
 } = {}): UnderwritingPresentationModel {
   return {
     contractVersion: UNDERWRITING_PRESENTATION_CONTRACT_VERSION,
@@ -495,7 +730,7 @@ function underwritingPresentation(overrides: {
       blockedReasons: overrides.blockedReasons ?? [],
     },
     summary: [{ label: "Readiness", value: "Decision Ready", tone: "success" }],
-    inputs: [],
+    inputs: overrides.inputs ?? [],
     coreOutputGroups: [{
       id: "returns",
       label: "Returns",
@@ -564,6 +799,20 @@ function underwritingPresentation(overrides: {
       warnings: overrides.sourceWarnings ?? [],
     },
   } as unknown as UnderwritingPresentationModel;
+}
+
+function underwritingInput(
+  overrides: Pick<UnderwritingPresentationInputRow, "inputId" | "label" | "requirement" | "status" | "sourceState" | "stableOrdinal">
+    & Partial<UnderwritingPresentationInputRow>,
+): UnderwritingPresentationInputRow {
+  return {
+    value: "",
+    unit: "Currency",
+    period: "Annual",
+    locked: false,
+    needsAttention: true,
+    ...overrides,
+  };
 }
 
 function outputRow(
@@ -652,11 +901,53 @@ function userDecisionRecord(overrides: Partial<DecisionCockpitUserDecisionRecord
   };
 }
 
+function riskRecord(overrides: Partial<DecisionCockpitRiskRecord> = {}): DecisionCockpitRiskRecord {
+  return {
+    riskId: "risk-1",
+    workspaceId: "workspace-1",
+    dealId: "deal-1",
+    category: "potential_concern",
+    severity: "unknown",
+    confidenceState: "source_backed",
+    verificationState: "source_backed",
+    sourceReference: "source-record-1",
+    evidenceRefs: ["evidence-1"],
+    governingModule: "Strategy Intelligence",
+    decisionImpact: "Could change whether the Deal should proceed before offer preparation.",
+    recommendedReviewRef: "review:risk-1",
+    staleState: "current",
+    currentState: "current",
+    stableOrdinal: 10,
+    ...overrides,
+  };
+}
+
+function missingInputRecord(overrides: Partial<DecisionCockpitMissingInputRecord> = {}): DecisionCockpitMissingInputRecord {
+  return {
+    missingInputId: "market:rent-comps",
+    workspaceId: "workspace-1",
+    dealId: "deal-1",
+    category: "market",
+    importance: "material",
+    explanation: "Rent support requires market evidence before relying on the result.",
+    sourceModule: "MarketIQ",
+    blocking: false,
+    decisionImpact: "May change rent support, underwriting confidence, and strategy comparison.",
+    requiredWorkflowRef: "market:rent-comps",
+    staleState: "current",
+    status: "missing",
+    stableOrdinal: 10,
+    ...overrides,
+  };
+}
+
 function strategyPresentation(overrides: {
   userPreference?: StrategyPresentationModel["userPreference"];
   userSelectionMatchesSystemRank?: boolean;
   stale?: boolean;
   professionalReviewCount?: number;
+  selectedStrategyId?: string;
+  selectedStrategyOverrides?: Partial<StrategyPresentationModel["rankedStrategies"][number]>;
 } = {}): StrategyPresentationModel {
   const userPreference = overrides.userPreference;
   const staleEvents = overrides.stale ? [{
@@ -743,8 +1034,109 @@ function strategyPresentation(overrides: {
         },
       },
       hash: "score-hash-1",
+    }, {
+      scoreResultId: "score-2",
+      strategyId: "brrrr",
+      strategyVersion: "1.0.0",
+      displayName: "BRRRR",
+      rank: 2,
+      canonicalOrdinal: 2,
+      compatibilityStatus: "compatible_with_conditions",
+      scoreEligibility: "scored",
+      totalScore: 74,
+      confidenceLabel: "Moderate",
+      confidenceDescription: "Confidence describes evidence quality, not probability of success.",
+      strengths: ["Equity creation potential"],
+      weaknesses: ["Refinance and rehab scope need verification"],
+      hardDisqualifierCount: 0,
+      hardDisqualifiers: [],
+      conditions: ["Confirm refinance terms"],
+      acceptedAssumptionCount: 1,
+      preliminaryAssumptionCount: 1,
+      missingDependencyCount: 1,
+      professionalReviewCount: overrides.professionalReviewCount ?? 0,
+      freshnessState: overrides.stale ? "stale" : "current",
+      selectedByUser: overrides.selectedStrategyId === "brrrr",
+      explanation: {
+        contractVersion: "strategy-explanation-projection-v1",
+        resultId: "explanation-2",
+        strategyId: "brrrr",
+        strategyVersion: "1.0.0",
+        displayName: "BRRRR",
+        confidenceLabel: "Moderate",
+        sections: [{ title: "Why it needs review", items: [{ text: "Refinance terms and rehab scope drive the outcome.", tone: "warning" }] }],
+        sourceBoundary: {
+          usesCanonicalScore: true,
+          usesCanonicalCompatibility: true,
+          aiGenerated: false,
+          clientBusinessLogicProhibited: true,
+        },
+      },
+      hash: "score-hash-2",
+      ...overrides.selectedStrategyOverrides,
     }],
-    selectedStrategy: undefined,
+    selectedStrategy: overrides.selectedStrategyId === "brrrr"
+      ? {
+        scoreResultId: "score-2",
+        strategyId: "brrrr",
+        strategyVersion: "1.0.0",
+        displayName: "BRRRR",
+        rank: 2,
+        canonicalOrdinal: 2,
+        compatibilityStatus: "compatible_with_conditions",
+        scoreEligibility: "scored",
+        totalScore: 74,
+        confidenceLabel: "Moderate",
+        confidenceDescription: "Confidence describes evidence quality, not probability of success.",
+        strengths: ["Equity creation potential"],
+        weaknesses: ["Refinance and rehab scope need verification"],
+        hardDisqualifierCount: 0,
+        hardDisqualifiers: [],
+        conditions: ["Confirm refinance terms"],
+        acceptedAssumptionCount: 1,
+        preliminaryAssumptionCount: 1,
+        missingDependencyCount: 1,
+        professionalReviewCount: overrides.professionalReviewCount ?? 0,
+        freshnessState: overrides.stale ? "stale" : "current",
+        selectedByUser: true,
+        explanation: {
+          contractVersion: "strategy-explanation-projection-v1",
+          resultId: "explanation-2",
+          strategyId: "brrrr",
+          strategyVersion: "1.0.0",
+          displayName: "BRRRR",
+          confidenceLabel: "Moderate",
+          sections: [{ title: "Why it needs review", items: [{ text: "Refinance terms and rehab scope drive the outcome.", tone: "warning" }] }],
+          sourceBoundary: {
+            usesCanonicalScore: true,
+            usesCanonicalCompatibility: true,
+            aiGenerated: false,
+            clientBusinessLogicProhibited: true,
+          },
+        },
+        hash: "score-hash-2",
+        identity: {
+          strategyId: "brrrr",
+          strategyVersion: "1.0.0",
+          registryVersion: "strategy-registry-v1",
+          lifecycleStatus: "active",
+          supportStatus: "supported",
+          category: "residential",
+        },
+        dimensionScores: [],
+        weights: [],
+        weightedContributions: [],
+        bindingConstraints: ["Confirm refinance terms"],
+        missingInformation: ["Refinance terms require verification"],
+        staleInformation: [],
+        conflicts: [],
+        unavailableModules: [],
+        materialChangeFactors: [],
+        underwritingReferences: ["run-1", "snapshot-1"],
+        versionReferences: ["strategy-registry-v1"],
+        ...overrides.selectedStrategyOverrides,
+      } as StrategyPresentationModel["selectedStrategy"]
+      : undefined,
     comparison: {
       limit: 4,
       selectedStrategyIds: ["owner_occupied"],
