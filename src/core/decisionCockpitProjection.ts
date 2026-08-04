@@ -16,6 +16,7 @@ import {
   type StrategyPresentationModel,
   type StrategyUserPreferenceProjection,
 } from "./strategyPresentation";
+import type { CanonicalDealStage, DealWorkItem } from "./types";
 
 export const DECISION_COCKPIT_READ_PROJECTION_CONTRACT_VERSION = "decision-cockpit-read-projection-contract-v1";
 export const DECISION_COCKPIT_RECOMMENDATION_CONTRACT_VERSION = "decision-cockpit-recommendation-contract-v1";
@@ -23,7 +24,17 @@ export const DECISION_COCKPIT_KEY_METRIC_REGISTRY_VERSION = "decision-cockpit-ke
 export const DECISION_COCKPIT_RISK_PANEL_CONTRACT_VERSION = "decision-cockpit-risk-panel-contract-v1";
 export const DECISION_COCKPIT_CONFIDENCE_PANEL_CONTRACT_VERSION = "decision-cockpit-confidence-panel-contract-v1";
 export const DECISION_COCKPIT_MISSING_INPUT_PANEL_CONTRACT_VERSION = "decision-cockpit-missing-input-panel-contract-v1";
+export const DECISION_COCKPIT_NEXT_ACTION_CONTRACT_ID = "decision-cockpit-next-action";
+export const DECISION_COCKPIT_NEXT_ACTION_CONTRACT_VERSION = "decision-cockpit-next-action-contract-v1";
+export const DECISION_COCKPIT_NEXT_ACTION_REGISTRY_VERSION = "decision-cockpit-next-action-registry-v1";
+export const DECISION_COCKPIT_NEXT_ACTION_RULE_ORDERING_VERSION = "decision-cockpit-next-action-rule-order-v1";
+export const DECISION_COCKPIT_NEXT_ACTION_PRIORITY_MODEL_VERSION = "decision-cockpit-next-action-priority-v1";
+export const DECISION_COCKPIT_WORKFLOW_ROUTING_VERSION = "decision-cockpit-workflow-routing-v1";
+export const DECISION_COCKPIT_PERMISSION_MODEL_VERSION = "decision-cockpit-permission-v1";
+export const DECISION_COCKPIT_DEADLINE_PANEL_CONTRACT_VERSION = "decision-cockpit-deadline-panel-contract-v1";
 export const DECISION_COCKPIT_PRIMARY_METRIC_LIMIT = 6;
+export const DECISION_COCKPIT_NEXT_ACTION_LIMIT = 6;
+export const DECISION_COCKPIT_DEADLINE_LIMIT = 6;
 
 export type DecisionCockpitFreshnessState =
   | "no_source_results"
@@ -73,6 +84,78 @@ export type DecisionCockpitActionType =
   | "submit_offer"
   | "open_existing_workflow";
 
+export type DecisionCockpitNextActionType =
+  | "complete_missing_input"
+  | "review_assumption"
+  | "resolve_conflict"
+  | "rerun_underwriting"
+  | "reevaluate_strategies"
+  | "review_hard_disqualifier"
+  | "obtain_professional_review"
+  | "create_task"
+  | "complete_task"
+  | "review_deadline"
+  | "schedule_visit"
+  | "add_evidence"
+  | "verify_rent"
+  | "verify_taxes"
+  | "verify_insurance"
+  | "review_financing"
+  | "review_governance_documents"
+  | "review_contract"
+  | "prepare_offer"
+  | "record_decision"
+  | "archive_or_pass";
+
+export type DecisionCockpitNextActionState =
+  | "available"
+  | "required"
+  | "recommended"
+  | "optional"
+  | "blocked"
+  | "unavailable"
+  | "permission_restricted"
+  | "deferred"
+  | "dismissed"
+  | "completed"
+  | "stale"
+  | "superseded"
+  | "historical";
+
+export type DecisionCockpitNextActionPriority = "critical" | "high" | "normal" | "low";
+
+export type DecisionCockpitDeadlineUrgency =
+  | "overdue"
+  | "due_today"
+  | "due_soon"
+  | "upcoming"
+  | "none"
+  | "unavailable";
+
+export type DecisionCockpitNextActionSourceType =
+  | "recommendation"
+  | "missing_input"
+  | "risk"
+  | "hard_disqualifier"
+  | "strategy_result"
+  | "underwriting_result"
+  | "task"
+  | "deadline"
+  | "professional_review";
+
+export type DecisionCockpitDeadlineState =
+  | "upcoming"
+  | "due_soon"
+  | "due_today"
+  | "overdue"
+  | "completed"
+  | "cancelled"
+  | "superseded"
+  | "unverified"
+  | "conflicted"
+  | "unavailable"
+  | "historical";
+
 export type DecisionCockpitWorkflowAvailability =
   | "available"
   | "unavailable_module"
@@ -81,6 +164,27 @@ export type DecisionCockpitWorkflowAvailability =
   | "failed"
   | "permission_restricted"
   | "not_applicable";
+
+export type DecisionCockpitWorkflowRoute = {
+  routeId: string;
+  moduleId: "DecisionCockpit" | "DealWork" | "Underwriting" | "Strategy" | "Evidence" | "ContractIQ" | "OfferIQ";
+  destination: "cockpit" | "deal_work" | "underwriting_inputs" | "strategy_review" | "evidence_review" | "contract_review" | "offer_preparation";
+  requiredIds: {
+    workspaceId?: string;
+    dealId: string;
+    propertyId?: string;
+    taskId?: string;
+    deadlineId?: string;
+    sourceId?: string;
+  };
+  requiredPermission: string;
+  workflowStatus: DecisionCockpitWorkflowAvailability;
+  fallbackBehavior: "show_read_only" | "show_permission_message" | "return_to_cockpit" | "authentication_required";
+  returnToCockpit: {
+    dealId: string;
+    section: "next_actions" | "deadlines" | "risks" | "missing_inputs" | "recommendation";
+  };
+};
 
 export type DecisionCockpitPanelState =
   | "current"
@@ -287,7 +391,111 @@ export type DecisionCockpitAuthorization = {
   canReadRisks?: boolean;
   canReadConfidence?: boolean;
   canReadMissingInputs?: boolean;
+  canReadActions?: boolean;
+  canReadDeadlines?: boolean;
+  canManageDealWork?: boolean;
   reason?: string;
+};
+
+export type DecisionCockpitNextActionContract = {
+  contractId: typeof DECISION_COCKPIT_NEXT_ACTION_CONTRACT_ID;
+  semanticVersion: "1.0.0";
+  registryVersion: typeof DECISION_COCKPIT_NEXT_ACTION_REGISTRY_VERSION;
+  status: "draft" | "active" | "deprecated" | "disabled";
+  supportedRecommendationVersions: readonly [typeof DECISION_COCKPIT_RECOMMENDATION_CONTRACT_VERSION];
+  supportedRiskMissingInputContractVersions: readonly [
+    typeof DECISION_COCKPIT_RISK_PANEL_CONTRACT_VERSION,
+    typeof DECISION_COCKPIT_MISSING_INPUT_PANEL_CONTRACT_VERSION,
+  ];
+  supportedTaskDeadlineVersions: readonly ["deal-work-v1"];
+  ruleOrderingVersion: typeof DECISION_COCKPIT_NEXT_ACTION_RULE_ORDERING_VERSION;
+  priorityModelVersion: typeof DECISION_COCKPIT_NEXT_ACTION_PRIORITY_MODEL_VERSION;
+  workflowRoutingVersion: typeof DECISION_COCKPIT_WORKFLOW_ROUTING_VERSION;
+  permissionModelVersion: typeof DECISION_COCKPIT_PERMISSION_MODEL_VERSION;
+  effectiveDate: "2026-08-04";
+  deprecatedDate?: string;
+  replacementContractVersion?: string;
+};
+
+export const DECISION_COCKPIT_ACTIVE_NEXT_ACTION_CONTRACT: DecisionCockpitNextActionContract = {
+  contractId: DECISION_COCKPIT_NEXT_ACTION_CONTRACT_ID,
+  semanticVersion: "1.0.0",
+  registryVersion: DECISION_COCKPIT_NEXT_ACTION_REGISTRY_VERSION,
+  status: "active",
+  supportedRecommendationVersions: [DECISION_COCKPIT_RECOMMENDATION_CONTRACT_VERSION],
+  supportedRiskMissingInputContractVersions: [
+    DECISION_COCKPIT_RISK_PANEL_CONTRACT_VERSION,
+    DECISION_COCKPIT_MISSING_INPUT_PANEL_CONTRACT_VERSION,
+  ],
+  supportedTaskDeadlineVersions: ["deal-work-v1"],
+  ruleOrderingVersion: DECISION_COCKPIT_NEXT_ACTION_RULE_ORDERING_VERSION,
+  priorityModelVersion: DECISION_COCKPIT_NEXT_ACTION_PRIORITY_MODEL_VERSION,
+  workflowRoutingVersion: DECISION_COCKPIT_WORKFLOW_ROUTING_VERSION,
+  permissionModelVersion: DECISION_COCKPIT_PERMISSION_MODEL_VERSION,
+  effectiveDate: "2026-08-04",
+} as const;
+
+export type DecisionCockpitNextActionProjection = {
+  actionId: string;
+  actionType: DecisionCockpitNextActionType;
+  sourceType: DecisionCockpitNextActionSourceType;
+  sourceId: string;
+  workspaceId?: string;
+  dealId: string;
+  propertyId?: string;
+  recommendationId?: string;
+  snapshotId?: string;
+  underwritingRunId?: string;
+  rankingId?: string;
+  displayLabel: string;
+  conciseReason: string;
+  detailedReasonRef: string;
+  priority: DecisionCockpitNextActionPriority;
+  urgency: DecisionCockpitDeadlineUrgency;
+  actionState: DecisionCockpitNextActionState;
+  blockingState?: string;
+  requiredPermission: string;
+  workflowDestination: DecisionCockpitWorkflowRoute;
+  workflowAvailability: DecisionCockpitWorkflowAvailability;
+  ownerId?: string;
+  assigneeId?: string;
+  dueAt?: string;
+  dueDate?: string;
+  timezone?: string;
+  relatedDeadlineId?: string;
+  relatedTaskId?: string;
+  professionalReviewRequired: boolean;
+  staleState: DecisionCockpitPanelState;
+  sourceEventTime?: string;
+  stableOrdinal: number;
+  deterministicHash: string;
+};
+
+export type DecisionCockpitDeadlineProjection = {
+  deadlineId: string;
+  title: string;
+  type: string;
+  sourceType: string;
+  sourceId?: string;
+  workspaceId?: string;
+  dealId: string;
+  relatedTaskId?: string;
+  relatedActionId?: string;
+  dueAt?: string;
+  dueDate?: string;
+  isAllDay: boolean;
+  timezone: string;
+  deadlineStatus: DecisionCockpitDeadlineState;
+  urgency: DecisionCockpitDeadlineUrgency;
+  verificationState?: string;
+  sourceDescription?: string;
+  governingTermRef?: string;
+  ownerId?: string;
+  assigneeId?: string;
+  completedAt?: string;
+  staleState: DecisionCockpitPanelState;
+  stableOrdinal: number;
+  deterministicHash: string;
 };
 
 export type DecisionCockpitReadProjectionInput = {
@@ -301,6 +509,7 @@ export type DecisionCockpitReadProjectionInput = {
     address?: string;
     propertyType?: string;
   };
+  dealStage?: CanonicalDealStage;
   underwriting?: UnderwritingPresentationModel;
   strategy?: StrategyPresentationModel;
   intendedStrategy?: StrategyUserPreferenceProjection;
@@ -311,12 +520,17 @@ export type DecisionCockpitReadProjectionInput = {
   moduleAvailability?: DecisionCockpitModuleAvailability[];
   riskRecords?: DecisionCockpitRiskRecord[];
   missingInputRecords?: DecisionCockpitMissingInputRecord[];
+  workItems?: DealWorkItem[];
   riskPanelState?: DecisionCockpitPanelState;
   confidencePanelState?: DecisionCockpitPanelState;
   missingInputPanelState?: DecisionCockpitPanelState;
+  nextActionPanelState?: DecisionCockpitPanelState;
+  deadlinePanelState?: DecisionCockpitPanelState;
   priorValidRiskPanel?: DecisionCockpitPriorPanelProjection<DecisionCockpitRiskProjection>;
   priorValidConfidencePanel?: DecisionCockpitPriorPanelProjection<DecisionCockpitReadProjection["confidence"]>;
   priorValidMissingInputPanel?: DecisionCockpitPriorPanelProjection<DecisionCockpitMissingInputProjection>;
+  priorValidNextActionPanel?: DecisionCockpitPriorPanelProjection<DecisionCockpitNextActionProjection>;
+  priorValidDeadlinePanel?: DecisionCockpitPriorPanelProjection<DecisionCockpitDeadlineProjection>;
   authorization?: DecisionCockpitAuthorization;
   report?: UnderwritingReportPayload;
   generatedAt?: string;
@@ -520,6 +734,47 @@ export type DecisionCockpitReadProjection = {
       recommendationMutationProhibited: true;
     };
   };
+  nextActions: {
+    contract: DecisionCockpitNextActionContract;
+    state: DecisionCockpitPanelState;
+    itemCount: number;
+    activeCount: number;
+    primaryAction?: DecisionCockpitNextActionProjection;
+    alternateActions: DecisionCockpitNextActionProjection[];
+    priorValid?: DecisionCockpitPriorPanelProjection<DecisionCockpitNextActionProjection>;
+    manifestHash: string;
+    sourceBoundary: {
+      deterministicProjectionOnly: true;
+      canonicalSourcesOnly: true;
+      noAiGeneratedActions: true;
+      noClientLocalActionLogic: true;
+      noWritesOnRead: true;
+      unavailableWorkflowsStayReadOnly: true;
+    };
+  };
+  deadlines: {
+    contractVersion: typeof DECISION_COCKPIT_DEADLINE_PANEL_CONTRACT_VERSION;
+    state: DecisionCockpitPanelState;
+    itemCount: number;
+    overdueCount: number;
+    dueTodayCount: number;
+    dueSoonCount: number;
+    upcomingCount: number;
+    unverifiedCount: number;
+    conflictedCount: number;
+    nextControllingDeadline?: DecisionCockpitDeadlineProjection;
+    highestPriorityDeadline?: DecisionCockpitDeadlineProjection;
+    items: DecisionCockpitDeadlineProjection[];
+    priorValid?: DecisionCockpitPriorPanelProjection<DecisionCockpitDeadlineProjection>;
+    summaryHash: string;
+    sourceBoundary: {
+      canonicalDeadlinesOnly: true;
+      noClientUrgencyMath: true;
+      serverAsOfRequiredForUrgency: true;
+      noReminderOrNotificationScope: true;
+      noDuplicateDeadlineRecords: true;
+    };
+  };
   explanations: {
     selectedStrategy?: StrategyPresentationModel["selectedStrategy"]["explanation"];
     rankedStrategyExplanations: Array<{
@@ -576,6 +831,8 @@ export type DecisionCockpitReadProjection = {
     providerCallsProhibited: true;
     recommendationEngineNotImplementedHere: true;
     metricSelectionOnly: true;
+    nextActionProjectionOnly: true;
+    deadlineProjectionOnly: true;
   };
 };
 
@@ -694,6 +951,9 @@ export function buildDecisionCockpitReadProjection(
     canReadRisks: authorization.canReadRisks ?? true,
     canReadConfidence: authorization.canReadConfidence ?? true,
     canReadMissingInputs: authorization.canReadMissingInputs ?? true,
+    canReadActions: authorization.canReadActions ?? true,
+    canReadDeadlines: authorization.canReadDeadlines ?? true,
+    canManageDealWork: authorization.canManageDealWork ?? true,
   };
   const underwritingWarnings = [
     ...(input.underwriting?.readiness.warnings ?? []),
@@ -721,6 +981,8 @@ export function buildDecisionCockpitReadProjection(
   const confidence = buildConfidenceProjection(input, fullAuthorization, freshnessState);
   const risks = buildRiskPanelProjection(input, fullAuthorization, moduleAvailability, freshnessState);
   const missingInputs = buildMissingInputPanelProjection(input, fullAuthorization, freshnessState);
+  const deadlinePanel = buildDeadlinePanelProjection(input, fullAuthorization, freshnessState);
+  const nextActionPanel = buildNextActionPanelProjection(input, fullAuthorization, recommendation, risks.items, missingInputs.items, deadlinePanel, freshnessState);
 
   return {
     contractVersion: DECISION_COCKPIT_READ_PROJECTION_CONTRACT_VERSION,
@@ -793,6 +1055,8 @@ export function buildDecisionCockpitReadProjection(
     confidence,
     risks,
     missingInputs,
+    nextActions: nextActionPanel,
+    deadlines: deadlinePanel,
     explanations: {
       selectedStrategy: input.strategy?.selectedStrategy?.explanation,
       rankedStrategyExplanations: (input.strategy?.rankedStrategies ?? [])
@@ -847,6 +1111,8 @@ export function buildDecisionCockpitReadProjection(
       providerCallsProhibited: true,
       recommendationEngineNotImplementedHere: true,
       metricSelectionOnly: true,
+      nextActionProjectionOnly: true,
+      deadlineProjectionOnly: true,
     },
   };
 }
@@ -1273,6 +1539,455 @@ function missingInputItemSourceBoundary() {
   } as const;
 }
 
+function buildDeadlinePanelProjection(
+  input: DecisionCockpitReadProjectionInput,
+  authorization: Required<DecisionCockpitAuthorization>,
+  freshnessState: DecisionCockpitFreshnessState,
+): DecisionCockpitReadProjection["deadlines"] {
+  if (!authorization.canReadCockpit || !authorization.canReadDeadlines) {
+    const summaryHash = stableHash({ dealId: input.dealId, state: "permission_restricted", reason: authorization.reason });
+    return {
+      contractVersion: DECISION_COCKPIT_DEADLINE_PANEL_CONTRACT_VERSION,
+      state: "permission_restricted",
+      itemCount: 0,
+      overdueCount: 0,
+      dueTodayCount: 0,
+      dueSoonCount: 0,
+      upcomingCount: 0,
+      unverifiedCount: 0,
+      conflictedCount: 0,
+      items: [],
+      summaryHash,
+      sourceBoundary: deadlineSourceBoundary(),
+    };
+  }
+
+  const currentItems = canonicalDeadlineItems(input, freshnessState);
+  const state = input.deadlinePanelState ?? panelStateFromFreshness(freshnessState, currentItems.length > 0);
+  const items = (currentItems.length > 0 ? currentItems : priorItemsWhenNeeded(state, input.priorValidDeadlinePanel))
+    .slice(0, DECISION_COCKPIT_DEADLINE_LIMIT);
+  const activeItems = items.filter((item) => !["completed", "cancelled", "superseded", "historical"].includes(item.deadlineStatus));
+  const orderedByUrgency = [...activeItems].sort(compareDeadlinePriority);
+  const summaryHash = stableHash({
+    contractVersion: DECISION_COCKPIT_DEADLINE_PANEL_CONTRACT_VERSION,
+    state,
+    items: items.map(deadlineHashBasis),
+  });
+
+  return {
+    contractVersion: DECISION_COCKPIT_DEADLINE_PANEL_CONTRACT_VERSION,
+    state,
+    itemCount: items.length,
+    overdueCount: items.filter((item) => item.deadlineStatus === "overdue").length,
+    dueTodayCount: items.filter((item) => item.deadlineStatus === "due_today").length,
+    dueSoonCount: items.filter((item) => item.deadlineStatus === "due_soon").length,
+    upcomingCount: items.filter((item) => item.deadlineStatus === "upcoming").length,
+    unverifiedCount: items.filter((item) => item.deadlineStatus === "unverified").length,
+    conflictedCount: items.filter((item) => item.deadlineStatus === "conflicted").length,
+    nextControllingDeadline: orderedByUrgency[0],
+    highestPriorityDeadline: orderedByUrgency[0],
+    items,
+    priorValid: input.priorValidDeadlinePanel,
+    summaryHash,
+    sourceBoundary: deadlineSourceBoundary(),
+  };
+}
+
+function buildNextActionPanelProjection(
+  input: DecisionCockpitReadProjectionInput,
+  authorization: Required<DecisionCockpitAuthorization>,
+  recommendation: DecisionCockpitReadProjection["recommendation"],
+  risks: DecisionCockpitRiskProjection[],
+  missingInputs: DecisionCockpitMissingInputProjection[],
+  deadlinePanel: DecisionCockpitReadProjection["deadlines"],
+  freshnessState: DecisionCockpitFreshnessState,
+): DecisionCockpitReadProjection["nextActions"] {
+  if (!authorization.canReadCockpit || !authorization.canReadActions) {
+    const manifestHash = stableHash({ dealId: input.dealId, state: "permission_restricted", reason: authorization.reason });
+    return {
+      contract: DECISION_COCKPIT_ACTIVE_NEXT_ACTION_CONTRACT,
+      state: "permission_restricted",
+      itemCount: 0,
+      activeCount: 0,
+      alternateActions: [],
+      manifestHash,
+      sourceBoundary: nextActionSourceBoundary(),
+    };
+  }
+
+  const currentItems = canonicalNextActionItems(input, authorization, recommendation, risks, missingInputs, deadlinePanel, freshnessState);
+  const state = input.nextActionPanelState ?? panelStateFromFreshness(freshnessState, currentItems.length > 0);
+  const items = (currentItems.length > 0 ? currentItems : priorItemsWhenNeeded(state, input.priorValidNextActionPanel))
+    .sort(compareActionPriority)
+    .slice(0, DECISION_COCKPIT_NEXT_ACTION_LIMIT);
+  const activeItems = items.filter((item) => !["unavailable", "permission_restricted", "completed", "dismissed", "deferred", "superseded", "historical"].includes(item.actionState));
+  const manifestHash = stableHash({
+    contract: DECISION_COCKPIT_ACTIVE_NEXT_ACTION_CONTRACT,
+    state,
+    items: items.map(actionHashBasis),
+  });
+
+  return {
+    contract: DECISION_COCKPIT_ACTIVE_NEXT_ACTION_CONTRACT,
+    state,
+    itemCount: items.length,
+    activeCount: activeItems.length,
+    primaryAction: activeItems[0],
+    alternateActions: items.filter((item) =>
+      item.actionId !== activeItems[0]?.actionId
+      && !["completed", "dismissed", "deferred", "superseded", "historical"].includes(item.actionState)
+    ),
+    priorValid: input.priorValidNextActionPanel,
+    manifestHash,
+    sourceBoundary: nextActionSourceBoundary(),
+  };
+}
+
+function canonicalDeadlineItems(
+  input: DecisionCockpitReadProjectionInput,
+  freshnessState: DecisionCockpitFreshnessState,
+): DecisionCockpitDeadlineProjection[] {
+  const seen = new Set<string>();
+  return (input.workItems ?? [])
+    .filter((item) => item.recordType === "deadline")
+    .filter((item) => belongsToProjection(item.workspaceId, item.dealId, input.workspaceId, input.dealId))
+    .sort((left, right) => compareWorkDue(left, right) || left.recordId.localeCompare(right.recordId))
+    .filter((item) => {
+      if (seen.has(item.recordId)) return false;
+      seen.add(item.recordId);
+      return true;
+    })
+    .map((item, index) => deadlineFromWorkItem(item, input, freshnessState, index + 1));
+}
+
+function canonicalNextActionItems(
+  input: DecisionCockpitReadProjectionInput,
+  authorization: Required<DecisionCockpitAuthorization>,
+  recommendation: DecisionCockpitReadProjection["recommendation"],
+  risks: DecisionCockpitRiskProjection[],
+  missingInputs: DecisionCockpitMissingInputProjection[],
+  deadlinePanel: DecisionCockpitReadProjection["deadlines"],
+  freshnessState: DecisionCockpitFreshnessState,
+): DecisionCockpitNextActionProjection[] {
+  const actions: DecisionCockpitNextActionProjection[] = [];
+  let ordinal = 1;
+
+  if (input.recommendation?.recommendedAction) {
+    actions.push(actionFromRecommendation(input, authorization, input.recommendation, recommendation, ordinal++));
+  }
+
+  for (const missing of missingInputs.filter((item) => item.blocking || item.importance === "blocking" || item.importance === "material")) {
+    if (missing.status === "accepted" || missing.status === "deferred") continue;
+    actions.push(actionFromMissingInput(input, authorization, missing, recommendation, ordinal++));
+  }
+
+  for (const risk of risks.filter((item) => item.category === "hard_disqualifier" || item.category === "confirmed_material_risk")) {
+    actions.push(actionFromRisk(input, authorization, risk, recommendation, ordinal++));
+  }
+
+  if (input.strategy?.overview.freshnessState === "stale") {
+    actions.push(actionFromStaleStrategy(input, authorization, recommendation, ordinal++));
+  }
+
+  for (const item of input.workItems ?? []) {
+    if (!belongsToProjection(item.workspaceId, item.dealId, input.workspaceId, input.dealId)) continue;
+    if (item.recordType === "task") actions.push(actionFromTask(input, authorization, item, recommendation, freshnessState, ordinal++));
+  }
+
+  for (const deadline of deadlinePanel.items) {
+    const requiresReview = ["overdue", "due_today", "unverified", "conflicted"].includes(deadline.deadlineStatus);
+    if (requiresReview) actions.push(actionFromDeadline(input, authorization, deadline, recommendation, ordinal++));
+  }
+
+  return dedupeActions(actions).map((action, index) => ({
+    ...action,
+    stableOrdinal: index + 1,
+    deterministicHash: stableHash({ ...actionHashBasis(action), stableOrdinal: index + 1 }),
+  }));
+}
+
+function deadlineFromWorkItem(
+  item: DealWorkItem,
+  input: DecisionCockpitReadProjectionInput,
+  freshnessState: DecisionCockpitFreshnessState,
+  stableOrdinal: number,
+): DecisionCockpitDeadlineProjection {
+  const urgency = deadlineUrgency(item, input.generatedAt);
+  const deadlineStatus = deadlineState(item, urgency, input.generatedAt);
+  const staleState = panelStateFromFreshness(freshnessState, true);
+  const projection = {
+    deadlineId: item.recordId,
+    title: item.title,
+    type: item.workType,
+    sourceType: item.sourceType,
+    sourceId: item.sourceRecordId,
+    workspaceId: item.workspaceId,
+    dealId: item.dealId,
+    dueAt: item.dueAt,
+    dueDate: item.dueDate,
+    isAllDay: item.isAllDay,
+    timezone: item.timezone,
+    deadlineStatus,
+    urgency,
+    verificationState: item.verificationState,
+    sourceDescription: item.body,
+    ownerId: undefined,
+    assigneeId: undefined,
+    completedAt: item.completedAt,
+    staleState,
+    stableOrdinal,
+    deterministicHash: "",
+  } satisfies DecisionCockpitDeadlineProjection;
+  return {
+    ...projection,
+    deterministicHash: stableHash(deadlineHashBasis(projection)),
+  };
+}
+
+function actionFromRecommendation(
+  input: DecisionCockpitReadProjectionInput,
+  authorization: Required<DecisionCockpitAuthorization>,
+  record: DecisionCockpitRecommendationRecord,
+  recommendation: DecisionCockpitReadProjection["recommendation"],
+  stableOrdinal: number,
+): DecisionCockpitNextActionProjection {
+  const source = record.recommendedAction;
+  const route = workflowRoute(input, source?.connectedWorkflow ?? "DecisionCockpit", source?.requiredPermission ?? "deals:read", authorization, {
+    section: "recommendation",
+    sourceId: record.recommendationId,
+  });
+  return finalizedAction({
+    actionId: source?.actionId ?? `recommendation:${record.recommendationId}`,
+    actionType: nextActionTypeFromRecommendation(source?.actionType),
+    sourceType: "recommendation",
+    sourceId: record.recommendationId,
+    workspaceId: record.workspaceId ?? input.workspaceId,
+    dealId: record.dealId,
+    propertyId: record.propertyId ?? input.property?.propertyId,
+    recommendationId: record.recommendationId,
+    snapshotId: record.snapshotId,
+    underwritingRunId: record.underwritingRunId,
+    rankingId: record.rankingId,
+    displayLabel: source?.displayLabel ?? recommendation.displayLabel,
+    conciseReason: "Canonical recommendation identifies this as the next Deal action.",
+    detailedReasonRef: `recommendation:${record.recommendationId}`,
+    priority: record.recommendationStatus === "blocked" ? "critical" : "high",
+    urgency: "none",
+    actionState: source?.actionState === "blocked" ? "blocked" : route.workflowStatus === "available" ? "recommended" : "unavailable",
+    blockingState: source?.blockingReason,
+    requiredPermission: route.requiredPermission,
+    workflowDestination: route,
+    workflowAvailability: route.workflowStatus,
+    professionalReviewRequired: record.professionalReviewRefs.length > 0,
+    staleState: panelStateFromRecommendationStatus(record.recommendationStatus),
+    sourceEventTime: record.asOf,
+    stableOrdinal,
+    deterministicHash: "",
+  });
+}
+
+function actionFromMissingInput(
+  input: DecisionCockpitReadProjectionInput,
+  authorization: Required<DecisionCockpitAuthorization>,
+  missing: DecisionCockpitMissingInputProjection,
+  recommendation: DecisionCockpitReadProjection["recommendation"],
+  stableOrdinal: number,
+): DecisionCockpitNextActionProjection {
+  const route = workflowRoute(input, missing.requiredWorkflowRef, "deals:manage", authorization, {
+    section: "missing_inputs",
+    sourceId: missing.missingInputId,
+  });
+  return finalizedAction({
+    actionId: `missing:${missing.missingInputId}`,
+    actionType: missingActionType(missing),
+    sourceType: "missing_input",
+    sourceId: missing.missingInputId,
+    workspaceId: missing.workspaceId ?? input.workspaceId,
+    dealId: missing.dealId ?? input.dealId,
+    propertyId: input.property?.propertyId,
+    recommendationId: recommendation.recommendationId,
+    snapshotId: recommendation.sourceIdentity.snapshotId,
+    underwritingRunId: recommendation.sourceIdentity.underwritingRunId,
+    rankingId: recommendation.sourceIdentity.rankingId,
+    displayLabel: missing.status === "conflicted" ? `Resolve ${label(missing.category)} conflict` : `Complete ${label(missing.category)} input`,
+    conciseReason: missing.decisionImpact || missing.explanation,
+    detailedReasonRef: `missing_input:${missing.missingInputId}`,
+    priority: missing.importance === "blocking" ? "critical" : "high",
+    urgency: "none",
+    actionState: missing.status === "conflicted" ? "blocked" : route.workflowStatus === "available" ? "required" : "unavailable",
+    blockingState: missing.status === "conflicted" ? "Conflict resolution is required before this input can be accepted." : undefined,
+    requiredPermission: route.requiredPermission,
+    workflowDestination: route,
+    workflowAvailability: route.workflowStatus,
+    professionalReviewRequired: missing.sourceModule.toLowerCase().includes("professional"),
+    staleState: missing.staleState,
+    stableOrdinal,
+    deterministicHash: "",
+  });
+}
+
+function actionFromRisk(
+  input: DecisionCockpitReadProjectionInput,
+  authorization: Required<DecisionCockpitAuthorization>,
+  risk: DecisionCockpitRiskProjection,
+  recommendation: DecisionCockpitReadProjection["recommendation"],
+  stableOrdinal: number,
+): DecisionCockpitNextActionProjection {
+  const route = workflowRoute(input, risk.recommendedReviewRef || "cockpit:risks", "deals:read", authorization, {
+    section: "risks",
+    sourceId: risk.riskId,
+  });
+  return finalizedAction({
+    actionId: `risk:${risk.riskId}`,
+    actionType: risk.category === "hard_disqualifier" ? "review_hard_disqualifier" : "obtain_professional_review",
+    sourceType: risk.category === "hard_disqualifier" ? "hard_disqualifier" : "risk",
+    sourceId: risk.riskId,
+    workspaceId: risk.workspaceId ?? input.workspaceId,
+    dealId: risk.dealId ?? input.dealId,
+    propertyId: input.property?.propertyId,
+    recommendationId: recommendation.recommendationId,
+    displayLabel: risk.category === "hard_disqualifier" ? "Review hard disqualifier" : "Review material risk",
+    conciseReason: risk.decisionImpact,
+    detailedReasonRef: `risk:${risk.riskId}`,
+    priority: risk.severity === "critical" ? "critical" : "high",
+    urgency: "none",
+    actionState: route.workflowStatus !== "available" ? "unavailable" : risk.category === "hard_disqualifier" ? "required" : "recommended",
+    requiredPermission: route.requiredPermission,
+    workflowDestination: route,
+    workflowAvailability: route.workflowStatus,
+    professionalReviewRequired: risk.recommendedReviewRef.toLowerCase().includes("professional"),
+    staleState: risk.currentState,
+    stableOrdinal,
+    deterministicHash: "",
+  });
+}
+
+function actionFromStaleStrategy(
+  input: DecisionCockpitReadProjectionInput,
+  authorization: Required<DecisionCockpitAuthorization>,
+  recommendation: DecisionCockpitReadProjection["recommendation"],
+  stableOrdinal: number,
+): DecisionCockpitNextActionProjection {
+  const sourceId = input.strategy?.overview.rankingId ?? input.dealId;
+  const route = workflowRoute(input, "strategy:review", "deals:manage", authorization, {
+    section: "recommendation",
+    sourceId,
+  });
+  return finalizedAction({
+    actionId: `stale_strategy:${sourceId}`,
+    actionType: "reevaluate_strategies",
+    sourceType: "strategy_result",
+    sourceId,
+    workspaceId: input.workspaceId,
+    dealId: input.dealId,
+    propertyId: input.property?.propertyId,
+    recommendationId: recommendation.recommendationId,
+    snapshotId: input.strategy?.overview.snapshotId,
+    underwritingRunId: input.strategy?.overview.underwritingRunId,
+    rankingId: input.strategy?.overview.rankingId,
+    displayLabel: "Review stale strategy ranking",
+    conciseReason: input.strategy?.overview.staleWarning ?? "Canonical strategy state is stale.",
+    detailedReasonRef: `strategy:${sourceId}`,
+    priority: "high",
+    urgency: "none",
+    actionState: "stale",
+    requiredPermission: route.requiredPermission,
+    workflowDestination: route,
+    workflowAvailability: route.workflowStatus,
+    professionalReviewRequired: false,
+    staleState: "stale",
+    sourceEventTime: input.strategy?.overview.createdAt,
+    stableOrdinal,
+    deterministicHash: "",
+  });
+}
+
+function actionFromTask(
+  input: DecisionCockpitReadProjectionInput,
+  authorization: Required<DecisionCockpitAuthorization>,
+  item: DealWorkItem,
+  recommendation: DecisionCockpitReadProjection["recommendation"],
+  freshnessState: DecisionCockpitFreshnessState,
+  stableOrdinal: number,
+): DecisionCockpitNextActionProjection {
+  const route = workflowRoute(input, "deal_work:task", "deals:manage", authorization, {
+    taskId: item.recordId,
+    section: "next_actions",
+    sourceId: item.recordId,
+  });
+  return finalizedAction({
+    actionId: `task:${item.recordId}`,
+    actionType: item.workType === "visit" ? "schedule_visit" : "complete_task",
+    sourceType: "task",
+    sourceId: item.recordId,
+    workspaceId: item.workspaceId,
+    dealId: item.dealId,
+    propertyId: input.property?.propertyId,
+    recommendationId: recommendation.recommendationId,
+    displayLabel: item.title,
+    conciseReason: item.body || "Canonical Deal task requires attention.",
+    detailedReasonRef: `task:${item.recordId}`,
+    priority: taskPriority(item),
+    urgency: deadlineUrgency(item, input.generatedAt),
+    actionState: taskActionState(item, route.workflowStatus),
+    blockingState: item.status === "blocked" ? "Task is blocked until its blocker is resolved." : undefined,
+    requiredPermission: route.requiredPermission,
+    workflowDestination: route,
+    workflowAvailability: route.workflowStatus,
+    dueAt: item.dueAt,
+    dueDate: item.dueDate,
+    timezone: item.timezone,
+    relatedTaskId: item.recordId,
+    professionalReviewRequired: false,
+    staleState: panelStateFromFreshness(freshnessState, true),
+    sourceEventTime: item.updatedAt,
+    stableOrdinal,
+    deterministicHash: "",
+  });
+}
+
+function actionFromDeadline(
+  input: DecisionCockpitReadProjectionInput,
+  authorization: Required<DecisionCockpitAuthorization>,
+  deadline: DecisionCockpitDeadlineProjection,
+  recommendation: DecisionCockpitReadProjection["recommendation"],
+  stableOrdinal: number,
+): DecisionCockpitNextActionProjection {
+  const route = workflowRoute(input, "deal_work:deadline", "deals:manage", authorization, {
+    deadlineId: deadline.deadlineId,
+    section: "deadlines",
+    sourceId: deadline.deadlineId,
+  });
+  return finalizedAction({
+    actionId: `deadline:${deadline.deadlineId}`,
+    actionType: "review_deadline",
+    sourceType: "deadline",
+    sourceId: deadline.deadlineId,
+    workspaceId: deadline.workspaceId ?? input.workspaceId,
+    dealId: deadline.dealId,
+    propertyId: input.property?.propertyId,
+    recommendationId: recommendation.recommendationId,
+    displayLabel: deadline.deadlineStatus === "unverified" ? "Verify deadline" : "Review deadline",
+    conciseReason: deadline.sourceDescription || `${deadline.title} requires attention.`,
+    detailedReasonRef: `deadline:${deadline.deadlineId}`,
+    priority: deadline.urgency === "overdue" ? "critical" : deadline.urgency === "due_today" ? "high" : "normal",
+    urgency: deadline.urgency,
+    actionState: deadline.deadlineStatus === "conflicted" ? "blocked" : deadline.deadlineStatus === "overdue" ? "required" : "recommended",
+    blockingState: deadline.deadlineStatus === "conflicted" ? "Deadline conflict must be resolved before BRIX can rely on it." : undefined,
+    requiredPermission: route.requiredPermission,
+    workflowDestination: route,
+    workflowAvailability: route.workflowStatus,
+    dueAt: deadline.dueAt,
+    dueDate: deadline.dueDate,
+    timezone: deadline.timezone,
+    relatedDeadlineId: deadline.deadlineId,
+    professionalReviewRequired: deadline.verificationState === "professional_review_recommended",
+    staleState: deadline.staleState,
+    stableOrdinal,
+    deterministicHash: "",
+  });
+}
+
 function buildRecommendationProjection(
   input: DecisionCockpitReadProjectionInput,
   authorization: DecisionCockpitAuthorization,
@@ -1670,6 +2385,372 @@ function unavailableRecommendationLabel(status: DecisionCockpitRecommendationSta
   if (status === "conflicted") return "Recommendation blocked by conflicting information";
   if (status === "permission_restricted") return "Permission restricted";
   return "No canonical recommendation available";
+}
+
+function finalizedAction(action: Omit<DecisionCockpitNextActionProjection, "deterministicHash"> & { deterministicHash: string }): DecisionCockpitNextActionProjection {
+  return {
+    ...action,
+    deterministicHash: action.deterministicHash || stableHash(actionHashBasis(action)),
+  };
+}
+
+function workflowRoute(
+  input: DecisionCockpitReadProjectionInput,
+  workflowRef: string,
+  requiredPermission: string,
+  authorization: Required<DecisionCockpitAuthorization>,
+  context: {
+    section: DecisionCockpitWorkflowRoute["returnToCockpit"]["section"];
+    sourceId?: string;
+    taskId?: string;
+    deadlineId?: string;
+  },
+): DecisionCockpitWorkflowRoute {
+  const normalized = workflowRef.toLowerCase();
+  const destination = normalized.includes("underwriting")
+    ? "underwriting_inputs"
+    : normalized.includes("strategy")
+      ? "strategy_review"
+      : normalized.includes("contract")
+        ? "contract_review"
+        : normalized.includes("offer")
+          ? "offer_preparation"
+          : normalized.includes("evidence")
+            ? "evidence_review"
+            : normalized.includes("deal_work") || context.taskId || context.deadlineId
+              ? "deal_work"
+              : "cockpit";
+  const moduleId: DecisionCockpitWorkflowRoute["moduleId"] = destination === "underwriting_inputs"
+    ? "Underwriting"
+    : destination === "strategy_review"
+      ? "Strategy"
+      : destination === "contract_review"
+        ? "ContractIQ"
+        : destination === "offer_preparation"
+          ? "OfferIQ"
+          : destination === "evidence_review"
+            ? "Evidence"
+            : destination === "deal_work"
+              ? "DealWork"
+              : "DecisionCockpit";
+  const workflowStatus = !authorization.canReadCockpit
+    ? "permission_restricted"
+    : requiredPermission === "deals:manage" && !authorization.canManageDealWork
+      ? "permission_restricted"
+      : workflowModuleAvailable(moduleId, input.moduleAvailability);
+  return {
+    routeId: `${moduleId}:${destination}:${context.sourceId ?? context.taskId ?? context.deadlineId ?? input.dealId}`,
+    moduleId,
+    destination,
+    requiredIds: {
+      workspaceId: input.workspaceId,
+      dealId: input.dealId,
+      propertyId: input.property?.propertyId,
+      taskId: context.taskId,
+      deadlineId: context.deadlineId,
+      sourceId: context.sourceId,
+    },
+    requiredPermission,
+    workflowStatus,
+    fallbackBehavior: workflowStatus === "permission_restricted"
+      ? "show_permission_message"
+      : workflowStatus === "available"
+        ? "return_to_cockpit"
+        : "show_read_only",
+    returnToCockpit: {
+      dealId: input.dealId,
+      section: context.section,
+    },
+  };
+}
+
+function workflowModuleAvailable(
+  moduleId: DecisionCockpitWorkflowRoute["moduleId"],
+  modules: DecisionCockpitModuleAvailability[] | undefined,
+): DecisionCockpitWorkflowAvailability {
+  if (moduleId === "DecisionCockpit" || moduleId === "DealWork" || moduleId === "Underwriting" || moduleId === "Strategy") return "available";
+  const mapped = modules?.find((item) => item.moduleId === moduleId);
+  return mapped?.status ?? "unavailable_module";
+}
+
+function nextActionTypeFromRecommendation(actionType: DecisionCockpitActionType | undefined): DecisionCockpitNextActionType {
+  if (actionType === "schedule_visit") return "schedule_visit";
+  if (actionType === "prepare_offer") return "prepare_offer";
+  if (actionType === "submit_offer") return "prepare_offer";
+  if (actionType === "record_decision") return "record_decision";
+  if (actionType === "review_underwriting") return "rerun_underwriting";
+  if (actionType === "review_strategy") return "reevaluate_strategies";
+  return "record_decision";
+}
+
+function missingActionType(missing: DecisionCockpitMissingInputProjection): DecisionCockpitNextActionType {
+  if (missing.status === "conflicted") return "resolve_conflict";
+  const identity = `${missing.missingInputId} ${missing.requiredWorkflowRef} ${missing.category}`.toLowerCase();
+  const context = `${identity} ${missing.explanation}`.toLowerCase();
+  if (identity.includes("tax")) return "verify_taxes";
+  if (identity.includes("insurance")) return "verify_insurance";
+  if (identity.includes("rent")) return "verify_rent";
+  if (context.includes("tax")) return "verify_taxes";
+  if (context.includes("insurance")) return "verify_insurance";
+  if (context.includes("rent")) return "verify_rent";
+  if (missing.category === "financing") return "review_financing";
+  if (missing.category === "governance") return "review_governance_documents";
+  if (missing.category === "contract") return "review_contract";
+  if (missing.category === "evidence") return "add_evidence";
+  return "complete_missing_input";
+}
+
+function taskPriority(item: DealWorkItem): DecisionCockpitNextActionPriority {
+  if (item.priority === "urgent") return "critical";
+  if (item.priority === "high") return "high";
+  if (item.priority === "low") return "low";
+  return "normal";
+}
+
+function taskActionState(
+  item: DealWorkItem,
+  workflowStatus: DecisionCockpitWorkflowAvailability,
+): DecisionCockpitNextActionState {
+  if (workflowStatus === "permission_restricted") return "permission_restricted";
+  if (workflowStatus !== "available") return "unavailable";
+  if (item.status === "completed") return "completed";
+  if (item.status === "cancelled") return "dismissed";
+  if (item.status === "blocked") return "blocked";
+  if (item.priority === "urgent" || item.priority === "high") return "required";
+  return "recommended";
+}
+
+function panelStateFromRecommendationStatus(status: DecisionCockpitRecommendationStatus): DecisionCockpitPanelState {
+  if (status === "permission_restricted") return "permission_restricted";
+  if (status === "processing") return "processing";
+  if (status === "conflicted") return "conflicted";
+  if (status === "stale" || status === "historical") return "stale";
+  if (status === "failed_with_prior_valid" || status === "failed_without_prior_valid") return "failed";
+  if (status === "partial_module_availability" || status === "incomplete" || status === "blocked") return "partial";
+  return "current";
+}
+
+function deadlineState(
+  item: DealWorkItem,
+  urgency: DecisionCockpitDeadlineUrgency,
+  serverAsOf?: string,
+): DecisionCockpitDeadlineState {
+  if (item.status === "completed") return "completed";
+  if (item.status === "cancelled") return "cancelled";
+  if (item.verificationState === "superseded" || item.verificationState === "rejected") return "superseded";
+  if (item.status === "changed") return "conflicted";
+  if (!item.dueAt && !item.dueDate) return "unavailable";
+  if (!serverAsOf) return "unavailable";
+  if (item.verificationState === "unverified" || item.verificationState === "professional_review_recommended") return "unverified";
+  if (urgency === "overdue" || urgency === "due_today" || urgency === "due_soon" || urgency === "upcoming") return urgency;
+  return "unavailable";
+}
+
+function deadlineUrgency(item: Pick<DealWorkItem, "dueAt" | "dueDate" | "isAllDay" | "timezone" | "status">, serverAsOf?: string): DecisionCockpitDeadlineUrgency {
+  if (!serverAsOf || item.status === "completed" || item.status === "cancelled") return "none";
+  const asOf = new Date(serverAsOf);
+  if (Number.isNaN(asOf.getTime())) return "unavailable";
+  if (item.isAllDay) {
+    if (!item.dueDate) return "unavailable";
+    const today = dateInTimezone(asOf, item.timezone);
+    if (!today) return "unavailable";
+    if (item.dueDate < today) return "overdue";
+    if (item.dueDate === today) return "due_today";
+    const diff = dateOnlyDeltaDays(today, item.dueDate);
+    return diff <= 3 ? "due_soon" : "upcoming";
+  }
+  if (!item.dueAt) return "unavailable";
+  const due = new Date(item.dueAt);
+  if (Number.isNaN(due.getTime())) return "unavailable";
+  if (due.getTime() < asOf.getTime()) return "overdue";
+  const today = dateInTimezone(asOf, item.timezone);
+  const dueDay = dateInTimezone(due, item.timezone);
+  if (today && dueDay && today === dueDay) return "due_today";
+  return due.getTime() - asOf.getTime() <= 3 * 24 * 60 * 60 * 1000 ? "due_soon" : "upcoming";
+}
+
+function dateInTimezone(date: Date, timezone?: string): string | undefined {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone || "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(date);
+    const year = parts.find((part) => part.type === "year")?.value;
+    const month = parts.find((part) => part.type === "month")?.value;
+    const day = parts.find((part) => part.type === "day")?.value;
+    return year && month && day ? `${year}-${month}-${day}` : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function dateOnlyDeltaDays(leftDate: string, rightDate: string) {
+  const left = new Date(`${leftDate}T00:00:00.000Z`).getTime();
+  const right = new Date(`${rightDate}T00:00:00.000Z`).getTime();
+  if (Number.isNaN(left) || Number.isNaN(right)) return Number.POSITIVE_INFINITY;
+  return Math.ceil((right - left) / (24 * 60 * 60 * 1000));
+}
+
+function compareWorkDue(left: DealWorkItem, right: DealWorkItem) {
+  return workDueSortKey(left).localeCompare(workDueSortKey(right));
+}
+
+function workDueSortKey(item: Pick<DealWorkItem, "dueAt" | "dueDate" | "isAllDay">) {
+  if (item.isAllDay && item.dueDate) return `${item.dueDate}T23:59:59.999Z`;
+  if (item.dueAt) return item.dueAt;
+  return "9999-12-31T23:59:59.999Z";
+}
+
+function compareDeadlinePriority(left: DecisionCockpitDeadlineProjection, right: DecisionCockpitDeadlineProjection) {
+  return deadlineUrgencyOrder(left.urgency) - deadlineUrgencyOrder(right.urgency)
+    || left.stableOrdinal - right.stableOrdinal
+    || left.deadlineId.localeCompare(right.deadlineId);
+}
+
+function compareActionPriority(left: DecisionCockpitNextActionProjection, right: DecisionCockpitNextActionProjection) {
+  return actionStateOrder(left.actionState) - actionStateOrder(right.actionState)
+    || actionPriorityOrder(left.priority) - actionPriorityOrder(right.priority)
+    || deadlineUrgencyOrder(left.urgency) - deadlineUrgencyOrder(right.urgency)
+    || left.stableOrdinal - right.stableOrdinal
+    || left.actionId.localeCompare(right.actionId);
+}
+
+function actionStateOrder(state: DecisionCockpitNextActionState) {
+  const order: Record<DecisionCockpitNextActionState, number> = {
+    required: 1,
+    blocked: 2,
+    recommended: 3,
+    available: 4,
+    optional: 5,
+    stale: 6,
+    unavailable: 7,
+    permission_restricted: 8,
+    deferred: 9,
+    dismissed: 10,
+    completed: 11,
+    superseded: 12,
+    historical: 13,
+  };
+  return order[state];
+}
+
+function actionPriorityOrder(priority: DecisionCockpitNextActionPriority) {
+  return priority === "critical" ? 1 : priority === "high" ? 2 : priority === "normal" ? 3 : 4;
+}
+
+function deadlineUrgencyOrder(urgency: DecisionCockpitDeadlineUrgency) {
+  return urgency === "overdue" ? 1 : urgency === "due_today" ? 2 : urgency === "due_soon" ? 3 : urgency === "upcoming" ? 4 : urgency === "unavailable" ? 5 : 6;
+}
+
+function dedupeActions(actions: DecisionCockpitNextActionProjection[]) {
+  const seen = new Set<string>();
+  return actions
+    .sort(compareActionPriority)
+    .filter((action) => {
+      const key = action.relatedTaskId
+        ? `task:${action.relatedTaskId}`
+        : action.relatedDeadlineId
+          ? `deadline:${action.relatedDeadlineId}`
+          : `${action.actionType}:${action.workflowDestination.routeId}:${action.sourceType}:${action.sourceId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function actionHashBasis(action: Omit<DecisionCockpitNextActionProjection, "deterministicHash"> | DecisionCockpitNextActionProjection) {
+  return {
+    contractVersion: DECISION_COCKPIT_NEXT_ACTION_CONTRACT_VERSION,
+    actionId: action.actionId,
+    actionType: action.actionType,
+    sourceType: action.sourceType,
+    sourceId: action.sourceId,
+    workspaceId: action.workspaceId,
+    dealId: action.dealId,
+    propertyId: action.propertyId,
+    recommendationId: action.recommendationId,
+    snapshotId: action.snapshotId,
+    underwritingRunId: action.underwritingRunId,
+    rankingId: action.rankingId,
+    priority: action.priority,
+    urgency: action.urgency,
+    actionState: action.actionState,
+    blockingState: action.blockingState,
+    requiredPermission: action.requiredPermission,
+    workflowDestination: workflowHashBasis(action.workflowDestination),
+    workflowAvailability: action.workflowAvailability,
+    dueAt: action.dueAt,
+    dueDate: action.dueDate,
+    timezone: action.timezone,
+    relatedDeadlineId: action.relatedDeadlineId,
+    relatedTaskId: action.relatedTaskId,
+    professionalReviewRequired: action.professionalReviewRequired,
+    staleState: action.staleState,
+    sourceEventTime: action.sourceEventTime,
+    stableOrdinal: action.stableOrdinal,
+  };
+}
+
+function deadlineHashBasis(deadline: DecisionCockpitDeadlineProjection) {
+  return {
+    contractVersion: DECISION_COCKPIT_DEADLINE_PANEL_CONTRACT_VERSION,
+    deadlineId: deadline.deadlineId,
+    title: deadline.title,
+    type: deadline.type,
+    sourceType: deadline.sourceType,
+    sourceId: deadline.sourceId,
+    workspaceId: deadline.workspaceId,
+    dealId: deadline.dealId,
+    relatedTaskId: deadline.relatedTaskId,
+    relatedActionId: deadline.relatedActionId,
+    dueAt: deadline.dueAt,
+    dueDate: deadline.dueDate,
+    isAllDay: deadline.isAllDay,
+    timezone: deadline.timezone,
+    deadlineStatus: deadline.deadlineStatus,
+    urgency: deadline.urgency,
+    verificationState: deadline.verificationState,
+    governingTermRef: deadline.governingTermRef,
+    completedAt: deadline.completedAt,
+    staleState: deadline.staleState,
+    stableOrdinal: deadline.stableOrdinal,
+  };
+}
+
+function workflowHashBasis(route: DecisionCockpitWorkflowRoute) {
+  return {
+    routeId: route.routeId,
+    moduleId: route.moduleId,
+    destination: route.destination,
+    requiredIds: route.requiredIds,
+    requiredPermission: route.requiredPermission,
+    workflowStatus: route.workflowStatus,
+    fallbackBehavior: route.fallbackBehavior,
+    returnToCockpit: route.returnToCockpit,
+  };
+}
+
+function deadlineSourceBoundary() {
+  return {
+    canonicalDeadlinesOnly: true,
+    noClientUrgencyMath: true,
+    serverAsOfRequiredForUrgency: true,
+    noReminderOrNotificationScope: true,
+    noDuplicateDeadlineRecords: true,
+  } as const;
+}
+
+function nextActionSourceBoundary() {
+  return {
+    deterministicProjectionOnly: true,
+    canonicalSourcesOnly: true,
+    noAiGeneratedActions: true,
+    noClientLocalActionLogic: true,
+    noWritesOnRead: true,
+    unavailableWorkflowsStayReadOnly: true,
+  } as const;
 }
 
 function metric(

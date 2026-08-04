@@ -4136,12 +4136,9 @@ function WorkList({
 function workTiming(item: DealWorkItem) {
   if (item.status === "blocked") return "blocked";
   if (item.status === "completed") return "completed";
-  const due = item.dueAt ? new Date(item.dueAt) : item.dueDate ? new Date(`${item.dueDate}T23:59:59`) : null;
-  if (!due || Number.isNaN(due.getTime())) return "unscheduled";
-  const delta = due.getTime() - Date.now();
-  if (delta < 0) return "overdue";
-  if (delta <= 1000 * 60 * 60 * 24 * 3) return "due-soon";
-  return "scheduled";
+  if (item.status === "cancelled") return "cancelled";
+  if (item.verificationState === "unverified") return "unverified";
+  return item.dueAt || item.dueDate ? "scheduled" : "unscheduled";
 }
 
 function formatWorkDate(value: string) {

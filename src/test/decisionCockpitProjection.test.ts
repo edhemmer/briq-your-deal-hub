@@ -4,17 +4,24 @@ import {
   DECISION_COCKPIT_KEY_METRIC_REGISTRY_VERSION,
   DECISION_COCKPIT_CONFIDENCE_PANEL_CONTRACT_VERSION,
   DECISION_COCKPIT_MISSING_INPUT_PANEL_CONTRACT_VERSION,
+  DECISION_COCKPIT_ACTIVE_NEXT_ACTION_CONTRACT,
+  DECISION_COCKPIT_DEADLINE_PANEL_CONTRACT_VERSION,
+  DECISION_COCKPIT_NEXT_ACTION_CONTRACT_VERSION,
   DECISION_COCKPIT_PRIMARY_METRIC_LIMIT,
   DECISION_COCKPIT_READ_PROJECTION_CONTRACT_VERSION,
   DECISION_COCKPIT_RECOMMENDATION_CONTRACT_VERSION,
   DECISION_COCKPIT_RISK_PANEL_CONTRACT_VERSION,
   buildDecisionCockpitReadProjection,
+  type DecisionCockpitDeadlineProjection,
   type DecisionCockpitMissingInputRecord,
+  type DecisionCockpitNextActionProjection,
+  type DecisionCockpitPriorPanelProjection,
   type DecisionCockpitRecommendationRecord,
   type DecisionCockpitRecommendedAction,
   type DecisionCockpitRiskRecord,
   type DecisionCockpitUserDecisionRecord,
 } from "../core/decisionCockpitProjection";
+import type { DealWorkItem } from "../core/types";
 import { STRATEGY_PRESENTATION_CONTRACT_VERSION, type StrategyPresentationModel } from "../core/strategyPresentation";
 import {
   UNDERWRITING_PRESENTATION_CONTRACT_VERSION,
@@ -701,6 +708,247 @@ describe("decision cockpit read projection contract", () => {
     expect(source).not.toMatch(/buildStrategyPresentation\s*\(/);
     expect(source).not.toMatch(/buildUnderwritingReportPayload\s*\(/);
   });
+
+  it("projects the active next-action contract with deterministic ordering and hashes", () => {
+    const projection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      property: { propertyId: "property-1" },
+      recommendation: recommendationRecord({ recommendedAction: recommendedAction({ actionId: "recommendation-action", stableOrdinal: 99 }) }),
+      riskRecords: [riskRecord({ riskId: "risk-hard", category: "hard_disqualifier", severity: "critical", stableOrdinal: 2 })],
+      missingInputRecords: [missingInputRecord({ missingInputId: "taxes", importance: "blocking", requiredWorkflowRef: "underwriting:inputs:taxes", stableOrdinal: 1 })],
+      workItems: [taskWorkItem({ recordId: "task-urgent", priority: "urgent", dueAt: "2026-08-04T16:00:00.000Z" })],
+      generatedAt: "2026-08-04T12:00:00.000Z",
+    });
+    const repeated = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      property: { propertyId: "property-1" },
+      recommendation: recommendationRecord({ recommendedAction: recommendedAction({ actionId: "recommendation-action", stableOrdinal: 99 }) }),
+      missingInputRecords: [missingInputRecord({ missingInputId: "taxes", importance: "blocking", requiredWorkflowRef: "underwriting:inputs:taxes", stableOrdinal: 1 })],
+      riskRecords: [riskRecord({ riskId: "risk-hard", category: "hard_disqualifier", severity: "critical", stableOrdinal: 2 })],
+      workItems: [taskWorkItem({ recordId: "task-urgent", priority: "urgent", dueAt: "2026-08-04T16:00:00.000Z" })],
+      generatedAt: "2026-08-04T13:00:00.000Z",
+    });
+
+    expect(projection.nextActions.contract).toEqual(DECISION_COCKPIT_ACTIVE_NEXT_ACTION_CONTRACT);
+    expect(projection.nextActions.contract.status).toBe("active");
+    expect(projection.nextActions.contract.supportedRecommendationVersions).toContain(DECISION_COCKPIT_RECOMMENDATION_CONTRACT_VERSION);
+    expect(projection.nextActions.primaryAction).toMatchObject({
+      actionType: "complete_task",
+      sourceType: "task",
+      sourceId: "task-urgent",
+      priority: "critical",
+      actionState: "required",
+      workflowAvailability: "available",
+    });
+    expect(projection.nextActions.alternateActions).toContainEqual(expect.objectContaining({
+      actionType: "verify_taxes",
+      sourceType: "missing_input",
+      sourceId: "taxes",
+    }));
+    expect(projection.nextActions.alternateActions.map((action) => action.actionType)).toContain("review_hard_disqualifier");
+    expect(projection.nextActions.manifestHash).toBe(repeated.nextActions.manifestHash);
+    expect(projection.nextActions.primaryAction?.deterministicHash).toMatch(/^dc_/);
+  });
+
+  it("does not fabricate next actions or deadlines when canonical sources are absent", () => {
+    const projection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-empty",
+      generatedAt: "2026-08-04T12:00:00.000Z",
+    });
+
+    expect(projection.nextActions).toMatchObject({
+      state: "unavailable",
+      itemCount: 0,
+      activeCount: 0,
+      primaryAction: undefined,
+      alternateActions: [],
+    });
+    expect(projection.deadlines).toMatchObject({
+      contractVersion: DECISION_COCKPIT_DEADLINE_PANEL_CONTRACT_VERSION,
+      state: "unavailable",
+      itemCount: 0,
+      overdueCount: 0,
+      dueTodayCount: 0,
+      dueSoonCount: 0,
+      upcomingCount: 0,
+    });
+  });
+
+  it("projects canonical deadline urgency with server-supplied as-of time and timezone-aware all-day dates", () => {
+    const projection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      workItems: [
+        deadlineWorkItem({ recordId: "deadline-overdue", dueAt: "2026-08-04T10:00:00.000Z", verificationState: "source_verified" }),
+        deadlineWorkItem({ recordId: "deadline-today", dueAt: "2026-08-04T21:00:00.000Z", verificationState: "source_verified" }),
+        deadlineWorkItem({ recordId: "deadline-soon", dueDate: "2026-08-06", dueAt: undefined, isAllDay: true, timezone: "America/Chicago", verificationState: "user_verified" }),
+        deadlineWorkItem({ recordId: "deadline-unverified", dueAt: "2026-08-08T21:00:00.000Z", verificationState: "unverified" }),
+        deadlineWorkItem({ recordId: "deadline-completed", status: "completed", completedAt: "2026-08-04T11:00:00.000Z", dueAt: "2026-08-04T10:00:00.000Z" }),
+      ],
+      generatedAt: "2026-08-04T12:00:00.000Z",
+    });
+
+    expect(projection.deadlines.items.map((deadline) => [deadline.deadlineId, deadline.deadlineStatus, deadline.urgency])).toEqual([
+      ["deadline-completed", "completed", "none"],
+      ["deadline-overdue", "overdue", "overdue"],
+      ["deadline-today", "due_today", "due_today"],
+      ["deadline-soon", "due_soon", "due_soon"],
+      ["deadline-unverified", "unverified", "upcoming"],
+    ]);
+    expect(projection.deadlines).toMatchObject({
+      overdueCount: 1,
+      dueTodayCount: 1,
+      dueSoonCount: 1,
+      upcomingCount: 0,
+      unverifiedCount: 1,
+      nextControllingDeadline: { deadlineId: "deadline-overdue" },
+    });
+    expect(projection.nextActions.primaryAction).toMatchObject({
+      sourceType: "deadline",
+      relatedDeadlineId: "deadline-overdue",
+      urgency: "overdue",
+      priority: "critical",
+    });
+  });
+
+  it("marks deadline urgency unavailable when server as-of time is absent instead of using the browser clock", () => {
+    const projection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      workItems: [deadlineWorkItem({ recordId: "deadline-1", dueAt: "2026-08-04T10:00:00.000Z", verificationState: "source_verified" })],
+    });
+
+    expect(projection.deadlines.items[0]).toMatchObject({
+      deadlineId: "deadline-1",
+      deadlineStatus: "unavailable",
+      urgency: "none",
+    });
+  });
+
+  it("deduplicates actions from the same canonical task or deadline and removes completed work from active actions", () => {
+    const projection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      workItems: [
+        taskWorkItem({ recordId: "task-repeat", priority: "urgent" }),
+        taskWorkItem({ recordId: "task-repeat", priority: "normal", updatedAt: "2026-08-04T12:05:00.000Z" }),
+        taskWorkItem({ recordId: "task-complete", status: "completed", completedAt: "2026-08-04T12:00:00.000Z" }),
+        deadlineWorkItem({ recordId: "deadline-repeat", dueAt: "2026-08-04T10:00:00.000Z", verificationState: "source_verified" }),
+        deadlineWorkItem({ recordId: "deadline-repeat", dueAt: "2026-08-04T11:00:00.000Z", verificationState: "source_verified" }),
+      ],
+      generatedAt: "2026-08-04T12:00:00.000Z",
+    });
+
+    expect([projection.nextActions.primaryAction, ...projection.nextActions.alternateActions].filter((action) => action?.relatedTaskId === "task-repeat")).toHaveLength(1);
+    expect(projection.nextActions.primaryAction?.relatedDeadlineId).toBe("deadline-repeat");
+    expect([projection.nextActions.primaryAction, ...projection.nextActions.alternateActions].some((action) => action?.relatedTaskId === "task-complete")).toBe(false);
+  });
+
+  it("preserves prior valid action and deadline panels during failed projections", () => {
+    const priorAction: DecisionCockpitPriorPanelProjection<DecisionCockpitNextActionProjection> = {
+      state: "current",
+      itemCount: 1,
+      panelHash: "prior-actions-hash",
+      generatedAt: "2026-08-04T11:00:00.000Z",
+      items: [nextActionProjectionFixture({ actionId: "prior-action" })],
+    };
+    const priorDeadline: DecisionCockpitPriorPanelProjection<DecisionCockpitDeadlineProjection> = {
+      state: "current",
+      itemCount: 1,
+      panelHash: "prior-deadlines-hash",
+      generatedAt: "2026-08-04T11:00:00.000Z",
+      items: [deadlineProjectionFixture({ deadlineId: "prior-deadline" })],
+    };
+    const projection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      nextActionPanelState: "failed",
+      deadlinePanelState: "failed",
+      priorValidNextActionPanel: priorAction,
+      priorValidDeadlinePanel: priorDeadline,
+    });
+
+    expect(projection.nextActions.state).toBe("failed");
+    expect(projection.nextActions.primaryAction?.actionId).toBe("prior-action");
+    expect(projection.nextActions.priorValid?.panelHash).toBe("prior-actions-hash");
+    expect(projection.deadlines.state).toBe("failed");
+    expect(projection.deadlines.items[0]?.deadlineId).toBe("prior-deadline");
+    expect(projection.deadlines.priorValid?.panelHash).toBe("prior-deadlines-hash");
+  });
+
+  it("applies permission-aware action and deadline projection without leaking protected records", () => {
+    const projection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      workItems: [taskWorkItem(), deadlineWorkItem()],
+      riskRecords: [riskRecord()],
+      missingInputRecords: [missingInputRecord()],
+      authorization: {
+        canReadCockpit: true,
+        canReadRecommendation: true,
+        canReadMetrics: true,
+        canReadUserDecision: true,
+        canReadActions: false,
+        canReadDeadlines: false,
+        canManageDealWork: false,
+        reason: "membership revoked",
+      },
+      generatedAt: "2026-08-04T12:00:00.000Z",
+    });
+
+    expect(projection.nextActions).toMatchObject({
+      state: "permission_restricted",
+      itemCount: 0,
+      activeCount: 0,
+      alternateActions: [],
+    });
+    expect(projection.nextActions.primaryAction).toBeUndefined();
+    expect(projection.deadlines).toMatchObject({
+      state: "permission_restricted",
+      itemCount: 0,
+    });
+    expect(projection.deadlines.nextControllingDeadline).toBeUndefined();
+  });
+
+  it("keeps unavailable future-module workflows read-only rather than exposing dead controls", () => {
+    const projection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      moduleAvailability: [{ moduleId: "OfferIQ", status: "unavailable_module", reason: "OfferIQ is not active for this Deal." }],
+      recommendation: recommendationRecord({
+        recommendedAction: recommendedAction({
+          actionType: "prepare_offer",
+          connectedWorkflow: "OfferIQ",
+          requiredPermission: "deals:manage",
+        }),
+      }),
+      generatedAt: "2026-08-04T12:00:00.000Z",
+    });
+
+    expect(projection.nextActions.primaryAction).toBeUndefined();
+    expect(projection.nextActions.alternateActions[0]).toMatchObject({
+      workflowAvailability: "unavailable_module",
+      actionState: "unavailable",
+      workflowDestination: { fallbackBehavior: "show_read_only" },
+    });
+  });
+
+  it("keeps action and deadline projection source boundaries out of UI, reports, native, AI, and notifications", () => {
+    const source = readFileSync("src/core/decisionCockpitProjection.ts", "utf8");
+    const app = readFileSync("src/App.tsx", "utf8");
+
+    expect(DECISION_COCKPIT_NEXT_ACTION_CONTRACT_VERSION).toBe("decision-cockpit-next-action-contract-v1");
+    expect(source).not.toMatch(/from "react"/);
+    expect(source).not.toMatch(/\bfetch\s*\(/);
+    expect(source).not.toMatch(/createNotification|sendNotification|sendReminder|notification\.|reminder\./i);
+    expect(source).not.toMatch(/\bDate\.now\s*\(/);
+    expect(source).not.toMatch(/from ["']openai|openai\./i);
+    expect(app).not.toMatch(/buildNextAction|deadlineUrgency|DECISION_COCKPIT_NEXT_ACTION/);
+    expect(app).not.toMatch(/\bDate\.now\s*\(/);
+  });
 });
 
 function underwritingPresentation(overrides: {
@@ -937,6 +1185,118 @@ function missingInputRecord(overrides: Partial<DecisionCockpitMissingInputRecord
     staleState: "current",
     status: "missing",
     stableOrdinal: 10,
+    ...overrides,
+  };
+}
+
+function taskWorkItem(overrides: Partial<DealWorkItem> = {}): DealWorkItem {
+  return {
+    recordType: "task",
+    recordId: "task-1",
+    recordVersion: 1,
+    workspaceId: "workspace-1",
+    dealId: "deal-1",
+    title: "Verify financing",
+    body: "Confirm lender terms before relying on the Deal.",
+    status: "open",
+    priority: "normal",
+    workType: "financing",
+    dueAt: undefined,
+    dueDate: undefined,
+    isAllDay: false,
+    timezone: "America/Chicago",
+    sourceType: "manual",
+    sourceRecordId: "task-source-1",
+    completedAt: undefined,
+    archivedAt: undefined,
+    createdAt: "2026-08-04T10:00:00.000Z",
+    updatedAt: "2026-08-04T11:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function deadlineWorkItem(overrides: Partial<DealWorkItem> = {}): DealWorkItem {
+  return {
+    recordType: "deadline",
+    recordId: "deadline-1",
+    recordVersion: 1,
+    workspaceId: "workspace-1",
+    dealId: "deal-1",
+    title: "Inspection period",
+    body: "Confirm inspection response deadline from the accepted contract.",
+    status: "open",
+    workType: "deadline",
+    dueAt: "2026-08-05T17:00:00.000Z",
+    dueDate: undefined,
+    isAllDay: false,
+    timezone: "America/Chicago",
+    sourceType: "contract",
+    sourceRecordId: "contract-term-1",
+    verificationState: "unverified",
+    completedAt: undefined,
+    archivedAt: undefined,
+    createdAt: "2026-08-04T10:00:00.000Z",
+    updatedAt: "2026-08-04T11:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function nextActionProjectionFixture(overrides: Partial<DecisionCockpitNextActionProjection> = {}): DecisionCockpitNextActionProjection {
+  return {
+    actionId: "action-fixture",
+    actionType: "complete_task",
+    sourceType: "task",
+    sourceId: "task-fixture",
+    workspaceId: "workspace-1",
+    dealId: "deal-1",
+    displayLabel: "Complete task",
+    conciseReason: "Prior valid action.",
+    detailedReasonRef: "task:task-fixture",
+    priority: "normal",
+    urgency: "none",
+    actionState: "recommended",
+    requiredPermission: "deals:manage",
+    workflowDestination: {
+      routeId: "DealWork:deal_work:task-fixture",
+      moduleId: "DealWork",
+      destination: "deal_work",
+      requiredIds: { workspaceId: "workspace-1", dealId: "deal-1", taskId: "task-fixture", sourceId: "task-fixture" },
+      requiredPermission: "deals:manage",
+      workflowStatus: "available",
+      fallbackBehavior: "return_to_cockpit",
+      returnToCockpit: { dealId: "deal-1", section: "next_actions" },
+    },
+    workflowAvailability: "available",
+    relatedTaskId: "task-fixture",
+    professionalReviewRequired: false,
+    staleState: "current",
+    stableOrdinal: 1,
+    deterministicHash: "dc_prior_action",
+    ...overrides,
+  };
+}
+
+function deadlineProjectionFixture(overrides: Partial<DecisionCockpitDeadlineProjection> = {}): DecisionCockpitDeadlineProjection {
+  return {
+    deadlineId: "deadline-fixture",
+    title: "Prior deadline",
+    type: "deadline",
+    sourceType: "contract",
+    sourceId: "contract-term-fixture",
+    workspaceId: "workspace-1",
+    dealId: "deal-1",
+    dueAt: "2026-08-05T17:00:00.000Z",
+    dueDate: undefined,
+    isAllDay: false,
+    timezone: "America/Chicago",
+    deadlineStatus: "upcoming",
+    urgency: "upcoming",
+    verificationState: "source_verified",
+    sourceDescription: "Prior valid deadline.",
+    completedAt: undefined,
+    staleState: "current",
+    stableOrdinal: 1,
+    deterministicHash: "dc_prior_deadline",
     ...overrides,
   };
 }
