@@ -16,6 +16,10 @@ import {
   type StrategyPresentationModel,
   type StrategyUserPreferenceProjection,
 } from "./strategyPresentation";
+import {
+  buildDecisionCockpitDestinationManifest,
+  type DecisionCockpitDestinationManifest,
+} from "./decisionCockpitDestinations";
 import type { CanonicalDealStage, DealWorkItem } from "./types";
 
 export const DECISION_COCKPIT_READ_PROJECTION_CONTRACT_VERSION = "decision-cockpit-read-projection-contract-v1";
@@ -878,6 +882,7 @@ export type DecisionCockpitReadProjection = {
     };
   };
   changeHistory: DecisionCockpitChangeHistoryProjection;
+  destinations: DecisionCockpitDestinationManifest;
   explanations: {
     selectedStrategy?: StrategyPresentationModel["selectedStrategy"]["explanation"];
     rankedStrategyExplanations: Array<{
@@ -1162,6 +1167,56 @@ export function buildDecisionCockpitReadProjection(
     nextActions: nextActionPanel,
     deadlines: deadlinePanel,
     changeHistory,
+    destinations: buildDecisionCockpitDestinationManifest({
+      workspaceId: input.workspaceId,
+      dealId: input.dealId,
+      propertyId: input.property?.propertyId,
+      property: input.property,
+      authorization: fullAuthorization,
+      recommendation,
+      keyMetrics,
+      risks,
+      missingInputs,
+      nextActions: nextActionPanel,
+      deadlines: deadlinePanel,
+      changeHistory,
+      underwriting: input.underwriting,
+      strategy: {
+        contractVersion: input.strategy?.contractVersion ?? null,
+        available: Boolean(input.strategy?.hasCanonicalStrategyResults),
+        rankingId: input.strategy?.overview.rankingId,
+        rankingHash: input.strategy?.overview.rankingHash,
+        rankingVersion: input.strategy?.overview.rankingVersion,
+        rankingFreshness: input.strategy?.overview.freshnessState ?? "none",
+        intendedStrategy: input.intendedStrategy ?? input.strategy?.overview.userSelected ?? input.strategy?.userPreference,
+        topRankedViable: input.strategy?.overview.topRankedViable,
+        userSelectionMatchesSystemRank: input.strategy?.overview.userSelectionMatchesSystemRank ?? null,
+        rankedStrategies: input.strategy?.rankedStrategies ?? [],
+        selectedStrategy: input.strategy?.selectedStrategy,
+        comparison: input.strategy?.comparison ?? { limit: 4, selectedStrategyIds: [], rows: [], columns: [] },
+        compatibility: {
+          candidateCount: input.strategy?.overview.candidateCount ?? null,
+          compatibleCount: input.strategy?.overview.compatibleCount ?? null,
+          compatibleWithConditionsCount: input.strategy?.overview.compatibleWithConditionsCount ?? null,
+          uncertainCount: input.strategy?.overview.uncertainCount ?? null,
+          incompatibleCount: input.strategy?.overview.incompatibleCount ?? null,
+          notEvaluatedCount: input.strategy?.overview.notEvaluatedCount ?? null,
+          missingDependencyCount: input.strategy?.overview.missingDependencyCount ?? null,
+        },
+      },
+      strongestSystemRankedStrategy,
+      report: {
+        available: Boolean(input.report),
+        contractVersion: input.report?.contract.contractVersion ?? null,
+        registryVersion: input.report?.contract.registryVersion ?? null,
+        reportType: input.report?.contract.reportType,
+        contentHash: input.report?.contentHash,
+        sectionCount: input.report?.sections.length ?? 0,
+        issueCount: input.report?.status.issueCount ?? 0,
+        warningIssueCount: input.report?.status.warningIssueCount ?? 0,
+        blockingIssueCount: input.report?.status.blockingIssueCount ?? 0,
+      },
+    }),
     explanations: {
       selectedStrategy: input.strategy?.selectedStrategy?.explanation,
       rankedStrategyExplanations: (input.strategy?.rankedStrategies ?? [])

@@ -38,6 +38,11 @@ import {
   UNDERWRITING_REPORT_CONTRACT_VERSION,
   type UnderwritingReportPayload,
 } from "../core/underwritingReportContract";
+import {
+  DECISION_COCKPIT_DESTINATION_CONTRACT_VERSION,
+  DECISION_COCKPIT_ROUTE_REGISTRY,
+  resolveDecisionCockpitDestination,
+} from "../core/decisionCockpitDestinations";
 
 describe("decision cockpit read projection contract", () => {
   it("returns an empty read projection without fabricating underwriting, strategy, or report data", () => {
@@ -1198,8 +1203,184 @@ describe("decision cockpit read projection contract", () => {
     });
   });
 
+  it("projects permission-aware deep-link destinations from canonical cockpit records only", () => {
+    const projection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      dealName: "1615 Augusta",
+      property: { propertyId: "property-1", displayName: "1615 Augusta Ln" },
+      underwriting: underwritingPresentation({
+        outputs: [
+          outputRow({
+            formulaId: "down_payment_amount",
+            label: "Down payment",
+            value: "$200,000",
+            group: "acquisition",
+            stableOrdinal: 1,
+            technicalReferences: ["hash:down-payment-hash", "result:down-payment-result"],
+          }),
+          outputRow({
+            formulaId: "cash_on_cash_return",
+            label: "Cash-on-cash return",
+            value: "8.2%",
+            group: "returns",
+            stableOrdinal: 2,
+            unit: "Percentage",
+          }),
+        ],
+        inputs: [
+          underwritingInput({
+            inputId: "monthly_rent",
+            label: "Monthly rent",
+            requirement: "required",
+            status: "Missing",
+            sourceState: "missing",
+            stableOrdinal: 1,
+          }),
+        ],
+      }),
+      strategy: strategyPresentation({ stale: true, selectedStrategyId: "brrrr" }),
+      recommendation: recommendationRecord({ recommendedAction: recommendedAction({ connectedWorkflow: "OfferIQ" }) }),
+      riskRecords: [riskRecord({ riskId: "risk-road", evidenceRefs: ["evidence-road"], sourceReference: "source-road", stableOrdinal: 1 })],
+      missingInputRecords: [missingInputRecord({ missingInputId: "market:hoa-rules", status: "missing", requiredWorkflowRef: "underwriting:hoa", stableOrdinal: 2 })],
+      workItems: [
+        taskWorkItem({ recordId: "task-visit", workType: "visit", priority: "urgent" }),
+        deadlineWorkItem({ recordId: "deadline-inspection", verificationState: "source_verified", dueAt: "2026-08-04T10:00:00.000Z" }),
+      ],
+      report: underwritingReport(),
+      generatedAt: "2026-08-04T12:00:00.000Z",
+    });
+
+    expect(projection.destinations.contractVersion).toBe(DECISION_COCKPIT_DESTINATION_CONTRACT_VERSION);
+    expect(projection.destinations.sourceBoundary).toEqual({
+      canonicalProjectionOnly: true,
+      noProviderCalls: true,
+      noMutationOnResolve: true,
+      noAuthorizationBypass: true,
+      noProtectedQueryStrings: true,
+    });
+    expect(projection.destinations.destinations.map((item) => item.destinationType)).toEqual(expect.arrayContaining([
+      "deal_overview",
+      "property_detail",
+      "recommendation_detail",
+      "formula_lineage",
+      "strategy_result",
+      "strategy_comparison",
+      "risk_detail",
+      "missing_input_detail",
+      "task_detail",
+      "deadline_detail",
+      "history_entry",
+      "report_preview",
+      "source_record",
+      "evidence_item",
+    ]));
+
+    const metricDestination = projection.destinations.destinations.find((item) => item.destinationType === "formula_lineage");
+    expect(metricDestination).toMatchObject({
+      governingModule: "Underwriting",
+      canonicalRecordType: "formula",
+      canonicalRecordId: "down-payment-hash",
+      exactRecordVersion: "1.0.0",
+      snapshot: {
+        snapshotId: "snapshot-1",
+        underwritingRunId: "run-1",
+      },
+      routeParams: {
+        dealId: "deal-1",
+        section: "underwriting",
+        focus: "formula_lineage",
+      },
+    });
+    const resolvedMetric = resolveDecisionCockpitDestination(metricDestination, {
+      isSignedIn: true,
+      canOpen: true,
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+    });
+    expect(resolvedMetric).toMatchObject({
+      ok: true,
+      path: "/deals/deal-1?section=underwriting&focus=formula_lineage",
+    });
+    expect(resolvedMetric.ok && resolvedMetric.path).not.toContain("down-payment-hash");
+
+    const evidenceDestination = projection.destinations.destinations.find((item) => item.destinationType === "evidence_item");
+    expect(evidenceDestination).toMatchObject({
+      governingModule: "Evidence",
+      canonicalRecordType: "evidence",
+      source: {
+        evidenceId: "evidence-1",
+        sourceRecordId: "source-record-1",
+      },
+    });
+    const resolvedEvidence = resolveDecisionCockpitDestination(evidenceDestination, { isSignedIn: true, canOpen: true });
+    expect(resolvedEvidence).toMatchObject({
+      ok: true,
+      path: "/deals/deal-1?section=underwriting&focus=evidence_item",
+    });
+    expect(resolvedEvidence.ok && resolvedEvidence.path).not.toContain("source-record-1");
+    expect(resolvedEvidence.ok && resolvedEvidence.path).not.toContain("evidence-1");
+
+    const staleStrategy = projection.destinations.destinations.find((item) => item.destinationType === "strategy_result");
+    expect(staleStrategy).toMatchObject({
+      availability: "stale",
+      state: "historical",
+      governingModule: "Strategy",
+    });
+    expect(projection.destinations.destinations.every((item) => item.deterministicHash.startsWith("dc_"))).toBe(true);
+    expect(projection.destinations.manifestHash).toMatch(/^dc_/);
+  });
+
+  it("enforces route registry, permission, workspace, historical, and unavailable-module safety", () => {
+    const projection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      riskRecords: [riskRecord()],
+      authorization: {
+        canReadCockpit: true,
+        canReadRecommendation: true,
+        canReadMetrics: true,
+        canReadUserDecision: true,
+        canReadRisks: false,
+        reason: "revoked",
+      },
+    });
+    const restricted = projection.destinations.destinations.find((item) => item.destinationType === "risk_detail");
+    expect(restricted).toBeUndefined();
+
+    const availableProjection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      riskRecords: [riskRecord()],
+    });
+    const riskDestination = availableProjection.destinations.destinations.find((item) => item.destinationType === "risk_detail");
+    expect(resolveDecisionCockpitDestination(riskDestination, { workspaceId: "other-workspace" })).toMatchObject({
+      ok: false,
+      error: "workspace_mismatch",
+      fallbackPath: "/deals/deal-1",
+    });
+    expect(resolveDecisionCockpitDestination(riskDestination, { canOpen: false })).toMatchObject({
+      ok: false,
+      error: "unauthorized_destination",
+    });
+    expect(resolveDecisionCockpitDestination({ ...riskDestination!, routeId: "missing-route" })).toMatchObject({
+      ok: false,
+      error: "route_not_found",
+    });
+    expect(resolveDecisionCockpitDestination({ ...riskDestination!, routeId: "decision_cockpit.strategy" })).toMatchObject({
+      ok: false,
+      error: "invalid_destination_type",
+    });
+
+    const routeIds = new Set(DECISION_COCKPIT_ROUTE_REGISTRY.map((route) => route.routeId));
+    expect(availableProjection.destinations.destinations.every((item) => routeIds.has(item.routeId))).toBe(true);
+    expect(DECISION_COCKPIT_ROUTE_REGISTRY.every((route) => route.protectedParamRules.canonicalIdsInQueryProhibited)).toBe(true);
+    expect(DECISION_COCKPIT_ROUTE_REGISTRY.every((route) => route.lifecycleStatus === "available")).toBe(true);
+  });
+
   it("keeps action and deadline projection source boundaries out of UI, reports, native, AI, and notifications", () => {
     const source = readFileSync("src/core/decisionCockpitProjection.ts", "utf8");
+    const destinations = readFileSync("src/core/decisionCockpitDestinations.ts", "utf8");
     const app = readFileSync("src/App.tsx", "utf8");
 
     expect(DECISION_COCKPIT_NEXT_ACTION_CONTRACT_VERSION).toBe("decision-cockpit-next-action-contract-v1");
@@ -1208,6 +1389,11 @@ describe("decision cockpit read projection contract", () => {
     expect(source).not.toMatch(/createNotification|sendNotification|sendReminder|notification\.|reminder\./i);
     expect(source).not.toMatch(/\bDate\.now\s*\(/);
     expect(source).not.toMatch(/from ["']openai|openai\./i);
+    expect(destinations).not.toMatch(/from "react"/);
+    expect(destinations).not.toMatch(/\bfetch\s*\(/);
+    expect(destinations).not.toMatch(/supabase/i);
+    expect(destinations).not.toMatch(/\binsert\s*\(|\bupdate\s*\(|\bdelete\s*\(/);
+    expect(destinations).not.toMatch(/https?:\/\//);
     expect(app).not.toMatch(/buildNextAction|deadlineUrgency|DECISION_COCKPIT_NEXT_ACTION/);
     expect(app).not.toMatch(/\bDate\.now\s*\(/);
   });

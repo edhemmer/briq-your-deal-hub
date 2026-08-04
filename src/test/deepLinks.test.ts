@@ -15,6 +15,12 @@ describe("BRIX deep-link routing", () => {
       canonicalPath: "/deals/deal-1",
       requiresAuth: true,
     });
+    expect(parseBrixDeepLink("https://www.brixrealestate.app/deals/deal-1?section=underwriting&focus=formula_lineage")).toMatchObject({
+      ok: true,
+      destination: { kind: "deal", dealId: "deal-1", section: "underwriting", focus: "formula_lineage" },
+      canonicalPath: "/deals/deal-1?section=underwriting&focus=formula_lineage",
+      requiresAuth: true,
+    });
     expect(parseBrixDeepLink("http://localhost:5173/account/trusted-access")).toMatchObject({
       ok: true,
       destination: { kind: "settings", panel: "trusted-access" },
@@ -63,6 +69,9 @@ describe("BRIX deep-link routing", () => {
     expect(parseBrixDeepLink("brixrealestate://evil/share_12345678")).toMatchObject({ ok: false, reason: "unapproved_host" });
     expect(parseBrixDeepLink("https://brixrealestate.app/deals?next=https://evil.example")).toMatchObject({ ok: false, reason: "unknown_parameters" });
     expect(parseBrixDeepLink("https://brixrealestate.app/share-intake/share_12345678?payload=private")).toMatchObject({ ok: false, reason: "unknown_parameters" });
+    expect(parseBrixDeepLink("https://brixrealestate.app/deals/deal-1?section=contractiq")).toMatchObject({ ok: false, reason: "malformed" });
+    expect(parseBrixDeepLink("https://brixrealestate.app/deals/deal-1?focus=source-record-1")).toMatchObject({ ok: false, reason: "malformed" });
+    expect(parseBrixDeepLink("https://brixrealestate.app/deals/deal-1?section=underwriting&sourceUrl=https://evil.example")).toMatchObject({ ok: false, reason: "unknown_parameters" });
     expect(parseBrixDeepLink("https://brixrealestate.app/auth/callback?next=https%3A%2F%2Fevil.example%2Fdeals%2Fdeal-1")).toMatchObject({ ok: false });
   });
 
@@ -74,6 +83,7 @@ describe("BRIX deep-link routing", () => {
 
   it("builds canonical BRIX links without leaking to unapproved origins", () => {
     expect(pathForBrixDestination({ kind: "settings", panel: "trusted-access" })).toBe("/account/trusted-access");
+    expect(pathForBrixDestination({ kind: "deal", dealId: "deal-1", section: "history", focus: "history_entry" })).toBe("/deals/deal-1?section=history&focus=history_entry");
     expect(requiresAuthentication({ kind: "settings", panel: "trusted-access" })).toBe(true);
     expect(requiresAuthentication({ kind: "share-intake", handoffId: "share_12345678" })).toBe(true);
     expect(brixLink({ kind: "deal", dealId: "deal-1" }, "https://brixrealestate.app")).toBe("https://brixrealestate.app/deals/deal-1");

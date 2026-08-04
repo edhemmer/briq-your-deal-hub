@@ -4,8 +4,38 @@ export type BrixDeepLinkDestination =
   | { kind: "settings"; panel?: "account" | "trusted-access" }
   | { kind: "password-recovery" }
   | { kind: "invitation"; token: string }
-  | { kind: "deal"; dealId: string }
+  | { kind: "deal"; dealId: string; section?: BrixDealSection; focus?: BrixDealFocus }
   | { kind: "share-intake"; handoffId: string };
+
+export type BrixDealSection = "overview" | "property" | "underwriting" | "strategies" | "work" | "history";
+
+export type BrixDealFocus =
+  | "deal_overview"
+  | "property_detail"
+  | "underwriting_summary"
+  | "underwriting_input"
+  | "underwriting_output"
+  | "formula_lineage"
+  | "snapshot_detail"
+  | "scenario_detail"
+  | "sensitivity_detail"
+  | "strategy_overview"
+  | "strategy_result"
+  | "strategy_comparison"
+  | "recommendation_detail"
+  | "risk_detail"
+  | "missing_input_detail"
+  | "assumption_detail"
+  | "conflict_detail"
+  | "task_detail"
+  | "deadline_detail"
+  | "history_entry"
+  | "report_preview"
+  | "source_record"
+  | "evidence_item"
+  | "evidence_anchor"
+  | "professional_review"
+  | "governing_workflow";
 
 export type BrixDeepLinkResult =
   | { ok: true; destination: BrixDeepLinkDestination; canonicalPath: string; requiresAuth: boolean }
@@ -16,6 +46,35 @@ const DEVELOPMENT_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
 const SAFE_TOKEN_PATTERN = /^[A-Za-z0-9._~-]{8,512}$/;
 const SAFE_DEAL_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
 const SAFE_SHARE_HANDOFF_PATTERN = /^share_[A-Za-z0-9._:-]{8,160}$/;
+const SAFE_DEAL_SECTIONS: readonly BrixDealSection[] = ["overview", "property", "underwriting", "strategies", "work", "history"];
+const SAFE_DEAL_FOCUS_TYPES: readonly BrixDealFocus[] = [
+  "deal_overview",
+  "property_detail",
+  "underwriting_summary",
+  "underwriting_input",
+  "underwriting_output",
+  "formula_lineage",
+  "snapshot_detail",
+  "scenario_detail",
+  "sensitivity_detail",
+  "strategy_overview",
+  "strategy_result",
+  "strategy_comparison",
+  "recommendation_detail",
+  "risk_detail",
+  "missing_input_detail",
+  "assumption_detail",
+  "conflict_detail",
+  "task_detail",
+  "deadline_detail",
+  "history_entry",
+  "report_preview",
+  "source_record",
+  "evidence_item",
+  "evidence_anchor",
+  "professional_review",
+  "governing_workflow",
+];
 
 export const BRIX_PRODUCTION_ORIGIN = "https://brixrealestate.app";
 
@@ -43,10 +102,22 @@ export function parseBrixDeepLink(input: string | URL, base = globalThis.locatio
   }
 
   if (path.startsWith("/deals/")) {
-    if (hasUnknownParams(params, [])) return rejected("unknown_parameters", "BRIX could not open that link.");
+    if (hasUnknownParams(params, ["section", "focus"])) return rejected("unknown_parameters", "BRIX could not open that link.");
     const dealId = decodeSegment(path.slice("/deals/".length));
     if (!dealId || !SAFE_DEAL_ID_PATTERN.test(dealId)) return rejected("malformed", "BRIX could not open that Deal link.");
-    return { ok: true, destination: { kind: "deal", dealId }, canonicalPath: canonicalDealPath(dealId), requiresAuth: true };
+    const rawSection = params.get("section")?.trim();
+    const rawFocus = params.get("focus")?.trim();
+    if (rawSection && !isSafeDealSection(rawSection)) return rejected("malformed", "BRIX could not open that Deal link.");
+    if (rawFocus && !isSafeDealFocus(rawFocus)) return rejected("malformed", "BRIX could not open that Deal link.");
+    const section = rawSection && isSafeDealSection(rawSection) ? rawSection : undefined;
+    const focus = rawFocus && isSafeDealFocus(rawFocus) ? rawFocus : undefined;
+    const destination = {
+      kind: "deal",
+      dealId,
+      ...(section ? { section } : {}),
+      ...(focus ? { focus } : {}),
+    } satisfies BrixDeepLinkDestination;
+    return { ok: true, destination, canonicalPath: pathForBrixDestination(destination), requiresAuth: true };
   }
 
   if (path.startsWith("/share-intake/")) {
@@ -96,7 +167,13 @@ export function brixLink(destination: BrixDeepLinkDestination, origin = currentS
 export function pathForBrixDestination(destination: BrixDeepLinkDestination) {
   if (destination.kind === "home") return "/app";
   if (destination.kind === "deals") return "/deals";
-  if (destination.kind === "deal") return canonicalDealPath(destination.dealId);
+  if (destination.kind === "deal") {
+    const params = new URLSearchParams();
+    if (destination.section) params.set("section", destination.section);
+    if (destination.focus) params.set("focus", destination.focus);
+    const suffix = Array.from(params.keys()).length > 0 ? `?${params.toString()}` : "";
+    return `${canonicalDealPath(destination.dealId)}${suffix}`;
+  }
   if (destination.kind === "share-intake") return `/share-intake/${encodeURIComponent(destination.handoffId)}`;
   if (destination.kind === "password-recovery") return "/account?flow=reset-password";
   if (destination.kind === "invitation") return `/account?invite=${encodeURIComponent(destination.token)}`;
@@ -166,6 +243,14 @@ function decodeSegment(segment: string) {
 
 function canonicalDealPath(dealId: string) {
   return `/deals/${encodeURIComponent(dealId)}`;
+}
+
+function isSafeDealSection(value: string): value is BrixDealSection {
+  return SAFE_DEAL_SECTIONS.includes(value as BrixDealSection);
+}
+
+function isSafeDealFocus(value: string): value is BrixDealFocus {
+  return SAFE_DEAL_FOCUS_TYPES.includes(value as BrixDealFocus);
 }
 
 function currentSafeOrigin() {
