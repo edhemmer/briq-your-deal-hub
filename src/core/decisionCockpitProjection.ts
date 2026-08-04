@@ -32,9 +32,14 @@ export const DECISION_COCKPIT_NEXT_ACTION_PRIORITY_MODEL_VERSION = "decision-coc
 export const DECISION_COCKPIT_WORKFLOW_ROUTING_VERSION = "decision-cockpit-workflow-routing-v1";
 export const DECISION_COCKPIT_PERMISSION_MODEL_VERSION = "decision-cockpit-permission-v1";
 export const DECISION_COCKPIT_DEADLINE_PANEL_CONTRACT_VERSION = "decision-cockpit-deadline-panel-contract-v1";
+export const DECISION_COCKPIT_CHANGE_HISTORY_CONTRACT_ID = "decision-cockpit-change-history";
+export const DECISION_COCKPIT_CHANGE_HISTORY_CONTRACT_VERSION = "decision-cockpit-change-history-contract-v1";
+export const DECISION_COCKPIT_CHANGE_HISTORY_REGISTRY_VERSION = "decision-cockpit-change-history-registry-v1";
+export const DECISION_COCKPIT_CHANGE_HISTORY_ORDERING_VERSION = "decision-cockpit-change-history-order-v1";
 export const DECISION_COCKPIT_PRIMARY_METRIC_LIMIT = 6;
 export const DECISION_COCKPIT_NEXT_ACTION_LIMIT = 6;
 export const DECISION_COCKPIT_DEADLINE_LIMIT = 6;
+export const DECISION_COCKPIT_CHANGE_HISTORY_LIMIT = 40;
 
 export type DecisionCockpitFreshnessState =
   | "no_source_results"
@@ -498,6 +503,103 @@ export type DecisionCockpitDeadlineProjection = {
   deterministicHash: string;
 };
 
+export type DecisionCockpitChangeHistorySourceType =
+  | "recommendation"
+  | "strategy_ranking"
+  | "strategy_result"
+  | "compatibility"
+  | "confidence"
+  | "underwriting_snapshot"
+  | "underwriting_run"
+  | "scenario"
+  | "sensitivity"
+  | "missing_input"
+  | "risk"
+  | "assumption"
+  | "professional_review"
+  | "report"
+  | "reevaluation";
+
+export type DecisionCockpitChangeHistoryEventType =
+  | "recommendation_changed"
+  | "strategy_ranking_changed"
+  | "compatibility_changed"
+  | "confidence_changed"
+  | "underwriting_rerun"
+  | "scenario_rerun"
+  | "sensitivity_rerun"
+  | "missing_input_resolved"
+  | "risk_introduced"
+  | "risk_removed"
+  | "assumption_accepted"
+  | "assumption_rejected"
+  | "professional_review_required"
+  | "professional_review_satisfied"
+  | "report_regenerated"
+  | "targeted_reevaluation";
+
+export type DecisionCockpitChangeHistoryState = "current" | "historical" | "superseded" | "archived" | "rejected";
+export type DecisionCockpitChangeHistoryActorCategory = "system" | "user" | "professional" | "provider" | "unknown";
+export type DecisionCockpitChangeHistorySupersededState = "not_superseded" | "superseded" | "supersedes_prior";
+
+export type DecisionCockpitChangeHistoryEntry = {
+  entryId: string;
+  sourceId: string;
+  sourceType: DecisionCockpitChangeHistorySourceType;
+  workspaceId?: string;
+  dealId: string;
+  propertyId?: string;
+  timestamp?: string;
+  eventType: DecisionCockpitChangeHistoryEventType;
+  eventReason: string;
+  previousStateReference?: string;
+  newStateReference?: string;
+  recommendationReference?: string;
+  strategyReference?: string;
+  snapshotReference?: string;
+  scenarioReference?: string;
+  reevaluationReference?: string;
+  explanationReference?: string;
+  confidenceReference?: string;
+  actorCategory: DecisionCockpitChangeHistoryActorCategory;
+  historyState: DecisionCockpitChangeHistoryState;
+  supersededState: DecisionCockpitChangeHistorySupersededState;
+  sourceVersion?: string;
+  groupKey?: string;
+  stableOrdinal: number;
+  deterministicHash: string;
+};
+
+export type DecisionCockpitChangeHistoryProjection = {
+  contractId: typeof DECISION_COCKPIT_CHANGE_HISTORY_CONTRACT_ID;
+  contractVersion: typeof DECISION_COCKPIT_CHANGE_HISTORY_CONTRACT_VERSION;
+  registryVersion: typeof DECISION_COCKPIT_CHANGE_HISTORY_REGISTRY_VERSION;
+  orderingVersion: typeof DECISION_COCKPIT_CHANGE_HISTORY_ORDERING_VERSION;
+  state: DecisionCockpitPanelState;
+  itemCount: number;
+  currentCount: number;
+  historicalCount: number;
+  supersededCount: number;
+  limit: typeof DECISION_COCKPIT_CHANGE_HISTORY_LIMIT;
+  groups: Array<{
+    groupKey: string;
+    sourceType: DecisionCockpitChangeHistorySourceType;
+    sourceId: string;
+    timestamp?: string;
+    itemCount: number;
+  }>;
+  items: DecisionCockpitChangeHistoryEntry[];
+  manifestHash: string;
+  sourceBoundary: {
+    canonicalSourcesOnly: true;
+    noUiDerivedHistory: true;
+    noAiSummaries: true;
+    noWritesOnRead: true;
+    noProviderCalls: true;
+    explanationEngineReused: true;
+  };
+};
+
 export type DecisionCockpitReadProjectionInput = {
   workspaceId?: string;
   dealId: string;
@@ -775,6 +877,7 @@ export type DecisionCockpitReadProjection = {
       noDuplicateDeadlineRecords: true;
     };
   };
+  changeHistory: DecisionCockpitChangeHistoryProjection;
   explanations: {
     selectedStrategy?: StrategyPresentationModel["selectedStrategy"]["explanation"];
     rankedStrategyExplanations: Array<{
@@ -983,6 +1086,7 @@ export function buildDecisionCockpitReadProjection(
   const missingInputs = buildMissingInputPanelProjection(input, fullAuthorization, freshnessState);
   const deadlinePanel = buildDeadlinePanelProjection(input, fullAuthorization, freshnessState);
   const nextActionPanel = buildNextActionPanelProjection(input, fullAuthorization, recommendation, risks.items, missingInputs.items, deadlinePanel, freshnessState);
+  const changeHistory = buildChangeHistoryProjection(input, fullAuthorization, recommendation, risks.items, missingInputs.items, freshnessState);
 
   return {
     contractVersion: DECISION_COCKPIT_READ_PROJECTION_CONTRACT_VERSION,
@@ -1057,6 +1161,7 @@ export function buildDecisionCockpitReadProjection(
     missingInputs,
     nextActions: nextActionPanel,
     deadlines: deadlinePanel,
+    changeHistory,
     explanations: {
       selectedStrategy: input.strategy?.selectedStrategy?.explanation,
       rankedStrategyExplanations: (input.strategy?.rankedStrategies ?? [])
@@ -2739,6 +2844,457 @@ function deadlineSourceBoundary() {
     serverAsOfRequiredForUrgency: true,
     noReminderOrNotificationScope: true,
     noDuplicateDeadlineRecords: true,
+  } as const;
+}
+
+type ChangeHistorySeed = Omit<DecisionCockpitChangeHistoryEntry, "entryId" | "stableOrdinal" | "deterministicHash"> & {
+  sourceOrdinal: number;
+};
+
+function buildChangeHistoryProjection(
+  input: DecisionCockpitReadProjectionInput,
+  authorization: Required<DecisionCockpitAuthorization>,
+  recommendation: DecisionCockpitReadProjection["recommendation"],
+  risks: DecisionCockpitRiskProjection[],
+  missingInputs: DecisionCockpitMissingInputProjection[],
+  freshnessState: DecisionCockpitFreshnessState,
+): DecisionCockpitChangeHistoryProjection {
+  if (!authorization.canReadCockpit) return emptyChangeHistoryProjection("permission_restricted", input.dealId);
+
+  const seeds: ChangeHistorySeed[] = [];
+
+  if (authorization.canReadRecommendation && input.recommendation) {
+    seeds.push(historySeed(input, {
+      sourceId: input.recommendation.recommendationId,
+      sourceType: "recommendation",
+      timestamp: input.recommendation.asOf,
+      eventType: "recommendation_changed",
+      eventReason: input.priorValidRecommendation
+        ? "The current canonical recommendation superseded a prior valid recommendation."
+        : "A canonical recommendation is available for this Deal.",
+      previousStateReference: input.priorValidRecommendation?.recommendationId,
+      newStateReference: input.recommendation.recommendationId,
+      recommendationReference: input.recommendation.recommendationId,
+      strategyReference: input.recommendation.selectedStrategyId,
+      snapshotReference: input.recommendation.snapshotId,
+      confidenceReference: input.recommendation.confidenceState,
+      actorCategory: "system",
+      historyState: historyStateFromRecommendationStatus(input.recommendation.recommendationStatus),
+      supersededState: input.priorValidRecommendation ? "supersedes_prior" : "not_superseded",
+      sourceVersion: input.recommendation.engineVersion ?? input.recommendation.registryVersion,
+      sourceOrdinal: 10,
+    }));
+  }
+
+  if (authorization.canReadRecommendation && input.strategy?.overview.rankingId) {
+    seeds.push(historySeed(input, {
+      sourceId: input.strategy.overview.rankingId,
+      sourceType: "strategy_ranking",
+      timestamp: input.strategy.overview.createdAt,
+      eventType: "strategy_ranking_changed",
+      eventReason: "Strategy Intelligence produced the current canonical strategy ranking.",
+      newStateReference: input.strategy.overview.rankingHash,
+      strategyReference: input.strategy.overview.topRankedViable?.strategyId,
+      snapshotReference: input.strategy.overview.snapshotId,
+      confidenceReference: input.strategy.selectedStrategy?.confidenceLabel,
+      actorCategory: "system",
+      historyState: historyStateFromFreshness(input.strategy.overview.freshnessState),
+      supersededState: input.strategy.history.length ? "supersedes_prior" : "not_superseded",
+      sourceVersion: input.strategy.overview.rankingVersion,
+      sourceOrdinal: 20,
+    }));
+  }
+
+  if (authorization.canReadRecommendation) {
+    for (const row of input.strategy?.history ?? []) {
+      seeds.push(historySeed(input, {
+        sourceId: row.resultId,
+        sourceType: "strategy_result",
+        timestamp: row.createdAt,
+        eventType: "strategy_ranking_changed",
+        eventReason: "A prior canonical strategy result remains available for historical reproduction.",
+        newStateReference: row.hash,
+        strategyReference: row.strategyId,
+        snapshotReference: row.snapshotId,
+        confidenceReference: row.confidenceLabel,
+        actorCategory: "system",
+        historyState: row.freshnessState === "historical" || row.freshnessState === "superseded" || row.freshnessState === "obsolete" ? "superseded" : "historical",
+        supersededState: "superseded",
+        sourceVersion: row.strategyVersion,
+        sourceOrdinal: 30 + (row.rank ?? 0),
+      }));
+    }
+
+    for (const row of input.strategy?.rankedStrategies ?? []) {
+      seeds.push(historySeed(input, {
+        sourceId: `${row.scoreResultId}:compatibility`,
+        sourceType: "compatibility",
+        timestamp: input.strategy?.overview.createdAt,
+        eventType: "compatibility_changed",
+        eventReason: `Canonical compatibility status is ${row.compatibilityStatus}.`,
+        newStateReference: row.hash,
+        strategyReference: row.strategyId,
+        explanationReference: row.explanation?.explanationResultId,
+        confidenceReference: row.confidenceLabel,
+        actorCategory: "system",
+        historyState: historyStateFromFreshness(row.freshnessState),
+        supersededState: row.freshnessState === "superseded" || row.freshnessState === "obsolete" || row.freshnessState === "historical" ? "superseded" : "not_superseded",
+        sourceVersion: row.strategyVersion,
+        sourceOrdinal: 100 + row.canonicalOrdinal,
+      }));
+    }
+
+    if (input.strategy?.selectedStrategy) {
+      seeds.push(historySeed(input, {
+        sourceId: `${input.strategy.selectedStrategy.scoreResultId}:confidence`,
+        sourceType: "confidence",
+        timestamp: input.strategy.overview.createdAt,
+        eventType: "confidence_changed",
+        eventReason: "Strategy Intelligence produced the selected strategy evidence-quality confidence label.",
+        newStateReference: input.strategy.selectedStrategy.hash,
+        strategyReference: input.strategy.selectedStrategy.strategyId,
+        explanationReference: input.strategy.selectedStrategy.explanation?.explanationResultId,
+        confidenceReference: input.strategy.selectedStrategy.confidenceLabel,
+        actorCategory: "system",
+        historyState: freshnessState === "stale" ? "historical" : "current",
+        supersededState: freshnessState === "stale" ? "superseded" : "not_superseded",
+        sourceVersion: input.strategy.selectedStrategy.strategyVersion,
+        sourceOrdinal: 130,
+      }));
+    }
+
+    for (const event of input.strategy?.staleEvents ?? []) {
+      seeds.push(historySeed(input, {
+        sourceId: event.eventId,
+        sourceType: "reevaluation",
+        timestamp: event.occurredAt,
+        eventType: "targeted_reevaluation",
+        eventReason: event.reason,
+        previousStateReference: event.triggeredBy,
+        newStateReference: event.eventHash,
+        reevaluationReference: event.eventId,
+        actorCategory: "system",
+        historyState: event.staleStatus === "superseded" || event.staleStatus === "obsolete" ? "superseded" : "current",
+        supersededState: event.staleStatus === "superseded" || event.staleStatus === "obsolete" ? "superseded" : "not_superseded",
+        sourceVersion: event.requiredScope,
+        sourceOrdinal: 140,
+      }));
+    }
+  }
+
+  if (authorization.canReadMetrics && input.underwriting) {
+    for (const row of input.underwriting.snapshots) {
+      seeds.push(historySeed(input, {
+        sourceId: row.snapshotId,
+        sourceType: "underwriting_snapshot",
+        timestamp: row.createdAt,
+        eventType: "underwriting_rerun",
+        eventReason: row.reason,
+        newStateReference: row.contentHash ?? row.snapshotId,
+        snapshotReference: row.snapshotId,
+        actorCategory: "system",
+        historyState: row.sequence === Math.max(...input.underwriting.snapshots.map((snapshot) => snapshot.sequence)) ? "current" : "historical",
+        supersededState: row.sequence === Math.max(...input.underwriting.snapshots.map((snapshot) => snapshot.sequence)) ? "supersedes_prior" : "superseded",
+        sourceVersion: input.underwriting.schema.snapshotContractVersion,
+        sourceOrdinal: 200 + row.sequence,
+      }));
+    }
+
+    for (const row of input.underwriting.scenarios) {
+      seeds.push(historySeed(input, {
+        sourceId: row.scenarioId,
+        sourceType: "scenario",
+        eventType: "scenario_rerun",
+        eventReason: `${row.name} scenario status is ${row.status}.`,
+        newStateReference: `${row.scenarioId}:${row.changedInputCount}:${row.changedOutputCount}`,
+        scenarioReference: row.scenarioId,
+        actorCategory: "system",
+        historyState: row.status.toLowerCase().includes("rejected") ? "rejected" : "current",
+        supersededState: "not_superseded",
+        sourceVersion: row.type,
+        sourceOrdinal: 300 + row.changedInputCount + row.changedOutputCount,
+      }));
+    }
+
+    for (const row of input.underwriting.sensitivities) {
+      seeds.push(historySeed(input, {
+        sourceId: row.sensitivityId,
+        sourceType: "sensitivity",
+        eventType: "sensitivity_rerun",
+        eventReason: `${row.inputLabel} sensitivity status is ${row.status}.`,
+        newStateReference: `${row.sensitivityId}:${row.pointCount}:${row.targetFormulaIds.join("|")}`,
+        snapshotReference: input.recommendation?.snapshotId,
+        actorCategory: "system",
+        historyState: row.status.toLowerCase().includes("rejected") ? "rejected" : "current",
+        supersededState: "not_superseded",
+        sourceVersion: row.inputId,
+        sourceOrdinal: 360 + row.pointCount,
+      }));
+    }
+
+    for (const row of input.underwriting.inputs) {
+      const state = `${row.status} ${row.sourceState}`.toLowerCase();
+      const isAssumption = state.includes("assumption");
+      if (!isAssumption || (!state.includes("accept") && !state.includes("reject"))) continue;
+      seeds.push(historySeed(input, {
+        sourceId: row.inputId,
+        sourceType: "assumption",
+        eventType: state.includes("reject") ? "assumption_rejected" : "assumption_accepted",
+        eventReason: `${row.label} ${state.includes("reject") ? "was rejected" : "is accepted"} in the canonical underwriting input set.`,
+        newStateReference: `${row.inputId}:${row.status}:${row.sourceState}`,
+        snapshotReference: input.recommendation?.snapshotId,
+        actorCategory: "user",
+        historyState: state.includes("reject") ? "rejected" : "current",
+        supersededState: "not_superseded",
+        sourceVersion: input.underwriting.schema.inputRegistryVersion,
+        sourceOrdinal: 420 + row.stableOrdinal,
+      }));
+    }
+  }
+
+  for (const missing of authorization.canReadMissingInputs ? missingInputs : []) {
+    if (missing.status !== "accepted") continue;
+    seeds.push(historySeed(input, {
+      sourceId: missing.missingInputId,
+      sourceType: "missing_input",
+      eventType: "missing_input_resolved",
+      eventReason: missing.decisionImpact || missing.explanation,
+      newStateReference: missing.status,
+      actorCategory: "user",
+      historyState: "current",
+      supersededState: "not_superseded",
+      sourceVersion: missing.sourceModule,
+      sourceOrdinal: 500 + missing.stableOrdinal,
+    }));
+  }
+
+  for (const risk of authorization.canReadRisks ? risks : []) {
+    const removed = risk.currentState === "stale" || risk.staleState === "stale" || risk.currentState === "unavailable";
+    seeds.push(historySeed(input, {
+      sourceId: risk.riskId,
+      sourceType: "risk",
+      eventType: removed ? "risk_removed" : "risk_introduced",
+      eventReason: risk.decisionImpact,
+      newStateReference: `${risk.category}:${risk.severity}:${risk.verificationState}`,
+      actorCategory: "system",
+      historyState: removed ? "superseded" : "current",
+      supersededState: removed ? "superseded" : "not_superseded",
+      sourceVersion: risk.governingModule,
+      sourceOrdinal: 600 + risk.stableOrdinal,
+    }));
+  }
+
+  if (authorization.canReadRecommendation) {
+    for (const row of input.strategy?.rankedStrategies.filter((strategy) => strategy.professionalReviewCount > 0) ?? []) {
+      seeds.push(historySeed(input, {
+        sourceId: `${row.scoreResultId}:professional-review`,
+        sourceType: "professional_review",
+        timestamp: input.strategy?.overview.createdAt,
+        eventType: "professional_review_required",
+        eventReason: `${row.displayName} requires professional review before reliance.`,
+        newStateReference: `${row.professionalReviewCount}`,
+        strategyReference: row.strategyId,
+        explanationReference: row.explanation?.explanationResultId,
+        actorCategory: "system",
+        historyState: "current",
+        supersededState: "not_superseded",
+        sourceVersion: row.strategyVersion,
+        sourceOrdinal: 700 + row.canonicalOrdinal,
+      }));
+    }
+  }
+
+  if (authorization.canReadMetrics && input.report?.contentHash) {
+    seeds.push(historySeed(input, {
+      sourceId: input.report.contentHash,
+      sourceType: "report",
+      timestamp: input.report.identity.requestedAt,
+      eventType: "report_regenerated",
+      eventReason: "A canonical underwriting report payload was generated from source projections.",
+      newStateReference: input.report.contentHash,
+      snapshotReference: input.report.reconciliation.snapshotId,
+      actorCategory: "system",
+      historyState: "current",
+      supersededState: "not_superseded",
+      sourceVersion: input.report.contract.contractVersion,
+      sourceOrdinal: 800,
+    }));
+  }
+
+  const items = dedupeChangeHistory(seeds)
+    .sort(compareChangeHistory)
+    .slice(0, DECISION_COCKPIT_CHANGE_HISTORY_LIMIT)
+    .map((seed, index) => finalizeChangeHistoryEntry(seed, index + 1));
+  const groups = changeHistoryGroups(items);
+  return {
+    contractId: DECISION_COCKPIT_CHANGE_HISTORY_CONTRACT_ID,
+    contractVersion: DECISION_COCKPIT_CHANGE_HISTORY_CONTRACT_VERSION,
+    registryVersion: DECISION_COCKPIT_CHANGE_HISTORY_REGISTRY_VERSION,
+    orderingVersion: DECISION_COCKPIT_CHANGE_HISTORY_ORDERING_VERSION,
+    state: items.length ? panelStateFromFreshness(freshnessState, true) : "unavailable",
+    itemCount: items.length,
+    currentCount: items.filter((item) => item.historyState === "current").length,
+    historicalCount: items.filter((item) => item.historyState === "historical").length,
+    supersededCount: items.filter((item) => item.historyState === "superseded" || item.supersededState === "superseded").length,
+    limit: DECISION_COCKPIT_CHANGE_HISTORY_LIMIT,
+    groups,
+    items,
+    manifestHash: stableHash({
+      contractVersion: DECISION_COCKPIT_CHANGE_HISTORY_CONTRACT_VERSION,
+      orderingVersion: DECISION_COCKPIT_CHANGE_HISTORY_ORDERING_VERSION,
+      items: items.map(changeHistoryHashBasis),
+      groups,
+    }),
+    sourceBoundary: changeHistorySourceBoundary(),
+  };
+}
+
+function emptyChangeHistoryProjection(state: DecisionCockpitPanelState, dealId: string): DecisionCockpitChangeHistoryProjection {
+  return {
+    contractId: DECISION_COCKPIT_CHANGE_HISTORY_CONTRACT_ID,
+    contractVersion: DECISION_COCKPIT_CHANGE_HISTORY_CONTRACT_VERSION,
+    registryVersion: DECISION_COCKPIT_CHANGE_HISTORY_REGISTRY_VERSION,
+    orderingVersion: DECISION_COCKPIT_CHANGE_HISTORY_ORDERING_VERSION,
+    state,
+    itemCount: 0,
+    currentCount: 0,
+    historicalCount: 0,
+    supersededCount: 0,
+    limit: DECISION_COCKPIT_CHANGE_HISTORY_LIMIT,
+    groups: [],
+    items: [],
+    manifestHash: stableHash({ contractVersion: DECISION_COCKPIT_CHANGE_HISTORY_CONTRACT_VERSION, dealId, state, items: [] }),
+    sourceBoundary: changeHistorySourceBoundary(),
+  };
+}
+
+function historySeed(
+  input: DecisionCockpitReadProjectionInput,
+  seed: Omit<ChangeHistorySeed, "workspaceId" | "dealId" | "propertyId" | "groupKey">,
+): ChangeHistorySeed {
+  const groupKey = `${seed.timestamp ?? "undated"}:${seed.sourceType}:${seed.sourceId}`;
+  return {
+    ...seed,
+    workspaceId: input.workspaceId,
+    dealId: input.dealId,
+    propertyId: input.property?.propertyId,
+    groupKey,
+  };
+}
+
+function finalizeChangeHistoryEntry(seed: ChangeHistorySeed, stableOrdinal: number): DecisionCockpitChangeHistoryEntry {
+  const entryId = `change:${stableHash({
+    sourceId: seed.sourceId,
+    sourceType: seed.sourceType,
+    timestamp: seed.timestamp,
+    eventType: seed.eventType,
+    state: seed.historyState,
+    previousStateReference: seed.previousStateReference,
+    newStateReference: seed.newStateReference,
+  })}`;
+  const basis = changeHistoryHashBasis({ ...seed, entryId, stableOrdinal, deterministicHash: "" });
+  return {
+    ...seed,
+    entryId,
+    stableOrdinal,
+    deterministicHash: stableHash(basis),
+  };
+}
+
+function changeHistoryHashBasis(entry: Omit<DecisionCockpitChangeHistoryEntry, "deterministicHash"> | DecisionCockpitChangeHistoryEntry) {
+  return {
+    contractVersion: DECISION_COCKPIT_CHANGE_HISTORY_CONTRACT_VERSION,
+    orderingVersion: DECISION_COCKPIT_CHANGE_HISTORY_ORDERING_VERSION,
+    entryId: entry.entryId,
+    sourceId: entry.sourceId,
+    sourceType: entry.sourceType,
+    workspaceId: entry.workspaceId,
+    dealId: entry.dealId,
+    propertyId: entry.propertyId,
+    timestamp: entry.timestamp,
+    eventType: entry.eventType,
+    previousStateReference: entry.previousStateReference,
+    newStateReference: entry.newStateReference,
+    recommendationReference: entry.recommendationReference,
+    strategyReference: entry.strategyReference,
+    snapshotReference: entry.snapshotReference,
+    scenarioReference: entry.scenarioReference,
+    reevaluationReference: entry.reevaluationReference,
+    explanationReference: entry.explanationReference,
+    confidenceReference: entry.confidenceReference,
+    actorCategory: entry.actorCategory,
+    historyState: entry.historyState,
+    supersededState: entry.supersededState,
+    sourceVersion: entry.sourceVersion,
+    groupKey: entry.groupKey,
+    stableOrdinal: entry.stableOrdinal,
+  };
+}
+
+function dedupeChangeHistory(seeds: ChangeHistorySeed[]) {
+  const seen = new Set<string>();
+  return seeds.filter((seed) => {
+    const key = `${seed.eventType}:${seed.sourceType}:${seed.sourceId}:${seed.newStateReference ?? ""}:${seed.previousStateReference ?? ""}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function compareChangeHistory(left: ChangeHistorySeed, right: ChangeHistorySeed) {
+  return changeTimestampSortKey(right).localeCompare(changeTimestampSortKey(left))
+    || left.sourceOrdinal - right.sourceOrdinal
+    || left.sourceType.localeCompare(right.sourceType)
+    || left.sourceId.localeCompare(right.sourceId)
+    || left.eventType.localeCompare(right.eventType);
+}
+
+function changeTimestampSortKey(entry: Pick<DecisionCockpitChangeHistoryEntry, "timestamp">) {
+  return entry.timestamp || "0000-00-00T00:00:00.000Z";
+}
+
+function changeHistoryGroups(items: DecisionCockpitChangeHistoryEntry[]): DecisionCockpitChangeHistoryProjection["groups"] {
+  const map = new Map<string, DecisionCockpitChangeHistoryProjection["groups"][number]>();
+  for (const item of items) {
+    const groupKey = item.groupKey ?? `${item.timestamp ?? "undated"}:${item.sourceType}:${item.sourceId}`;
+    const existing = map.get(groupKey);
+    if (existing) existing.itemCount += 1;
+    else map.set(groupKey, {
+      groupKey,
+      sourceType: item.sourceType,
+      sourceId: item.sourceId,
+      timestamp: item.timestamp,
+      itemCount: 1,
+    });
+  }
+  return [...map.values()].sort((left, right) =>
+    (right.timestamp ?? "0000-00-00T00:00:00.000Z").localeCompare(left.timestamp ?? "0000-00-00T00:00:00.000Z")
+    || left.sourceType.localeCompare(right.sourceType)
+    || left.sourceId.localeCompare(right.sourceId));
+}
+
+function historyStateFromRecommendationStatus(status: DecisionCockpitRecommendationStatus): DecisionCockpitChangeHistoryState {
+  if (status === "historical") return "historical";
+  if (status === "archived_or_closed") return "archived";
+  if (status === "stale" || status === "failed_with_prior_valid") return "superseded";
+  if (status === "failed_without_prior_valid" || status === "blocked") return "rejected";
+  return "current";
+}
+
+function historyStateFromFreshness(state: StrategyPresentationModel["overview"]["freshnessState"] | StrategyPresentationModel["rankedStrategies"][number]["freshnessState"]): DecisionCockpitChangeHistoryState {
+  if (state === "historical") return "historical";
+  if (state === "superseded" || state === "obsolete" || state === "stale") return "superseded";
+  return "current";
+}
+
+function changeHistorySourceBoundary() {
+  return {
+    canonicalSourcesOnly: true,
+    noUiDerivedHistory: true,
+    noAiSummaries: true,
+    noWritesOnRead: true,
+    noProviderCalls: true,
+    explanationEngineReused: true,
   } as const;
 }
 

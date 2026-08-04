@@ -5,6 +5,9 @@ import {
   DECISION_COCKPIT_CONFIDENCE_PANEL_CONTRACT_VERSION,
   DECISION_COCKPIT_MISSING_INPUT_PANEL_CONTRACT_VERSION,
   DECISION_COCKPIT_ACTIVE_NEXT_ACTION_CONTRACT,
+  DECISION_COCKPIT_CHANGE_HISTORY_CONTRACT_VERSION,
+  DECISION_COCKPIT_CHANGE_HISTORY_ORDERING_VERSION,
+  DECISION_COCKPIT_CHANGE_HISTORY_REGISTRY_VERSION,
   DECISION_COCKPIT_DEADLINE_PANEL_CONTRACT_VERSION,
   DECISION_COCKPIT_NEXT_ACTION_CONTRACT_VERSION,
   DECISION_COCKPIT_PRIMARY_METRIC_LIMIT,
@@ -12,6 +15,7 @@ import {
   DECISION_COCKPIT_RECOMMENDATION_CONTRACT_VERSION,
   DECISION_COCKPIT_RISK_PANEL_CONTRACT_VERSION,
   buildDecisionCockpitReadProjection,
+  type DecisionCockpitChangeHistoryEntry,
   type DecisionCockpitDeadlineProjection,
   type DecisionCockpitMissingInputRecord,
   type DecisionCockpitNextActionProjection,
@@ -113,6 +117,264 @@ describe("decision cockpit read projection contract", () => {
     expect(projection.underwriting.outputs).toBe(underwriting.coreOutputGroups);
     expect(projection.strategy.rankedStrategies).toBe(strategy.rankedStrategies);
     expect(projection.report.sectionCount).toBe(1);
+    expect(projection.changeHistory.contractVersion).toBe(DECISION_COCKPIT_CHANGE_HISTORY_CONTRACT_VERSION);
+    expect(projection.changeHistory.registryVersion).toBe(DECISION_COCKPIT_CHANGE_HISTORY_REGISTRY_VERSION);
+    expect(projection.changeHistory.orderingVersion).toBe(DECISION_COCKPIT_CHANGE_HISTORY_ORDERING_VERSION);
+  });
+
+  it("projects deterministic change history from canonical underwriting, strategy, recommendation, risk, missing-input, and report sources", () => {
+    const recommendation = recommendationRecord({
+      recommendationId: "recommendation-current",
+      recommendationState: "prepare_offer",
+      asOf: "2026-08-04T12:20:00.000Z",
+    });
+    const priorRecommendation = recommendationRecord({
+      recommendationId: "recommendation-prior",
+      recommendationState: "monitor",
+      asOf: "2026-08-04T11:00:00.000Z",
+    });
+    const strategy = strategyPresentation({
+      stale: true,
+      professionalReviewCount: 1,
+      selectedStrategyId: "brrrr",
+      history: [{
+        resultId: "strategy-history-1",
+        strategyId: "owner_occupied",
+        strategyVersion: "1.0.0",
+        displayName: "Owner Occupied",
+        createdAt: "2026-08-04T11:10:00.000Z",
+        snapshotId: "snapshot-prior",
+        underwritingRunId: "run-prior",
+        rank: 1,
+        score: 80,
+        compatibilityStatus: "compatible",
+        confidenceLabel: "Moderate",
+        freshnessState: "historical",
+        hash: "strategy-history-hash-1",
+        readOnly: true,
+      }],
+    });
+    const underwriting = underwritingPresentation({
+      inputs: [
+        underwritingInput({
+          inputId: "monthly_rent",
+          label: "Monthly rent",
+          requirement: "Required",
+          status: "Accepted assumption",
+          sourceState: "Accepted assumption",
+          stableOrdinal: 10,
+        }),
+        underwritingInput({
+          inputId: "purchase_price",
+          label: "Purchase price",
+          requirement: "Required",
+          status: "Rejected assumption",
+          sourceState: "Rejected assumption",
+          stableOrdinal: 20,
+        }),
+      ],
+      snapshots: [
+        {
+          snapshotId: "snapshot-2",
+          sequence: 2,
+          readiness: "Decision Ready",
+          executable: true,
+          createdAt: "2026-08-04T12:15:00.000Z",
+          reason: "Inputs changed",
+          inputCount: 11,
+          changedInputIds: ["monthly_rent"],
+          changedFormulaIds: ["cash_on_cash_return"],
+          contentHash: "snapshot-hash-2",
+        },
+        {
+          snapshotId: "snapshot-1",
+          sequence: 1,
+          readiness: "Decision Ready",
+          executable: true,
+          createdAt: "2026-08-04T11:15:00.000Z",
+          reason: "Initial underwriting run",
+          inputCount: 10,
+          changedInputIds: [],
+          changedFormulaIds: [],
+          contentHash: "snapshot-hash-1",
+        },
+      ],
+      scenarios: [{
+        scenarioId: "scenario-2",
+        name: "Stress Case",
+        type: "Stress",
+        status: "Complete",
+        readiness: "Executable",
+        changedInputCount: 3,
+        changedOutputCount: 2,
+        warnings: [],
+        comparisonRows: [],
+      }],
+      sensitivities: [{
+        sensitivityId: "sensitivity-2",
+        inputId: "monthly_rent",
+        inputLabel: "Monthly rent",
+        status: "Complete",
+        pointCount: 5,
+        targetFormulaIds: ["cash_on_cash_return"],
+        points: [],
+      }],
+    });
+
+    const projection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      underwriting,
+      strategy,
+      recommendation,
+      priorValidRecommendation: priorRecommendation,
+      report: underwritingReport({ contentHash: "report-content-hash-2", requestedAt: "2026-08-04T12:25:00.000Z" }),
+      riskRecords: [
+        riskRecord({ riskId: "risk-current", stableOrdinal: 10, category: "confirmed_material_risk" }),
+        riskRecord({ riskId: "risk-superseded", stableOrdinal: 20, currentState: "stale", staleState: "stale" }),
+      ],
+      missingInputRecords: [
+        missingInputRecord({ missingInputId: "missing-resolved", status: "accepted", stableOrdinal: 5 }),
+        missingInputRecord({ missingInputId: "missing-open", status: "missing", stableOrdinal: 6 }),
+      ],
+      generatedAt: "2026-08-04T13:00:00.000Z",
+    });
+    const eventTypes = projection.changeHistory.items.map((item) => item.eventType);
+
+    expect(projection.changeHistory.sourceBoundary).toEqual({
+      canonicalSourcesOnly: true,
+      noUiDerivedHistory: true,
+      noAiSummaries: true,
+      noWritesOnRead: true,
+      noProviderCalls: true,
+      explanationEngineReused: true,
+    });
+    expect(eventTypes).toEqual(expect.arrayContaining([
+      "recommendation_changed",
+      "strategy_ranking_changed",
+      "compatibility_changed",
+      "confidence_changed",
+      "underwriting_rerun",
+      "scenario_rerun",
+      "sensitivity_rerun",
+      "missing_input_resolved",
+      "risk_introduced",
+      "risk_removed",
+      "assumption_accepted",
+      "assumption_rejected",
+      "professional_review_required",
+      "report_regenerated",
+      "targeted_reevaluation",
+    ]));
+    expect(projection.changeHistory.items[0]).toMatchObject({
+      eventType: "report_regenerated",
+      sourceId: "report-content-hash-2",
+      timestamp: "2026-08-04T12:25:00.000Z",
+    });
+    expect(projection.changeHistory.items.find((item) => item.eventType === "recommendation_changed")).toMatchObject({
+      previousStateReference: "recommendation-prior",
+      newStateReference: "recommendation-current",
+      recommendationReference: "recommendation-current",
+      supersededState: "supersedes_prior",
+    });
+    expect(projection.changeHistory.items.find((item) => item.sourceId === "snapshot-1")).toMatchObject({
+      eventType: "underwriting_rerun",
+      historyState: "historical",
+      supersededState: "superseded",
+    });
+    expect(projection.changeHistory.items.find((item) => item.sourceId === "risk-superseded")).toMatchObject({
+      eventType: "risk_removed",
+      historyState: "superseded",
+    });
+    expect(projection.changeHistory.items.find((item) => item.sourceId === "strategy-history-1")).toMatchObject({
+      sourceType: "strategy_result",
+      historyState: "superseded",
+    });
+    expect(projection.changeHistory.groups.every((group) => group.itemCount > 0)).toBe(true);
+    expect(projection.changeHistory.items.every((item) => item.deterministicHash.startsWith("dc_"))).toBe(true);
+  });
+
+  it("keeps change-history ordering and hashes reproducible across input order and render time", () => {
+    const left = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      underwriting: underwritingPresentation(),
+      strategy: strategyPresentation(),
+      recommendation: recommendationRecord(),
+      riskRecords: [
+        riskRecord({ riskId: "risk-b", stableOrdinal: 20 }),
+        riskRecord({ riskId: "risk-a", stableOrdinal: 10 }),
+      ],
+      generatedAt: "2026-08-04T12:00:00.000Z",
+    });
+    const right = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      underwriting: underwritingPresentation(),
+      strategy: strategyPresentation(),
+      recommendation: recommendationRecord(),
+      riskRecords: [
+        riskRecord({ riskId: "risk-a", stableOrdinal: 10 }),
+        riskRecord({ riskId: "risk-b", stableOrdinal: 20 }),
+      ],
+      generatedAt: "2026-08-04T12:30:00.000Z",
+    });
+
+    expect(stripEventReasons(left.changeHistory.items)).toEqual(stripEventReasons(right.changeHistory.items));
+    expect(left.changeHistory.manifestHash).toBe(right.changeHistory.manifestHash);
+  });
+
+  it("filters protected change history by cockpit permissions without leaking source records", () => {
+    const denied = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      underwriting: underwritingPresentation(),
+      strategy: strategyPresentation(),
+      recommendation: recommendationRecord(),
+      riskRecords: [riskRecord()],
+      missingInputRecords: [missingInputRecord({ status: "accepted" })],
+      report: underwritingReport(),
+      authorization: {
+        canReadCockpit: false,
+        canReadRecommendation: false,
+        canReadMetrics: false,
+        canReadUserDecision: false,
+        canReadRisks: false,
+        canReadConfidence: false,
+        canReadMissingInputs: false,
+        canReadActions: false,
+        canReadDeadlines: false,
+      },
+    });
+    const partial = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      underwriting: underwritingPresentation(),
+      strategy: strategyPresentation(),
+      recommendation: recommendationRecord(),
+      riskRecords: [riskRecord()],
+      missingInputRecords: [missingInputRecord({ status: "accepted" })],
+      report: underwritingReport(),
+      authorization: {
+        canReadCockpit: true,
+        canReadRecommendation: false,
+        canReadMetrics: false,
+        canReadUserDecision: false,
+        canReadRisks: false,
+        canReadConfidence: false,
+        canReadMissingInputs: false,
+        canReadActions: false,
+        canReadDeadlines: false,
+      },
+    });
+
+    expect(denied.changeHistory).toMatchObject({
+      state: "permission_restricted",
+      itemCount: 0,
+      items: [],
+    });
+    expect(partial.changeHistory.items).toEqual([]);
+    expect(partial.changeHistory.state).toBe("unavailable");
   });
 
   it("does not turn the strongest ranked strategy into a recommendation when no canonical recommendation exists", () => {
@@ -956,6 +1218,9 @@ function underwritingPresentation(overrides: {
   sourceWarnings?: string[];
   outputs?: UnderwritingPresentationOutputRow[];
   inputs?: UnderwritingPresentationInputRow[];
+  snapshots?: UnderwritingPresentationModel["snapshots"];
+  scenarios?: UnderwritingPresentationModel["scenarios"];
+  sensitivities?: UnderwritingPresentationModel["sensitivities"];
 } = {}): UnderwritingPresentationModel {
   return {
     contractVersion: UNDERWRITING_PRESENTATION_CONTRACT_VERSION,
@@ -999,7 +1264,7 @@ function underwritingPresentation(overrides: {
         stableOrdinal: 1,
       }],
     }],
-    snapshots: [{
+    snapshots: overrides.snapshots ?? [{
       snapshotId: "snapshot-1",
       sequence: 1,
       readiness: "Decision Ready",
@@ -1011,7 +1276,7 @@ function underwritingPresentation(overrides: {
       changedFormulaIds: [],
       contentHash: "snapshot-hash-1",
     }],
-    scenarios: [{
+    scenarios: overrides.scenarios ?? [{
       scenarioId: "scenario-1",
       name: "Stress Case",
       type: "Stress",
@@ -1022,7 +1287,7 @@ function underwritingPresentation(overrides: {
       warnings: ["Stress case lowers coverage"],
       comparisonRows: [],
     }],
-    sensitivities: [{
+    sensitivities: overrides.sensitivities ?? [{
       sensitivityId: "sensitivity-1",
       inputId: "monthly_rent",
       inputLabel: "Monthly rent",
@@ -1308,6 +1573,7 @@ function strategyPresentation(overrides: {
   professionalReviewCount?: number;
   selectedStrategyId?: string;
   selectedStrategyOverrides?: Partial<StrategyPresentationModel["rankedStrategies"][number]>;
+  history?: StrategyPresentationModel["history"];
 } = {}): StrategyPresentationModel {
   const userPreference = overrides.userPreference;
   const staleEvents = overrides.stale ? [{
@@ -1509,7 +1775,7 @@ function strategyPresentation(overrides: {
     },
     userPreference,
     staleEvents,
-    history: [],
+    history: overrides.history ?? [],
     sourceBoundary: {
       usesCanonicalRanking: true,
       usesCanonicalCompatibility: true,
@@ -1521,7 +1787,10 @@ function strategyPresentation(overrides: {
   } as unknown as StrategyPresentationModel;
 }
 
-function underwritingReport(): UnderwritingReportPayload {
+function underwritingReport(overrides: {
+  contentHash?: string;
+  requestedAt?: string;
+} = {}): UnderwritingReportPayload {
   return {
     contract: {
       contractId: "canonical_underwriting_report",
@@ -1537,7 +1806,7 @@ function underwritingReport(): UnderwritingReportPayload {
       dealDisplayName: "1615 Augusta",
       propertyIds: ["property-1"],
       requestedBy: "user-1",
-      requestedAt: "2026-08-04T12:00:00.000Z",
+      requestedAt: overrides.requestedAt ?? "2026-08-04T12:00:00.000Z",
       locale: "en-US",
       timezone: "America/Chicago",
       displayCurrency: "USD",
@@ -1581,6 +1850,10 @@ function underwritingReport(): UnderwritingReportPayload {
     },
     warnings: [],
     errors: [],
-    contentHash: "report-content-hash",
+    contentHash: overrides.contentHash ?? "report-content-hash",
   } as unknown as UnderwritingReportPayload;
+}
+
+function stripEventReasons(items: DecisionCockpitChangeHistoryEntry[]) {
+  return items.map(({ eventReason: _eventReason, ...item }) => item);
 }
