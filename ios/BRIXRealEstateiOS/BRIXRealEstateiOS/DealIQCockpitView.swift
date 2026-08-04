@@ -1,8 +1,79 @@
 import SwiftUI
 import PhotosUI
+import UIKit
+
+enum DecisionCockpitNativeLayoutMode: String {
+    case iphoneCompact
+    case iphoneRegular
+    case ipadPortrait
+    case ipadLandscape
+}
+
+struct DecisionCockpitNativePresentationContract {
+    let contractVersion = "decision-cockpit-presentation-contract-v1"
+    let layoutMode: DecisionCockpitNativeLayoutMode
+    let columnCount: Int
+    let horizontalPadding: CGFloat
+    let cardSpacing: CGFloat
+    let priorityOrder = [
+        "recommendation",
+        "deal_status",
+        "strongest_strategy",
+        "selected_strategy",
+        "key_numbers",
+        "risks",
+        "confidence",
+        "missing_inputs",
+        "deadlines",
+        "next_action",
+        "recent_changes",
+        "supporting_detail",
+    ]
+    let sourceBoundary = DecisionCockpitNativeSourceBoundary()
+    let supportsSafeArea = true
+    let supportsDynamicType = true
+    let supportsVoiceOver = true
+    let supportsTouch = true
+    let preservesCanonicalPriority = true
+
+    static func build(horizontalSizeClass: UserInterfaceSizeClass?, dynamicTypeSize: DynamicTypeSize) -> DecisionCockpitNativePresentationContract {
+        let isPad = UIDevice.current.userInterfaceIdiom == .pad
+        let accessibilityText = dynamicTypeSize.isAccessibilitySize
+        if isPad {
+            let landscape = horizontalSizeClass == .regular
+            return DecisionCockpitNativePresentationContract(
+                layoutMode: landscape ? .ipadLandscape : .ipadPortrait,
+                columnCount: landscape && !accessibilityText ? 2 : 1,
+                horizontalPadding: landscape ? 28 : 22,
+                cardSpacing: 16
+            )
+        }
+        return DecisionCockpitNativePresentationContract(
+            layoutMode: accessibilityText ? .iphoneCompact : .iphoneRegular,
+            columnCount: 1,
+            horizontalPadding: 16,
+            cardSpacing: 14
+        )
+    }
+}
+
+struct DecisionCockpitNativeSourceBoundary {
+    let projectionReadOnly = true
+    let noUnderwritingCalculation = true
+    let noStrategyRanking = true
+    let noRecommendationCalculation = true
+    let noConfidenceMath = true
+    let noStaleStateCalculation = true
+    let noUrgencyCalculation = true
+    let noProviderCalls = true
+    let noPersistence = true
+}
 
 struct DealIQCockpitView: View {
     @EnvironmentObject private var state: AppState
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedPhotos: [PhotosPickerItem] = []
 
     var body: some View {
@@ -10,53 +81,58 @@ struct DealIQCockpitView: View {
             Group {
                 if var deal = state.selectedDeal {
                     let analysis = state.analysis(for: deal)
+                    let presentation = DecisionCockpitNativePresentationContract.build(
+                        horizontalSizeClass: horizontalSizeClass,
+                        dynamicTypeSize: dynamicTypeSize
+                    )
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 18) {
-                            BrixCard {
-                                VStack(alignment: .leading, spacing: 14) {
-                                    Text(analysis.decision).font(.largeTitle.bold())
-                                    Text(deal.address).foregroundStyle(Brix.muted)
-                                    HStack { BrixMetric(title: "Confidence", value: analysis.confidence); BrixMetric(title: "Readiness", value: analysis.readiness) }
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text("Monthly payment: \(currency(analysis.monthlyPayment))").foregroundStyle(Brix.muted)
-                                        Text("Monthly cash flow: \(currency(analysis.monthlyCashFlow))").foregroundStyle(Brix.muted)
-                                        Text("DSCR: \(dscr(analysis.dscr))").foregroundStyle(Brix.muted)
+                        VStack(alignment: .leading, spacing: presentation.cardSpacing) {
+                            decisionHeader(deal: deal, analysis: analysis)
+                            LazyVGrid(columns: gridColumns(for: presentation), alignment: .leading, spacing: presentation.cardSpacing) {
+                                BrixCard {
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        Text("Key numbers").font(.title2.bold())
+                                        statLine("Monthly payment", value: currency(analysis.monthlyPayment))
+                                        statLine("Monthly cash flow", value: currency(analysis.monthlyCashFlow))
+                                        statLine("DSCR", value: dscr(analysis.dscr))
+                                        HStack {
+                                            BrixMetric(title: "Confidence", value: analysis.confidence)
+                                            BrixMetric(title: "Readiness", value: analysis.readiness)
+                                        }
                                     }
                                 }
-                            }
-                            BrixCard {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("Deal facts").font(.title2.bold())
-                                    money("Purchase price", value: Binding(get: { deal.listPrice }, set: { deal.listPrice = $0; state.selectedDeal = deal }))
-                                    money("Annual taxes", value: Binding(get: { deal.annualTaxes }, set: { deal.annualTaxes = $0; state.selectedDeal = deal }))
-                                    money("Annual insurance", value: Binding(get: { deal.annualInsurance }, set: { deal.annualInsurance = $0; state.selectedDeal = deal }))
-                                    money("Monthly rent", value: Binding(get: { deal.monthlyRent }, set: { deal.monthlyRent = $0; state.selectedDeal = deal }))
-                                    money("Rehab budget", value: Binding(get: { deal.rehabBudget }, set: { deal.rehabBudget = $0; state.selectedDeal = deal }))
-                                }
-                            }
-                            BrixCard {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("Strategy").font(.title2.bold())
-                                    Picker("Strategy", selection: Binding(get: { deal.strategy }, set: { deal.strategy = $0; state.selectedDeal = deal })) {
-                                        ForEach(StrategyId.allCases) { item in Text(item.title).tag(item) }
+                                BrixCard {
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        Text("Deal facts").font(.title2.bold())
+                                        money("Purchase price", value: Binding(get: { deal.listPrice }, set: { deal.listPrice = $0; state.selectedDeal = deal }))
+                                        money("Annual taxes", value: Binding(get: { deal.annualTaxes }, set: { deal.annualTaxes = $0; state.selectedDeal = deal }))
+                                        money("Annual insurance", value: Binding(get: { deal.annualInsurance }, set: { deal.annualInsurance = $0; state.selectedDeal = deal }))
+                                        money("Monthly rent", value: Binding(get: { deal.monthlyRent }, set: { deal.monthlyRent = $0; state.selectedDeal = deal }))
+                                        money("Rehab budget", value: Binding(get: { deal.rehabBudget }, set: { deal.rehabBudget = $0; state.selectedDeal = deal }))
                                     }
-                                    .pickerStyle(.navigationLink)
-                                    Text("BRIX compares the selected strategy against alternatives and lowers confidence when required facts are missing.")
-                                        .foregroundStyle(Brix.muted)
                                 }
-                            }
-                            BrixCard {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("Strategy comparison").font(.title2.bold())
-                                    Text(analysis.strategyHeadline).font(.headline)
-                                    Text(analysis.strategyExplanation).foregroundStyle(Brix.muted)
-                                    HStack {
-                                        strategyFact("Selected", value: deal.strategy.title)
-                                        strategyFact("Top fit", value: analysis.bestStrategyName)
-                                        BrixMetric(title: "Gap", value: analysis.strategyScoreGap)
+                                BrixCard {
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Text("Strategy").font(.title2.bold())
+                                        Picker("Strategy", selection: Binding(get: { deal.strategy }, set: { deal.strategy = $0; state.selectedDeal = deal })) {
+                                            ForEach(StrategyId.allCases) { item in Text(item.title).tag(item) }
+                                        }
+                                        .pickerStyle(.navigationLink)
+                                        Text(analysis.strategyHeadline).font(.headline)
+                                        Text(analysis.strategyExplanation).foregroundStyle(Brix.muted)
                                     }
-                                    challengeSection("Tradeoffs", items: analysis.strategyTradeoffs)
-                                    challengeSection("Verify before switching", items: analysis.strategyVerification)
+                                }
+                                BrixCard {
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        Text("Strategy comparison").font(.title2.bold())
+                                        HStack {
+                                            strategyFact("Selected", value: deal.strategy.title)
+                                            strategyFact("Top fit", value: analysis.bestStrategyName)
+                                            BrixMetric(title: "Gap", value: analysis.strategyScoreGap)
+                                        }
+                                        challengeSection("Tradeoffs", items: analysis.strategyTradeoffs)
+                                        challengeSection("Verify before switching", items: analysis.strategyVerification)
+                                    }
                                 }
                             }
                             BrixCard {
@@ -97,8 +173,11 @@ struct DealIQCockpitView: View {
                                 }
                             }
                             Button(role: .destructive) { state.deleteSelectedDeal() } label: { Label("Delete Deal", systemImage: "trash") }
+                                .frame(minHeight: 44)
                         }
-                        .padding()
+                        .padding(.horizontal, presentation.horizontalPadding)
+                        .padding(.vertical, 16)
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: presentation.layoutMode.rawValue)
                     }
                 } else {
                     ContentUnavailableView("No Deal File", systemImage: "house", description: Text("Start in FindIQ."))
@@ -109,10 +188,41 @@ struct DealIQCockpitView: View {
         }
     }
 
+    private func decisionHeader(deal: Deal, analysis: DealAnalysis) -> some View {
+        BrixCard {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(analysis.decision)
+                    .font(.largeTitle.bold())
+                    .minimumScaleFactor(0.78)
+                    .accessibilityAddTraits(.isHeader)
+                Text(deal.address.isEmpty ? "Address not saved" : deal.address)
+                    .foregroundStyle(Brix.muted)
+                if !analysis.missing.isEmpty {
+                    Label("\(analysis.missing.count) item\(analysis.missing.count == 1 ? "" : "s") need completion", systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(Brix.amber)
+                        .font(.headline)
+                }
+            }
+        }
+    }
+
+    private func gridColumns(for presentation: DecisionCockpitNativePresentationContract) -> [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: presentation.cardSpacing, alignment: .top), count: presentation.columnCount)
+    }
+
     private func money(_ label: String, value: Binding<Double?>) -> some View {
         TextField(label, value: value, format: .number)
             .keyboardType(.decimalPad)
             .textFieldStyle(.roundedBorder)
+            .frame(minHeight: 44)
+    }
+
+    private func statLine(_ label: String, value: String) -> some View {
+        HStack {
+            Text(label).foregroundStyle(Brix.muted)
+            Spacer()
+            Text(value).fontWeight(.semibold)
+        }
     }
 
     private func currency(_ value: Double?) -> String {
