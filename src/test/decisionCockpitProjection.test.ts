@@ -1,12 +1,19 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  DECISION_COCKPIT_KEY_METRIC_REGISTRY_VERSION,
+  DECISION_COCKPIT_PRIMARY_METRIC_LIMIT,
   DECISION_COCKPIT_READ_PROJECTION_CONTRACT_VERSION,
+  DECISION_COCKPIT_RECOMMENDATION_CONTRACT_VERSION,
   buildDecisionCockpitReadProjection,
+  type DecisionCockpitRecommendationRecord,
+  type DecisionCockpitRecommendedAction,
+  type DecisionCockpitUserDecisionRecord,
 } from "../core/decisionCockpitProjection";
 import { STRATEGY_PRESENTATION_CONTRACT_VERSION, type StrategyPresentationModel } from "../core/strategyPresentation";
 import {
   UNDERWRITING_PRESENTATION_CONTRACT_VERSION,
+  type UnderwritingPresentationOutputRow,
   type UnderwritingPresentationModel,
 } from "../core/underwritingPresentation";
 import {
@@ -35,6 +42,8 @@ describe("decision cockpit read projection contract", () => {
       recommendationMutationProhibited: true,
       persistenceProhibited: true,
       providerCallsProhibited: true,
+      recommendationEngineNotImplementedHere: true,
+      metricSelectionOnly: true,
     });
   });
 
@@ -93,6 +102,92 @@ describe("decision cockpit read projection contract", () => {
     expect(projection.report.sectionCount).toBe(1);
   });
 
+  it("does not turn the strongest ranked strategy into a recommendation when no canonical recommendation exists", () => {
+    const projection = buildDecisionCockpitReadProjection({
+      dealId: "deal-1",
+      underwriting: underwritingPresentation(),
+      strategy: strategyPresentation(),
+    });
+
+    expect(projection.strongestSystemRankedStrategy).toMatchObject({
+      strategyId: "owner_occupied",
+      scoreResultId: "score-1",
+    });
+    expect(projection.recommendation).toMatchObject({
+      contractVersion: DECISION_COCKPIT_RECOMMENDATION_CONTRACT_VERSION,
+      available: false,
+      state: "unavailable",
+      status: "unavailable",
+      displayLabel: "No canonical recommendation available",
+    });
+    expect(projection.recommendedAction).toBeUndefined();
+    expect(projection.userDecision).toMatchObject({
+      available: false,
+      relationToRecommendation: "none",
+      relationToStrongestStrategy: "none",
+    });
+  });
+
+  it("keeps recommendation, intended strategy, strongest strategy, and user decision distinct", () => {
+    const intendedStrategy = {
+      strategyId: "long_term_rental",
+      strategyVersion: "1.0.0",
+      displayName: "Long-Term Rental",
+      acknowledgementRequired: true,
+      compatibilityStatus: "compatible_with_conditions" as const,
+    };
+    const recommendation = recommendationRecord({
+      recommendationState: "proceed_with_conditions",
+      selectedStrategyId: "long_term_rental",
+      selectedStrategyVersion: "1.0.0",
+      strongestStrategyResultId: "score-1",
+      recommendedAction: recommendedAction(),
+    });
+    const userDecision = userDecisionRecord({
+      decisionType: "prepare_offer",
+      relatedRecommendationId: "recommendation-1",
+      selectedStrategyId: "long_term_rental",
+      selectedStrategyVersion: "1.0.0",
+    });
+
+    const projection = buildDecisionCockpitReadProjection({
+      dealId: "deal-1",
+      underwriting: underwritingPresentation(),
+      strategy: strategyPresentation({
+        userPreference: intendedStrategy,
+        userSelectionMatchesSystemRank: false,
+      }),
+      intendedStrategy,
+      recommendation,
+      userDecision,
+    });
+
+    expect(projection.strategy.intendedStrategy?.strategyId).toBe("long_term_rental");
+    expect(projection.strategy.userSelectionMatchesSystemRank).toBe(false);
+    expect(projection.strongestSystemRankedStrategy?.strategyId).toBe("owner_occupied");
+    expect(projection.recommendation).toMatchObject({
+      available: true,
+      recommendationId: "recommendation-1",
+      state: "proceed_with_conditions",
+      status: "current_with_warnings",
+      displayLabel: "Proceed With Conditions",
+      sourceIdentity: {
+        strongestStrategyResultId: "score-1",
+        selectedStrategyId: "long_term_rental",
+        selectedStrategyVersion: "1.0.0",
+      },
+    });
+    expect(projection.recommendedAction).toMatchObject({
+      actionType: "prepare_offer",
+      workflowAvailability: "available",
+    });
+    expect(projection.userDecision).toMatchObject({
+      available: true,
+      relationToRecommendation: "matches_recommendation",
+      relationToStrongestStrategy: "differs_from_strongest_strategy",
+    });
+  });
+
   it("keeps intended strategy separate from the top ranked viable strategy", () => {
     const strategy = strategyPresentation({
       userPreference: {
@@ -113,6 +208,216 @@ describe("decision cockpit read projection contract", () => {
     expect(projection.strategy.intendedStrategy?.strategyId).toBe("long_term_rental");
     expect(projection.strategy.topRankedViable?.strategyId).toBe("owner_occupied");
     expect(projection.strategy.userSelectionMatchesSystemRank).toBe(false);
+  });
+
+  it("surfaces stale or failed recommendation state with prior valid recommendation without replacing it", () => {
+    const current = recommendationRecord({
+      recommendationId: "recommendation-current",
+      recommendationState: "visit",
+      recommendationStatus: "failed_with_prior_valid",
+      freshnessState: "failed_with_prior_valid",
+      deterministicHash: "current-hash",
+    });
+    const prior = recommendationRecord({
+      recommendationId: "recommendation-prior",
+      recommendationState: "monitor",
+      recommendationStatus: "current",
+      freshnessState: "current",
+      deterministicHash: "prior-hash",
+      asOf: "2026-08-04T11:00:00.000Z",
+    });
+
+    const projection = buildDecisionCockpitReadProjection({
+      dealId: "deal-1",
+      underwriting: underwritingPresentation(),
+      strategy: strategyPresentation({ stale: true }),
+      recommendation: current,
+      priorValidRecommendation: prior,
+    });
+
+    expect(projection.recommendation).toMatchObject({
+      available: true,
+      recommendationId: "recommendation-current",
+      status: "failed_with_prior_valid",
+      deterministicHash: "current-hash",
+      priorValid: {
+        recommendationId: "recommendation-prior",
+        state: "monitor",
+        status: "current",
+        deterministicHash: "prior-hash",
+      },
+    });
+    expect(projection.freshness.state).toBe("stale");
+    expect(projection.rationale.reasons.some((reason) => reason.category === "prior_valid")).toBe(true);
+  });
+
+  it("selects key metrics only from canonical underwriting rows and preserves lineage, warnings, and negative values", () => {
+    const underwriting = underwritingPresentation({
+      outputs: [
+        outputRow({
+          formulaId: "down_payment_amount",
+          label: "Down payment",
+          value: "$200,000",
+          group: "acquisition",
+          stableOrdinal: 1,
+          unit: "Currency",
+          technicalReferences: ["hash:down-payment-hash", "result:down-payment-result"],
+        }),
+        outputRow({
+          formulaId: "net_operating_income",
+          label: "NOI",
+          value: "$36,000",
+          group: "income",
+          stableOrdinal: 2,
+        }),
+        outputRow({
+          formulaId: "pre_tax_cash_flow",
+          label: "Annual cash flow",
+          value: "-$2,400",
+          group: "operating_performance",
+          stableOrdinal: 3,
+          warnings: ["Debt service exceeds operating income in the stress view"],
+        }),
+        outputRow({
+          formulaId: "capitalization_rate",
+          label: "Cap rate",
+          value: "5.8%",
+          group: "returns",
+          stableOrdinal: 4,
+          unit: "Percentage",
+        }),
+        outputRow({
+          formulaId: "cash_on_cash_return",
+          label: "Cash-on-cash return",
+          value: "-1.2%",
+          group: "returns",
+          stableOrdinal: 5,
+          unit: "Percentage",
+          assumptions: ["Rent remains at listing-supported estimate"],
+        }),
+      ],
+    });
+
+    const projection = buildDecisionCockpitReadProjection({
+      dealId: "deal-1",
+      underwriting,
+      strategy: strategyPresentation(),
+      report: underwritingReport(),
+    });
+
+    expect(projection.keyMetrics.registryVersion).toBe(DECISION_COCKPIT_KEY_METRIC_REGISTRY_VERSION);
+    expect(projection.keyMetrics.primaryLimit).toBe(DECISION_COCKPIT_PRIMARY_METRIC_LIMIT);
+    expect(projection.keyMetrics.metrics.map((metric) => metric.metricId)).toEqual([
+      "cash_required",
+      "noi",
+      "annual_cash_flow",
+      "cap_rate",
+      "cash_on_cash",
+    ]);
+    expect(projection.keyMetrics.unavailable).toContainEqual(expect.objectContaining({
+      metricId: "loan_amount",
+      reason: "formula_not_in_active_outputs",
+    }));
+    expect(projection.keyMetrics.metrics[0]).toMatchObject({
+      metricId: "cash_required",
+      canonicalResultReference: "down-payment-hash",
+      displayValue: "$200,000",
+      currency: "USD",
+      lineageReference: {
+        formulaId: "down_payment_amount",
+        formulaVersion: "1.0.0",
+        formulaRegistryVersion: "formula-registry-v1",
+        technicalReferences: ["hash:down-payment-hash", "result:down-payment-result"],
+      },
+    });
+    expect(projection.keyMetrics.metrics.find((metric) => metric.metricId === "annual_cash_flow")).toMatchObject({
+      displayValue: "-$2,400",
+      warningIndicator: true,
+    });
+    expect(projection.keyMetrics.metrics.find((metric) => metric.metricId === "cash_on_cash")).toMatchObject({
+      displayValue: "-1.2%",
+      assumptionIndicator: true,
+    });
+  });
+
+  it("keeps key metric projection hashes stable across projection generation times", () => {
+    const underwriting = underwritingPresentation({
+      outputs: [
+        outputRow({
+          formulaId: "cash_on_cash_return",
+          label: "Cash-on-cash return",
+          value: "8.2%",
+          group: "returns",
+          stableOrdinal: 1,
+          technicalReferences: ["hash:cash-on-cash-hash"],
+        }),
+      ],
+    });
+    const left = buildDecisionCockpitReadProjection({
+      dealId: "deal-1",
+      underwriting,
+      generatedAt: "2026-08-04T12:00:00.000Z",
+    });
+    const right = buildDecisionCockpitReadProjection({
+      dealId: "deal-1",
+      underwriting,
+      generatedAt: "2026-08-04T12:30:00.000Z",
+    });
+
+    expect(left.keyMetrics.selectionHash).toBe(right.keyMetrics.selectionHash);
+    expect(left.keyMetrics.metrics[0]?.projectionHash).toBe(right.keyMetrics.metrics[0]?.projectionHash);
+  });
+
+  it("returns permission-restricted recommendation, user decision, and metrics without leaking protected data", () => {
+    const projection = buildDecisionCockpitReadProjection({
+      dealId: "deal-1",
+      underwriting: underwritingPresentation(),
+      strategy: strategyPresentation(),
+      recommendation: recommendationRecord(),
+      userDecision: userDecisionRecord(),
+      authorization: {
+        canReadCockpit: true,
+        canReadRecommendation: false,
+        canReadMetrics: false,
+        canReadUserDecision: false,
+        reason: "membership revoked",
+      },
+    });
+
+    expect(projection.recommendation).toMatchObject({
+      available: false,
+      status: "permission_restricted",
+      state: "unavailable",
+    });
+    expect(projection.recommendedAction).toBeUndefined();
+    expect(projection.userDecision).toMatchObject({
+      available: false,
+      relationToRecommendation: "none",
+      relationToStrongestStrategy: "none",
+    });
+    expect(projection.keyMetrics.metrics).toEqual([]);
+    expect(projection.keyMetrics.unavailable).toHaveLength(DECISION_COCKPIT_PRIMARY_METRIC_LIMIT);
+    expect(projection.rationale.reasons).toEqual([]);
+  });
+
+  it("projects only supplied partial module availability and does not fabricate unavailable modules", () => {
+    const empty = buildDecisionCockpitReadProjection({ dealId: "deal-empty" });
+    const partial = buildDecisionCockpitReadProjection({
+      dealId: "deal-1",
+      moduleAvailability: [
+        { moduleId: "MarketIQ", status: "unavailable_module", reason: "No canonical market result is attached." },
+        { moduleId: "inspection", status: "available" },
+      ],
+    });
+
+    expect(empty.partialModules).toEqual({ materialUnavailableCount: 0, modules: [] });
+    expect(partial.partialModules).toMatchObject({
+      materialUnavailableCount: 1,
+      modules: [
+        { moduleId: "MarketIQ", status: "unavailable_module" },
+        { moduleId: "inspection", status: "available" },
+      ],
+    });
   });
 
   it("surfaces stale state, warnings, assumptions, provenance, and professional review flags from source projections", () => {
@@ -167,6 +472,7 @@ describe("decision cockpit read projection contract", () => {
 function underwritingPresentation(overrides: {
   blockedReasons?: string[];
   sourceWarnings?: string[];
+  outputs?: UnderwritingPresentationOutputRow[];
 } = {}): UnderwritingPresentationModel {
   return {
     contractVersion: UNDERWRITING_PRESENTATION_CONTRACT_VERSION,
@@ -193,7 +499,7 @@ function underwritingPresentation(overrides: {
     coreOutputGroups: [{
       id: "returns",
       label: "Returns",
-      outputs: [{
+      outputs: overrides.outputs ?? [{
         formulaId: "cash_on_cash_return",
         label: "Cash-on-cash return",
         value: "8.2%",
@@ -258,6 +564,92 @@ function underwritingPresentation(overrides: {
       warnings: overrides.sourceWarnings ?? [],
     },
   } as unknown as UnderwritingPresentationModel;
+}
+
+function outputRow(
+  overrides: Pick<UnderwritingPresentationOutputRow, "formulaId" | "label" | "value" | "group" | "stableOrdinal">
+    & Partial<UnderwritingPresentationOutputRow>,
+): UnderwritingPresentationOutputRow {
+  return {
+    status: "Calculated",
+    unit: "Currency",
+    period: "Annual",
+    formulaVersion: "1.0.0",
+    formulaRegistryVersion: "formula-registry-v1",
+    explanation: "Existing canonical output.",
+    warnings: [],
+    errors: [],
+    assumptions: [],
+    provenanceCount: 1,
+    technicalReferences: [`result:${overrides.formulaId}`],
+    ...overrides,
+  };
+}
+
+function recommendationRecord(
+  overrides: Partial<DecisionCockpitRecommendationRecord> = {},
+): DecisionCockpitRecommendationRecord {
+  return {
+    recommendationId: "recommendation-1",
+    recommendationState: "proceed_with_conditions",
+    recommendationStatus: "current_with_warnings",
+    dealId: "deal-1",
+    propertyId: "property-1",
+    snapshotId: "snapshot-1",
+    underwritingRunId: "run-1",
+    rankingId: "ranking-1",
+    strongestStrategyResultId: "score-1",
+    selectedStrategyId: "owner_occupied",
+    selectedStrategyVersion: "1.0.0",
+    confidenceState: "high_source_quality",
+    freshnessState: "current",
+    asOf: "2026-08-04T12:00:00.000Z",
+    reasonIds: ["rent_support", "budget_fit"],
+    bindingConstraintIds: ["verify_hoa_rules"],
+    hardDisqualifierIds: [],
+    missingInformationRefs: ["hoa_parking_rules"],
+    professionalReviewRefs: ["attorney_review_if_offer"],
+    provenanceRefs: ["source-record-1"],
+    engineVersion: "decision-recommendation-v1",
+    registryVersion: "decision-recommendation-registry-v1",
+    ...overrides,
+  };
+}
+
+function recommendedAction(overrides: Partial<DecisionCockpitRecommendedAction> = {}): DecisionCockpitRecommendedAction {
+  return {
+    actionId: "action-1",
+    actionType: "prepare_offer",
+    actionState: "active",
+    displayLabel: "Prepare offer package",
+    reasonIds: ["budget_fit"],
+    governingStrategyId: "long_term_rental",
+    governingRecommendationId: "recommendation-1",
+    requiredPermission: "deal:write",
+    connectedWorkflow: "OfferIQ",
+    workflowAvailability: "available",
+    stableOrdinal: 1,
+    ...overrides,
+  };
+}
+
+function userDecisionRecord(overrides: Partial<DecisionCockpitUserDecisionRecord> = {}): DecisionCockpitUserDecisionRecord {
+  return {
+    decisionId: "decision-1",
+    decisionType: "proceed_with_conditions",
+    decisionStatus: "current",
+    selectedStrategyId: "owner_occupied",
+    selectedStrategyVersion: "1.0.0",
+    relatedRecommendationId: "recommendation-1",
+    relatedSnapshotId: "snapshot-1",
+    relatedRunId: "run-1",
+    relatedRankingId: "ranking-1",
+    rationaleSummary: "Proceed only after HOA rules are verified.",
+    decidedAt: "2026-08-04T12:10:00.000Z",
+    actorId: "user-1",
+    version: "user-decision-v1",
+    ...overrides,
+  };
 }
 
 function strategyPresentation(overrides: {
