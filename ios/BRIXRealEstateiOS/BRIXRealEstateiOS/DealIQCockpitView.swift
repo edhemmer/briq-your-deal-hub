@@ -16,18 +16,11 @@ struct DecisionCockpitNativePresentationContract {
     let horizontalPadding: CGFloat
     let cardSpacing: CGFloat
     let priorityOrder = [
-        "recommendation",
+        "deal_identity",
         "deal_status",
-        "strongest_strategy",
-        "selected_strategy",
-        "key_numbers",
-        "risks",
-        "confidence",
-        "missing_inputs",
-        "deadlines",
-        "next_action",
-        "recent_changes",
-        "supporting_detail",
+        "captured_facts",
+        "verification",
+        "evidence",
     ]
     let sourceBoundary = DecisionCockpitNativeSourceBoundary()
     let supportsSafeArea = true
@@ -80,30 +73,18 @@ struct DealIQCockpitView: View {
         NavigationStack {
             Group {
                 if var deal = state.selectedDeal {
-                    let analysis = state.analysis(for: deal)
                     let presentation = DecisionCockpitNativePresentationContract.build(
                         horizontalSizeClass: horizontalSizeClass,
                         dynamicTypeSize: dynamicTypeSize
                     )
                     ScrollView {
                         VStack(alignment: .leading, spacing: presentation.cardSpacing) {
-                            decisionHeader(deal: deal, analysis: analysis)
+                            identityHeader(deal: deal)
+
                             LazyVGrid(columns: gridColumns(for: presentation), alignment: .leading, spacing: presentation.cardSpacing) {
                                 BrixCard {
                                     VStack(alignment: .leading, spacing: 12) {
-                                        Text("Key numbers").font(.title2.bold())
-                                        statLine("Monthly payment", value: currency(analysis.monthlyPayment))
-                                        statLine("Monthly cash flow", value: currency(analysis.monthlyCashFlow))
-                                        statLine("DSCR", value: dscr(analysis.dscr))
-                                        HStack {
-                                            BrixMetric(title: "Confidence", value: analysis.confidence)
-                                            BrixMetric(title: "Readiness", value: analysis.readiness)
-                                        }
-                                    }
-                                }
-                                BrixCard {
-                                    VStack(alignment: .leading, spacing: 12) {
-                                        Text("Deal facts").font(.title2.bold())
+                                        Text("Captured facts").font(.title2.bold())
                                         money("Purchase price", value: Binding(get: { deal.listPrice }, set: { deal.listPrice = $0; state.selectedDeal = deal }))
                                         money("Annual taxes", value: Binding(get: { deal.annualTaxes }, set: { deal.annualTaxes = $0; state.selectedDeal = deal }))
                                         money("Annual insurance", value: Binding(get: { deal.annualInsurance }, set: { deal.annualInsurance = $0; state.selectedDeal = deal }))
@@ -111,47 +92,34 @@ struct DealIQCockpitView: View {
                                         money("Rehab budget", value: Binding(get: { deal.rehabBudget }, set: { deal.rehabBudget = $0; state.selectedDeal = deal }))
                                     }
                                 }
+
                                 BrixCard {
-                                    VStack(alignment: .leading, spacing: 10) {
-                                        Text("Strategy").font(.title2.bold())
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        Text("Strategy intent").font(.title2.bold())
                                         Picker("Strategy", selection: Binding(get: { deal.strategy }, set: { deal.strategy = $0; state.selectedDeal = deal })) {
                                             ForEach(StrategyId.allCases) { item in Text(item.title).tag(item) }
                                         }
                                         .pickerStyle(.navigationLink)
-                                        Text(analysis.strategyHeadline).font(.headline)
-                                        Text(analysis.strategyExplanation).foregroundStyle(Brix.muted)
+                                        Text("Saved as deal intent. BRIX does not calculate a separate native ranking or recommendation.")
+                                            .font(.subheadline)
+                                            .foregroundStyle(Brix.muted)
                                     }
                                 }
+
                                 BrixCard {
-                                    VStack(alignment: .leading, spacing: 12) {
-                                        Text("Strategy comparison").font(.title2.bold())
-                                        HStack {
-                                            strategyFact("Selected", value: deal.strategy.title)
-                                            strategyFact("Top fit", value: analysis.bestStrategyName)
-                                            BrixMetric(title: "Gap", value: analysis.strategyScoreGap)
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Text("Verification").font(.title2.bold())
+                                        verificationLine("Address", complete: !deal.address.isEmpty)
+                                        verificationLine("Purchase price", complete: deal.listPrice != nil)
+                                        verificationLine("Annual taxes", complete: deal.annualTaxes != nil)
+                                        verificationLine("Annual insurance", complete: deal.annualInsurance != nil)
+                                        if deal.strategy != .ownerOccupant {
+                                            verificationLine("Monthly rent support", complete: deal.monthlyRent != nil)
                                         }
-                                        challengeSection("Tradeoffs", items: analysis.strategyTradeoffs)
-                                        challengeSection("Verify before switching", items: analysis.strategyVerification)
                                     }
                                 }
                             }
-                            BrixCard {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("Next actions").font(.title2.bold())
-                                    ForEach(analysis.nextActions, id: \.self) { action in Label(action, systemImage: "checkmark.seal").foregroundStyle(Brix.muted) }
-                                }
-                            }
-                            BrixCard {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("Decision challenge").font(.title2.bold())
-                                    challengeSection("Key risks", items: analysis.keyRisks)
-                                    challengeSection("Bull case", items: analysis.bullCase)
-                                    challengeSection("Bear case", items: analysis.bearCase)
-                                    challengeSection("What must be true", items: analysis.whatMustBeTrue)
-                                    challengeSection("Failure scenarios", items: analysis.failureScenarios)
-                                    challengeSection("Alternatives", items: analysis.alternativeStrategies)
-                                }
-                            }
+
                             BrixCard {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text("Photos").font(.title2.bold())
@@ -172,6 +140,7 @@ struct DealIQCockpitView: View {
                                     }
                                 }
                             }
+
                             Button(role: .destructive) { state.deleteSelectedDeal() } label: { Label("Delete Deal", systemImage: "trash") }
                                 .frame(minHeight: 44)
                         }
@@ -188,20 +157,19 @@ struct DealIQCockpitView: View {
         }
     }
 
-    private func decisionHeader(deal: Deal, analysis: DealAnalysis) -> some View {
+    private func identityHeader(deal: Deal) -> some View {
         BrixCard {
-            VStack(alignment: .leading, spacing: 14) {
-                Text(analysis.decision)
+            VStack(alignment: .leading, spacing: 12) {
+                Text(deal.address.isEmpty ? "Deal file" : deal.address)
                     .font(.largeTitle.bold())
                     .minimumScaleFactor(0.78)
                     .accessibilityAddTraits(.isHeader)
-                Text(deal.address.isEmpty ? "Address not saved" : deal.address)
-                    .foregroundStyle(Brix.muted)
-                if !analysis.missing.isEmpty {
-                    Label("\(analysis.missing.count) item\(analysis.missing.count == 1 ? "" : "s") need completion", systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(Brix.amber)
-                        .font(.headline)
+                HStack(spacing: 10) {
+                    Label(deal.status.replacingOccurrences(of: "_", with: " ").capitalized, systemImage: "folder")
+                    Text(deal.strategy.title)
                 }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Brix.muted)
             }
         }
     }
@@ -217,42 +185,8 @@ struct DealIQCockpitView: View {
             .frame(minHeight: 44)
     }
 
-    private func statLine(_ label: String, value: String) -> some View {
-        HStack {
-            Text(label).foregroundStyle(Brix.muted)
-            Spacer()
-            Text(value).fontWeight(.semibold)
-        }
-    }
-
-    private func currency(_ value: Double?) -> String {
-        guard let value else { return "Missing" }
-        return value.formatted(.currency(code: "USD").precision(.fractionLength(0)))
-    }
-
-    private func dscr(_ value: Double?) -> String {
-        guard let value else { return "Missing" }
-        return "\(value)x"
-    }
-
-    private func strategyFact(_ title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.caption).foregroundStyle(Brix.muted)
-            Text(value).font(.headline).foregroundStyle(.white).lineLimit(2)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Brix.panel))
-    }
-
-    private func challengeSection(_ title: String, items: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.headline)
-            ForEach(items, id: \.self) { item in
-                Label(item, systemImage: "exclamationmark.triangle")
-                    .font(.subheadline)
-                    .foregroundStyle(Brix.muted)
-            }
-        }
+    private func verificationLine(_ label: String, complete: Bool) -> some View {
+        Label(label, systemImage: complete ? "checkmark.circle.fill" : "circle")
+            .foregroundStyle(complete ? Brix.green : Brix.muted)
     }
 }
