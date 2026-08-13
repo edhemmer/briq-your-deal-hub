@@ -6,11 +6,7 @@ struct AppView: View {
 
     var body: some View {
         Group {
-            if horizontalSizeClass == .regular {
-                iPadShell
-            } else {
-                iPhoneShell
-            }
+            if horizontalSizeClass == .regular { iPadShell } else { iPhoneShell }
         }
         .tint(Brix.blue)
     }
@@ -33,20 +29,14 @@ struct AppView: View {
             List {
                 Section("BRIX") {
                     ForEach(AppTab.allCases) { tab in
-                        Button {
-                            state.tab = tab
-                        } label: {
+                        Button { state.tab = tab } label: {
                             HStack(spacing: 12) {
                                 Image(systemName: tab.systemImage)
                                     .frame(width: 24)
                                     .foregroundStyle(state.tab == tab ? Brix.blue : Brix.muted)
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(tab.title)
-                                        .font(.headline)
-                                        .foregroundStyle(state.tab == tab ? .white : Brix.muted)
-                                    Text(tab.purpose)
-                                        .font(.caption)
-                                        .foregroundStyle(Brix.muted)
+                                    Text(tab.title).font(.headline).foregroundStyle(state.tab == tab ? .white : Brix.muted)
+                                    Text(tab.purpose).font(.caption).foregroundStyle(Brix.muted)
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -67,8 +57,7 @@ struct AppView: View {
                 .toolbar {
                     ToolbarItem(placement: .principal) {
                         VStack(spacing: 2) {
-                            Text(state.tab.title)
-                                .font(.headline)
+                            Text(state.tab.title).font(.headline)
                             if let deal = state.selectedDeal {
                                 Text(deal.address.isEmpty ? "Current Deal" : deal.address)
                                     .font(.caption)
@@ -84,22 +73,14 @@ struct AppView: View {
     @ViewBuilder
     private func screen(for tab: AppTab) -> some View {
         switch tab {
-        case .find:
-            FindIQView()
-        case .deal:
-            DealIQCockpitView()
-        case .contract:
-            ContractIQView()
-        case .pipeline:
-            PipelineIQView()
-        case .offer:
-            OfferIQView()
-        case .portfolio:
-            PortfolioOSView()
-        case .reports:
-            ReportsIQView()
-        case .account:
-            AccountView()
+        case .find: FindIQView()
+        case .deal: DealIQCockpitView()
+        case .contract: ContractIQView()
+        case .pipeline: PipelineIQView()
+        case .offer: OfferIQView()
+        case .portfolio: PortfolioOSView()
+        case .reports: ReportsIQView()
+        case .account: AccountView()
         }
     }
 }
@@ -139,42 +120,22 @@ struct ReportsIQView: View {
         NavigationStack {
             ScrollView {
                 if let deal = state.selectedDeal {
-                    let analysis = state.analysis(for: deal)
                     VStack(alignment: .leading, spacing: 16) {
                         BrixCard {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("Decision memo").font(.largeTitle.bold())
-                                Text(deal.address).foregroundStyle(Brix.muted)
-                                HStack {
-                                    BrixMetric(title: "Confidence", value: analysis.confidence)
-                                    BrixMetric(title: "Readiness", value: analysis.readiness)
-                                }
+                                Text("Reports").font(.largeTitle.bold())
+                                Text(deal.address.isEmpty ? "Current Deal" : deal.address).foregroundStyle(Brix.muted)
+                                Text("Reports use canonical BRIX outputs rather than device-side calculations.").foregroundStyle(Brix.muted)
                             }
                         }
                         BrixCard {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text("Financial read").font(.title2.bold())
-                                Label("Monthly payment: \(currency(analysis.monthlyPayment))", systemImage: "creditcard")
-                                Label("Monthly cash flow: \(currency(analysis.monthlyCashFlow))", systemImage: "chart.line.uptrend.xyaxis")
-                                Label("DSCR: \(dscr(analysis.dscr))", systemImage: "gauge")
-                            }
-                            .foregroundStyle(Brix.muted)
-                        }
-                        BrixCard {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Strategy comparison").font(.title2.bold())
-                                Text(analysis.strategyHeadline).font(.headline)
-                                ForEach(analysis.strategyTradeoffs, id: \.self) { item in
-                                    Label(item, systemImage: "arrow.triangle.branch").foregroundStyle(Brix.muted)
-                                }
-                            }
-                        }
-                        BrixCard {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Decision challenge").font(.title2.bold())
-                                ForEach(analysis.keyRisks + analysis.whatMustBeTrue + analysis.failureScenarios, id: \.self) { item in
-                                    Label(item, systemImage: "checkmark.seal").foregroundStyle(Brix.muted)
-                                }
+                                Text("Current Deal record").font(.title2.bold())
+                                reportLine("Status", value: deal.status.replacingOccurrences(of: "_", with: " ").capitalized)
+                                reportLine("Strategy intent", value: deal.strategy.title)
+                                reportLine("Purchase price", value: currency(deal.listPrice))
+                                reportLine("Annual taxes", value: currency(deal.annualTaxes))
+                                reportLine("Annual insurance", value: currency(deal.annualInsurance))
                             }
                         }
                     }
@@ -188,13 +149,12 @@ struct ReportsIQView: View {
         }
     }
 
+    private func reportLine(_ label: String, value: String) -> some View {
+        HStack { Text(label).foregroundStyle(Brix.muted); Spacer(); Text(value).fontWeight(.semibold) }
+    }
+
     private func currency(_ value: Double?) -> String {
         guard let value else { return "Missing" }
         return value.formatted(.currency(code: "USD").precision(.fractionLength(0)))
-    }
-
-    private func dscr(_ value: Double?) -> String {
-        guard let value else { return "Missing" }
-        return "\(value)x"
     }
 }
