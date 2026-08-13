@@ -10,12 +10,31 @@ enum BRIXServiceError: Error, Equatable {
     case accessRevoked
     case badResponse(Int)
     case invalidCanonicalResponse
+    case configurationMissing(String)
 }
 
 enum BRIXService {
-    static let supabaseURL = URL(string: "https://luwaqrkhmxcqsozmilbw.supabase.co")!
-    static let publishableKey = "sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f"
+    static let supabaseURL: URL = {
+        let value = requiredInfoString("BRIX_SUPABASE_URL")
+        guard let url = URL(string: value), url.scheme == "https" else {
+            fatalError("Invalid required BRIX iOS configuration: BRIX_SUPABASE_URL")
+        }
+        return url
+    }()
+
+    static let publishableKey = requiredInfoString("BRIX_SUPABASE_PUBLISHABLE_KEY")
     private static let encoder = JSONEncoder()
+
+    private static func requiredInfoString(_ key: String) -> String {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
+            fatalError("Missing required BRIX iOS configuration: \(key)")
+        }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            fatalError("Missing required BRIX iOS configuration: \(key)")
+        }
+        return trimmed
+    }
 
     static func invoke(function name: String, body: [String: Any]) async throws -> Data {
         var request = URLRequest(url: supabaseURL.appendingPathComponent("functions/v1/\(name)"))

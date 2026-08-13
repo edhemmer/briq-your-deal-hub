@@ -20,18 +20,35 @@ if (Test-Path $supabaseGo) {
 
 Set-Location $repo
 
-switch ($Task) {
-  "install" { & $pnpm install }
-  "dev" { & $node "node_modules\vite\bin\vite.js" }
-  "build" { & $node "node_modules\vite\bin\vite.js" build }
-  "test" { & $node "node_modules\vitest\vitest.mjs" run --environment jsdom --config vitest.config.ts }
-  "typecheck" { & $node "node_modules\typescript\bin\tsc" -p tsconfig.app.json --noEmit }
-  "verify" {
-    & $node "node_modules\typescript\bin\tsc" -p tsconfig.app.json --noEmit
-    & $node "node_modules\vitest\vitest.mjs" run --environment jsdom --config vitest.config.ts
-    & $node "node_modules\vite\bin\vite.js" build
+function Invoke-BrixCommand {
+  param(
+    [Parameter(Mandatory = $true)]
+    [scriptblock]$Command
+  )
+  & $Command
+  if ($LASTEXITCODE -ne 0) {
+    throw "BRIX command failed with exit code $LASTEXITCODE."
   }
-  "supabase-push" { supabase db push }
+}
+
+switch ($Task) {
+  "install" { Invoke-BrixCommand { & $pnpm install } }
+  "dev" { Invoke-BrixCommand { & $node "node_modules\vite\bin\vite.js" } }
+  "build" { Invoke-BrixCommand { & $node "node_modules\vite\bin\vite.js" build } }
+  "test" { Invoke-BrixCommand { & $node "node_modules\vitest\vitest.mjs" run --environment jsdom --config vitest.config.ts } }
+  "typecheck" { Invoke-BrixCommand { & $node "node_modules\typescript\bin\tsc" -p tsconfig.app.json --noEmit } }
+  "verify" {
+    Invoke-BrixCommand { & $node "node_modules\typescript\bin\tsc" -p tsconfig.app.json --noEmit }
+    Invoke-BrixCommand { & $node "node_modules\eslint\bin\eslint.js" . }
+    Invoke-BrixCommand { & $node "scripts\production-authority-check.mjs" }
+    if (-not (Test-Path $pnpm)) {
+      throw "pnpm.cmd was not found in the configured BRIX package runtime."
+    }
+    Invoke-BrixCommand { & $pnpm audit --prod --audit-level high }
+    Invoke-BrixCommand { & $node "node_modules\vitest\vitest.mjs" run --environment jsdom --config vitest.config.ts }
+    Invoke-BrixCommand { & $node "node_modules\vite\bin\vite.js" build }
+  }
+  "supabase-push" { Invoke-BrixCommand { supabase db push } }
   "status" {
     Write-Host "Repo: $repo"
     Write-Host "Node:" (Get-Command node -ErrorAction SilentlyContinue).Source

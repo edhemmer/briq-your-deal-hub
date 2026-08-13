@@ -9,6 +9,8 @@ const authContinuity = readFileSync(join(iosRoot, "BRIXRealEstateiOS", "AuthCont
 const appEntry = readFileSync(join(iosRoot, "BRIXRealEstateiOS", "BRIXRealEstateiOSApp.swift"), "utf8");
 const entitlements = readFileSync(join(iosRoot, "BRIXRealEstateiOS", "BRIXRealEstateiOS.entitlements"), "utf8");
 const infoPlist = readFileSync(join(iosRoot, "BRIXRealEstateiOS", "Info.plist"), "utf8");
+const services = readFileSync(join(iosRoot, "BRIXRealEstateiOS", "Services.swift"), "utf8");
+const project = readFileSync(join(iosRoot, "BRIXRealEstateiOS.xcodeproj", "project.pbxproj"), "utf8");
 
 describe("native authentication continuity source gates", () => {
   it("stores native Supabase session material through Keychain, not UserDefaults", () => {
@@ -44,5 +46,15 @@ describe("native authentication continuity source gates", () => {
     expect(entitlements).toContain("applinks:www.brixrealestate.app");
     expect(infoPlist).toContain("CFBundleURLTypes");
     expect(infoPlist).toContain("brixrealestate");
+  });
+
+  it("keeps native Supabase environment identity in Xcode build configuration", () => {
+    expect(project).toContain("INFOPLIST_KEY_BRIX_SUPABASE_URL");
+    expect(project).toContain("INFOPLIST_KEY_BRIX_SUPABASE_PUBLISHABLE_KEY");
+    expect(services).toContain('requiredInfoString("BRIX_SUPABASE_URL")');
+    expect(services).toContain('requiredInfoString("BRIX_SUPABASE_PUBLISHABLE_KEY")');
+    expect(services).toContain("Bundle.main.object(forInfoDictionaryKey: key)");
+    expect(services).not.toContain(".supabase.co");
+    expect(services).not.toContain("sb_publishable_");
   });
 });

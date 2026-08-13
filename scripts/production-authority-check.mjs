@@ -16,12 +16,24 @@ for (const forbiddenDependency of ["xlsx", "pdfjs-dist"]) {
   }
 }
 
+const brixWrapper = await read("scripts/brix.ps1");
+requirePattern("scripts/brix.ps1", brixWrapper, /function Invoke-BrixCommand/, "wrapper must fail closed on native command failures");
+requirePattern("scripts/brix.ps1", brixWrapper, /\$LASTEXITCODE -ne 0/, "wrapper must check native command exit codes");
+requirePattern("scripts/brix.ps1", brixWrapper, /node_modules\\eslint\\bin\\eslint\.js/, "verify must run ESLint through the pinned BRIX Node runtime");
+requirePattern("scripts/brix.ps1", brixWrapper, /production-authority-check\.mjs/, "verify must run the production authority guard");
+requirePattern("scripts/brix.ps1", brixWrapper, /pnpm audit --prod --audit-level high/, "verify must run the production dependency audit");
+
 const supabase = await read("src/core/supabase.ts");
 forbidPattern("src/core/supabase.ts", supabase, /\.supabase\.co["')]/, "runtime code must not contain a production Supabase fallback URL");
 requirePattern("src/core/supabase.ts", supabase, /Missing required BRIX environment variable/, "missing environment configuration must fail closed");
 
 const iosService = await read("ios/BRIXRealEstateiOS/BRIXRealEstateiOS/Services.swift");
 forbidPattern("Services.swift", iosService, /rest\/v1\/brix_deals/, "native iOS must not use the legacy Deal table endpoint");
+forbidPattern("Services.swift", iosService, /\.supabase\.co/, "native iOS must read the Supabase URL from build configuration, not hardcoded source");
+forbidPattern("Services.swift", iosService, /sb_publishable_/, "native iOS must read the publishable key from build configuration, not hardcoded source");
+requirePattern("Services.swift", iosService, /requiredInfoString\("BRIX_SUPABASE_URL"\)/, "native iOS must read the Supabase URL from Info.plist");
+requirePattern("Services.swift", iosService, /requiredInfoString\("BRIX_SUPABASE_PUBLISHABLE_KEY"\)/, "native iOS must read the publishable key from Info.plist");
+requirePattern("Services.swift", iosService, /Bundle\.main\.object\(forInfoDictionaryKey:\s*key\)/, "native iOS must resolve required configuration through Info.plist");
 requirePattern("Services.swift", iosService, /rest\/v1\/rpc\//, "native iOS must use canonical RPC boundaries");
 requirePattern("Services.swift", iosService, /badResponse\(404\)/, "native canonical upsert must distinguish a missing Deal from a failed command so first-time creation can proceed");
 
