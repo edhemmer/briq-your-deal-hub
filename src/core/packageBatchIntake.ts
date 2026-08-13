@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import { parseBoundedXlsxRows } from "./xlsxReader";
 import { createDuplicateDetectionRequest, findDuplicateCandidates, packageBatchDuplicateCandidate } from "./duplicateDetection";
 import { createManualFallbackPlan } from "./manualFallback";
 import { createManualIntakeDraft } from "./propertyIntake";
@@ -469,18 +469,20 @@ function parseCsv(text: string, source: PackageBatchSource) {
 }
 
 function parseXlsx(bytes: Uint8Array, source: PackageBatchSource) {
-  const workbook = XLSX.read(bytes, { type: "array" });
-  const sheetNames = workbook.SheetNames.slice(0, PACKAGE_BATCH_LIMITS.maxXlsxSheets);
+  const sheets = parseBoundedXlsxRows(bytes, {
+    maxSheets: PACKAGE_BATCH_LIMITS.maxXlsxSheets,
+    maxRowsPerSheet: PACKAGE_BATCH_LIMITS.maxXlsxRowsPerSheet,
+    maxCellsPerRow: PACKAGE_BATCH_LIMITS.maxXlsxCellsPerRow,
+    maxArchiveEntries: 256,
+    maxUncompressedBytes: 20 * 1024 * 1024,
+  });
   const allRows: Record<string, string>[] = [];
   let mapping: PackageColumnMapping = {};
-  for (const sheetName of sheetNames) {
-    const rows = XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[sheetName], { header: 1, blankrows: false })
-      .slice(0, PACKAGE_BATCH_LIMITS.maxXlsxRowsPerSheet + 1)
-      .map((row) => row.slice(0, PACKAGE_BATCH_LIMITS.maxXlsxCellsPerRow).map((cell) => cell == null ? "" : String(cell).trim()));
-    if (rows.length < 2) continue;
-    const headers = rows[0].map((header, index) => header.trim() || `${sheetName} Column ${index + 1}`);
+  for (const sheet of sheets) {
+    if (sheet.rows.length < 2) continue;
+    const headers = sheet.rows[0].map((header, index) => header.trim() || `${sheet.name} Column ${index + 1}`);
     if (!Object.keys(mapping).length) mapping = suggestColumnMapping(headers);
-    rows.slice(1).forEach((row, index) => allRows.push({ ...rowToRecord(headers, row), "__sheet": sheetName, "__row": String(index + 2) }));
+    sheet.rows.slice(1).forEach((row, index) => allRows.push({ ...rowToRecord(headers, row), "__sheet": sheet.name, "__row": String(index + 2) }));
   }
   if (!allRows.length) throw new Error(`${source.originalFilename ?? "XLSX"} needs headers and at least one row.`);
   return { mapping, rows: allRows };
