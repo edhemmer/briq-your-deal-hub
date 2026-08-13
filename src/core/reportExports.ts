@@ -62,53 +62,119 @@ export async function downloadDecisionPdf(deal: DealFacts, analysis: DealAnalysi
   pdf.save(fileName(deal, "decision-memo", "pdf"));
 }
 
+type WorkbookCell = string | number | null | undefined;
+type WorkbookRow = Record<string, WorkbookCell>;
+
 export async function downloadWorkbook(deal: DealFacts, analysis: DealAnalysis) {
-  const XLSX = await import("xlsx");
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{
-    address: deal.address,
-    city: deal.city,
-    state: deal.state,
-    zip: deal.zip,
-    strategy: analysis.primaryStrategy.name,
-    recommendation: analysis.decision,
-    confidence: analysis.confidence,
-    readiness: analysis.readiness,
-    purchase_price: deal.listPrice ?? null,
-    annual_taxes: deal.annualTaxes ?? null,
-    annual_insurance: deal.annualInsurance ?? null,
-    monthly_rent: deal.monthlyRent ?? null,
-    rehab_budget: deal.rehabBudget ?? null,
-    arv: deal.arv ?? null,
-    monthly_payment: analysis.monthlyPayment ?? null,
-    monthly_noi: analysis.monthlyNOI ?? null,
-    monthly_cash_flow: analysis.monthlyCashFlow ?? null,
-    dscr: analysis.dscr ?? null,
-    cap_rate: analysis.capRate ?? null,
-    cash_on_cash: analysis.cashOnCash ?? null,
-  }]), "Deal");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analysis.strategyScores), "Strategies");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+  const sheets: Array<{ name: string; rows: WorkbookRow[] }> = [
     {
-      headline: analysis.strategyInsight.headline,
-      explanation: analysis.strategyInsight.explanation,
-      selected: analysis.strategyInsight.selected.name,
-      top_fit: analysis.strategyInsight.best.name,
-      score_gap: analysis.strategyInsight.scoreGap,
+      name: "Deal",
+      rows: [{
+        address: deal.address,
+        city: deal.city,
+        state: deal.state,
+        zip: deal.zip,
+        strategy: analysis.primaryStrategy.name,
+        recommendation: analysis.decision,
+        confidence: analysis.confidence,
+        readiness: analysis.readiness,
+        purchase_price: deal.listPrice,
+        annual_taxes: deal.annualTaxes,
+        annual_insurance: deal.annualInsurance,
+        monthly_rent: deal.monthlyRent,
+        rehab_budget: deal.rehabBudget,
+        arv: deal.arv,
+        monthly_payment: analysis.monthlyPayment,
+        monthly_noi: analysis.monthlyNOI,
+        monthly_cash_flow: analysis.monthlyCashFlow,
+        dscr: analysis.dscr,
+        cap_rate: analysis.capRate,
+        cash_on_cash: analysis.cashOnCash,
+      }],
     },
-    ...analysis.strategyInsight.tradeoffs.map((item) => ({ tradeoff: item })),
-    ...analysis.strategyInsight.verification.map((item) => ({ verification: item })),
-  ]), "Strategy Insight");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analysis.nextActions.map((action) => ({ action }))), "Next Actions");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
-    ...analysis.keyRisks.map((item) => ({ section: "Key risks", item })),
-    ...analysis.bullCase.map((item) => ({ section: "Bull case", item })),
-    ...analysis.bearCase.map((item) => ({ section: "Bear case", item })),
-    ...analysis.whatMustBeTrue.map((item) => ({ section: "What must be true", item })),
-    ...analysis.failureScenarios.map((item) => ({ section: "Failure scenarios", item })),
-    ...analysis.alternativeStrategies.map((item) => ({ section: "Alternatives", item })),
-  ]), "Decision Challenge");
-  XLSX.writeFile(wb, fileName(deal, "underwriting", "xlsx"));
+    {
+      name: "Strategies",
+      rows: analysis.strategyScores.map((score) => ({
+        strategy: score.name,
+        score: score.score,
+        confidence: score.confidence,
+        recommendation: score.recommendation,
+      })),
+    },
+    {
+      name: "Strategy Insight",
+      rows: [
+        {
+          headline: analysis.strategyInsight.headline,
+          explanation: analysis.strategyInsight.explanation,
+          selected: analysis.strategyInsight.selected.name,
+          top_fit: analysis.strategyInsight.best.name,
+          score_gap: analysis.strategyInsight.scoreGap,
+        },
+        ...analysis.strategyInsight.tradeoffs.map((item) => ({ tradeoff: item })),
+        ...analysis.strategyInsight.verification.map((item) => ({ verification: item })),
+      ],
+    },
+    {
+      name: "Next Actions",
+      rows: analysis.nextActions.map((action) => ({ action })),
+    },
+    {
+      name: "Decision Challenge",
+      rows: [
+        ...analysis.keyRisks.map((item) => ({ section: "Key risks", item })),
+        ...analysis.bullCase.map((item) => ({ section: "Bull case", item })),
+        ...analysis.bearCase.map((item) => ({ section: "Bear case", item })),
+        ...analysis.whatMustBeTrue.map((item) => ({ section: "What must be true", item })),
+        ...analysis.failureScenarios.map((item) => ({ section: "Failure scenarios", item })),
+        ...analysis.alternativeStrategies.map((item) => ({ section: "Alternatives", item })),
+      ],
+    },
+  ];
+
+  const xml = buildSpreadsheetXml(sheets);
+  const blob = new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8" });
+  const href = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = href;
+  anchor.download = fileName(deal, "underwriting-workbook", "xml");
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(href);
+}
+
+function buildSpreadsheetXml(sheets: Array<{ name: string; rows: WorkbookRow[] }>) {
+  const worksheets = sheets.map(({ name, rows }) => {
+    const headers = [...new Set(rows.flatMap((row) => Object.keys(row)))];
+    const headerRow = spreadsheetRow(headers);
+    const dataRows = rows.map((row) => spreadsheetRow(headers.map((header) => row[header]))).join("");
+    return `<Worksheet ss:Name="${escapeXml(name.slice(0, 31))}"><Table>${headerRow}${dataRows}</Table></Worksheet>`;
+  }).join("");
+
+  return `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">${worksheets}</Workbook>`;
+}
+
+function spreadsheetRow(values: WorkbookCell[]) {
+  return `<Row>${values.map(spreadsheetCell).join("")}</Row>`;
+}
+
+function spreadsheetCell(value: WorkbookCell) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return `<Cell><Data ss:Type="Number">${value}</Data></Cell>`;
+  }
+  const text = value === null || value === undefined ? "" : String(value);
+  return `<Cell><Data ss:Type="String">${escapeXml(text)}</Data></Cell>`;
+}
+
+function escapeXml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
 function fileName(deal: DealFacts, suffix: string, ext: string) {
