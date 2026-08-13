@@ -13,7 +13,9 @@
     "test:golden": "vitest run src/test/underwritingGoldenReconciliation.test.ts --environment jsdom --config vitest.config.ts",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
-    "verify": "npm run typecheck && npm run test -- --environment jsdom --config vitest.config.ts && npm run build"
+    "check:authority": "node scripts/production-authority-check.mjs",
+    "verify": "npm run typecheck && npm run lint && npm run check:authority && npm run test -- --environment jsdom --config vitest.config.ts && npm run build",
+    "verify:ci": "npm run verify"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
