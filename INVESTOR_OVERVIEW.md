@@ -2,98 +2,105 @@
 
 **Classification:** Confidential  
 **Product:** BRIX Real Estate  
-**Positioning:** AI-powered acquisition intelligence and real estate operating system
+**Positioning:** Individual-investor real estate decision and operating system
 
 ## Summary
 
-BRIX helps investors move from fragmented property data to explainable acquisition and portfolio decisions. The platform is designed around trust, verification, capital preservation, and repeatable execution.
+BRIX helps an individual real estate investor move from fragmented property information to explainable, source-linked, repeatable decisions inside one canonical Deal workspace.
 
-BRIX is not a listing portal and not a prototype presentation layer. It is a live operating system connected to BRIX-owned backend services.
+BRIX is not a listing portal, generic CRM, spreadsheet clone, or prototype presentation layer. It is a Property Deal Relationship Management platform that connects discovery, underwriting, strategy selection, market research, financing, governance, offers, contracts, field work, due diligence, reporting, ownership, and disposition.
 
 ## Product Thesis
 
-Real estate investors do not only need calculators. They need a decision environment that can:
+Real estate investors do not only need calculators. They need a dependable decision environment that can:
 
-- Find opportunities
-- Normalize property facts
-- Identify missing data
-- Analyze multiple strategies
-- Stress test assumptions
-- Compare deals
-- Generate offer and transaction actions
-- Track outcomes after close or pass
-- Improve future decisions from prior results
+- create one durable Deal record;
+- normalize property facts and sources;
+- distinguish facts, estimates, assumptions, conflicts, and unknowns;
+- run deterministic underwriting;
+- compare compatible strategies;
+- show risks, constraints, missing information, and confidence;
+- connect market, financing, governance, contract, offer, and due-diligence findings to the same Deal;
+- preserve what changed and why;
+- generate reports and decision artifacts from canonical data;
+- continue into owned-asset and portfolio analysis after closing.
 
-## Core Modules
+## Canonical Product Model
 
-| Module | Role |
-| --- | --- |
-| **FindIQ** | Source, import, rank, and queue opportunities |
-| **DealIQ** | Underwrite acquisition decisions with risks, scenarios, and strategy fit |
-| **OfferIQ** | Turn analysis into offer structure and transaction communication |
-| **PipelineIQ** | Track opportunities from review through close/pass |
-| **PortfolioIQ** | Track owned asset performance, equity, cash flow, and risk |
-| **ContractIQ** | Review contract terms, deadlines, risk, and leverage |
-| **Reports** | Export decision records and evidence |
+BRIX uses one canonical:
 
-## Technology
+- Workspace tenancy boundary;
+- Property identity;
+- Deal lifecycle;
+- Evidence model;
+- task/deadline system;
+- timeline and audit model;
+- deterministic underwriting engine;
+- strategy system;
+- Recommendation model;
+- user Decision model.
 
-| Layer | Current Platform |
-| --- | --- |
-| **Web App** | React, TypeScript, Vite, Tailwind CSS |
-| **Native iOS** | SwiftUI |
-| **Backend** | Supabase Postgres, Auth, Storage, Edge Functions |
-| **Deployment** | Vercel web deployment and BRIX-owned Supabase backend |
-| **AI/Data Layer** | Provider-adapter architecture with server-side API keys |
-
-## Current Operating Priorities
-
-1. Production reliability
-2. Real user-owned data only
-3. No client-facing internal notes
-4. No false certainty
-5. Strong account, privacy, and deletion controls
-6. Provider-ready data architecture
-7. Deal workflow continuity across web and iOS
+Capabilities such as DealIQ, MarketIQ, FinanceIQ, GovernanceIQ, ContractIQ, OfferIQ, VisitIQ, PhotoIQ, InspectionIQ, AppraisalIQ, ReportIQ, PortfolioIQ, and RELearnIQ are connected capabilities around the same Deal, not separate products or duplicate data stores.
 
 ## Decision Quality Standard
 
-Every major recommendation must show:
+Every material decision output should make clear, where applicable:
 
-- Recommendation
-- Supporting evidence
-- Confidence level
-- Key risks
-- Missing information
-- Alternative strategies
-- Bull case
-- Bear case
-- What must be true
-- Failure scenarios
-- Next actions
+- current recommendation;
+- strongest viable strategy;
+- selected strategy;
+- controlling financial outputs;
+- supporting Evidence;
+- assumptions and estimates;
+- confidence and freshness;
+- material risks and disqualifiers;
+- unresolved conflicts;
+- missing decision-changing information;
+- what changed;
+- next action;
+- professional-review triggers.
 
-## Infrastructure Ownership
+BRIX reduces uncertainty without creating false certainty.
 
-BRIX production services are controlled through:
+## Individual-Investor Product Model
 
-- Custom domain: `brixrealestate.app`
-- Supabase project: `luwaqrkhmxcqsozmilbw`
-- GitHub repository: `edhemmer/briq-your-deal-hub`
-- Vercel deployment pipeline
+The default BRIX customer experience is one investor with one automatically created personal workspace.
 
-## Risk Posture
+Optional light access may be granted to a spouse, investment partner, or trusted professional when useful. Artifact-first secure sharing is preferred when a full collaborator account is unnecessary.
 
-BRIX is designed to reduce preventable mistakes, not create artificial confidence. Estimates must remain labeled as estimates. Missing or weak data must reduce confidence. Users should be encouraged to verify taxes, insurance, rent support, financing, inspection items, title, and professional review before relying on an investment decision.
+BRIX does not prioritize enterprise workforce administration, departments, team dashboards, bulk user management, or organization-heavy workflows.
+
+## Technology
+
+| Layer | Platform |
+| --- | --- |
+| **Web App** | React, TypeScript, Vite |
+| **Native iPhone/iPad** | SwiftUI |
+| **Backend** | Supabase Postgres, Auth, Storage, RLS, Edge Functions |
+| **Deployment** | Vercel web deployment and Supabase backend |
+| **AI/Data Layer** | Provider-neutral adapters and controlled server-side AI workflows |
+
+## Trust and Risk Posture
+
+BRIX is designed to reduce preventable mistakes, not manufacture confidence.
+
+Authoritative financial math must be deterministic and versioned. Provider and Evidence-derived values retain provenance and freshness. Estimates remain estimates. AI observations remain distinct from verified facts. Missing or conflicting information remains visible. Prior valid results remain available when recalculation or provider work fails.
+
+Professional legal, tax, appraisal, inspection, lending, insurance, engineering, and other regulated conclusions remain outside BRIX's authority.
 
 ## Success Definition
 
-BRIX succeeds when investors can answer:
+BRIX succeeds when an investor can open a Deal and answer:
 
-- What should I investigate?
-- Should I acquire it?
-- How should I pursue it?
-- Where does the opportunity stand?
-- How is my portfolio performing?
+- What is this opportunity?
+- What do I actually know?
+- What is assumed or missing?
+- What do the numbers say?
+- Which strategies are viable?
+- What risks or restrictions matter?
+- What changed?
+- What should I verify or do next?
+- Should I pursue, negotiate, offer, pass, hold, refinance, or sell?
 - What did I learn from the outcome?
 
-The north star remains decision quality.
+The north star is defensible decision quality and workflow continuity.
