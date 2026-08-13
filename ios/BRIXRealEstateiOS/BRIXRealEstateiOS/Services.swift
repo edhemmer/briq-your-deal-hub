@@ -9,6 +9,7 @@ enum BRIXServiceError: Error, Equatable {
     case authenticationRequired
     case accessRevoked
     case badResponse(Int)
+    case invalidCanonicalResponse
 }
 
 enum BRIXService {
@@ -24,9 +25,7 @@ enum BRIXService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try validateHTTP(response)
         return data
     }
 
@@ -61,42 +60,76 @@ enum BRIXService {
     }
 
     static func fetchDeals(accessToken: String) async throws -> [Deal] {
-        var components = URLComponents(url: supabaseURL.appendingPathComponent("rest/v1/brix_deals"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
-            URLQueryItem(name: "select", value: "*"),
-            URLQueryItem(name: "deleted_at", value: "is.null"),
-            URLQueryItem(name: "order", value: "updated_at.desc")
-        ]
-        var request = URLRequest(url: components.url!)
-        request.httpMethod = "GET"
-        authorize(&request, accessToken: accessToken)
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try validateHTTP(response)
-        let rows = (try JSONSerialization.jsonObject(with: data)) as? [[String: Any]] ?? []
-        return rows.map(dealFromRow)
+        let workspaceID = try await ensureWorkspaceID(accessToken: accessToken)
+        let data = try await rpc(
+            "list_deal_projection",
+            body: [
+                "target_workspace_id": workspaceID,
+                "page_size": 50,
+                "page_offset": 0,
+                "sort_key": "updated_desc",
+                "search_query": NSNull(),
+                "filter_input": [:],
+                "include_archived": false
+            ],
+            accessToken: accessToken
+        )
+        let rows = jsonRows(data)
+        var deals: [Deal] = []
+        deals.reserveCapacity(rows.count)
+        for row in rows {
+            guard let id = string(row["deal_id"]) else { continue }
+            if let deal = try await loadCanonicalDeal(id: id, accessToken: accessToken) {
+                deals.append(deal)
+            }
+        }
+        return deals
     }
 
     static func upsertDeal(_ deal: Deal, accessToken: String) async throws {
-        var components = URLComponents(url: supabaseURL.appendingPathComponent("rest/v1/brix_deals"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [URLQueryItem(name: "on_conflict", value: "id")]
-        var request = URLRequest(url: components.url!)
-        request.httpMethod = "POST"
-        authorize(&request, accessToken: accessToken)
-        request.setValue("resolution=merge-duplicates,return=minimal", forHTTPHeaderField: "Prefer")
-        request.httpBody = try JSONSerialization.data(withJSONObject: rowPayload(for: deal, accessToken: accessToken))
-        let (_, response) = try await URLSession.shared.data(for: request)
-        try validateHTTP(response)
+        let workspaceID = try await ensureWorkspaceID(accessToken: accessToken)
+        let existing = try await loadCanonicalDealDetail(id: deal.id.uuidString, accessToken: accessToken)
+        if let existing {
+            let version = int(existing["deal_version"]) ?? 1
+            _ = try await rpc(
+                "update_canonical_deal",
+                body: [
+                    "target_deal_id": deal.id.uuidString,
+                    "expected_version": version,
+                    "idempotency_key": "ios:deal:update:\(deal.id.uuidString):\(UUID().uuidString)",
+                    "deal_input": try canonicalDealInput(for: deal)
+                ],
+                accessToken: accessToken
+            )
+            return
+        }
+
+        _ = try await rpc(
+            "create_canonical_deal",
+            body: [
+                "target_workspace_id": workspaceID,
+                "idempotency_key": "ios:deal:create:\(deal.id.uuidString)",
+                "property_input": canonicalPropertyInput(for: deal),
+                "deal_input": try canonicalCreateDealInput(for: deal),
+                "existing_property_id": NSNull()
+            ],
+            accessToken: accessToken
+        )
     }
 
     static func softDeleteDeal(id: UUID, accessToken: String) async throws {
-        var components = URLComponents(url: supabaseURL.appendingPathComponent("rest/v1/brix_deals"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [URLQueryItem(name: "id", value: "eq.\(id.uuidString)")]
-        var request = URLRequest(url: components.url!)
-        request.httpMethod = "PATCH"
-        authorize(&request, accessToken: accessToken)
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["deleted_at": ISO8601DateFormatter().string(from: Date())])
-        let (_, response) = try await URLSession.shared.data(for: request)
-        try validateHTTP(response)
+        guard let detail = try await loadCanonicalDealDetail(id: id.uuidString, accessToken: accessToken) else { return }
+        let version = int(detail["deal_version"]) ?? 1
+        _ = try await rpc(
+            "archive_deal",
+            body: [
+                "target_deal_id": id.uuidString,
+                "expected_version": version,
+                "idempotency_key": "ios:deal:archive:\(id.uuidString):\(UUID().uuidString)",
+                "archive_reason": "ios_user_archive"
+            ],
+            accessToken: accessToken
+        )
     }
 
     static func requestAccountDeletion(accessToken: String) async throws {
@@ -109,6 +142,72 @@ enum BRIXService {
         request.httpBody = Data("{}".utf8)
         let (_, response) = try await URLSession.shared.data(for: request)
         try validateHTTP(response)
+    }
+
+    private static func ensureWorkspaceID(accessToken: String) async throws -> String {
+        let data = try await rpc("ensure_workspace_context", body: [:], accessToken: accessToken)
+        guard let row = jsonRows(data).first, let workspaceID = string(row["workspace_id"]) else {
+            throw BRIXServiceError.invalidCanonicalResponse
+        }
+        return workspaceID
+    }
+
+    private static func loadCanonicalDeal(id: String, accessToken: String) async throws -> Deal? {
+        guard let detail = try await loadCanonicalDealDetail(id: id, accessToken: accessToken) else { return nil }
+        return dealFromDetailProjection(detail)
+    }
+
+    private static func loadCanonicalDealDetail(id: String, accessToken: String) async throws -> [String: Any]? {
+        let data = try await rpc(
+            "load_deal_detail_projection",
+            body: ["target_deal_id": id],
+            accessToken: accessToken
+        )
+        return jsonRows(data).first
+    }
+
+    private static func rpc(_ name: String, body: [String: Any], accessToken: String) async throws -> Data {
+        var request = URLRequest(url: supabaseURL.appendingPathComponent("rest/v1/rpc/\(name)"))
+        request.httpMethod = "POST"
+        authorize(&request, accessToken: accessToken)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validateHTTP(response)
+        return data
+    }
+
+    private static func canonicalPropertyInput(for deal: Deal) -> [String: Any] {
+        [
+            "display_address": deal.address,
+            "address_line1": deal.address,
+            "city": deal.city.isEmpty ? NSNull() : deal.city,
+            "region": deal.state.isEmpty ? NSNull() : deal.state,
+            "postal_code": deal.zip.isEmpty ? NSNull() : deal.zip,
+            "country": "US",
+            "source_identifiers": deal.sourceUrl.isEmpty ? [:] : ["listing_url": deal.sourceUrl]
+        ]
+    }
+
+    private static func canonicalCreateDealInput(for deal: Deal) throws -> [String: Any] {
+        var input = try canonicalDealInput(for: deal)
+        input["id"] = deal.id.uuidString
+        input["deal_type"] = "acquisition"
+        input["source"] = deal.sourceUrl.isEmpty ? "manual" : "listing_url"
+        return input
+    }
+
+    private static func canonicalDealInput(for deal: Deal) throws -> [String: Any] {
+        let facts = try JSONSerialization.jsonObject(with: encoder.encode(deal)) as? [String: Any] ?? [:]
+        return [
+            "display_name": deal.address,
+            "strategy_intent": deal.strategy.rawValue,
+            "source_url": deal.sourceUrl.isEmpty ? NSNull() : deal.sourceUrl,
+            "source_text": deal.sourceText.isEmpty ? NSNull() : deal.sourceText,
+            "strategy_id": deal.strategy.rawValue,
+            "facts": facts,
+            "verification": [:]
+        ]
     }
 
     private static func auth(endpoint: String, body: [String: Any]) async throws -> BRIXAuthSession {
@@ -138,48 +237,24 @@ enum BRIXService {
         guard (200..<300).contains(http.statusCode) else { throw BRIXServiceError.badResponse(http.statusCode) }
     }
 
-    private static func rowPayload(for deal: Deal, accessToken: String) throws -> [String: Any] {
-        let facts = try JSONSerialization.jsonObject(with: encoder.encode(deal)) as? [String: Any] ?? [:]
-        guard let ownerID = userId(from: accessToken) else { throw URLError(.userAuthenticationRequired) }
-        return [
-            "id": deal.id.uuidString,
-            "owner_id": ownerID,
-            "status": deal.status,
-            "source_url": deal.sourceUrl.isEmpty ? NSNull() : deal.sourceUrl,
-            "source_text": deal.sourceText.isEmpty ? NSNull() : deal.sourceText,
-            "address": deal.address,
-            "city": deal.city.isEmpty ? NSNull() : deal.city,
-            "state": deal.state.isEmpty ? NSNull() : deal.state,
-            "zip": deal.zip.isEmpty ? NSNull() : deal.zip,
-            "strategy_id": deal.strategy.rawValue,
-            "facts": facts,
-            "verification": [:],
-            "updated_at": ISO8601DateFormatter().string(from: Date())
-        ]
+    private static func jsonRows(_ data: Data) -> [[String: Any]] {
+        if let rows = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] { return rows }
+        if let row = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] { return [row] }
+        return []
     }
 
-    private static func userId(from jwt: String) -> String? {
-        let parts = jwt.split(separator: ".")
-        guard parts.count > 1 else { return nil }
-        var payload = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
-        while payload.count % 4 != 0 { payload.append("=") }
-        guard let data = Data(base64Encoded: payload),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-        return json["sub"] as? String
-    }
-
-    private static func dealFromRow(_ row: [String: Any]) -> Deal {
+    private static func dealFromDetailProjection(_ row: [String: Any]) -> Deal {
         let facts = row["facts"] as? [String: Any] ?? [:]
         var deal = Deal()
-        if let idText = row["id"] as? String, let id = UUID(uuidString: idText) { deal.id = id }
-        deal.status = string(row["status"]) ?? deal.status
+        if let idText = string(row["deal_id"]), let id = UUID(uuidString: idText) { deal.id = id }
+        deal.status = legacyStatus(from: string(row["status"]))
         deal.sourceUrl = string(row["source_url"]) ?? string(facts["sourceUrl"]) ?? ""
         deal.sourceText = string(row["source_text"]) ?? string(facts["sourceText"]) ?? ""
-        deal.address = string(row["address"]) ?? string(facts["address"]) ?? ""
-        deal.city = string(row["city"]) ?? string(facts["city"]) ?? ""
-        deal.state = string(row["state"]) ?? string(facts["state"]) ?? ""
-        deal.zip = string(row["zip"]) ?? string(facts["zip"]) ?? ""
-        deal.strategy = StrategyId(rawValue: string(row["strategy_id"]) ?? string(facts["strategy"]) ?? string(facts["strategyId"]) ?? "") ?? .ownerOccupant
+        deal.address = string(row["primary_property_address"]) ?? string(facts["address"]) ?? string(row["display_name"]) ?? ""
+        deal.city = string(row["primary_property_city"]) ?? string(facts["city"]) ?? ""
+        deal.state = string(row["primary_property_region"]) ?? string(facts["state"]) ?? ""
+        deal.zip = string(row["primary_property_postal_code"]) ?? string(facts["zip"]) ?? ""
+        deal.strategy = StrategyId(rawValue: string(row["strategy_id"]) ?? string(row["strategy_intent"]) ?? string(facts["strategy"]) ?? string(facts["strategyId"]) ?? "") ?? .ownerOccupant
         deal.listPrice = double(facts["listPrice"])
         deal.beds = double(facts["beds"])
         deal.baths = double(facts["baths"])
@@ -195,6 +270,14 @@ enum BRIXService {
         return deal
     }
 
+    private static func legacyStatus(from operatingStatus: String?) -> String {
+        switch operatingStatus {
+        case "passed", "closed_lost": return "passed"
+        case "closed_won": return "closed"
+        default: return "reviewing"
+        }
+    }
+
     private static func string(_ value: Any?) -> String? {
         guard !(value is NSNull) else { return nil }
         return value as? String
@@ -205,6 +288,13 @@ enum BRIXService {
         if let value = value as? Double { return value }
         if let value = value as? Int { return Double(value) }
         if let value = value as? String { return Double(value) }
+        return nil
+    }
+
+    private static func int(_ value: Any?) -> Int? {
+        if let value = value as? Int { return value }
+        if let value = value as? Double { return Int(value) }
+        if let value = value as? String { return Int(value) }
         return nil
     }
 }
