@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
 const failures = [];
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
@@ -18,8 +18,16 @@ const iosService = await read("ios/BRIXRealEstateiOS/BRIXRealEstateiOS/Services.
 forbidPattern("Services.swift", iosService, /rest\/v1\/brix_deals/, "native iOS must not use the legacy Deal table endpoint");
 requirePattern("Services.swift", iosService, /rest\/v1\/rpc\//, "native iOS must use canonical RPC boundaries");
 
+const nativeRoot = new URL("../ios/BRIXRealEstateiOS/BRIXRealEstateiOS/", import.meta.url);
+const nativeFiles = (await readdir(nativeRoot, { recursive: true }))
+  .filter((path) => path.endsWith(".swift") && !path.endsWith("AppState.swift"));
+for (const relativePath of nativeFiles) {
+  const path = `ios/BRIXRealEstateiOS/BRIXRealEstateiOS/${relativePath}`;
+  const source = await read(path);
+  forbidPattern(path, source, /state\.analysis\s*\(/, "native presentation code must not invoke the duplicate local underwriting/strategy calculator");
+}
+
 const nativeDealIQ = await read("ios/BRIXRealEstateiOS/BRIXRealEstateiOS/DealIQCockpitView.swift");
-forbidPattern("DealIQCockpitView.swift", nativeDealIQ, /state\.analysis\s*\(/, "native DealIQ must not invoke the duplicate local underwriting/strategy calculator");
 forbidPattern("DealIQCockpitView.swift", nativeDealIQ, /BrixMetric\(title:\s*"Confidence"|strategyScoreGap|bestStrategyName/, "native DealIQ must not present locally calculated ranking/confidence as canonical output");
 requirePattern("DealIQCockpitView.swift", nativeDealIQ, /noUnderwritingCalculation\s*=\s*true/, "native source boundary must explicitly prohibit underwriting calculations");
 
