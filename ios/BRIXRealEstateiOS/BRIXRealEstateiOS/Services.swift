@@ -42,13 +42,10 @@ enum BRIXService {
     }
 
     static func resetPassword(email: String) async throws {
-        _ = try await auth(
-            endpoint: "/auth/v1/recover",
-            body: [
-                "email": email,
-                "redirect_to": "https://brixrealestate.app/account?flow=reset-password"
-            ]
-        )
+        _ = try await auth(endpoint: "/auth/v1/recover", body: [
+            "email": email,
+            "redirect_to": "https://brixrealestate.app/account?flow=reset-password"
+        ])
     }
 
     static func validateSession(accessToken: String) async throws {
@@ -61,27 +58,21 @@ enum BRIXService {
 
     static func fetchDeals(accessToken: String) async throws -> [Deal] {
         let workspaceID = try await ensureWorkspaceID(accessToken: accessToken)
-        let data = try await rpc(
-            "list_deal_projection",
-            body: [
-                "target_workspace_id": workspaceID,
-                "page_size": 50,
-                "page_offset": 0,
-                "sort_key": "updated_desc",
-                "search_query": NSNull(),
-                "filter_input": [:],
-                "include_archived": false
-            ],
-            accessToken: accessToken
-        )
+        let data = try await rpc("list_deal_projection", body: [
+            "target_workspace_id": workspaceID,
+            "page_size": 50,
+            "page_offset": 0,
+            "sort_key": "updated_desc",
+            "search_query": NSNull(),
+            "filter_input": [:],
+            "include_archived": false
+        ], accessToken: accessToken)
         let rows = jsonRows(data)
         var deals: [Deal] = []
         deals.reserveCapacity(rows.count)
         for row in rows {
             guard let id = string(row["deal_id"]) else { continue }
-            if let deal = try await loadCanonicalDeal(id: id, accessToken: accessToken) {
-                deals.append(deal)
-            }
+            if let deal = try await loadCanonicalDeal(id: id, accessToken: accessToken) { deals.append(deal) }
         }
         return deals
     }
@@ -91,45 +82,33 @@ enum BRIXService {
         let existing = try await loadCanonicalDealDetail(id: deal.id.uuidString, accessToken: accessToken)
         if let existing {
             let version = int(existing["deal_version"]) ?? 1
-            _ = try await rpc(
-                "update_canonical_deal",
-                body: [
-                    "target_deal_id": deal.id.uuidString,
-                    "expected_version": version,
-                    "idempotency_key": "ios:deal:update:\(deal.id.uuidString):\(UUID().uuidString)",
-                    "deal_input": try canonicalDealInput(for: deal)
-                ],
-                accessToken: accessToken
-            )
+            _ = try await rpc("update_canonical_deal", body: [
+                "target_deal_id": deal.id.uuidString,
+                "expected_version": version,
+                "idempotency_key": "ios:deal:update:\(deal.id.uuidString):\(UUID().uuidString)",
+                "deal_input": try canonicalDealInput(for: deal)
+            ], accessToken: accessToken)
             return
         }
 
-        _ = try await rpc(
-            "create_canonical_deal",
-            body: [
-                "target_workspace_id": workspaceID,
-                "idempotency_key": "ios:deal:create:\(deal.id.uuidString)",
-                "property_input": canonicalPropertyInput(for: deal),
-                "deal_input": try canonicalCreateDealInput(for: deal),
-                "existing_property_id": NSNull()
-            ],
-            accessToken: accessToken
-        )
+        _ = try await rpc("create_canonical_deal", body: [
+            "target_workspace_id": workspaceID,
+            "idempotency_key": "ios:deal:create:\(deal.id.uuidString)",
+            "property_input": canonicalPropertyInput(for: deal),
+            "deal_input": try canonicalCreateDealInput(for: deal),
+            "existing_property_id": NSNull()
+        ], accessToken: accessToken)
     }
 
     static func softDeleteDeal(id: UUID, accessToken: String) async throws {
         guard let detail = try await loadCanonicalDealDetail(id: id.uuidString, accessToken: accessToken) else { return }
         let version = int(detail["deal_version"]) ?? 1
-        _ = try await rpc(
-            "archive_deal",
-            body: [
-                "target_deal_id": id.uuidString,
-                "expected_version": version,
-                "idempotency_key": "ios:deal:archive:\(id.uuidString):\(UUID().uuidString)",
-                "archive_reason": "ios_user_archive"
-            ],
-            accessToken: accessToken
-        )
+        _ = try await rpc("archive_deal", body: [
+            "target_deal_id": id.uuidString,
+            "expected_version": version,
+            "idempotency_key": "ios:deal:archive:\(id.uuidString):\(UUID().uuidString)",
+            "archive_reason": "ios_user_archive"
+        ], accessToken: accessToken)
     }
 
     static func requestAccountDeletion(accessToken: String) async throws {
@@ -158,12 +137,13 @@ enum BRIXService {
     }
 
     private static func loadCanonicalDealDetail(id: String, accessToken: String) async throws -> [String: Any]? {
-        let data = try await rpc(
-            "load_deal_detail_projection",
-            body: ["target_deal_id": id],
-            accessToken: accessToken
-        )
-        return jsonRows(data).first
+        do {
+            let data = try await rpc("load_deal_detail_projection", body: ["target_deal_id": id], accessToken: accessToken)
+            return jsonRows(data).first
+        } catch let error as BRIXServiceError {
+            if error == .badResponse(404) { return nil }
+            throw error
+        }
     }
 
     private static func rpc(_ name: String, body: [String: Any], accessToken: String) async throws -> Data {
