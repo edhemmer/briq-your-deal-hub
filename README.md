@@ -1,75 +1,83 @@
 # BRIX Real Estate
 
-AI-powered real estate investment decision support.
+BRIX is an individual-investor-first Property Deal Relationship Management (PDRM) platform and real estate investment operating system.
 
-BRIX is a real estate investment operating system under recovery. The current production priority is making DealIQ dependable enough for Ed to evaluate a real property from initial intake through a documented investment decision with reliable saving, correct calculations, clear assumptions, scenario analysis, risk visibility, and no fabricated data.
+The product is designed to carry one canonical Deal from property discovery through intake, underwriting, strategy comparison, market research, financing, governance, visits, offers, contracts, due diligence, closing, ownership, operation, refinance, disposition, and archive.
 
 **Production application:** https://brixrealestate.app
 
-Product intent is controlled by [`BRIX.md`](BRIX.md). Engineering execution rules are controlled by [`AGENTS.md`](AGENTS.md).
+## Product Authority
 
-## Core Modules
+Engineering and product work is governed by:
 
-| Module | Purpose |
+1. `AGENTS.md`
+2. `docs/00-START-HERE.md`
+3. `docs/01-PRODUCT-CONSTITUTION.md`
+4. `docs/02-ENGINEERING-STANDARDS.md`
+5. `docs/03-DATA-ARCHITECTURE.md`
+6. `docs/04-UI-UX-SYSTEM.md`
+7. `docs/05-BUILD-ROADMAP.md`
+8. `docs/06-SYSTEM-ARCHITECTURE.md`
+9. `docs/07-UI-DESIGN-SYSTEM.md`
+10. `docs/08-IMPLEMENTATION-ROADMAP.md`
+11. `docs/09-APPLE-PLATFORM-COMPLIANCE.md` for Apple work
+12. `docs/10-CODEX-MASTER-BUILD-PROMPT.md`
+13. `docs/11-DOCUMENT-CONTROL-AND-READINESS-MATRIX.md`
+14. `docs/12-INDIVIDUAL-INVESTOR-PRODUCT-REALIGNMENT.md`
+15. the current numbered owning specification and its prerequisites
+
+Historical corpuses, audits, recovery plans, training notes, `docs/constitution/**`, competitive snapshots, KPI documents, and provider/migration logs are reference material only unless the current governing package explicitly incorporates them.
+
+## Canonical Product Model
+
+BRIX uses:
+
+- one canonical Workspace tenancy boundary;
+- one canonical Property identity;
+- one canonical Deal lifecycle;
+- one canonical Evidence model with immutable originals;
+- one canonical task/deadline system and timeline;
+- one deterministic versioned underwriting engine;
+- one versioned strategy system;
+- separate Recommendation and user Decision records;
+- source-linked facts, estimates, assumptions, inferences, conflicts, verification, confidence, freshness, and history.
+
+Modules are connected capabilities around the Deal, not separate applications or competing sources of truth.
+
+## Core Capabilities
+
+| Capability | Purpose |
 | --- | --- |
-| **DealIQ** | Current production priority: evaluate property facts, financing, costs, income, strategies, risks, scenarios, and decisions |
-| **ContractIQ** | Reviews contracts and related documents without presenting legal advice; must not delay DealIQ completion |
-| **FindIQ** | Deferred discovery/intake support until DealIQ is dependable |
-| **OfferIQ** | Deferred transaction execution layer |
-| **PipelineIQ** | Deferred acquisition workflow layer |
-| **PortfolioIQ** | Deferred owned-asset intelligence layer |
-| **Reports** | Deferred exports based on verified DealIQ records |
+| **DealIQ / PDRM Core** | Canonical Deal, Property, lifecycle, relationships, tasks, timeline, and decision workflow |
+| **Property Intake** | Address, listing, manual, file, email, and provider-backed intake with source tracking |
+| **Underwriting** | Deterministic financial analysis, scenarios, sensitivities, and immutable snapshots |
+| **Strategy Intelligence** | Compatibility, hard disqualifiers, ranking, confidence, and explanation |
+| **Decision Cockpit** | Current recommendation, controlling numbers, risks, missing information, changes, and next action |
+| **MarketIQ** | Source-linked market, location, liquidity, growth, infrastructure, hazard, tax, and local context |
+| **FinanceIQ** | Capital structures, debt/equity tranches, lender constraints, schedules, and financing feasibility |
+| **GovernanceIQ** | HOA/COA/POA documents, restrictions, financial health, and strategy impact |
+| **ContractIQ** | Contract hierarchy, source-linked findings, deadlines, conflicts, and professional questions |
+| **OfferIQ** | Offer structures, revisions, counters, negotiation history, and transaction execution |
+| **VisitIQ / PhotoIQ** | Field visits, maps, routes, offline capture, photos, video, voice notes, and visual Evidence |
+| **InspectionIQ / AppraisalIQ** | Professional report ingestion and controlled proposals into the Deal |
+| **ReportIQ / PortfolioIQ** | Canonical reports, exports, sharing, comparisons, and owned-asset analysis |
+| **RELearnIQ** | Contextual investor education using the same canonical Deal truth |
 
 ## Technology Stack
 
 | Layer | Technology |
 | --- | --- |
-| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS |
-| **UI** | shadcn/ui, Radix primitives, lucide-react |
-| **Backend** | Supabase Postgres, Auth, Storage, Edge Functions |
-| **Native iOS** | SwiftUI client consuming the same BRIX backend |
-| **Deployment** | Vercel for web, Supabase for backend services |
-| **AI/Data Providers** | Provider-adapter architecture through Supabase Edge Functions |
+| **Web** | React, TypeScript, Vite |
+| **Backend** | Supabase Postgres, Auth, Storage, Row Level Security, Edge Functions |
+| **Native** | SwiftUI iPhone and iPad clients |
+| **Deployment** | Vercel web deployment plus Supabase backend |
+| **AI/Data** | Provider-neutral server-side adapters and controlled AI workflows |
 
 ## Local Development
 
-Use the repo-local wrapper on Windows so BRIX does not depend on broken global PATH settings:
+Inspect the current repository scripts and toolchain before assuming historical wrapper or package-manager instructions are still correct.
 
-```powershell
-.\scripts\toolchain-check.cmd
-.\scripts\brix.cmd dev
-.\scripts\brix.cmd test
-.\scripts\brix.cmd build
-```
-
-The wrapper uses the bundled Node runtime, the local `node_modules` binaries, the Supabase CLI shim, and the checked-in Supabase Go binary path.
-
-## Environment Configuration
-
-Create `.env.local` for local web development:
-
-```env
-VITE_SUPABASE_URL=https://luwaqrkhmxcqsozmilbw.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=<supabase-publishable-or-anon-key>
-```
-
-Server-side provider keys belong in Supabase Edge Function secrets, never in browser-visible `VITE_` variables:
-
-```bash
-supabase secrets set FRED_API_KEY=<fred-key>
-supabase secrets set CENSUS_API_KEY=<census-key>
-supabase secrets set BLS_API_KEY=<bls-key>
-supabase secrets set OPENAI_API_KEY=<openai-key>
-```
-
-Apple account deletion token revocation requires these Supabase secrets when Sign in with Apple token material is available:
-
-```bash
-supabase secrets set APPLE_CLIENT_ID=<service-id-or-bundle-id>
-supabase secrets set APPLE_TEAM_ID=<apple-team-id>
-supabase secrets set APPLE_KEY_ID=<apple-key-id>
-supabase secrets set APPLE_PRIVATE_KEY=<private-key>
-```
+Use repository-declared commands and verified executables. The governing execution rules are in `AGENTS.md` and `docs/10-CODEX-MASTER-BUILD-PROMPT.md`.
 
 ## Backend
 
@@ -85,52 +93,31 @@ Edge Functions live in:
 supabase/functions
 ```
 
-Apply migrations and deploy functions from Supabase CLI or the connected CI/CD process:
+Backend changes must be source-controlled, applied through authenticated tooling, and verified so deployed Supabase state matches the committed repository state.
 
-```powershell
-supabase link --project-ref luwaqrkhmxcqsozmilbw
-.\scripts\brix.cmd supabase-push
-supabase functions deploy
-```
+## Native iPhone and iPad
 
-## Native iOS
-
-The iOS app lives in:
+The native application lives under:
 
 ```text
 ios/BRIXRealEstateiOS
 ```
 
-The native app is not a separate product. It consumes the same Supabase backend, account controls, privacy policy, field-capture storage, DealIQ decision snapshots, and user-owned deal records as the web application.
+Native clients are interfaces to the same BRIX platform and canonical data. They must not maintain independent authoritative calculations or business truth.
 
-Apple compliance artifacts include:
+Apple work is governed by `docs/09-APPLE-PLATFORM-COMPLIANCE.md` and requires Mac/Xcode/TestFlight/App Store verification before release.
 
-- In-app account deletion
-- Sign in with Apple
-- Privacy policy link
-- Privacy manifest
-- Camera, photo library, microphone, document, and location usage descriptions
+## Production Quality Standard
 
-## Verification
+BRIX is not production-complete because a screen renders or a build succeeds.
 
-Primary checks:
+A production slice must verify the applicable full path:
 
-```powershell
-.\scripts\brix.cmd verify
-```
+`User action → validation → authorization → canonical persistence → domain logic → canonical result → event/audit → connected updates → feedback → save/reopen → retry/recovery`
 
-Before production release, also verify:
+Production readiness requires deterministic financial reconciliation, RLS and authorization, source provenance, stale/failure handling, accessibility, observability, save/reopen reliability, cross-module consistency, deployment evidence, and the release gates in Specification 024.
 
-- Supabase migrations applied
-- Edge Functions deployed
-- Auth sign-in/sign-out
-- Account deletion
-- Deal create/edit/read
-- DealIQ analysis and scenario comparison
-- Assumption edits recalculate results
-- Evidence, notes, photos, and documents preserve source status
-- Report export
-- Custom domain cache behavior
+Before Specification 009 begins, completed Specifications 001-008 must pass the retrofit alignment audit required by the governing package.
 
 ## License
 
