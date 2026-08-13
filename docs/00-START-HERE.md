@@ -2,57 +2,17 @@
 
 ## 1. Purpose and Authority
 
-This repository is the authoritative build package for rebuilding BRIX Real Estate as its first production release. The existing repository, Supabase project, Vercel project, domains, deployment settings, and Apple project may be retained. Existing application code is reference material only unless an approved implementation task explicitly accepts it.
+This repository is the authoritative build package for BRIX Real Estate as a production real estate investment operating system.
 
-BRIX is an ultra-premium Property Deal Relationship Management platform, or PDRM, that helps an investor move from property discovery through underwriting, strategy selection, visits, offers, contracts, due diligence, financing, ownership, operation, refinance, and disposition through one canonical Deal record.
+BRIX is an ultra-premium Property Deal Relationship Management platform, or PDRM, built for the individual investor first. It carries one canonical Deal from property discovery through intake, underwriting, strategy selection, market research, financing, governance, visits, offers, contracts, due diligence, closing, ownership, operation, refinance, disposition, and archive.
 
-The product must become the investor's dependable daily decision workspace. It must be enjoyable to use, visually exceptional, operationally reliable, source-linked, explainable, and consistent from Deal to Deal. A user must be able to understand what BRIX knows, where it came from, what remains uncertain, what changed, what must be verified, and what action comes next without maintaining a second shadow underwriting tool.
+The product must become the investor's dependable daily decision workspace. A user must be able to understand what BRIX knows, where it came from, what is assumed or estimated, what is stale or conflicting, what changed, what must be verified, how the numbers were calculated, and what action comes next without maintaining a second shadow underwriting tool.
 
-This file governs how every later document and implementation task is read, executed, verified, and completed. When a later file is unclear, this file and the Product Constitution control unless a formally approved amendment states otherwise.
+This file is the highest build and execution authority. When a later document is unclear, this file and the Product Constitution control unless a formally approved binding amendment states otherwise.
 
-## 2. Non-Negotiable Product Outcome
+## 2. Governing Package and Reading Order
 
-BRIX must deliver all of the following as one connected product:
-
-1. Ultra-premium web, iPhone, and iPad experiences designed intentionally for each device.
-2. One canonical Workspace, Property, Deal, Evidence, task, deadline, financial, strategy, and audit model.
-3. Deterministic, versioned, independently testable financial calculations.
-4. Source-linked facts, assumptions, estimates, inferences, conflicts, confidence, freshness, and verification status.
-5. A Decision Cockpit that makes the current Deal position, risks, returns, missing information, recommendation, and next action understandable without searching across disconnected modules.
-6. Reliable save, reopen, refresh, relaunch, offline, synchronization, conflict, retry, recovery, and audit behavior.
-7. Premium graphics, charts, comparisons, maps, reports, and information design that clarify decisions rather than decorate the interface.
-8. No webpage-like native experience, clipped layouts, horizontal overruns, hidden controls, dead ends, stale state, mock success, or disconnected modules.
-9. No unsupported promise of certainty. BRIX earns trust through provenance, deterministic calculations, explicit limitations, professional-review triggers, and visible uncertainty rather than hiding risk.
-10. A repeatable investor workflow that becomes more dependable with every completed Deal.
-
-## 3. Rules of Engagement
-
-These rules apply before any document is written, repaired, or implemented.
-
-1. Build BRIX, not documentation for its own sake.
-2. Use one canonical Deal, one canonical Property, one canonical workspace boundary, one canonical Evidence model, one canonical task/deadline model, and one canonical financial engine.
-3. Do not create duplicate applications, schemas, parsers, calculators, persistence paths, client-only sources of truth, or competing business logic.
-4. Do not copy the old application architecture into the rebuild without explicit acceptance.
-5. Do not display mock data, fake success, disconnected UI, dead controls, stale results presented as current, placeholder production behavior, or unsupported claims.
-6. Every visible workflow must work end to end: entry, validation, authorization, persistence, processing, feedback, reopen, retry, recovery, audit history, and cross-client consistency.
-7. Web, iPhone, iPad, reports, spreadsheets, shared views, and admin must consume the same canonical records and calculation outputs.
-8. AI may assist extraction, explanation, classification, comparison, and question generation, but may not own authoritative calculations, silently alter facts, or issue final professional legal, appraisal, inspection, lending, tax, engineering, securities, or insurance conclusions.
-9. Each implementation slice must be small enough to verify and complete enough to use.
-10. A feature is not complete until it saves, reopens, handles errors, survives refresh or relaunch, exposes stale and processing state, and passes required tests.
-11. Every mutation must be authorized server-side, auditable, idempotent where retried, and protected from accidental overwrite.
-12. Every asynchronous operation must expose a durable state such as queued, processing, complete, failed, blocked, stale, conflicted, offline, or retrying.
-13. No module may become an isolated feature island. Its inputs, outputs, events, tasks, Evidence, reports, notifications, and Deal timeline effects must be defined.
-14. Every supported client must preserve user context and return the user to the same meaningful place after interruption.
-15. A document is not complete because it is committed. It is complete only after the validation and verification requirements in this file and the applicable specification are satisfied.
-16. Codex must not broaden scope, rename modules, change canonical ownership, replace approved architecture, or introduce a new dependency without identifying the exact requirement and receiving approval.
-17. Codex must not mark work complete based on compilation, deployment, screenshots, or happy-path testing alone.
-18. Uncertainty must be visible. A missing or unverified input may never be silently converted into a confirmed fact.
-19. Premium design may not weaken accessibility, information density, performance, clarity, or reliability.
-20. No release may require the user to maintain an old trusted tool because BRIX calculations, evidence, states, or reports fail to reconcile.
-
-## 4. Required Reading Order
-
-Codex must read and obey these files before beginning implementation:
+Before any material implementation work, read and obey these files in order:
 
 1. `docs/00-START-HERE.md`
 2. `docs/01-PRODUCT-CONSTITUTION.md`
@@ -63,170 +23,261 @@ Codex must read and obey these files before beginning implementation:
 7. `docs/06-SYSTEM-ARCHITECTURE.md`
 8. `docs/07-UI-DESIGN-SYSTEM.md`
 9. `docs/08-IMPLEMENTATION-ROADMAP.md`
-10. `docs/09-APPLE-PLATFORM-COMPLIANCE.md` for every Apple, iPhone, iPad, TestFlight, Xcode, or App Store task
+10. `docs/09-APPLE-PLATFORM-COMPLIANCE.md` for every Apple, iPhone, iPad, Xcode, TestFlight, or App Store task
 11. `docs/10-CODEX-MASTER-BUILD-PROMPT.md`
-12. Every prerequisite specification named by the current subsystem specification
-13. The complete current subsystem specification
+12. `docs/11-DOCUMENT-CONTROL-AND-READINESS-MATRIX.md`
+13. `docs/12-INDIVIDUAL-INVESTOR-PRODUCT-REALIGNMENT.md`
+14. Every prerequisite specification named by the current subsystem specification
+15. The complete current numbered subsystem specification
 
-Codex must use the exact current filenames on the default branch. Deleted, superseded, duplicate, historical, or differently numbered specification files are not authoritative.
+Document 12 is a binding amendment across the full package. The ordinary BRIX experience is for one investor with one unobtrusive personal workspace. Collaboration is optional and secondary. The workspace remains the tenancy, billing, and security boundary; it must not turn BRIX into enterprise workforce software.
 
-## 5. Document Quality Standard
+When documents conflict, use this order:
+
+`00 START HERE → Product Constitution → Engineering Standards → Data Architecture → UI/UX System → System Architecture → numbered owning specification → implementation roadmap → existing code`
+
+Document 12 controls where older language can reasonably be interpreted as requiring enterprise collaboration, workforce administration, organization-heavy UX, or security complexity that does not materially improve the individual-investor Deal workflow.
+
+## 3. Historical and Reference Documents
+
+The repository contains valuable historical material from earlier product phases. Unless a numbered governing document explicitly says otherwise, the following are reference material only and are not implementation authority:
+
+- `docs/constitution/**`
+- unnumbered product corpuses and amendments
+- prior release plans, recovery baselines, audit reports, training notes, and production checklists
+- prior competitive-analysis and KPI/metric documents
+- provider setup, migration, and rebuild logs
+- dated implementation evidence and troubleshooting reports
+
+Historical files may explain why a decision was made or preserve useful implementation evidence, but they may not revive a superseded object model, module boundary, provider assumption, pricing claim, roadmap, fixed investment threshold, or authority hierarchy.
+
+The current numbered package and current numbered specifications always control implementation.
+
+## 4. Non-Negotiable Product Outcome
+
+BRIX must deliver all of the following as one connected product:
+
+1. Premium responsive web plus intentional native iPhone and iPad experiences.
+2. One canonical Workspace, Property, Deal, Evidence, task, deadline, financial, strategy, recommendation, decision, timeline, and audit model.
+3. Deterministic, versioned, independently testable authoritative financial calculations.
+4. Source-linked facts, estimates, assumptions, inferences, AI observations, professional opinions, conflicts, confidence, verification, freshness, and history.
+5. A Decision Cockpit that makes the current Deal position, risks, returns, missing information, recommendation, and next action understandable without searching through disconnected modules.
+6. Reliable save, reopen, refresh, relaunch, synchronization, offline behavior where applicable, conflict handling, retry, recovery, and audit history.
+7. Premium charts, maps, comparisons, reports, tables, and graphics that clarify decisions rather than decorate screens.
+8. No webpage-like native experience, clipped layouts, hidden controls, dead ends, stale state presented as current, mock success, or disconnected modules.
+9. No unsupported promise of certainty. BRIX earns trust through provenance, deterministic calculations, explicit limitations, professional-review triggers, and visible uncertainty.
+10. A repeatable investor workflow that becomes more dependable as Evidence and historical Deal outcomes accumulate.
+
+## 5. Canonical Architecture Laws
+
+These rules apply to every document, specification, migration, service, client, report, AI workflow, and implementation task.
+
+1. Use one canonical Deal and one canonical Property identity.
+2. Use one canonical workspace boundary for tenancy and authorization.
+3. Use one canonical Evidence model with immutable originals and versioned derived findings.
+4. Use one canonical task/deadline system, timeline, event ledger, and audit model.
+5. Use one deterministic underwriting engine as the authoritative financial calculator.
+6. Strategy Intelligence consumes canonical underwriting results; it does not reproduce financial math.
+7. Recommendations and user Decisions are separate, versioned records.
+8. No module may create duplicate schemas, parsers, calculators, persistence paths, task systems, event systems, or private sources of truth.
+9. No client may own authoritative permissions, lifecycle state, accepted facts, deadlines, or financial calculations.
+10. AI may extract, classify, summarize, compare, explain, draft, prioritize, and propose. It may not silently establish canonical truth, own authoritative calculations, or issue final legal, lending, appraisal, inspection, tax, insurance, engineering, securities, or other professional conclusions.
+11. Every material value must preserve classification, provenance, effective date, freshness, confidence or verification where applicable, version, and conflict state.
+12. Missing, estimated, stale, inferred, conflicted, or unverified information may never be silently converted into confirmed fact.
+13. Every material mutation must be authorized server-side, auditable, version-aware, and idempotent where retried.
+14. Every asynchronous operation must expose durable state such as queued, processing, partial, complete, failed, blocked, stale, conflicted, offline, or retrying.
+15. Prior valid results remain inspectable during recalculation, provider failure, or regeneration and must never be silently erased.
+16. Web, iPhone, iPad, reports, exports, shared views, and admin consume the same canonical records and calculation outputs.
+17. No module may become a feature island. Inputs, outputs, events, Evidence, tasks, deadlines, reports, notifications, timeline effects, and Decision Cockpit effects must be explicit.
+18. Premium design may not weaken accessibility, information density, performance, clarity, or reliability.
+19. No visible production control may be decorative, dead, fake, or backed only by placeholder behavior.
+20. No release may require the user to maintain a second trusted spreadsheet, calculator, or shadow workflow because BRIX fails to reconcile.
+
+## 6. Individual-Investor Product Rule
+
+BRIX is built for an individual real estate investor first.
+
+The default account experience is:
+
+1. one user account;
+2. one automatically created personal workspace;
+3. one investor controlling the Deal lifecycle;
+4. optional light access for a spouse, investment partner, or trusted professional only when intentionally used;
+5. artifact-first secure sharing when a full collaborator account is unnecessary.
+
+Do not prioritize enterprise identity, workforce administration, departments, team dashboards, presence, internal chat, bulk member management, custom role builders, or organization-heavy billing unless separately approved and justified by a real product need.
+
+Baseline production security, RLS, account recovery, deletion, auditability, privacy, and Apple requirements are never optional.
+
+## 7. Document and Specification Quality Standard
 
 Every governing document and subsystem specification must be complete enough that Codex or a senior engineer can implement it without inventing product behavior or architecture.
 
 Every subsystem specification must include, where applicable:
 
-- Authority and prerequisite documents
-- Rules of engagement specific to the subsystem
-- Mission and user outcome
-- Scope and explicit exclusions
-- Canonical ownership and boundaries
-- Entities, relationships, statuses, versioning, indexes, and RLS implications
-- Complete user workflow
-- Complete data and event flow
-- Web behavior
-- iPhone behavior
-- iPad behavior
-- Premium UI and UX requirements
-- Loading, empty, partial, stale, offline, conflict, permission, retry, failure, and recovery states
-- Security, privacy, authorization, and audit requirements
-- Performance, caching, background processing, and observability requirements
-- Cross-module inputs, outputs, events, tasks, deadlines, reports, notifications, and timeline effects
-- AI responsibilities and prohibitions
-- Acceptance tests
-- Regression tests
-- Validation and verification checklist
-- Explicit Definition of Done
+- authority and prerequisites;
+- mission and user outcome;
+- scope and explicit exclusions;
+- canonical ownership and boundaries;
+- entities, relationships, statuses, versioning, indexes, and RLS implications;
+- complete user and data flow;
+- domain events consumed and emitted;
+- web, iPhone, and iPad behavior;
+- premium UX requirements;
+- loading, empty, partial, processing, stale, offline, conflict, permission, retry, failure, and recovery states;
+- security, privacy, authorization, audit, and idempotency;
+- performance, caching, background processing, and observability;
+- cross-module inputs, outputs, tasks, deadlines, reports, notifications, and timeline effects;
+- AI responsibilities and prohibitions;
+- acceptance, regression, integration, security, and accessibility tests;
+- validation and verification checklist;
+- explicit Definition of Done.
 
-A file that omits a material applicable section must be repaired before it is treated as implementation-complete. A later governing document may strengthen an earlier specification without duplicating or replacing its canonical ownership.
+A document that omits a material applicable section must be repaired before it is treated as implementation-complete.
 
-## 6. Required Task Start Format
+## 8. Required Task Start Format
 
 Before coding, Codex must state:
 
-- Exact user outcome
-- Applicable governing documents and specifications read
-- Existing systems and files inspected
-- Canonical data owner
-- Canonical calculation owner
-- Complete user flow
-- Complete data flow
-- Domain events consumed and emitted
-- Cross-module connections
-- Web behavior
-- iPhone behavior
-- iPad behavior
-- Loading, empty, partial, offline, stale, conflict, permission, retry, and failure behavior
-- Freshness, cache invalidation, and synchronization behavior
-- Files expected to change
-- Database, storage, API, background job, or Edge Function changes
-- Tests required
-- Security and RLS effects
-- Risks of duplication, drift, stale state, data loss, misleading information, or regression
+- exact user outcome;
+- governing documents and specifications read;
+- existing systems and files inspected;
+- canonical data owner;
+- canonical calculation owner;
+- complete user flow;
+- complete data flow;
+- domain events consumed and emitted;
+- cross-module connections;
+- web, iPhone, and iPad behavior;
+- loading, empty, partial, offline, stale, conflict, permission, retry, failure, and recovery behavior;
+- freshness, cache invalidation, and synchronization behavior;
+- files expected to change;
+- database, storage, API, worker, background job, or Edge Function changes;
+- tests required;
+- security and RLS effects;
+- risks of duplication, drift, stale state, data loss, misleading information, or regression.
 
-Codex must not begin implementation until it can state the full path:
+Codex must not begin implementation until it can state the complete path:
 
-`User action → client validation → authorization boundary → canonical persistence → domain logic → canonical result → connected module updates → client feedback → audit/event history → save/reopen verification`
+`User action → client validation → server authorization → canonical persistence → domain logic → canonical result → domain event/audit → connected module updates → user feedback → save/reopen → retry/recovery verification`
 
-## 7. Required Task Completion Format
+## 9. Required Task Completion Format
 
 At completion, Codex must report:
 
-- Files changed
-- Database and migration changes
-- API, background job, and Edge Function changes
-- Domain events added or changed
-- Cross-module connections verified
-- Tests added
-- Exact commands run and exact results
-- Verified user flow
-- Verified save and reopen behavior
-- Verified refresh and relaunch behavior
-- Verified loading, empty, stale, conflict, offline, permission, failure, retry, and recovery behavior
-- Verified web, iPhone, and iPad consistency where applicable
-- Verified reports, exports, notifications, and timeline effects where applicable
-- Verified RLS, authorization, audit, idempotency, and storage isolation
-- Verified calculation reconciliation and source provenance where applicable
-- Known limitations
-- Confirmation that unrelated files were not changed
-- `COMPLETE` or `NOT COMPLETE`
+- files changed;
+- migrations, tables, indexes, RLS, storage, APIs, functions, workers, and configuration changed;
+- domain events added or changed;
+- connected systems verified;
+- tests added;
+- exact commands run and exact results;
+- verified user flow;
+- verified save and reopen;
+- verified refresh and relaunch where applicable;
+- verified loading, empty, stale, conflict, offline, permission, failure, retry, and recovery states;
+- verified web, iPhone, and iPad consistency where applicable;
+- verified reports, exports, notifications, tasks, and timeline effects where applicable;
+- verified RLS, authorization, audit, idempotency, and storage isolation;
+- verified calculation reconciliation and source provenance where applicable;
+- known limitations;
+- confirmation that unrelated files were not changed;
+- exact commit and remote/deployment verification when the task requires implementation delivery;
+- `COMPLETE` or `NOT COMPLETE`.
 
-Codex may not claim completion when a material workflow, connection, test, supported client, data state, recovery path, accessibility requirement, Apple compliance requirement, or calculation reconciliation remains unverified.
+Codex may not claim completion while a material workflow, connection, test, data state, recovery path, supported client, accessibility requirement, security requirement, Apple gate, or calculation reconciliation remains unverified.
 
-## 8. Seamless Flow Requirement
+## 10. Seamless Deal Flow Requirement
 
 Every subsystem must connect through the canonical Deal and preserve one continuous investor workflow.
 
-For each subsystem, implementation and review must verify:
+For each subsystem, verify:
 
-- Entry points open the correct workspace, Deal, Property, and record.
-- Data written by one subsystem appears correctly in every connected subsystem.
-- Accepted changes trigger only the required targeted recalculations and updates.
-- Notifications and deep links open the exact related action.
-- Tasks and deadlines use the canonical task system.
-- Evidence remains source-linked and available from connected screens.
-- Reports and exports use current canonical values and disclose freshness.
-- Prior valid results remain visible when a later background process fails.
-- No duplicate, orphaned, contradictory, or hidden state is created.
-- Web, iPhone, iPad, admin, reports, and shared views reconcile.
-- The Decision Cockpit reflects all material accepted changes.
-- The user can understand why a recommendation or key metric changed.
+- entry points open the correct Workspace, Deal, Property, and record;
+- accepted data appears correctly in connected systems;
+- accepted changes trigger only required targeted recalculation and updates;
+- tasks and deadlines use the canonical task system;
+- Evidence remains source-linked and inspectable;
+- reports and exports use current canonical versions and disclose freshness;
+- prior valid output remains visible when new processing fails;
+- no duplicate, orphaned, contradictory, or hidden state is created;
+- web, iPhone, iPad, reports, shared views, and admin reconcile;
+- the Decision Cockpit reflects material accepted changes;
+- the user can understand why a recommendation or key metric changed.
 
-## 9. Validation and Verification Gate
+## 11. Validation and Verification Gate
 
-Before a document or implementation slice is marked complete, verify all applicable items below.
+### Functional
 
-### 9.1 Functional validation
-
-- The primary workflow works end to end with realistic data.
-- Every visible control has working behavior.
-- Create, read, update, archive, restore, and delete behavior works according to policy.
-- Save, reopen, refresh, relaunch, and resume work.
+- Primary workflow works end to end with realistic data.
+- Every visible control has implemented behavior.
+- Create/read/update/archive/restore/delete behavior follows policy.
+- Save, reopen, refresh, relaunch, and resume work where applicable.
 - Duplicate submission and retry do not create duplicate records or charges.
 - Errors preserve user work and provide a safe recovery path.
 
-### 9.2 Data and integration validation
+### Data and integration
 
 - Canonical IDs and owners are used.
 - No shadow schema, duplicate engine, or client-only source of truth exists.
 - RLS and workspace isolation are enforced.
 - Source, classification, confidence, effective date, freshness, and history are retained where material.
-- Domain events are emitted once and consumed idempotently.
+- Domain events are emitted after durable persistence and consumed idempotently.
 - Connected modules, tasks, deadlines, timeline, reports, notifications, and admin state update correctly.
 - No stale result is presented as current.
 - No orphaned files, Evidence, tasks, calculations, or records remain.
 - Financial outputs reconcile to versioned deterministic fixtures.
 
-### 9.3 UX validation
+### UX and accessibility
 
-- The active workspace, Deal, status, freshness, primary action, and next action are clear.
-- Web, iPhone, and iPad behavior is complete and intentionally designed.
-- Loading, empty, partial, stale, offline, conflict, permission, success, failure, retry, and recovery states are designed and tested.
+- Active Deal, status, freshness, primary action, and next action are clear.
+- Loading, empty, partial, stale, offline, conflict, permission, success, failure, retry, and recovery states are intentional.
 - Accessibility requirements are satisfied.
-- The user never reaches a dead end.
-- Beginner guidance and professional detail use the same canonical data.
+- No dead end exists.
+- Guided and professional experiences use the same canonical truth.
 - Charts, maps, reports, and graphics improve comprehension and remain accurate and accessible.
 - Native clients do not feel like compressed websites.
 
-### 9.4 Security and operations validation
+### Security and operations
 
-- Authorization is enforced server-side.
+- Authorization is server-side.
 - RLS, storage isolation, secrets, and signed access are correct.
-- Admin and material user actions are audited.
-- Logs do not expose sensitive data.
+- Sensitive and administrative actions are audited.
+- Logs do not expose protected content or secrets.
 - Expensive operations have limits, metering, and abuse protection.
 - Background jobs expose durable status, timeout, retry, and escalation behavior.
 - Monitoring can determine whether the workflow is healthy.
 
-### 9.5 Final completion decision
+## 12. Retrofit Alignment Gate Before Specification 009
 
-Mark `COMPLETE` only when:
+Specifications 001 through 008 were implemented across multiple documentation generations. Before Specification 009 begins, perform a contained retroactive alignment audit against the final governing package.
 
-- The specification is accurate and internally consistent.
-- The implementation works with every connected completed subsystem.
-- Required tests pass.
-- No material TODO, placeholder, disconnected state, stale-state defect, misleading result, or unverified claim remains.
-- A senior engineer can continue without inventing architecture or product behavior.
-- The user can complete the intended investor decision workflow without relying on a second calculation system.
+The audit must verify, for each completed slice:
 
-Otherwise mark `NOT COMPLETE`, identify the exact gap, and repair it before moving to the next item in the roadmap.
+- canonical Workspace, Property, Deal, Evidence, task, event, audit, and calculation ownership;
+- individual-investor-first UX and scope;
+- no enterprise or historical object model has become a competing source of truth;
+- one deterministic underwriting authority;
+- no universal historical investment threshold is being treated as a hard product rule unless the current owning specification explicitly defines it;
+- source classification, verification, confidence, freshness, conflict, and prior-version behavior;
+- idempotent event and retry behavior;
+- stale/failure handling and preservation of prior valid output;
+- Decision Cockpit and downstream projections remain projections, not alternate truth stores;
+- web/native/report reconciliation where implemented;
+- all applicable tests still pass.
+
+Repair only proven drift. Do not rewrite stable compliant behavior for style or preference.
+
+Specification 009 may begin only when no material prerequisite defect remains open.
+
+## 13. Final Completion Decision
+
+Mark a document or implementation slice `COMPLETE` only when:
+
+- the specification is accurate and internally consistent;
+- the implementation works with every connected completed prerequisite;
+- required tests pass;
+- no material TODO, placeholder, disconnected state, stale-state defect, misleading result, or unverified claim remains;
+- a senior engineer can continue without inventing architecture or product behavior;
+- the investor can complete the intended decision workflow without relying on a second calculation or shadow system.
+
+Otherwise mark `NOT COMPLETE`, identify the exact gap, and repair it before proceeding.
