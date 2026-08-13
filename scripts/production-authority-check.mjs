@@ -9,6 +9,12 @@ const packageJson = JSON.parse(await read("package.json"));
 const verify = packageJson.scripts?.verify ?? "";
 requirePattern("package.json", verify, /npm run lint/, "verify must run lint");
 requirePattern("package.json", verify, /npm run check:authority/, "verify must run the authority guard");
+requirePattern("package.json", verify, /npm run audit:prod/, "verify must run the production dependency audit");
+for (const forbiddenDependency of ["xlsx", "pdfjs-dist"]) {
+  if (packageJson.dependencies?.[forbiddenDependency] || packageJson.devDependencies?.[forbiddenDependency]) {
+    failures.push(`package.json: ${forbiddenDependency} must not be reintroduced without an explicit security review`);
+  }
+}
 
 const supabase = await read("src/core/supabase.ts");
 forbidPattern("src/core/supabase.ts", supabase, /\.supabase\.co["')]/, "runtime code must not contain a production Supabase fallback URL");
