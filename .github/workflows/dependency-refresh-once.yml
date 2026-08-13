@@ -1,14 +1,39 @@
-name: BRIX Retired Dependency Refresh
+name: BRIX One-Time PWA Compatibility Refresh
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  retired:
+  refresh:
+    if: github.event.head_commit.message == 'run final pwa compatibility refresh'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_SUPABASE_URL: https://example.invalid
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-publishable-key
     steps:
-      - name: Retired
-        run: echo "This one-time production-hardening workflow is retired. Use the BRIX Production Gate for ongoing verification."
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Align PWA plugin with Vite 8
+        run: |
+          npm install vite-plugin-pwa@^1.3.0 --save
+          npm audit fix --package-lock-only || true
+      - name: Verify hardened repository before commit
+        run: npm run verify:ci
+      - name: Commit verified PWA compatibility refresh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git diff --cached --quiet && exit 0
+          git commit -m "align PWA tooling with Vite 8"
+          git push origin HEAD:main
