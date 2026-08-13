@@ -100,6 +100,30 @@ enum BRIXService {
         ], accessToken: accessToken)
     }
 
+    static func updateDealLifecycle(id: UUID, stage: String, accessToken: String) async throws -> Deal {
+        guard let detail = try await loadCanonicalDealDetail(id: id.uuidString, accessToken: accessToken) else {
+            throw BRIXServiceError.badResponse(404)
+        }
+        guard let version = int(detail["deal_version"]) else {
+            throw BRIXServiceError.invalidCanonicalResponse
+        }
+
+        _ = try await rpc("update_deal_lifecycle", body: [
+            "target_deal_id": id.uuidString,
+            "lifecycle_input": [
+                "stage": stage,
+                "reason": "ios_pipeline_advance"
+            ],
+            "expected_version": version,
+            "idempotency_key": "ios:deal:lifecycle:\(id.uuidString):\(version):\(stage)"
+        ], accessToken: accessToken)
+
+        guard let updated = try await loadCanonicalDeal(id: id.uuidString, accessToken: accessToken) else {
+            throw BRIXServiceError.invalidCanonicalResponse
+        }
+        return updated
+    }
+
     static func softDeleteDeal(id: UUID, accessToken: String) async throws {
         guard let detail = try await loadCanonicalDealDetail(id: id.uuidString, accessToken: accessToken) else { return }
         let version = int(detail["deal_version"]) ?? 1
@@ -227,7 +251,7 @@ enum BRIXService {
         let facts = row["facts"] as? [String: Any] ?? [:]
         var deal = Deal()
         if let idText = string(row["deal_id"]), let id = UUID(uuidString: idText) { deal.id = id }
-        deal.status = legacyStatus(from: string(row["status"]))
+        deal.status = string(row["stage"]) ?? "lead"
         deal.sourceUrl = string(row["source_url"]) ?? string(facts["sourceUrl"]) ?? ""
         deal.sourceText = string(row["source_text"]) ?? string(facts["sourceText"]) ?? ""
         deal.address = string(row["primary_property_address"]) ?? string(facts["address"]) ?? string(row["display_name"]) ?? ""
@@ -248,14 +272,6 @@ enum BRIXService {
         deal.photoNames = facts["photoNames"] as? [String] ?? facts["uploadedPhotoNames"] as? [String] ?? []
         deal.notes = facts["notes"] as? [String] ?? []
         return deal
-    }
-
-    private static func legacyStatus(from operatingStatus: String?) -> String {
-        switch operatingStatus {
-        case "passed", "closed_lost": return "passed"
-        case "closed_won": return "closed"
-        default: return "reviewing"
-        }
     }
 
     private static func string(_ value: Any?) -> String? {
