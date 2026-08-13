@@ -4,7 +4,7 @@
 
 This checkpoint was created before Specification 009 so BRIX does not carry hidden architecture divergence into FinanceIQ.
 
-Current disposition: **repository production hardening is materially stronger and the dependency/XLSX migration has passed the full verification suite in the controlled refresh job. FinanceIQ remains gated until the normal BRIX Production Gate is green on the final `main` state and the pending database migration is staged, smoke-tested, and promoted deliberately.**
+Current disposition: **repository production hardening is green on `main`. The normal BRIX Production Gate has passed after the dependency/XLSX migration, adversarial XLSX tests, and stale build rules were cleaned up. FinanceIQ remains gated only by deployment validation: the pending database migration must be staged, smoke-tested, and promoted deliberately before the next architecture slice begins.**
 
 ## Resolved in this hardening pass
 
@@ -70,17 +70,17 @@ The production audit surfaced vulnerable dependencies that the previous build ga
 
 The vulnerable SheetJS `xlsx` dependency and unused `pdfjs-dist` package were removed. Workbook export no longer depends on SheetJS. Package/batch XLSX intake now uses a narrow BRIX-owned reader backed only by ZIP decompression primitives, with explicit limits on archive entry count, declared uncompressed size, worksheet count, row count, and cells per row before content becomes intake data.
 
-The XLSX reader validates the ZIP central directory before decompression, rejects malformed workbook XML, resolves only worksheet relationship targets under the expected workbook path, and bounds parsed worksheet content. Tests build a minimal XLSX package without depending on the removed spreadsheet library.
+The XLSX reader validates the ZIP central directory before decompression, rejects malformed workbook XML, resolves only worksheet relationship targets under the expected workbook path, and bounds parsed worksheet content. Dedicated adversarial tests now cover malformed/truncated ZIP input, archive-entry limits, oversized declared expansion, worksheet relationship traversal, malformed XML, and row/cell bounds.
 
-The web toolchain was also advanced as a compatible set: Vite, its React SWC plugin, React Router, and the PWA integration were aligned so the repository can install cleanly without peer-dependency overrides while retaining the production dependency audit.
+The web toolchain was advanced as a compatible set so the repository installs cleanly without peer-dependency overrides while retaining the production dependency audit. Stale Vite chunk rules for removed spreadsheet/PDF parser packages were also removed so build configuration reflects the actual dependency graph.
 
-The production authority guard now also requires the production audit to remain in `npm run verify` and explicitly rejects reintroduction of `xlsx` or `pdfjs-dist` without a deliberate security review.
+The production authority guard requires the production audit to remain in `npm run verify` and explicitly rejects reintroduction of `xlsx` or `pdfjs-dist` without a deliberate security review.
 
-### 8. One-time dependency migration was verified before commit
+### 8. Dependency migration was verified before commit
 
 The controlled dependency/XLSX refresh did not commit changes until the complete production verification command passed. That verification included typecheck, lint, authority invariants, production dependency audit, the full test suite, and the production build.
 
-One-time write-enabled migration workflow logic is not part of the normal release path. Ongoing verification authority remains the read-only `BRIX Production Gate`.
+The same normal read-only BRIX Production Gate subsequently passed on `main` after the adversarial tests and build cleanup, confirming the checked-in repository state independently of the migration job.
 
 ## Production authority invariants now enforced
 
@@ -97,16 +97,17 @@ The repository-level authority guard fails when any of these conditions return:
 
 ## Required deployment sequencing
 
-1. Confirm the latest normal `BRIX Production Gate` workflow is green on the final `main` state.
+1. Repository gate: **PASS** on the final hardened `main` state before this audit update.
 2. Apply pending Supabase migrations to the intended non-production environment first.
 3. Smoke-test canonical Deal create, update, list/detail, archive, sign-in restore, native cloud sync, report export, XLSX/CSV package intake, and authentication recovery.
 4. Exercise malformed/oversized intake rejection and confirm safe user-facing failure behavior.
-5. Promote the migration to production only after the non-production smoke test passes.
-6. Do not begin FinanceIQ implementation until the above gate remains green.
+5. Run `ios/BRIXRealEstateiOS/scripts/verify-ios-project.sh` on the Mac release machine and perform an iOS Simulator smoke pass.
+6. Promote the migration to production only after the non-production smoke tests pass.
+7. Do not begin FinanceIQ implementation until deployment validation is complete.
 
 ## Native build gate
 
-The checked-in native project already includes `ios/BRIXRealEstateiOS/scripts/verify-ios-project.sh`, which performs project identity checks and an iOS Simulator build through Xcode.
+The checked-in native project includes `ios/BRIXRealEstateiOS/scripts/verify-ios-project.sh`, which performs project identity checks and an iOS Simulator build through Xcode.
 
 A hosted macOS GitHub Actions job is intentionally not enabled by this hardening pass because hosted macOS minutes can introduce additional CI cost. Run the script on the Mac release machine before every native release, or add a macOS CI job when that recurring cost is explicitly accepted.
 
