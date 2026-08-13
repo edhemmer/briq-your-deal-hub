@@ -1,19 +1,18 @@
 # BRIX Hard Rules
 
-This document mirrors the root `AGENTS.md` rules so the operating protocol is visible in product documentation.
+This file is a convenience summary only. `AGENTS.md`, the numbered governing documents `docs/00-START-HERE.md` through `docs/12-INDIVIDUAL-INVESTOR-PRODUCT-REALIGNMENT.md`, and the current numbered owning specification control implementation.
 
-BRIX work must be app-wide, corpus-led, and verification-first. Do not patch one visible screen without checking the connected workflow, web/iOS parity, Supabase data path, auth path, and downstream modules.
+Older corpuses, audits, recovery/release plans, training notes, `docs/constitution/**`, competitive snapshots, KPI documents, and provider/migration logs are historical reference material unless a current governing document explicitly incorporates them.
 
-Mandatory protocol:
+For every implementation task:
 
-1. Read the repo first: `README.md`, `docs/BRIX_APP_WHITEBOARD.md`, `docs/FULL_APP_AUDIT_RELEASE_BLOCKERS.md`, `docs/ARCHITECTURE_OVERVIEW.md`, `docs/PRODUCTION_HARDENING_CHECKLIST.md`, relevant corpuses, and relevant source files.
-2. Map the affected user flow before coding.
-3. Identify dependent modules, data paths, tests, and likely regressions.
-4. Create a checklist for major work.
-5. Fix the whole occurrence class, not one visible bug.
-6. Remove demo/prototype/internal wording from customer-facing UI.
-7. Verify before claiming production readiness.
-8. Follow the BRIX corpus and master directive.
-9. Preserve web and iOS parity.
-10. Keep BRIX simple, trustworthy, accurate, and action-oriented.
-11. Commit only after the intended scope is checked.
+1. Read the current governing package and owning specification.
+2. Inspect the actual repository and affected end-to-end workflow.
+3. Preserve one canonical Workspace, Property, Deal, Evidence model, task/deadline system, timeline, financial engine, strategy system, recommendation/decision model, event path, and audit model.
+4. Keep BRIX individual-investor-first; collaboration remains optional and secondary.
+5. Do not create duplicate schemas, parsers, calculators, stores, task systems, or business logic.
+6. Preserve provenance, classification, verification, confidence, freshness, conflicts, versions, and prior valid results where material.
+7. Verify authorization, persistence, save/reopen, failure/retry, stale state, connected updates, and required tests before claiming completion.
+8. Never represent partial, placeholder, mock, stale, or unverified behavior as production-complete.
+
+Before Specification 009 begins, Specifications 001-008 must pass the retrofit alignment gate defined in `docs/00-START-HERE.md`.
