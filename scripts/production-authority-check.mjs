@@ -17,6 +17,7 @@ requirePattern("src/core/supabase.ts", supabase, /Missing required BRIX environm
 const iosService = await read("ios/BRIXRealEstateiOS/BRIXRealEstateiOS/Services.swift");
 forbidPattern("Services.swift", iosService, /rest\/v1\/brix_deals/, "native iOS must not use the legacy Deal table endpoint");
 requirePattern("Services.swift", iosService, /rest\/v1\/rpc\//, "native iOS must use canonical RPC boundaries");
+requirePattern("Services.swift", iosService, /badResponse\(404\)/, "native canonical upsert must distinguish a missing Deal from a failed command so first-time creation can proceed");
 
 const nativeRoot = new URL("../ios/BRIXRealEstateiOS/BRIXRealEstateiOS/", import.meta.url);
 const nativeFiles = (await readdir(nativeRoot, { recursive: true }))
