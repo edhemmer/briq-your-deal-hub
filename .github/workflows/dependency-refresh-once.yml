@@ -9,9 +9,9 @@ permissions:
 
 jobs:
   refresh:
-    if: github.event.head_commit.message == 'run hardened xlsx refresh'
+    if: github.event.head_commit.message == 'run hardened dependency major refresh'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       VITE_SUPABASE_URL: https://example.invalid
       VITE_SUPABASE_PUBLISHABLE_KEY: ci-publishable-key
@@ -23,18 +23,19 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Replace vulnerable XLSX dependency path
+      - name: Replace vulnerable dependency paths
         run: |
-          npm install fflate@^0.8.3 --save
+          npm install fflate@^0.8.3 react-router-dom@^7.18.2 --save
+          npm install vite@^8.2.1 @vitejs/plugin-react-swc@^4.3.2 --save-dev
           node scripts/harden-xlsx-intake.mjs
           npm audit fix --package-lock-only || true
       - name: Verify hardened repository before commit
         run: npm run verify:ci
-      - name: Commit verified XLSX hardening
+      - name: Commit verified dependency hardening
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json src/core/packageBatchIntake.ts src/test/packageBatchIntake.test.ts
           git diff --cached --quiet && exit 0
-          git commit -m "harden XLSX intake without vulnerable SheetJS"
+          git commit -m "harden XLSX intake and production dependencies"
           git push origin HEAD:main
