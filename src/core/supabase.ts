@@ -1,22 +1,28 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./supabaseDatabase.types";
 
-function requiredEnvValue(value: unknown, fallback: string) {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
+const TEST_SUPABASE_URL = "http://127.0.0.1:54321";
+const TEST_SUPABASE_KEY = "test-publishable-key";
+
+function requiredEnvValue(name: string, value: unknown, testFallback: string) {
+  if (typeof value === "string" && value.trim().length > 0) return value.trim();
+  if (import.meta.env.MODE === "test") return testFallback;
+  throw new Error(`Missing required BRIX environment variable: ${name}`);
 }
 
-function requiredHttpUrl(value: unknown, fallback: string) {
-  const candidate = requiredEnvValue(value, fallback);
+function requiredHttpUrl(name: string, value: unknown, testFallback: string) {
+  const candidate = requiredEnvValue(name, value, testFallback);
   try {
     const url = new URL(candidate);
-    return url.protocol === "https:" || url.protocol === "http:" ? candidate : fallback;
+    if (url.protocol === "https:" || (import.meta.env.MODE === "test" && url.protocol === "http:")) return candidate;
   } catch {
-    return fallback;
+    // handled below
   }
+  throw new Error(`Invalid BRIX environment variable ${name}: expected an HTTPS URL.`);
 }
 
-export const supabaseUrl = requiredHttpUrl(import.meta.env.VITE_SUPABASE_URL, "https://luwaqrkhmxcqsozmilbw.supabase.co");
-export const supabaseAnonKey = requiredEnvValue(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, "sb_publishable_gl6bNZ2T_sGmO7SbDlcdUA_9UzzNB3f");
+export const supabaseUrl = requiredHttpUrl("VITE_SUPABASE_URL", import.meta.env.VITE_SUPABASE_URL, TEST_SUPABASE_URL);
+export const supabaseAnonKey = requiredEnvValue("VITE_SUPABASE_PUBLISHABLE_KEY", import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, TEST_SUPABASE_KEY);
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
