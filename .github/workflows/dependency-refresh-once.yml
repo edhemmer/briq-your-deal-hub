@@ -1,0 +1,35 @@
+name: BRIX One-Time Dependency Refresh
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.event.head_commit.message == 'run hardened dependency refresh'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Refresh vulnerable production dependencies
+        run: |
+          npm uninstall xlsx pdfjs-dist
+          npm install react-router-dom@^6.30.3 --save
+          npm audit fix --package-lock-only || true
+      - name: Commit dependency lock refresh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git diff --cached --quiet && exit 0
+          git commit -m "refresh production dependency lock"
+          git push origin HEAD:main
