@@ -8,6 +8,7 @@ $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
 $nodeBin = "C:\Users\edhem\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin"
 $node = Join-Path $nodeBin "node.exe"
+$npm = Get-Command npm.cmd -ErrorAction SilentlyContinue
 $pnpm = "C:\Users\edhem\.cache\codex-runtimes\codex-primary-runtime\dependencies\bin\fallback\pnpm.cmd"
 $supabaseGo = Join-Path $repo ".supabase-cli\supabase-go.exe"
 
@@ -41,10 +42,10 @@ switch ($Task) {
     Invoke-BrixCommand { & $node "node_modules\typescript\bin\tsc" -p tsconfig.app.json --noEmit }
     Invoke-BrixCommand { & $node "node_modules\eslint\bin\eslint.js" . }
     Invoke-BrixCommand { & $node "scripts\production-authority-check.mjs" }
-    if (-not (Test-Path $pnpm)) {
-      throw "pnpm.cmd was not found in the configured BRIX package runtime."
+    if (-not $npm) {
+      throw "npm.cmd was not found. BRIX production dependency audit requires npm because package-lock.json is the authoritative lockfile."
     }
-    Invoke-BrixCommand { & $pnpm audit --prod --audit-level high }
+    Invoke-BrixCommand { & $npm.Source audit --omit=dev --audit-level=high }
     Invoke-BrixCommand { & $node "node_modules\vitest\vitest.mjs" run --environment jsdom --config vitest.config.ts }
     Invoke-BrixCommand { & $node "node_modules\vite\bin\vite.js" build }
   }

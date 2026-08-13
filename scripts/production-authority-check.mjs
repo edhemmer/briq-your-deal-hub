@@ -21,7 +21,8 @@ requirePattern("scripts/brix.ps1", brixWrapper, /function Invoke-BrixCommand/, "
 requirePattern("scripts/brix.ps1", brixWrapper, /\$LASTEXITCODE -ne 0/, "wrapper must check native command exit codes");
 requirePattern("scripts/brix.ps1", brixWrapper, /node_modules\\eslint\\bin\\eslint\.js/, "verify must run ESLint through the pinned BRIX Node runtime");
 requirePattern("scripts/brix.ps1", brixWrapper, /production-authority-check\.mjs/, "verify must run the production authority guard");
-requirePattern("scripts/brix.ps1", brixWrapper, /pnpm audit --prod --audit-level high/, "verify must run the production dependency audit");
+requirePattern("scripts/brix.ps1", brixWrapper, /npm\.cmd was not found/, "verify must fail closed when npm is unavailable for the package-lock audit");
+requirePattern("scripts/brix.ps1", brixWrapper, /npm\.Source audit --omit=dev --audit-level=high/, "verify must run the production dependency audit against package-lock.json");
 
 const supabase = await read("src/core/supabase.ts");
 forbidPattern("src/core/supabase.ts", supabase, /\.supabase\.co["')]/, "runtime code must not contain a production Supabase fallback URL");
