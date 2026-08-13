@@ -49,12 +49,6 @@ export default defineConfig(() => ({
           if (id.includes("recharts")) {
             return "vendor-charts";
           }
-          if (id.includes("xlsx")) {
-            return "vendor-xlsx-parser";
-          }
-          if (id.includes("pdfjs-dist")) {
-            return "vendor-pdf-parser";
-          }
           if (id.includes("mammoth")) {
             return "vendor-docx-parser";
           }
