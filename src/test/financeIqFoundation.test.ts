@@ -16,6 +16,19 @@ const migration = readFileSync(
   "supabase/migrations/20260818143409_spec009_financing_structure_foundation.sql",
   "utf8",
 );
+const hardeningMigration = readFileSync(
+  "supabase/migrations/20260818162536_spec009_financeiq_security_performance_hardening.sql",
+  "utf8",
+);
+const termUpsertRepairMigration = readFileSync(
+  "supabase/migrations/20260818164742_spec009_term_upsert_idempotency_repair.sql",
+  "utf8",
+);
+const rlsAdvisorRepairMigration = readFileSync(
+  "supabase/migrations/20260818165104_spec009_financeiq_rls_advisor_repair.sql",
+  "utf8",
+);
+const spec009Migrations = `${migration}\n${hardeningMigration}\n${termUpsertRepairMigration}\n${rlsAdvisorRepairMigration}`;
 
 describe("FinanceIQ Slice 1 canonical foundation", () => {
   it("defines structural contracts without creating calculation authority", () => {
@@ -184,7 +197,7 @@ describe("FinanceIQ Slice 1 canonical foundation", () => {
       "load_financing_structure_detail",
     ]) {
       expect(migration).toContain(`create or replace function public.${functionName}`);
-      expect(migration).toContain(`grant execute on function public.${functionName}`);
+      expect(spec009Migrations).toContain(`grant execute on function public.${functionName}`);
     }
 
     for (const eventName of [
@@ -207,12 +220,44 @@ describe("FinanceIQ Slice 1 canonical foundation", () => {
         migration.indexOf("$$;", migration.indexOf(`create or replace function public.${functionName}`)),
       );
 
-      expect(migration).toContain(`grant execute on function public.${functionName}(uuid, jsonb, integer, text)`);
+      expect(spec009Migrations).toContain(`grant execute on function public.${functionName}(uuid, jsonb, integer, text)`);
       expect(functionBody).toContain("idempotency_key text default null");
       expect(functionBody).toContain("public.ensure_financing_command");
-      expect(functionBody).toContain("if command.result is not null then");
       expect(functionBody).toContain("insert into public.audit_events");
       expect(functionBody).toContain("update public.financing_command_requests");
+    }
+
+    expect(termUpsertRepairMigration).toContain("if command.result ? ''capital_source_id'' then");
+    expect(termUpsertRepairMigration).toContain("if command.result ? ''debt_tranche_id'' then");
+    expect(termUpsertRepairMigration).toContain("if command.result ? ''equity_tranche_id'' then");
+    expect(rlsAdvisorRepairMigration).toContain('drop policy if exists "financing command requests read creator"');
+    expect(rlsAdvisorRepairMigration).toContain("created_by = (select auth.uid())");
+  });
+
+  it("hardens the FinanceIQ RPC surface and indexed relationship paths", () => {
+    for (const signature of [
+      "create_financing_structure(uuid, jsonb, text)",
+      "update_financing_structure(uuid, jsonb, integer, text)",
+      "select_active_financing_structure(uuid, integer, text)",
+      "archive_financing_structure(uuid, integer, text, text)",
+      "upsert_capital_source(uuid, jsonb, integer, text)",
+      "upsert_debt_tranche(uuid, jsonb, integer, text)",
+      "upsert_equity_tranche(uuid, jsonb, integer, text)",
+      "list_financing_structure_projection(uuid)",
+      "load_financing_structure_detail(uuid)",
+    ]) {
+      expect(hardeningMigration).toContain(`revoke execute on function public.${signature} from public, anon;`);
+      expect(hardeningMigration).toContain(`grant execute on function public.${signature} to authenticated;`);
+    }
+
+    for (const indexName of [
+      "idx_financing_structures_workspace_deal_fk",
+      "idx_capital_sources_workspace_source_evidence_fk",
+      "idx_debt_tranches_capital_source_fk",
+      "idx_equity_tranches_capital_source_fk",
+      "idx_financing_structure_versions_workspace_deal_fk",
+    ]) {
+      expect(hardeningMigration).toContain(`create index if not exists ${indexName}`);
     }
   });
 
