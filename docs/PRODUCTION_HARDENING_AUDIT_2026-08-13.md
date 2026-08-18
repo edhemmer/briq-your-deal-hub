@@ -6,6 +6,38 @@ This checkpoint was created before Specification 009 so BRIX does not carry hidd
 
 Current disposition: **repository production hardening is green on `main`. The normal BRIX Production Gate has passed after the dependency/XLSX migration, adversarial XLSX tests, and stale build rules were cleaned up. FinanceIQ remains gated only by deployment validation: the pending database migration must be staged, smoke-tested, and promoted deliberately before the next architecture slice begins.**
 
+## Staging validation addendum — 2026-08-18
+
+Supabase staging project `puzpttffehqneylmvdbl` (`BRIX Staging`) is the non-production validation target for this gate.
+
+### FOUND
+
+- Supabase security advisor reported `ERROR` findings for underwriting read views that were created with definer semantics.
+- Supabase security advisor reported warning-level executable `SECURITY DEFINER` grants for existing RPC functions.
+- Supabase performance advisor reported warning-level RLS initialization-plan and multiple-permissive-policy findings.
+- Rollback-only staging smoke testing found PL/pgSQL ambiguity defects in canonical Deal creation, shared command idempotency, and canonical Deal mutation RPCs.
+
+### REPAIRED
+
+- Added `security_invoker = true` to underwriting read views so caller RLS remains authoritative.
+- Pinned search paths for advisor-flagged immutable helper functions.
+- Repaired canonical Deal creation ambiguity around workspace status, idempotency, and inserted Deal return fields.
+- Repaired shared Deal/work command idempotency helper ambiguity.
+- Repaired canonical Property/Deal update, lifecycle, archive, and restore mutation ambiguity.
+- Stabilized PL/pgSQL variable resolution for the canonical Deal RPC family.
+
+### VERIFIED
+
+- Staging migrations apply through `20260818130000_stabilize_canonical_deal_rpc_variable_resolution.sql`.
+- Supabase security advisor now reports zero `ERROR` findings on staging.
+- Supabase performance advisor now reports zero `ERROR` findings on staging.
+- Rollback-only staging smoke test passes for auth workspace bootstrap, duplicate-bootstrap prevention, canonical Deal creation, idempotency, RLS isolation, unauthorized mutation denial, version conflict, lifecycle, archive, restore, fact ownership, and event/audit emission.
+
+### DEFERRED
+
+- Warning-level Supabase advisor cleanup remains deferred to a controlled security/performance hardening slice because it touches broad RPC grants and RLS policy structure.
+- Apple native compile, Simulator/device, Keychain, Universal Link, signing, archive, Dynamic Type, and VoiceOver gates remain deferred to the connected Mac before native release.
+
 ## Resolved in this hardening pass
 
 ### 1. Verification gate now includes lint, authority, and production dependency security checks
