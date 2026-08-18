@@ -10,7 +10,19 @@ const advisorRepairMigration = readFileSync(
   "supabase/migrations/20260818174237_spec009_debt_schedule_advisor_repair.sql",
   "utf8",
 );
-const slice2Migrations = `${migration}\n${advisorRepairMigration}`;
+const idempotencyRepairMigration = readFileSync(
+  "supabase/migrations/20260818175648_spec009_debt_schedule_idempotency_scope_repair.sql",
+  "utf8",
+);
+const failedProjectionRepairMigration = readFileSync(
+  "supabase/migrations/20260818180312_spec009_debt_schedule_failed_projection_repair.sql",
+  "utf8",
+);
+const directWriteGrantRepairMigration = readFileSync(
+  "supabase/migrations/20260818180624_spec009_debt_schedule_direct_write_grant_repair.sql",
+  "utf8",
+);
+const slice2Migrations = `${migration}\n${advisorRepairMigration}\n${idempotencyRepairMigration}\n${failedProjectionRepairMigration}\n${directWriteGrantRepairMigration}`;
 const financeIQ = readFileSync("src/core/financeIQ.ts", "utf8");
 const engine = readFileSync("src/core/underwritingDebtSchedules.ts", "utf8");
 
@@ -39,6 +51,14 @@ describe("Spec 009 Slice 2 source authority", () => {
     expect(migration).toContain("create or replace function public.list_financeiq_debt_schedule_projection");
     expect(slice2Migrations).toContain("grant execute on function public.list_financeiq_debt_schedule_projection");
     expect(migration).toContain("created_by = (select auth.uid())");
+    expect(slice2Migrations).toContain(
+      "revoke insert, update, delete on public.underwriting_debt_schedule_results from authenticated",
+    );
+    expect(slice2Migrations).toContain(
+      "revoke insert, update, delete on public.underwriting_debt_schedule_requests from authenticated",
+    );
+    expect(slice2Migrations).toContain("request.idempotency_key = cleaned_key");
+    expect(slice2Migrations).toContain("result.result_hash = requested_result_hash");
   });
 
   it("covers new debt schedule foreign-key and projection paths with indexes", () => {
@@ -59,11 +79,12 @@ describe("Spec 009 Slice 2 source authority", () => {
 
   it("projects current, stale, failed, and not-calculated schedule state to FinanceIQ", () => {
     expect(migration).toContain("underwriting_latest_debt_schedule_results");
-    expect(migration).toContain("then 'current'");
-    expect(migration).toContain("then 'failed'");
+    expect(slice2Migrations).toContain("then 'failed'");
+    expect(slice2Migrations).toContain("then 'current'");
     expect(migration).toContain("then 'stale'");
     expect(migration).toContain("else 'not_calculated'");
     expect(migration).toContain("from public.debt_tranches tranche");
+    expect(failedProjectionRepairMigration).toContain("status = ''invalid_input''");
   });
 
   it("records audit and domain events without inventing FinanceIQ calculation ownership", () => {

@@ -216,15 +216,15 @@ begin
   )::text);
 
   select * into existing_request
-  from public.underwriting_debt_schedule_requests
-  where workspace_id = target_workspace_id
-    and idempotency_key = cleaned_key
+  from public.underwriting_debt_schedule_requests request
+  where request.workspace_id = target_workspace_id
+    and request.idempotency_key = cleaned_key
   for update;
   if existing_request.id is not null then
     if existing_request.request_hash <> request_hash then
       raise exception 'This debt schedule retry key was already used with different output.' using errcode = '23505';
     end if;
-    select * into existing_result from public.underwriting_debt_schedule_results where id = existing_request.result_id;
+    select * into existing_result from public.underwriting_debt_schedule_results result where result.id = existing_request.result_id;
     result_id := existing_result.id;
     status := existing_result.status;
     result_hash := existing_result.result_hash;
@@ -235,10 +235,10 @@ begin
   end if;
 
   select * into existing_result
-  from public.underwriting_debt_schedule_results
-  where workspace_id = target_workspace_id
-    and debt_tranche_id = target_debt_tranche_id
-    and result_hash = requested_result_hash;
+  from public.underwriting_debt_schedule_results result
+  where result.workspace_id = target_workspace_id
+    and result.debt_tranche_id = target_debt_tranche_id
+    and result.result_hash = requested_result_hash;
   if existing_result.id is not null then
     insert into public.underwriting_debt_schedule_requests (
       workspace_id, deal_id, financing_structure_id, debt_tranche_id, result_id, idempotency_key, request_hash, input_hash, result_hash, created_by
@@ -441,8 +441,8 @@ begin
     coalesce(latest_valid.id, latest_any.id),
     coalesce(latest_valid.schedule_type, latest_any.schedule_type),
     case
-      when latest_valid.id is not null and latest_valid.debt_tranche_version = tranche.version then 'current'
       when latest_any.id is not null and latest_any.status = 'invalid_input' and latest_any.debt_tranche_version = tranche.version then 'failed'
+      when latest_valid.id is not null and latest_valid.debt_tranche_version = tranche.version then 'current'
       when latest_valid.id is not null then 'stale'
       else 'not_calculated'
     end,
@@ -487,6 +487,8 @@ begin
 end;
 $$;
 
+revoke insert, update, delete on public.underwriting_debt_schedule_results from authenticated;
+revoke insert, update, delete on public.underwriting_debt_schedule_requests from authenticated;
 grant select on public.underwriting_debt_schedule_results to authenticated;
 grant select on public.underwriting_debt_schedule_requests to authenticated;
 grant select on public.underwriting_latest_debt_schedule_results to authenticated;
