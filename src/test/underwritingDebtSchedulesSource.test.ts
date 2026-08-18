@@ -22,7 +22,11 @@ const directWriteGrantRepairMigration = readFileSync(
   "supabase/migrations/20260818180624_spec009_debt_schedule_direct_write_grant_repair.sql",
   "utf8",
 );
-const slice2Migrations = `${migration}\n${advisorRepairMigration}\n${idempotencyRepairMigration}\n${failedProjectionRepairMigration}\n${directWriteGrantRepairMigration}`;
+const failureProjectionDeterminismMigration = readFileSync(
+  "supabase/migrations/20260818181844_spec009_debt_schedule_failure_projection_determinism.sql",
+  "utf8",
+);
+const slice2Migrations = `${migration}\n${advisorRepairMigration}\n${idempotencyRepairMigration}\n${failedProjectionRepairMigration}\n${directWriteGrantRepairMigration}\n${failureProjectionDeterminismMigration}`;
 const financeIQ = readFileSync("src/core/financeIQ.ts", "utf8");
 const engine = readFileSync("src/core/underwritingDebtSchedules.ts", "utf8");
 
@@ -83,6 +87,8 @@ describe("Spec 009 Slice 2 source authority", () => {
     expect(slice2Migrations).toContain("then 'current'");
     expect(migration).toContain("then 'stale'");
     expect(migration).toContain("else 'not_calculated'");
+    expect(slice2Migrations).toContain("latest_current_failure");
+    expect(slice2Migrations).toContain("result.status = 'invalid_input'");
     expect(migration).toContain("from public.debt_tranches tranche");
     expect(failedProjectionRepairMigration).toContain("status = ''invalid_input''");
   });

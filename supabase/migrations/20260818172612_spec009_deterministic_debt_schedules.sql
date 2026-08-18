@@ -438,17 +438,17 @@ begin
     tranche.id,
     tranche.version,
     tranche.label,
-    coalesce(latest_valid.id, latest_any.id),
-    coalesce(latest_valid.schedule_type, latest_any.schedule_type),
+    coalesce(latest_valid.id, latest_current_failure.id, latest_any.id),
+    coalesce(latest_valid.schedule_type, latest_current_failure.schedule_type, latest_any.schedule_type),
     case
-      when latest_any.id is not null and latest_any.status = 'invalid_input' and latest_any.debt_tranche_version = tranche.version then 'failed'
+      when latest_current_failure.id is not null then 'failed'
       when latest_valid.id is not null and latest_valid.debt_tranche_version = tranche.version then 'current'
       when latest_valid.id is not null then 'stale'
       else 'not_calculated'
     end,
-    coalesce(latest_valid.engine_version, latest_any.engine_version),
-    coalesce(latest_valid.input_hash, latest_any.input_hash),
-    coalesce(latest_valid.result_hash, latest_any.result_hash),
+    coalesce(latest_valid.engine_version, latest_current_failure.engine_version, latest_any.engine_version),
+    coalesce(latest_valid.input_hash, latest_current_failure.input_hash, latest_any.input_hash),
+    coalesce(latest_valid.result_hash, latest_current_failure.result_hash, latest_any.result_hash),
     target_structure.currency,
     latest_valid.period_count,
     latest_valid.first_periodic_debt_service,
@@ -457,8 +457,8 @@ begin
     latest_valid.total_interest_paid,
     latest_valid.total_balloon_paid,
     latest_valid.total_debt_service,
-    coalesce(jsonb_array_length(coalesce(latest_valid.warnings, latest_any.warnings, '[]'::jsonb)), 0),
-    coalesce(latest_valid.calculated_at, latest_any.calculated_at),
+    coalesce(jsonb_array_length(coalesce(latest_valid.warnings, latest_current_failure.warnings, latest_any.warnings, '[]'::jsonb)), 0),
+    coalesce(latest_valid.calculated_at, latest_current_failure.calculated_at, latest_any.calculated_at),
     now()
   from public.debt_tranches tranche
   left join lateral (
@@ -471,6 +471,17 @@ begin
     order by result.calculated_at desc, result.id desc
     limit 1
   ) latest_valid on true
+  left join lateral (
+    select *
+    from public.underwriting_debt_schedule_results result
+    where result.workspace_id = tranche.workspace_id
+      and result.financing_structure_id = tranche.financing_structure_id
+      and result.debt_tranche_id = tranche.id
+      and result.debt_tranche_version = tranche.version
+      and result.status = 'invalid_input'
+    order by result.calculated_at desc, result.id desc
+    limit 1
+  ) latest_current_failure on true
   left join lateral (
     select *
     from public.underwriting_debt_schedule_results result
