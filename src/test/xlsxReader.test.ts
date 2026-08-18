@@ -1,6 +1,6 @@
-import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { parseBoundedXlsxRows } from "../core/xlsxReader";
+import { makeZip } from "./xlsxFixture";
 
 const defaultLimits = {
   maxSheets: 3,
@@ -13,11 +13,11 @@ const defaultLimits = {
 function workbookPackage(input: { target?: string; worksheetXml?: string } = {}) {
   const target = input.target ?? "worksheets/sheet1.xml";
   const worksheetXml = input.worksheetXml ?? '<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Address</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>123 Main St</t></is></c></row></sheetData></worksheet>';
-  return zipSync({
-    "[Content_Types].xml": strToU8('<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>'),
-    "xl/workbook.xml": strToU8('<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Deals" sheetId="1" r:id="rId1"/></sheets></workbook>'),
-    "xl/_rels/workbook.xml.rels": strToU8(`<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="${target}"/></Relationships>`),
-    "xl/worksheets/sheet1.xml": strToU8(worksheetXml),
+  return makeZip({
+    "[Content_Types].xml": '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>',
+    "xl/workbook.xml": '<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Deals" sheetId="1" r:id="rId1"/></sheets></workbook>',
+    "xl/_rels/workbook.xml.rels": `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="${target}"/></Relationships>`,
+    "xl/worksheets/sheet1.xml": worksheetXml,
   });
 }
 
@@ -43,10 +43,10 @@ describe("bounded XLSX reader", () => {
   });
 
   it("rejects archives with more entries than the configured envelope", () => {
-    const bytes = zipSync({
-      "one.txt": strToU8("1"),
-      "two.txt": strToU8("2"),
-      "three.txt": strToU8("3"),
+    const bytes = makeZip({
+      "one.txt": "1",
+      "two.txt": "2",
+      "three.txt": "3",
     });
 
     expect(() => parseBoundedXlsxRows(bytes, { ...defaultLimits, maxArchiveEntries: 2 })).toThrow(/too many package entries/i);
@@ -63,9 +63,9 @@ describe("bounded XLSX reader", () => {
   });
 
   it("rejects malformed workbook XML instead of attempting partial recovery", () => {
-    const bytes = zipSync({
-      "xl/workbook.xml": strToU8("<workbook><broken>"),
-      "xl/_rels/workbook.xml.rels": strToU8('<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>'),
+    const bytes = makeZip({
+      "xl/workbook.xml": "<workbook><broken>",
+      "xl/_rels/workbook.xml.rels": '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>',
     });
     expect(() => parseBoundedXlsxRows(bytes, defaultLimits)).toThrow(/malformed XML/i);
   });

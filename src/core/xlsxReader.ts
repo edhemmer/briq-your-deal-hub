@@ -17,18 +17,12 @@ const DEFAULT_MAX_ARCHIVE_ENTRIES = 256;
 const DEFAULT_MAX_UNCOMPRESSED_BYTES = 20 * 1024 * 1024;
 
 export function parseBoundedXlsxRows(bytes: Uint8Array, limits: XlsxReadLimits): XlsxSheetRows[] {
-  validateZipEnvelope(
+  if (bytes.byteLength < 22) throw new Error("The XLSX workbook is incomplete.");
+  const archive = openBoundedArchive(
     bytes,
     limits.maxArchiveEntries ?? DEFAULT_MAX_ARCHIVE_ENTRIES,
     limits.maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED_BYTES,
   );
-
-  let archive: Record<string, Uint8Array>;
-  try {
-    archive = unzipSync(bytes);
-  } catch {
-    throw new Error("The XLSX workbook could not be opened safely.");
-  }
 
   const workbookXml = readXmlFile(archive, "xl/workbook.xml");
   const relsXml = readXmlFile(archive, "xl/_rels/workbook.xml.rels");
@@ -49,40 +43,48 @@ export function parseBoundedXlsxRows(bytes: Uint8Array, limits: XlsxReadLimits):
   return result;
 }
 
-function validateZipEnvelope(bytes: Uint8Array, maxEntries: number, maxUncompressedBytes: number) {
-  if (bytes.byteLength < 22) throw new Error("The XLSX workbook is incomplete.");
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  let eocd = -1;
-  const min = Math.max(0, bytes.byteLength - 65_557);
-  for (let index = bytes.byteLength - 22; index >= min; index -= 1) {
-    if (view.getUint32(index, true) === 0x06054b50) {
-      eocd = index;
-      break;
+function openBoundedArchive(bytes: Uint8Array, maxEntries: number, maxUncompressedBytes: number) {
+  let fallbackError: Error | undefined;
+  for (const end of zipCandidateEnds(bytes)) {
+    let archive: Record<string, Uint8Array>;
+    try {
+      archive = unzipSync(bytes.slice(0, end));
+    } catch (error) {
+      fallbackError = error instanceof Error ? error : new Error("The XLSX workbook could not be opened safely.");
+      continue;
     }
+    try {
+      validateUnzippedArchive(archive, maxEntries, maxUncompressedBytes);
+    } catch (error) {
+      fallbackError = error instanceof Error ? error : new Error("The XLSX workbook could not be opened safely.");
+      continue;
+    }
+    if (archive["xl/workbook.xml"] && archive["xl/_rels/workbook.xml.rels"]) return archive;
+    fallbackError = new Error("The XLSX workbook is missing a required part.");
   }
-  if (eocd < 0) throw new Error("The XLSX workbook is not a valid ZIP package.");
+  if (fallbackError) throw fallbackError;
+  throw new Error("The XLSX workbook could not be opened safely.");
+}
 
-  const entries = view.getUint16(eocd + 10, true);
-  const centralSize = view.getUint32(eocd + 12, true);
-  const centralOffset = view.getUint32(eocd + 16, true);
-  if (entries > maxEntries) throw new Error("The XLSX workbook contains too many package entries.");
-  if (centralOffset + centralSize > bytes.byteLength) throw new Error("The XLSX workbook package directory is invalid.");
+function zipCandidateEnds(bytes: Uint8Array) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const candidates: number[] = [];
+  const min = 0;
+  for (let index = bytes.byteLength - 22; index >= min; index -= 1) {
+    if (view.getUint32(index, true) !== 0x06054b50) continue;
+    const commentLength = view.getUint16(index + 20, true);
+    const end = index + 22 + commentLength;
+    if (end <= bytes.byteLength) candidates.push(end);
+  }
+  return candidates;
+}
 
-  let offset = centralOffset;
-  let totalUncompressed = 0;
-  for (let count = 0; count < entries; count += 1) {
-    if (offset + 46 > bytes.byteLength || view.getUint32(offset, true) !== 0x02014b50) {
-      throw new Error("The XLSX workbook package directory is malformed.");
-    }
-    const uncompressedSize = view.getUint32(offset + 24, true);
-    const fileNameLength = view.getUint16(offset + 28, true);
-    const extraLength = view.getUint16(offset + 30, true);
-    const commentLength = view.getUint16(offset + 32, true);
-    totalUncompressed += uncompressedSize;
-    if (totalUncompressed > maxUncompressedBytes) {
-      throw new Error("The XLSX workbook expands beyond the safe processing limit.");
-    }
-    offset += 46 + fileNameLength + extraLength + commentLength;
+function validateUnzippedArchive(archive: Record<string, Uint8Array>, maxEntries: number, maxUncompressedBytes: number) {
+  const entries = Object.values(archive);
+  if (entries.length > maxEntries) throw new Error("The XLSX workbook contains too many package entries.");
+  const totalUncompressed = entries.reduce((total, entry) => total + entry.byteLength, 0);
+  if (totalUncompressed > maxUncompressedBytes) {
+    throw new Error("The XLSX workbook expands beyond the safe processing limit.");
   }
 }
 

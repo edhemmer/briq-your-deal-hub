@@ -15,6 +15,18 @@ However, the audit found several material runtime disconnects that must be repai
 
 These are repairable architecture defects. They should be corrected now while the affected surface is bounded rather than carried into FinanceIQ, GovernanceIQ, ContractIQ, OfferIQ, reporting, and native production.
 
+### 2026-08-18 staging gate update
+
+**FOUND:** Supabase staging validation found concrete database runtime defects after the prior repository hardening: underwriting read views triggered security-advisor `ERROR` findings, and rollback-only smoke testing exposed PL/pgSQL ambiguity in the canonical Deal creation, command retry, update, lifecycle, archive, and restore RPC paths.
+
+**REPAIRED:** Forward migrations `20260818120000` through `20260818130000` repair the staging findings without creating alternate Deal, Property, underwriting, event, audit, or intake paths.
+
+**VERIFIED:** Staging project `puzpttffehqneylmvdbl` applies the full migration chain through `20260818130000_stabilize_canonical_deal_rpc_variable_resolution.sql`; Supabase advisors now report zero `ERROR` findings; rollback-only staging smoke testing passes auth workspace bootstrap, canonical Deal CRUD, RLS isolation, version conflict, fact ownership, idempotency, lifecycle, archive/restore, and event/audit checks.
+
+**DEFERRED:** Warning-level Supabase advisor cleanup remains a separate hardening slice. Apple native runtime gates remain deferred to the connected Mac before native release.
+
+**OPEN:** Final readiness still depends on repository gate pass, PR merge, production migration-state verification/promotion, Vercel production deployment verification, and production database-state verification.
+
 ## 2. Governing Standard
 
 This audit uses the current authority chain defined by:
