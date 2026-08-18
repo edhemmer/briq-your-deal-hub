@@ -2,6 +2,7 @@ import type { Json } from "./supabaseDatabase.types";
 
 export const FINANCEIQ_STRUCTURE_CONTRACT_VERSION = "financeiq-structure-foundation-v1" as const;
 export const FINANCEIQ_PROJECTION_CONTRACT_VERSION = "financeiq-structure-projection-v1" as const;
+export const FINANCEIQ_DEBT_SCHEDULE_PROJECTION_VERSION = "financeiq-debt-schedule-projection-v1" as const;
 
 export type FinancingStructureStatus =
   | "draft"
@@ -220,6 +221,36 @@ export type FinancingProjection = {
   debtTrancheCount: number;
   equityTrancheCount: number;
   updatedAt: string;
+  loadedAt: string;
+};
+
+export type DebtScheduleProjectionStatus = "current" | "stale" | "failed" | "not_calculated";
+
+export type DebtScheduleProjection = {
+  contractVersion: typeof FINANCEIQ_DEBT_SCHEDULE_PROJECTION_VERSION;
+  workspaceId: string;
+  dealId: string;
+  financingStructureId: string;
+  financingStructureVersion: number;
+  debtTrancheId: string;
+  debtTrancheVersion: number;
+  debtTrancheLabel: string;
+  resultId?: string;
+  scheduleType?: string;
+  status: DebtScheduleProjectionStatus;
+  engineVersion?: string;
+  inputHash?: string;
+  resultHash?: string;
+  currency: string;
+  periodCount?: number;
+  firstPeriodicDebtService?: number;
+  finalPeriodicDebtService?: number;
+  totalPrincipalPaid?: number;
+  totalInterestPaid?: number;
+  totalBalloonPaid?: number;
+  totalDebtService?: number;
+  warningCount: number;
+  latestCalculatedAt?: string;
   loadedAt: string;
 };
 
