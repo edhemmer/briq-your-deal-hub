@@ -5,6 +5,8 @@ export const FINANCEIQ_PROJECTION_CONTRACT_VERSION = "financeiq-structure-projec
 export const FINANCEIQ_DEBT_SCHEDULE_PROJECTION_VERSION = "financeiq-debt-schedule-projection-v1" as const;
 export const FINANCEIQ_CONSTRAINT_CONTRACT_VERSION = "financeiq-constraint-foundation-v1" as const;
 export const FINANCEIQ_FEASIBILITY_PROJECTION_VERSION = "financeiq-feasibility-projection-v1" as const;
+export const FINANCEIQ_SCENARIO_COMPARISON_CONTRACT_VERSION = "financeiq-scenario-comparison-v1" as const;
+export const FINANCEIQ_SCENARIO_COMPARISON_RESULT_VERSION = "financeiq-scenario-comparison-result-v1" as const;
 
 export type FinancingStructureStatus =
   | "draft"
@@ -395,6 +397,32 @@ export type FinancingConstraintEvaluationResult = {
 };
 
 export type DebtScheduleProjectionStatus = "current" | "stale" | "failed" | "not_calculated";
+export type FinancingScenarioComparisonMode = "current" | "historical";
+export type FinancingScenarioComparisonStatus = "clear_winner" | "no_clear_winner" | "not_comparable" | "insufficient_options";
+export type FinancingScenarioDimension =
+  | "feasibility"
+  | "debt_service"
+  | "cumulative_interest"
+  | "balloon_exposure"
+  | "ltv"
+  | "dscr"
+  | "fees"
+  | "rate_type"
+  | "prepayment"
+  | "recourse"
+  | "interest_only"
+  | "conditions"
+  | "covenants"
+  | "complexity"
+  | "equity_terms";
+export type FinancingScenarioPreference =
+  | "prioritize_lower_payment"
+  | "prioritize_lower_fees"
+  | "prioritize_fixed_rate"
+  | "prioritize_no_prepayment_penalty"
+  | "prioritize_lower_maturity_risk"
+  | "prioritize_feasibility_certainty";
+export type FinancingScenarioDimensionState = "comparable" | "not_comparable" | "missing_input" | "unsupported_metric";
 
 export type DebtScheduleProjection = {
   contractVersion: typeof FINANCEIQ_DEBT_SCHEDULE_PROJECTION_VERSION;
@@ -434,6 +462,112 @@ export type ActiveFinancingSelectionResult = {
   scenarioId?: string;
 };
 
+export type FinancingScenarioComparisonInput = {
+  contractVersion: typeof FINANCEIQ_SCENARIO_COMPARISON_CONTRACT_VERSION;
+  workspaceId: string;
+  dealId: string;
+  financingStructureIds: string[];
+  comparisonEffectiveAt: string;
+  mode: FinancingScenarioComparisonMode;
+  requestedDimensions: FinancingScenarioDimension[];
+  preferenceWeights?: Partial<Record<FinancingScenarioPreference, number>>;
+  underwritingSnapshotRefs?: Record<string, { underwritingSnapshotId: string; underwritingSnapshotVersion?: number; underwritingRunId?: string; resultHash?: string }>;
+  debtScheduleResultRefs?: Record<string, Array<{ debtTrancheId: string; debtTrancheVersion: number; resultId?: string; resultHash?: string }>>;
+  feasibilityResultRefs?: Record<string, { feasibilityVersion?: number; resultHash?: string }>;
+};
+
+export type FinancingScenarioComparisonRow = {
+  financingStructureId: string;
+  structureVersion: number;
+  name: string;
+  status: FinancingStructureStatus;
+  isActive: boolean;
+  isWinnerEligible: boolean;
+  exclusionReason?: string;
+  feasibilityStatus: FinancingFeasibilityStatus;
+  unresolvedConditionCount: number;
+  failedCovenantCount: number;
+  uncertainCovenantCount: number;
+  debtScheduleVersions: Array<{ debtTrancheId: string; debtTrancheVersion: number; resultId?: string; resultHash?: string; status: DebtScheduleProjectionStatus }>;
+  debtServiceSummary?: {
+    currency: string;
+    periodicDebtService: number;
+    totalDebtService?: number;
+    cumulativeInterest?: number;
+  };
+  balloonExposure?: {
+    currency: string;
+    maturityBalance: number;
+    maturityPeriod?: number;
+  };
+  underwritingMetrics: Array<{
+    metricKey: FinancingMetricKey;
+    value?: number;
+    status: string;
+    formulaId?: string;
+    underwritingSnapshotId?: string;
+    underwritingRunId?: string;
+    resultHash?: string;
+  }>;
+  costInputs?: {
+    currency: string;
+    points?: number;
+    sourceBackedFees?: number;
+  };
+  riskCharacteristics: string[];
+  complexity: {
+    debtTrancheCount: number;
+    equityTrancheCount: number;
+    capitalSourceCount: number;
+    unknownTermCount: number;
+    unverifiedTermCount: number;
+  };
+  equityTerms: Array<{
+    equityTrancheId: string;
+    equityTrancheVersion: number;
+    contributionAmount?: number;
+    ownershipPercentage?: number;
+    preferredReturnTerms: Record<string, Json>;
+    distributionPriority: number;
+  }>;
+  warnings: string[];
+  missingInputs: string[];
+  unsupportedMetrics: FinancingMetricKey[];
+  sourceReferences: Array<{ sourceEvidenceId?: string; sourceRecordId?: string; sourceAnchor?: Record<string, Json>; sourceClassification: FinancingSourceClassification; verificationState: FinancingVerificationState }>;
+  deterministicOrder: number;
+  reasonCodes: string[];
+};
+
+export type FinancingScenarioTradeoff = {
+  dimension: FinancingScenarioDimension;
+  state: FinancingScenarioDimensionState;
+  structureIds: string[];
+  reasonCode: string;
+  explanation: string;
+};
+
+export type FinancingScenarioComparisonResult = {
+  contractVersion: typeof FINANCEIQ_SCENARIO_COMPARISON_CONTRACT_VERSION;
+  resultVersion: typeof FINANCEIQ_SCENARIO_COMPARISON_RESULT_VERSION;
+  comparisonVersion: string;
+  workspaceId: string;
+  dealId: string;
+  comparedAt: string;
+  comparisonEffectiveAt: string;
+  dimensionsEvaluated: FinancingScenarioDimension[];
+  status: FinancingScenarioComparisonStatus;
+  clearWinnerFinancingStructureId?: string;
+  noDecisionReason?: string;
+  orderedStructures: FinancingScenarioComparisonRow[];
+  tradeoffs: FinancingScenarioTradeoff[];
+  excludedStructures: Array<{ financingStructureId: string; reasonCode: string }>;
+  missingComparisonInputs: string[];
+  blockingIssues: string[];
+  stale: boolean;
+  staleReasons: string[];
+  resultHash: string;
+};
+
 export type FinancingConflictError = {
   code: "stale_expected_version" | "idempotency_key_reused" | "unauthorized" | "not_found" | "invalid_financing_state";
   message: string;
@@ -458,6 +592,10 @@ export const FINANCEIQ_NON_GOAL_CALCULATION_FIELDS = [
   "xirr",
   "equityMultiple",
   "waterfallDistribution",
+  "effectiveApr",
+  "effectiveAPR",
+  "comparisonScore",
+  "bestLoanScore",
 ] as const;
 
 export function assertFinanceIQFoundationIsStructuralOnly(candidate: Record<string, unknown>): void {
