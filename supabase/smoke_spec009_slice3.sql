@@ -25,8 +25,12 @@ declare
   failing_covenant_id uuid;
   conflict_covenant_id uuid;
   first_condition_version integer;
+  first_dscr_evaluation_id uuid;
+  updated_covenant_version integer;
   eval_result record;
   update_result record;
+  loaded_condition record;
+  projection_result record;
   metric_key text;
   direct_write_denied boolean := false;
   cross_workspace_write_denied boolean := false;
@@ -92,6 +96,7 @@ begin
       'sourceClassification', 'lender_provided',
       'sourceEvidenceId', evidence_id,
       'sourceAnchor', jsonb_build_object('page', 4, 'quote', 'appraisal condition'),
+      'waiverState', 'requested',
       'confidence', 90
     ),
     'spec009-slice3-smoke-condition'
@@ -121,6 +126,14 @@ begin
     raise exception 'Expected condition update to increment version from %.', first_condition_version;
   end if;
 
+  select * into loaded_condition
+  from public.load_financing_conditions(condition_structure_id)
+  where id = test_condition_id;
+
+  if loaded_condition.id is null or loaded_condition.status <> 'submitted' then
+    raise exception 'Expected updated condition to reload through canonical load RPC.';
+  end if;
+
   begin
     perform *
     from public.update_financing_condition(test_condition_id, jsonb_build_object('status', 'satisfied'), first_condition_version, 'spec009-slice3-smoke-condition-stale');
@@ -134,8 +147,9 @@ begin
     where id = test_condition_id
       and source_evidence_id = evidence_id
       and source_anchor = jsonb_build_object('page', 5, 'quote', 'submitted appraisal')
+      and waiver_state = 'requested'
   ) then
-    raise exception 'Expected condition source evidence and source anchor to be retained.';
+    raise exception 'Expected condition source evidence, source anchor, and waiver state to be retained.';
   end if;
 
   select covenant_id into dscr_covenant_id
@@ -160,6 +174,12 @@ begin
     raise exception 'Expected passing DSCR/LTV hard covenants to be feasible, got %.', eval_result.feasibility_status;
   end if;
 
+  select eval.id into first_dscr_evaluation_id
+  from public.financing_covenant_evaluation_results eval
+  where eval.id = any((select covenant_evaluation_ids from public.financing_feasibility_results where id = eval_result.feasibility_result_id))
+    and eval.covenant_id = dscr_covenant_id
+    and eval.covenant_version = 1;
+
   foreach metric_key in array array['dscr', 'ltv', 'ltc', 'debt_yield', 'occupancy'] loop
     if not exists (
       select 1
@@ -171,6 +191,29 @@ begin
       raise exception 'Expected % evaluation state to match supported/unsupported contract.', metric_key;
     end if;
   end loop;
+
+  select covenant_version into updated_covenant_version
+  from public.update_financing_covenant(
+    dscr_covenant_id,
+    jsonb_build_object('thresholdValue', 1.3),
+    1,
+    'spec009-slice3-smoke-covenant-dscr-update'
+  );
+
+  if updated_covenant_version <> 2 then
+    raise exception 'Expected covenant update to increment version to 2.';
+  end if;
+
+  if not exists (select 1 from public.financing_covenant_evaluation_results where id = first_dscr_evaluation_id and covenant_version = 1) then
+    raise exception 'Expected historical DSCR evaluation to remain available after covenant update.';
+  end if;
+
+  select * into projection_result
+  from public.load_financing_constraint_projection(primary_structure_id);
+
+  if projection_result.stale is not true then
+    raise exception 'Expected new covenant version to make prior projection stale.';
+  end if;
 
   select * into eval_result
   from public.evaluate_financing_covenants(primary_structure_id, null, jsonb_build_object('dscr', jsonb_build_object('value', 1.1, 'status', 'calculated', 'resultHash', 'smoke-dscr-fail'), 'ltv', jsonb_build_object('value', 0.82, 'status', 'calculated', 'resultHash', 'smoke-ltv-fail')), 'spec009-slice3-smoke-eval-supported-fail', gen_random_uuid());
