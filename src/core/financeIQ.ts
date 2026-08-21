@@ -3,6 +3,8 @@ import type { Json } from "./supabaseDatabase.types";
 export const FINANCEIQ_STRUCTURE_CONTRACT_VERSION = "financeiq-structure-foundation-v1" as const;
 export const FINANCEIQ_PROJECTION_CONTRACT_VERSION = "financeiq-structure-projection-v1" as const;
 export const FINANCEIQ_DEBT_SCHEDULE_PROJECTION_VERSION = "financeiq-debt-schedule-projection-v1" as const;
+export const FINANCEIQ_CONSTRAINT_CONTRACT_VERSION = "financeiq-constraint-foundation-v1" as const;
+export const FINANCEIQ_FEASIBILITY_PROJECTION_VERSION = "financeiq-feasibility-projection-v1" as const;
 
 export type FinancingStructureStatus =
   | "draft"
@@ -53,6 +55,78 @@ export type FinancingSourceClassification =
   | "conflict"
   | "expired"
   | "superseded";
+
+export type FinancingConditionType =
+  | "appraisal"
+  | "inspection"
+  | "environmental"
+  | "insurance"
+  | "title"
+  | "survey"
+  | "entity_documentation"
+  | "guarantor_liquidity"
+  | "guarantor_net_worth"
+  | "borrower_experience"
+  | "occupancy"
+  | "stabilization"
+  | "permit"
+  | "zoning"
+  | "governance"
+  | "reporting"
+  | "closing_timeline"
+  | "repair_completion"
+  | "reserve_funding"
+  | "document_delivery"
+  | "other";
+
+export type FinancingConditionStatus =
+  | "pending"
+  | "submitted"
+  | "under_review"
+  | "satisfied"
+  | "waived"
+  | "failed"
+  | "expired"
+  | "not_applicable"
+  | "disputed"
+  | "unknown";
+
+export type FinancingCovenantType =
+  | "minimum_dscr"
+  | "maximum_ltv"
+  | "maximum_ltc"
+  | "minimum_debt_yield"
+  | "minimum_occupancy"
+  | "minimum_liquidity"
+  | "minimum_net_worth"
+  | "reporting_covenant"
+  | "cash_management_lockbox_trigger"
+  | "sweep_trigger"
+  | "completion_test"
+  | "stabilization_test"
+  | "leasing_test"
+  | "insurance_requirement"
+  | "environmental_requirement"
+  | "property_management_requirement"
+  | "transfer_restriction"
+  | "additional_debt_restriction"
+  | "other";
+
+export type FinancingMetricKey = "dscr" | "ltv" | "ltc" | "debt_yield" | "occupancy";
+export type FinancingComparisonOperator = "gte" | "gt" | "lte" | "lt" | "eq" | "between";
+export type FinancingConstraintEvaluationState =
+  | "passes"
+  | "fails"
+  | "uncertain"
+  | "missing_input"
+  | "unsupported_metric"
+  | "expired"
+  | "superseded"
+  | "not_applicable";
+export type FinancingFeasibilityStatus = "feasible" | "feasible_with_conditions" | "uncertain" | "not_feasible" | "expired" | "superseded";
+export type FinancingConflictState = "none" | "source_conflict" | "governing_source_selected" | "superseded_source" | "unresolved";
+export type FinancingWaiverState = "none" | "requested" | "granted" | "denied" | "expired" | "unresolved";
+export type FinancingCovenantStatus = "draft" | "active" | "waived" | "cured" | "breached" | "expired" | "superseded" | "not_applicable" | "unknown";
 
 export type FinancingPurpose = "acquisition" | "renovation" | "development" | "refinance" | "disposition" | "operation" | "scenario" | "other";
 export type FinancingActiveContext = "current_deal" | "scenario";
@@ -222,6 +296,102 @@ export type FinancingProjection = {
   equityTrancheCount: number;
   updatedAt: string;
   loadedAt: string;
+  unresolvedConditionCount?: number;
+  blockingConditionCount?: number;
+  failedCovenantCount?: number;
+  uncertainCovenantCount?: number;
+  feasibilityStatus?: FinancingFeasibilityStatus;
+  feasibilityVersion?: number;
+  lastEvaluatedAt?: string;
+  stale?: boolean;
+  verificationSummary?: {
+    unverifiedConditionCount: number;
+    unverifiedCovenantCount: number;
+    conflictedRequirementCount: number;
+    expiredRequirementCount: number;
+  };
+};
+
+export type FinancingCondition = FinancingProvenance & {
+  contractVersion: typeof FINANCEIQ_CONSTRAINT_CONTRACT_VERSION;
+  conditionId: string;
+  conditionVersion: number;
+  workspaceId: string;
+  dealId: string;
+  financingStructureId: string;
+  debtTrancheId?: string;
+  capitalSourceId?: string;
+  title: string;
+  description?: string;
+  conditionType: FinancingConditionType;
+  status: FinancingConditionStatus;
+  responsiblePartyType?: string;
+  responsibleUserId?: string;
+  responsibleContactId?: string;
+  dueDate?: string;
+  requiredBeforeStage?: string;
+  taskId?: string;
+  deadlineId?: string;
+  waiverState: FinancingWaiverState;
+  waiverSourceEvidenceId?: string;
+  conflictState: FinancingConflictState;
+  governingSourceStatus: "not_selected" | "selected" | "disputed" | "superseded";
+  resolvedAt?: string;
+  archivedAt?: string;
+  supersedesConditionId?: string;
+  supersededByConditionId?: string;
+};
+
+export type FinancingCovenant = FinancingProvenance & {
+  contractVersion: typeof FINANCEIQ_CONSTRAINT_CONTRACT_VERSION;
+  covenantId: string;
+  covenantVersion: number;
+  workspaceId: string;
+  dealId: string;
+  financingStructureId: string;
+  debtTrancheId?: string;
+  covenantType: FinancingCovenantType;
+  metricKey?: FinancingMetricKey;
+  comparisonOperator?: FinancingComparisonOperator;
+  thresholdValue?: number;
+  secondaryThresholdValue?: number;
+  measurementPeriod?: string;
+  testFrequency?: string;
+  curePeriodDays?: number;
+  cureDescription?: string;
+  consequence?: string;
+  isHardConstraint: boolean;
+  status: FinancingCovenantStatus;
+  conflictState: FinancingConflictState;
+  governingSourceStatus: "not_selected" | "selected" | "disputed" | "superseded";
+  archivedAt?: string;
+  supersedesCovenantId?: string;
+  supersededByCovenantId?: string;
+};
+
+export type FinancingConstraintEvaluationResult = {
+  contractVersion: typeof FINANCEIQ_CONSTRAINT_CONTRACT_VERSION;
+  evaluationVersion: string;
+  evaluationResultId: string;
+  workspaceId: string;
+  dealId: string;
+  financingStructureId: string;
+  covenantId: string;
+  covenantVersion: number;
+  underwritingSnapshotId?: string;
+  underwritingSnapshotVersion?: number;
+  underwritingRunId?: string;
+  metricKey?: FinancingMetricKey;
+  authoritativeMetricValue?: number;
+  thresholdValue?: number;
+  secondaryThresholdValue?: number;
+  comparisonOperator?: FinancingComparisonOperator;
+  evaluationState: FinancingConstraintEvaluationState;
+  isHardConstraint: boolean;
+  resultHash: string;
+  stale: boolean;
+  failureCode?: string;
+  evaluatedAt: string;
 };
 
 export type DebtScheduleProjectionStatus = "current" | "stale" | "failed" | "not_calculated";
