@@ -13,6 +13,7 @@ const emailHashRepairMigration = readFileSync(
   "supabase/migrations/20260818163518_spec009_email_hash_value_repair.sql",
   "utf8",
 );
+const normalizedEmailHashRepairMigration = emailHashRepairMigration.replace(/\r\n/g, "\n");
 
 describe("pre-existing active RPC lint hardening", () => {
   it("pins PL/pgSQL name resolution for active canonical RPCs surfaced by Supabase lint", () => {
@@ -59,8 +60,8 @@ describe("pre-existing active RPC lint hardening", () => {
     expect(defectRepairMigration).toContain("E'\\n      email_body_hash,\\n      plain_text_body,\\n'");
     expect(defectRepairMigration).toContain("E'\\n      body_hash,\\n      plain_text_body,\\n'");
     expect(emailHashRepairMigration).toContain("$needle$");
-    expect(emailHashRepairMigration).toContain("      body_hash,\n      nullif(safe_meta ->> 'plainTextBody', ''),");
-    expect(emailHashRepairMigration).toContain(
+    expect(normalizedEmailHashRepairMigration).toContain("      body_hash,\n      nullif(safe_meta ->> 'plainTextBody', ''),");
+    expect(normalizedEmailHashRepairMigration).toContain(
       "      email_body_hash,\n      nullif(safe_meta ->> 'plainTextBody', ''),",
     );
 
