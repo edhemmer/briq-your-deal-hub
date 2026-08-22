@@ -26,6 +26,11 @@ export type DecisionCockpitDestinationType =
   | "strategy_overview"
   | "strategy_result"
   | "strategy_comparison"
+  | "financeiq_overview"
+  | "financing_structure"
+  | "financing_condition"
+  | "financing_covenant"
+  | "financing_comparison"
   | "recommendation_detail"
   | "risk_detail"
   | "missing_input_detail"
@@ -46,6 +51,7 @@ export type DecisionCockpitGoverningModule =
   | "Property"
   | "Underwriting"
   | "Strategy"
+  | "FinanceIQ"
   | "Evidence"
   | "DealWork"
   | "Reports";
@@ -81,7 +87,7 @@ export type DecisionCockpitNavigationErrorCode =
   | "unsafe_external_url"
   | "internal_navigation_error";
 
-export type DecisionCockpitRouteSection = "overview" | "property" | "underwriting" | "strategies" | "work" | "history";
+export type DecisionCockpitRouteSection = "overview" | "property" | "underwriting" | "strategies" | "financeiq" | "work" | "history";
 
 export type DecisionCockpitCanonicalRecordType =
   | "deal"
@@ -97,6 +103,10 @@ export type DecisionCockpitCanonicalRecordType =
   | "strategy_ranking"
   | "strategy_result"
   | "strategy_comparison"
+  | "financing_structure"
+  | "financing_condition"
+  | "financing_covenant"
+  | "financing_comparison"
   | "risk"
   | "missing_input"
   | "assumption"
@@ -242,6 +252,7 @@ export const DECISION_COCKPIT_ROUTE_REGISTRY: readonly DecisionCockpitRouteDefin
     "conflict_detail",
   ]),
   route("decision_cockpit.strategy", "Strategy", ["strategy_overview", "strategy_result", "strategy_comparison"]),
+  route("decision_cockpit.financeiq", "FinanceIQ", ["financeiq_overview", "financing_structure", "financing_condition", "financing_covenant", "financing_comparison"]),
   route("decision_cockpit.evidence", "Evidence", ["source_record", "evidence_item", "evidence_anchor", "professional_review"]),
   route("decision_cockpit.work", "DealWork", ["task_detail", "deadline_detail", "missing_input_detail", "risk_detail"]),
   route("decision_cockpit.history", "DecisionCockpit", ["history_entry", "report_preview"]),
@@ -789,6 +800,7 @@ function moduleFromWorkflow(moduleId: string): DecisionCockpitGoverningModule {
 
 function moduleFromString(value: string): DecisionCockpitGoverningModule {
   const normalized = value.toLowerCase();
+  if (normalized.includes("financeiq") || normalized.includes("financing")) return "FinanceIQ";
   if (normalized.includes("underwriting") || normalized.includes("market") || normalized.includes("finance")) return "Underwriting";
   if (normalized.includes("strategy")) return "Strategy";
   if (normalized.includes("evidence") || normalized.includes("source")) return "Evidence";
@@ -805,7 +817,7 @@ function isSafeDealId(value: string) {
 }
 
 function isSafeSection(value: string): value is DecisionCockpitRouteSection {
-  return ["overview", "property", "underwriting", "strategies", "work", "history"].includes(value);
+  return ["overview", "property", "underwriting", "strategies", "financeiq", "work", "history"].includes(value);
 }
 
 function isSafeFocus(value: string): value is DecisionCockpitDestinationType {
@@ -822,6 +834,11 @@ function isSafeFocus(value: string): value is DecisionCockpitDestinationType {
     "strategy_overview",
     "strategy_result",
     "strategy_comparison",
+    "financeiq_overview",
+    "financing_structure",
+    "financing_condition",
+    "financing_covenant",
+    "financing_comparison",
     "recommendation_detail",
     "risk_detail",
     "missing_input_detail",
