@@ -23,7 +23,7 @@ function dealWorkspaceStyles() {
 describe("Specification 003 Deal workspace UI", () => {
   it("renders only the approved workspace sections on the active Deal route", () => {
     const source = dealIqSource();
-    for (const section of ["Overview", "Property", "People", "Work", "Notes", "History"]) {
+    for (const section of ["Overview", "Property", "Underwriting", "Strategies", "FinanceIQ", "People", "Work", "Notes", "History"]) {
       expect(source).toContain(section);
     }
     expect(source).toContain("role=\"tablist\"");
@@ -51,7 +51,6 @@ describe("Specification 003 Deal workspace UI", () => {
       "downloadDecisionPdf",
       "downloadWorkbook",
       "analyzePhotoEvidence",
-      "Strategy comparison",
       "Decision challenge",
       "Photos and condition",
       "PDF memo",

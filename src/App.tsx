@@ -17,6 +17,7 @@ import { UnderwritingWorkspace } from "./components/UnderwritingWorkspace";
 import { buildUnderwritingPresentation } from "./core/underwritingPresentation";
 import { StrategyWorkspace } from "./components/StrategyWorkspace";
 import { buildStrategyPresentation } from "./core/strategyPresentation";
+import { FinanceIQWorkspace } from "./components/FinanceIQWorkspace";
 import {
   attachExistingRelationship,
   createAndAttachRelationship,
@@ -2896,13 +2897,14 @@ function formatFileSize(bytes?: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-type DealWorkspaceSection = "overview" | "property" | "underwriting" | "strategies" | "people" | "work" | "notes" | "history";
+type DealWorkspaceSection = "overview" | "property" | "underwriting" | "strategies" | "financeiq" | "people" | "work" | "notes" | "history";
 
 const dealWorkspaceSections: Array<{ id: DealWorkspaceSection; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "property", label: "Property" },
   { id: "underwriting", label: "Underwriting" },
   { id: "strategies", label: "Strategies" },
+  { id: "financeiq", label: "FinanceIQ" },
   { id: "people", label: "People" },
   { id: "work", label: "Work" },
   { id: "notes", label: "Notes" },
@@ -2966,6 +2968,7 @@ function DealWorkspace({
     property: null,
     underwriting: null,
     strategies: null,
+    financeiq: null,
     people: null,
     work: null,
     notes: null,
@@ -3100,6 +3103,7 @@ function DealWorkspace({
         {section === "property" && <DealPropertySection deal={effectiveDeal} detail={detail} property={property} userId={userId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
         {section === "underwriting" && <DealUnderwritingSection deal={effectiveDeal} presentationMode={presentationMode} />}
         {section === "strategies" && <DealStrategySection deal={effectiveDeal} presentationMode={presentationMode} />}
+        {section === "financeiq" && <FinanceIQWorkspace dealId={deal.id} dealName={displayName} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} mode={presentationMode} />}
         {section === "people" && <RelationshipPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} />}
         {section === "work" && <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} section="work" />}
         {section === "notes" && <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} section="notes" />}
