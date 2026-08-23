@@ -5,6 +5,10 @@ const migration = readFileSync(
   "supabase/migrations/20260823210646_spec010_governanceiq_foundation.sql",
   "utf8",
 );
+const indexHardeningMigration = readFileSync(
+  "supabase/migrations/20260823230026_spec010_governance_fk_index_hardening.sql",
+  "utf8",
+);
 
 describe("Spec 010 Slice 1 GovernanceIQ migration source", () => {
   it("creates canonical governance records, documents, findings, conflicts, financial inputs, and history", () => {
@@ -140,5 +144,26 @@ describe("Spec 010 Slice 1 GovernanceIQ migration source", () => {
     expect(migration).not.toMatch(/\breserve_adequacy_score\b/i);
     expect(migration).not.toMatch(/\bbudget_health_score\b/i);
     expect(migration).not.toMatch(/\bunderwriting_input_override\b/i);
+  });
+
+  it("hardens GovernanceIQ foreign-key indexes without changing Slice 1 behavior", () => {
+    for (const indexName of [
+      "idx_governance_records_workspace_deal_fk",
+      "idx_governance_records_workspace_property_fk",
+      "idx_governance_records_source_evidence_fk",
+      "idx_governance_documents_workspace_evidence_fk",
+      "idx_governance_findings_workspace_record_fk",
+      "idx_governance_findings_workspace_source_record_fk",
+      "idx_governance_conflicts_source_a_finding_fk",
+      "idx_governance_financials_workspace_source_evidence_fk",
+      "idx_governance_record_versions_changed_by_fk",
+      "idx_governance_financial_versions_workspace_fk",
+    ]) {
+      expect(indexHardeningMigration).toContain(`create index if not exists ${indexName}`);
+    }
+
+    expect(indexHardeningMigration).not.toContain("create table");
+    expect(indexHardeningMigration).not.toContain("create or replace function");
+    expect(indexHardeningMigration).not.toContain("alter table public.governance_records");
   });
 });
