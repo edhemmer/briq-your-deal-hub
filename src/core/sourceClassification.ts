@@ -81,6 +81,7 @@ export type SourceDownstreamModule =
   | "evidence"
   | "dealiq"
   | "contractiq"
+  | "governanceiq"
   | "inspectioniq"
   | "photoiq"
   | "financeiq"
@@ -148,10 +149,10 @@ const registry: Record<CanonicalSourceClass, RegistryEntry> = {
   roof_report: entry("roof_report", "eligible", ["ocr", "condition_engine", "repair_engine"], ["intake", "evidence", "inspectioniq", "dealiq"]),
   foundation_report: entry("foundation_report", "eligible", ["ocr", "condition_engine", "repair_engine"], ["intake", "evidence", "inspectioniq", "dealiq"]),
   environmental_report: entry("environmental_report", "eligible", ["ocr", "condition_engine"], ["intake", "evidence", "inspectioniq", "dealiq"]),
-  hoa_documents: entry("hoa_documents", "eligible", ["ocr", "question_generator"], ["intake", "evidence", "contractiq"]),
-  ccr: entry("covenants_conditions_restrictions", "eligible", ["ocr", "question_generator"], ["intake", "evidence", "contractiq"]),
-  budget: entry("budget", "eligible", ["ocr", "spreadsheet_parser"], ["intake", "financeiq"]),
-  reserve_study: entry("reserve_study", "eligible", ["ocr"], ["intake", "financeiq", "reportiq"]),
+  hoa_documents: entry("hoa_documents", "eligible", ["ocr", "question_generator"], ["intake", "evidence", "governanceiq"]),
+  ccr: entry("covenants_conditions_restrictions", "eligible", ["ocr", "question_generator"], ["intake", "evidence", "governanceiq"]),
+  budget: entry("budget", "eligible", ["ocr", "spreadsheet_parser"], ["intake", "financeiq", "governanceiq"]),
+  reserve_study: entry("reserve_study", "eligible", ["ocr"], ["intake", "financeiq", "governanceiq", "reportiq"]),
   disclosure: entry("disclosure", "eligible", ["ocr", "question_generator"], ["intake", "evidence", "dealiq"]),
   seller_disclosure: entry("seller_disclosure", "eligible", ["ocr", "question_generator"], ["intake", "evidence", "dealiq"]),
   lead_paint: entry("lead_paint_disclosure", "eligible", ["ocr"], ["intake", "evidence", "dealiq"]),
