@@ -31,6 +31,15 @@ export type DecisionCockpitDestinationType =
   | "financing_condition"
   | "financing_covenant"
   | "financing_comparison"
+  | "governanceiq_overview"
+  | "governance_document"
+  | "governance_finding"
+  | "governance_restriction"
+  | "governance_financial"
+  | "governance_conflict"
+  | "governance_question"
+  | "governance_change"
+  | "governance_propagation"
   | "recommendation_detail"
   | "risk_detail"
   | "missing_input_detail"
@@ -52,6 +61,7 @@ export type DecisionCockpitGoverningModule =
   | "Underwriting"
   | "Strategy"
   | "FinanceIQ"
+  | "GovernanceIQ"
   | "Evidence"
   | "DealWork"
   | "Reports";
@@ -87,7 +97,7 @@ export type DecisionCockpitNavigationErrorCode =
   | "unsafe_external_url"
   | "internal_navigation_error";
 
-export type DecisionCockpitRouteSection = "overview" | "property" | "underwriting" | "strategies" | "financeiq" | "work" | "history";
+export type DecisionCockpitRouteSection = "overview" | "property" | "underwriting" | "strategies" | "financeiq" | "governanceiq" | "work" | "history";
 
 export type DecisionCockpitCanonicalRecordType =
   | "deal"
@@ -107,6 +117,12 @@ export type DecisionCockpitCanonicalRecordType =
   | "financing_condition"
   | "financing_covenant"
   | "financing_comparison"
+  | "governance_record"
+  | "governance_document"
+  | "governance_finding"
+  | "governance_conflict"
+  | "governance_question"
+  | "governance_change_propagation"
   | "risk"
   | "missing_input"
   | "assumption"
@@ -253,6 +269,22 @@ export const DECISION_COCKPIT_ROUTE_REGISTRY: readonly DecisionCockpitRouteDefin
   ]),
   route("decision_cockpit.strategy", "Strategy", ["strategy_overview", "strategy_result", "strategy_comparison"]),
   route("decision_cockpit.financeiq", "FinanceIQ", ["financeiq_overview", "financing_structure", "financing_condition", "financing_covenant", "financing_comparison"]),
+  route("decision_cockpit.governanceiq", "GovernanceIQ", [
+    "governanceiq_overview",
+    "governance_document",
+    "governance_finding",
+    "governance_restriction",
+    "governance_financial",
+    "governance_conflict",
+    "governance_question",
+    "governance_change",
+    "governance_propagation",
+    "risk_detail",
+    "missing_input_detail",
+    "conflict_detail",
+    "professional_review",
+    "governing_workflow",
+  ]),
   route("decision_cockpit.evidence", "Evidence", ["source_record", "evidence_item", "evidence_anchor", "professional_review"]),
   route("decision_cockpit.work", "DealWork", ["task_detail", "deadline_detail", "missing_input_detail", "risk_detail"]),
   route("decision_cockpit.history", "DecisionCockpit", ["history_entry", "report_preview"]),
@@ -605,41 +637,49 @@ function strategyDestinations(input: BuildDestinationManifestInput, base: Destin
 }
 
 function riskDestinations(items: DecisionCockpitRiskProjection[], base: DestinationBase, offset: number) {
-  return items.map((risk) => destination({
-    ...base,
-    workspaceId: risk.workspaceId ?? base.workspaceId,
-    dealId: risk.dealId ?? base.dealId,
-    destinationType: "risk_detail",
-    governingModule: moduleFromString(risk.governingModule),
-    canonicalRecordType: "risk",
-    canonicalRecordId: risk.riskId,
-    source: {
-      sourceRecordId: risk.sourceReference,
-      evidenceId: risk.evidenceRefs[0],
-    },
-    routeId: "decision_cockpit.work",
-    section: "work",
-    requiredPermission: "deals:read",
-    availability: availabilityFromPanelState(risk.currentState),
-    stableOrdinal: offset + risk.stableOrdinal,
-  }));
+  return items.map((risk) => {
+    const governingModule = moduleFromString(risk.governingModule);
+    const governance = governingModule === "GovernanceIQ";
+    return destination({
+      ...base,
+      workspaceId: risk.workspaceId ?? base.workspaceId,
+      dealId: risk.dealId ?? base.dealId,
+      destinationType: "risk_detail",
+      governingModule,
+      canonicalRecordType: "risk",
+      canonicalRecordId: risk.riskId,
+      source: {
+        sourceRecordId: risk.sourceReference,
+        evidenceId: risk.evidenceRefs[0],
+      },
+      routeId: governance ? "decision_cockpit.governanceiq" : "decision_cockpit.work",
+      section: governance ? "governanceiq" : "work",
+      requiredPermission: "deals:read",
+      availability: availabilityFromPanelState(risk.currentState),
+      stableOrdinal: offset + risk.stableOrdinal,
+    });
+  });
 }
 
 function missingInputDestinations(items: DecisionCockpitMissingInputProjection[], base: DestinationBase, offset: number) {
-  return items.map((item) => destination({
-    ...base,
-    workspaceId: item.workspaceId ?? base.workspaceId,
-    dealId: item.dealId ?? base.dealId,
-    destinationType: item.status === "conflicted" ? "conflict_detail" : "missing_input_detail",
-    governingModule: moduleFromString(item.sourceModule),
-    canonicalRecordType: item.status === "conflicted" ? "conflict" : "missing_input",
-    canonicalRecordId: item.missingInputId,
-    routeId: "decision_cockpit.work",
-    section: "work",
-    requiredPermission: item.status === "missing" ? "deals:manage" : "deals:read",
-    availability: availabilityFromPanelState(item.staleState),
-    stableOrdinal: offset + item.stableOrdinal,
-  }));
+  return items.map((item) => {
+    const governingModule = moduleFromString(item.sourceModule);
+    const governance = governingModule === "GovernanceIQ";
+    return destination({
+      ...base,
+      workspaceId: item.workspaceId ?? base.workspaceId,
+      dealId: item.dealId ?? base.dealId,
+      destinationType: item.status === "conflicted" ? "conflict_detail" : "missing_input_detail",
+      governingModule,
+      canonicalRecordType: item.status === "conflicted" ? "conflict" : "missing_input",
+      canonicalRecordId: item.missingInputId,
+      routeId: governance ? "decision_cockpit.governanceiq" : "decision_cockpit.work",
+      section: governance ? "governanceiq" : "work",
+      requiredPermission: item.status === "missing" ? "deals:manage" : "deals:read",
+      availability: availabilityFromPanelState(item.staleState),
+      stableOrdinal: offset + item.stableOrdinal,
+    });
+  });
 }
 
 function actionDestinations(items: DecisionCockpitNextActionProjection[], base: DestinationBase, offset: number) {
@@ -656,8 +696,8 @@ function actionDestinations(items: DecisionCockpitNextActionProjection[], base: 
       snapshotId: item.snapshotId,
       underwritingRunId: item.underwritingRunId,
     },
-    routeId: item.relatedTaskId || item.relatedDeadlineId ? "decision_cockpit.work" : routeForWorkflow(item.workflowDestination.destination),
-    section: sectionFromWorkflow(item.workflowDestination.destination),
+    routeId: item.relatedTaskId || item.relatedDeadlineId ? "decision_cockpit.work" : routeForWorkflow(item.workflowDestination.destination, item.workflowDestination.moduleId),
+    section: sectionFromWorkflow(item.workflowDestination.destination, item.workflowDestination.moduleId),
     requiredPermission: item.requiredPermission,
     availability: availabilityFromWorkflow(item.workflowAvailability),
     state: stateFromPanel(item.staleState),
@@ -774,17 +814,21 @@ function stateFromPanel(state: string): DecisionCockpitDestinationReference["sta
   return "current";
 }
 
-function routeForWorkflow(destination: string) {
+function routeForWorkflow(destination: string, moduleId?: string) {
+  if (moduleId === "GovernanceIQ") return "decision_cockpit.governanceiq";
   if (destination === "underwriting_inputs") return "decision_cockpit.underwriting";
   if (destination === "strategy_review") return "decision_cockpit.strategy";
+  if (destination === "governance_review" || destination === "governanceiq") return "decision_cockpit.governanceiq";
   if (destination === "deal_work") return "decision_cockpit.work";
   if (destination === "evidence_review") return "decision_cockpit.evidence";
   return "decision_cockpit.overview";
 }
 
-function sectionFromWorkflow(destination: string): DecisionCockpitRouteSection {
+function sectionFromWorkflow(destination: string, moduleId?: string): DecisionCockpitRouteSection {
+  if (moduleId === "GovernanceIQ") return "governanceiq";
   if (destination === "underwriting_inputs") return "underwriting";
   if (destination === "strategy_review") return "strategies";
+  if (destination === "governance_review" || destination === "governanceiq") return "governanceiq";
   if (destination === "deal_work") return "work";
   if (destination === "evidence_review") return "underwriting";
   return "overview";
@@ -794,12 +838,14 @@ function moduleFromWorkflow(moduleId: string): DecisionCockpitGoverningModule {
   if (moduleId === "DealWork") return "DealWork";
   if (moduleId === "Underwriting") return "Underwriting";
   if (moduleId === "Strategy") return "Strategy";
+  if (moduleId === "GovernanceIQ") return "GovernanceIQ";
   if (moduleId === "Evidence") return "Evidence";
   return "DecisionCockpit";
 }
 
 function moduleFromString(value: string): DecisionCockpitGoverningModule {
   const normalized = value.toLowerCase();
+  if (normalized.includes("governance") || normalized.includes("hoa") || normalized.includes("association") || normalized.includes("restriction")) return "GovernanceIQ";
   if (normalized.includes("financeiq") || normalized.includes("financing")) return "FinanceIQ";
   if (normalized.includes("underwriting") || normalized.includes("market") || normalized.includes("finance")) return "Underwriting";
   if (normalized.includes("strategy")) return "Strategy";
@@ -817,7 +863,7 @@ function isSafeDealId(value: string) {
 }
 
 function isSafeSection(value: string): value is DecisionCockpitRouteSection {
-  return ["overview", "property", "underwriting", "strategies", "financeiq", "work", "history"].includes(value);
+  return ["overview", "property", "underwriting", "strategies", "financeiq", "governanceiq", "work", "history"].includes(value);
 }
 
 function isSafeFocus(value: string): value is DecisionCockpitDestinationType {
@@ -839,6 +885,15 @@ function isSafeFocus(value: string): value is DecisionCockpitDestinationType {
     "financing_condition",
     "financing_covenant",
     "financing_comparison",
+    "governanceiq_overview",
+    "governance_document",
+    "governance_finding",
+    "governance_restriction",
+    "governance_financial",
+    "governance_conflict",
+    "governance_question",
+    "governance_change",
+    "governance_propagation",
     "recommendation_detail",
     "risk_detail",
     "missing_input_detail",

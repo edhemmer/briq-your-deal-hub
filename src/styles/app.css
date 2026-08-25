@@ -204,6 +204,39 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .financeiq-edit-form input, .financeiq-edit-form select { min-height: 42px; width: 100%; border: 1px solid rgba(34,49,76,.82); border-radius: 12px; background: rgba(4,10,20,.82); color: white; padding: 0 12px; }
 .financeiq-table-wrap { overflow-x: auto; max-width: 100%; }
 .financeiq-empty { min-height: 220px; align-content: center; }
+.governanceiq-workspace { display: grid; gap: 14px; min-width: 0; }
+.governanceiq-hero { border-color: rgba(125,211,252,.3); background: linear-gradient(145deg, rgba(18,34,52,.8), rgba(8,15,29,.88)); }
+.governanceiq-actions, .governanceiq-record-picker, .governanceiq-tabs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.governanceiq-actions { justify-content: flex-end; }
+.governanceiq-record-picker { padding-top: 6px; }
+.governanceiq-record-chip { display: grid; gap: 3px; min-height: 50px; border: 1px solid rgba(34,49,76,.82); border-radius: 12px; background: rgba(7,16,30,.72); color: white; padding: 9px 12px; text-align: left; }
+.governanceiq-record-chip span { font-weight: 900; }
+.governanceiq-record-chip small { color: var(--muted); }
+.governanceiq-record-chip.active { border-color: rgba(125,211,252,.6); background: rgba(125,211,252,.1); }
+.governanceiq-tabs { border-bottom: 1px solid var(--line); padding-bottom: 10px; overflow-x: auto; scrollbar-width: thin; }
+.governanceiq-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; min-width: 0; }
+.governanceiq-review-grid { display: grid; grid-template-columns: minmax(280px, .95fr) minmax(0, 1.25fr); gap: 14px; align-items: start; min-width: 0; }
+.governanceiq-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.governanceiq-summary-card { display: grid; gap: 5px; min-width: 0; border: 1px solid rgba(34,49,76,.82); border-radius: 14px; background: rgba(7,16,30,.78); padding: 13px; }
+.governanceiq-summary-card span { color: var(--muted); font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+.governanceiq-summary-card strong { color: white; font-size: 18px; overflow-wrap: anywhere; }
+.governanceiq-summary-card small { color: var(--muted); line-height: 1.35; }
+.governanceiq-summary-card.good { border-color: rgba(25,217,132,.34); background: rgba(25,217,132,.07); }
+.governanceiq-summary-card.warning { border-color: rgba(246,182,63,.38); background: rgba(246,182,63,.08); }
+.governanceiq-summary-card.danger { border-color: rgba(241,92,92,.42); background: rgba(241,92,92,.08); }
+.governanceiq-row-list { display: grid; gap: 9px; margin-top: 10px; }
+.governanceiq-row { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(110px, auto) minmax(110px, auto); gap: 12px; align-items: center; border: 1px solid rgba(34,49,76,.76); border-radius: 14px; background: rgba(7,16,30,.66); padding: 12px; min-width: 0; }
+.governanceiq-row.compact-row { grid-template-columns: auto minmax(0, 1fr); }
+.governanceiq-row div { display: grid; gap: 4px; min-width: 0; }
+.governanceiq-row strong, .governanceiq-row b { color: white; overflow-wrap: anywhere; }
+.governanceiq-row span, .governanceiq-row small { color: var(--muted); overflow-wrap: anywhere; }
+.governanceiq-row.critical, .governanceiq-row.high, .governanceiq-row.conflicted, .governanceiq-row.prohibited { border-color: rgba(241,92,92,.42); background: rgba(241,92,92,.08); }
+.governanceiq-row.moderate, .governanceiq-row.approval_required, .governanceiq-row.uncertain, .governanceiq-row.restricted { border-color: rgba(246,182,63,.38); background: rgba(246,182,63,.08); }
+.governanceiq-row.allowed, .governanceiq-row.allowed_with_conditions { border-color: rgba(25,217,132,.28); background: rgba(25,217,132,.06); }
+.governanceiq-group { display: grid; gap: 8px; margin-top: 12px; }
+.governanceiq-group h5 { margin: 0; color: #dbeafe; font-size: 13px; text-transform: uppercase; letter-spacing: .1em; }
+.governanceiq-decision-actions { display: flex !important; flex-wrap: wrap; gap: 8px !important; justify-content: flex-end; }
+.governanceiq-empty { min-height: 220px; align-content: center; }
 .workspace-count-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
 .panel { background: linear-gradient(180deg, rgba(17,29,48,.98), rgba(10,17,30,.98)); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-panel); }
 .hero-panel { border-color: rgba(59,130,246,.55); }
@@ -535,10 +568,10 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
   .rail nav { display: none; margin-top: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .shell-nav-open .rail nav { display: grid; }
   .nav-toggle { display: inline-flex; }
-  .two-column, .deal-grid, .deal-workspace-header, .deal-section-grid, .underwriting-workspace, .strategy-workspace, .financeiq-grid { grid-template-columns: 1fr; }
-  .financeiq-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .financeiq-row { grid-template-columns: auto minmax(0, 1fr); }
-  .financeiq-row b, .financeiq-row small { justify-self: start; }
+  .two-column, .deal-grid, .deal-workspace-header, .deal-section-grid, .underwriting-workspace, .strategy-workspace, .financeiq-grid, .governanceiq-grid, .governanceiq-review-grid { grid-template-columns: 1fr; }
+  .financeiq-summary-grid, .governanceiq-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .financeiq-row, .governanceiq-row { grid-template-columns: auto minmax(0, 1fr); }
+  .financeiq-row b, .financeiq-row small, .governanceiq-row b, .governanceiq-row small { justify-self: start; }
   .relationship-card, .relationship-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .landing-grid, .strategy-insight, .comparison-detail, .state-grid, .canonical-edit-grid, .work-history-grid, .workspace-count-row, .strategy-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .workflow-strip { overflow-x: auto; grid-template-columns: repeat(5, minmax(132px, 1fr)); padding-bottom: 4px; }
@@ -546,7 +579,7 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 
 @media (max-width: 640px) {
   .workspace, .rail { padding: 16px; }
-  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row, .trusted-access-entry, .presentation-options, .state-grid, .attention-item, .relationship-card, .relationship-form, .duplicate-candidates article, .canonical-edit-grid, .work-history-grid, .work-edit-row, .definition-list, .workspace-count-row, .manual-intake-grid, .review-grid, .candidate-card, .proposal-card, .package-summary-grid, .package-item-card, .underwriting-summary-grid, .underwriting-row, .underwriting-output-row summary, .strategy-summary-grid, .strategy-overview-pair, .strategy-detail-grid, .strategy-ranked-card { grid-template-columns: 1fr; }
+  .rail nav, .metric-row, .stat-row, .form-grid, .landing-grid, .strategy-insight, .comparison-detail, .invitation-form, .access-row, .trusted-access-entry, .presentation-options, .state-grid, .attention-item, .relationship-card, .relationship-form, .duplicate-candidates article, .canonical-edit-grid, .work-history-grid, .work-edit-row, .definition-list, .workspace-count-row, .manual-intake-grid, .review-grid, .candidate-card, .proposal-card, .package-summary-grid, .package-item-card, .underwriting-summary-grid, .underwriting-row, .underwriting-output-row summary, .strategy-summary-grid, .strategy-overview-pair, .strategy-detail-grid, .strategy-ranked-card, .governanceiq-summary-grid { grid-template-columns: 1fr; }
   .manual-intake-dialog { max-height: calc(100vh - 24px); border-radius: 18px; padding: 16px; }
   .manual-intake-actions { bottom: -16px; justify-content: stretch; margin: 0 -16px -16px; padding: 12px 16px 16px; }
   .manual-intake-actions button { flex: 1 1 150px; }
