@@ -7,7 +7,7 @@ export type BrixDeepLinkDestination =
   | { kind: "deal"; dealId: string; section?: BrixDealSection; focus?: BrixDealFocus }
   | { kind: "share-intake"; handoffId: string };
 
-export type BrixDealSection = "overview" | "property" | "underwriting" | "strategies" | "financeiq" | "work" | "history";
+export type BrixDealSection = "overview" | "property" | "underwriting" | "strategies" | "financeiq" | "governanceiq" | "work" | "history";
 
 export type BrixDealFocus =
   | "deal_overview"
@@ -27,6 +27,15 @@ export type BrixDealFocus =
   | "financing_condition"
   | "financing_covenant"
   | "financing_comparison"
+  | "governanceiq_overview"
+  | "governance_document"
+  | "governance_finding"
+  | "governance_restriction"
+  | "governance_financial"
+  | "governance_conflict"
+  | "governance_question"
+  | "governance_change"
+  | "governance_propagation"
   | "recommendation_detail"
   | "risk_detail"
   | "missing_input_detail"
@@ -51,7 +60,7 @@ const DEVELOPMENT_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
 const SAFE_TOKEN_PATTERN = /^[A-Za-z0-9._~-]{8,512}$/;
 const SAFE_DEAL_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
 const SAFE_SHARE_HANDOFF_PATTERN = /^share_[A-Za-z0-9._:-]{8,160}$/;
-const SAFE_DEAL_SECTIONS: readonly BrixDealSection[] = ["overview", "property", "underwriting", "strategies", "financeiq", "work", "history"];
+const SAFE_DEAL_SECTIONS: readonly BrixDealSection[] = ["overview", "property", "underwriting", "strategies", "financeiq", "governanceiq", "work", "history"];
 const SAFE_DEAL_FOCUS_TYPES: readonly BrixDealFocus[] = [
   "deal_overview",
   "property_detail",
@@ -70,6 +79,15 @@ const SAFE_DEAL_FOCUS_TYPES: readonly BrixDealFocus[] = [
   "financing_condition",
   "financing_covenant",
   "financing_comparison",
+  "governanceiq_overview",
+  "governance_document",
+  "governance_finding",
+  "governance_restriction",
+  "governance_financial",
+  "governance_conflict",
+  "governance_question",
+  "governance_change",
+  "governance_propagation",
   "recommendation_detail",
   "risk_detail",
   "missing_input_detail",

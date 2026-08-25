@@ -1331,6 +1331,33 @@ describe("decision cockpit read projection contract", () => {
     expect(projection.destinations.manifestHash).toMatch(/^dc_/);
   });
 
+  it("routes GovernanceIQ risks and missing inputs into the GovernanceIQ workspace", () => {
+    const projection = buildDecisionCockpitReadProjection({
+      workspaceId: "workspace-1",
+      dealId: "deal-1",
+      riskRecords: [riskRecord({ riskId: "risk-governance", governingModule: "GovernanceIQ", sourceReference: "governance:finding-1" })],
+      missingInputRecords: [missingInputRecord({ missingInputId: "governance:question-1", sourceModule: "GovernanceIQ", status: "missing" })],
+    });
+
+    const governanceRisk = projection.destinations.destinations.find((item) => item.canonicalRecordId === "risk-governance");
+    const governanceMissing = projection.destinations.destinations.find((item) => item.canonicalRecordId === "governance:question-1");
+
+    expect(governanceRisk).toMatchObject({
+      governingModule: "GovernanceIQ",
+      routeId: "decision_cockpit.governanceiq",
+      routeParams: { section: "governanceiq", focus: "risk_detail" },
+    });
+    expect(resolveDecisionCockpitDestination(governanceRisk, { isSignedIn: true, canOpen: true })).toMatchObject({
+      ok: true,
+      path: "/deals/deal-1?section=governanceiq&focus=risk_detail",
+    });
+    expect(governanceMissing).toMatchObject({
+      governingModule: "GovernanceIQ",
+      routeId: "decision_cockpit.governanceiq",
+      routeParams: { section: "governanceiq", focus: "missing_input_detail" },
+    });
+  });
+
   it("enforces route registry, permission, workspace, historical, and unavailable-module safety", () => {
     const projection = buildDecisionCockpitReadProjection({
       workspaceId: "workspace-1",
