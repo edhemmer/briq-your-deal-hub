@@ -6,6 +6,9 @@ export const GOVERNANCEIQ_DOCUMENT_ANALYSIS_CONTRACT_VERSION = "governanceiq-doc
 export const GOVERNANCEIQ_EXTRACTION_CONTRACT_VERSION = "governanceiq-extraction-v1" as const;
 export const GOVERNANCEIQ_FINANCIAL_ANALYSIS_CONTRACT_VERSION = "governanceiq-financial-analysis-v1" as const;
 export const GOVERNANCEIQ_RESTRICTION_INTELLIGENCE_CONTRACT_VERSION = "governanceiq-restriction-intelligence-v1" as const;
+export const GOVERNANCEIQ_CHANGE_PROPAGATION_CONTRACT_VERSION = "governanceiq-change-propagation-v1" as const;
+export const GOVERNANCEIQ_CHANGE_VERSION_GRAPH_VERSION = "governanceiq-change-version-graph-v1" as const;
+export const GOVERNANCEIQ_IMPACT_CLASSIFICATION_VERSION = "governanceiq-impact-classification-v1" as const;
 
 export const GOVERNANCE_TYPES = [
   "homeowners_association",
@@ -243,7 +246,16 @@ export type GovernanceImpactType =
   | "deadline"
   | "documentation"
   | "other";
-export type GovernanceAcceptanceState = "proposed" | "accepted" | "rejected" | "disputed" | "superseded" | "expired";
+export type GovernanceAcceptanceState =
+  | "proposed"
+  | "accepted"
+  | "accepted_with_verification"
+  | "accepted_professional"
+  | "confirmed"
+  | "rejected"
+  | "disputed"
+  | "superseded"
+  | "expired";
 export type GovernanceVerificationState =
   | "unknown"
   | "unverified"
@@ -719,6 +731,148 @@ export type GovernanceRiskGroupResult = {
   sourceResultHashes: string[];
 };
 
+export type GovernanceImpactDomain = "underwriting" | "strategy" | "finance" | "cockpit" | "task_deadline" | "reporting" | "none";
+export type GovernanceChangeMateriality = "material" | "not_material" | "upcoming" | "expired" | "uncertain" | "blocked";
+export type GovernancePropagationState = "current" | "stale" | "queued" | "recalculating" | "failed_with_prior_valid" | "blocked" | "not_affected" | "superseded";
+export type GovernanceDownstreamProposalType = "underwriting_input" | "strategy_constraint" | "finance_condition" | "cockpit_warning" | "task_proposal";
+
+export type GovernanceChange = {
+  contractVersion: typeof GOVERNANCEIQ_CHANGE_PROPAGATION_CONTRACT_VERSION;
+  classificationVersion: typeof GOVERNANCEIQ_IMPACT_CLASSIFICATION_VERSION;
+  workspaceId: string;
+  dealId: string;
+  propertyId: string;
+  governanceRecordId: string;
+  governanceFindingId: string;
+  findingVersion: number;
+  acceptanceVersion: number;
+  category: string;
+  normalizedValue: Record<string, Json>;
+  previousAcceptedValue?: Record<string, Json>;
+  sourceEvidenceId?: string;
+  sourceAnchor: GovernanceSourceAnchor;
+  verificationState: GovernanceVerificationState;
+  confidence: number;
+  materiality: GovernanceChangeMateriality;
+  impactDomains: GovernanceImpactDomain[];
+  effectiveAt?: string;
+  expiresAt?: string;
+  acceptedBy: string;
+  acceptedAt: string;
+  triggeringEventId: string;
+  correlationId: string;
+  idempotencyKey: string;
+  reasonCodes: string[];
+};
+
+export type GovernanceDownstreamProposal = {
+  proposalType: GovernanceDownstreamProposalType;
+  domain: Exclude<GovernanceImpactDomain, "none" | "reporting">;
+  proposalKey: string;
+  targetField?: string;
+  targetStrategyIds: string[];
+  normalizedValue: Record<string, Json>;
+  sourceFindingId: string;
+  sourceFindingVersion: number;
+  sourceEvidenceId?: string;
+  sourceAnchor: GovernanceSourceAnchor;
+  state: "proposed" | "queued" | "stale" | "superseded" | "blocked";
+  explanation: string;
+  idempotencyKey: string;
+};
+
+export type GovernanceChangeVersionGraph = {
+  graphVersion: typeof GOVERNANCEIQ_CHANGE_VERSION_GRAPH_VERSION;
+  workspaceId: string;
+  dealId: string;
+  propertyId: string;
+  governanceRecordId: string;
+  governanceFindingId: string;
+  findingVersion: number;
+  acceptanceVersion: number;
+  triggeringEventId: string;
+  downstreamProposalKeys: string[];
+  underwritingSnapshotId?: string;
+  underwritingSnapshotVersion?: number;
+  strategyEvaluationId?: string;
+  strategyEvaluationVersion?: string;
+  financeConditionId?: string;
+  financeConditionVersion?: number;
+  cockpitProjectionId?: string;
+  cockpitProjectionVersion?: string;
+  graphHash: string;
+};
+
+export type GovernancePropagationFailure = {
+  domain: Exclude<GovernanceImpactDomain, "none" | "reporting">;
+  code: string;
+  safeMessage: string;
+  retryable: boolean;
+};
+
+export type GovernancePropagationResult = {
+  contractVersion: typeof GOVERNANCEIQ_CHANGE_PROPAGATION_CONTRACT_VERSION;
+  governanceChange: GovernanceChange;
+  downstreamStates: Record<Exclude<GovernanceImpactDomain, "none" | "reporting">, GovernancePropagationState>;
+  proposals: GovernanceDownstreamProposal[];
+  versionGraph: GovernanceChangeVersionGraph;
+  explanations: string[];
+  staleDownstreamResultIds: string[];
+  priorValidDownstream: boolean;
+  failures: GovernancePropagationFailure[];
+  resultHash: string;
+  propagatedAt: string;
+};
+
+export type GovernanceChangeBuildInput = {
+  workspaceId: string;
+  dealId: string;
+  propertyId: string;
+  governanceRecordId: string;
+  governanceFindingId: string;
+  findingVersion: number;
+  acceptanceVersion: number;
+  acceptanceState: GovernanceAcceptanceState;
+  category: GovernanceFindingCategory | string;
+  normalizedValue: Record<string, Json>;
+  previousAcceptedValue?: Record<string, Json>;
+  sourceEvidenceId?: string;
+  sourceAnchor?: GovernanceSourceAnchor;
+  verificationState: GovernanceVerificationState;
+  confidence: number;
+  conflictState?: GovernanceRestrictionSourceFinding["conflictState"];
+  effectiveAt?: string;
+  expiresAt?: string;
+  acceptedBy: string;
+  acceptedAt: string;
+  triggeringEventId: string;
+  correlationId: string;
+  idempotencyKey: string;
+  activeStrategyIds?: string[];
+  affectedStrategyUses?: string[];
+  asOf?: string;
+};
+
+export type GovernancePropagationInput = {
+  change: GovernanceChange;
+  existingProposalKeys?: string[];
+  staleDownstreamResultIds?: string[];
+  priorValidDownstream?: boolean;
+  failures?: GovernancePropagationFailure[];
+  completedRefs?: Partial<Pick<
+    GovernanceChangeVersionGraph,
+    | "underwritingSnapshotId"
+    | "underwritingSnapshotVersion"
+    | "strategyEvaluationId"
+    | "strategyEvaluationVersion"
+    | "financeConditionId"
+    | "financeConditionVersion"
+    | "cockpitProjectionId"
+    | "cockpitProjectionVersion"
+  >>;
+  propagatedAt: string;
+};
+
 const frequencyToAnnualMultiplier: Record<string, number | undefined> = {
   monthly: 12,
   quarterly: 4,
@@ -727,6 +881,148 @@ const frequencyToAnnualMultiplier: Record<string, number | undefined> = {
   one_time: undefined,
   other: undefined,
 };
+
+export function buildGovernanceChange(input: GovernanceChangeBuildInput): GovernanceChange {
+  if (!isAcceptedGovernanceState(input.acceptanceState)) throw new Error("Governance finding must be explicitly accepted before downstream propagation.");
+  if (!input.workspaceId || !input.dealId || !input.propertyId || !input.governanceRecordId || !input.governanceFindingId) {
+    throw new Error("Governance change propagation requires workspace, Deal, Property, record, and finding identity.");
+  }
+  if (!input.acceptedBy || !input.triggeringEventId || !input.correlationId || !input.idempotencyKey) {
+    throw new Error("Governance change propagation requires accepted actor, triggering event, correlation ID, and idempotency key.");
+  }
+
+  const temporal = temporalMateriality(input.effectiveAt, input.expiresAt, input.asOf ?? input.acceptedAt);
+  const uncertainty = uncertaintyReason(input);
+  const classification = classifyGovernanceImpact({
+    category: input.category,
+    normalizedValue: input.normalizedValue,
+    verificationState: input.verificationState,
+    conflictState: input.conflictState,
+    temporalMateriality: temporal,
+    activeStrategyIds: input.activeStrategyIds ?? [],
+    affectedStrategyUses: input.affectedStrategyUses ?? [],
+  });
+  const materiality: GovernanceChangeMateriality = uncertainty ? "uncertain" : temporal === "material" ? classification.materiality : temporal;
+  const impactDomains: GovernanceImpactDomain[] = materiality === "material" || materiality === "upcoming" || materiality === "uncertain"
+    ? classification.impactDomains
+    : ["none" as const];
+
+  return deepFreeze({
+    contractVersion: GOVERNANCEIQ_CHANGE_PROPAGATION_CONTRACT_VERSION,
+    classificationVersion: GOVERNANCEIQ_IMPACT_CLASSIFICATION_VERSION,
+    workspaceId: input.workspaceId,
+    dealId: input.dealId,
+    propertyId: input.propertyId,
+    governanceRecordId: input.governanceRecordId,
+    governanceFindingId: input.governanceFindingId,
+    findingVersion: input.findingVersion,
+    acceptanceVersion: input.acceptanceVersion,
+    category: String(input.category),
+    normalizedValue: stableObject(input.normalizedValue) as Record<string, Json>,
+    previousAcceptedValue: input.previousAcceptedValue ? stableObject(input.previousAcceptedValue) as Record<string, Json> : undefined,
+    sourceEvidenceId: input.sourceEvidenceId,
+    sourceAnchor: normalizeGovernanceSourceAnchor(input.sourceAnchor),
+    verificationState: input.verificationState,
+    confidence: input.confidence,
+    materiality,
+    impactDomains: sortedImpactDomains(impactDomains),
+    effectiveAt: input.effectiveAt,
+    expiresAt: input.expiresAt,
+    acceptedBy: input.acceptedBy,
+    acceptedAt: input.acceptedAt,
+    triggeringEventId: input.triggeringEventId,
+    correlationId: input.correlationId,
+    idempotencyKey: input.idempotencyKey,
+    reasonCodes: sortedUniqueStrings([
+      ...classification.reasonCodes,
+      ...(uncertainty ? [uncertainty] : []),
+      ...(temporal !== "material" ? [`temporal_${temporal}`] : []),
+    ]),
+  });
+}
+
+export function buildGovernancePropagationResult(input: GovernancePropagationInput): GovernancePropagationResult {
+  const proposals = buildDownstreamProposals(input.change, input.existingProposalKeys ?? []);
+  const failures = [...(input.failures ?? [])].sort((a, b) => `${a.domain}:${a.code}`.localeCompare(`${b.domain}:${b.code}`));
+  const downstreamStates = downstreamStatesFor(input.change, failures, Boolean(input.priorValidDownstream), proposals);
+  const versionGraph = buildGovernanceChangeVersionGraph({
+    change: input.change,
+    proposals,
+    completedRefs: input.completedRefs,
+  });
+  const resultBasis = {
+    changeId: `${input.change.governanceFindingId}:${input.change.findingVersion}:${input.change.acceptanceVersion}`,
+    downstreamStates,
+    proposalKeys: proposals.map((proposal) => proposal.proposalKey).sort(),
+    staleDownstreamResultIds: [...(input.staleDownstreamResultIds ?? [])].sort(),
+    failures,
+    versionGraphHash: versionGraph.graphHash,
+  };
+
+  return deepFreeze({
+    contractVersion: GOVERNANCEIQ_CHANGE_PROPAGATION_CONTRACT_VERSION,
+    governanceChange: input.change,
+    downstreamStates,
+    proposals,
+    versionGraph,
+    explanations: buildGovernanceChangeExplanations(input.change, proposals, failures),
+    staleDownstreamResultIds: [...(input.staleDownstreamResultIds ?? [])].sort(),
+    priorValidDownstream: Boolean(input.priorValidDownstream),
+    failures,
+    resultHash: deterministicHash(resultBasis),
+    propagatedAt: input.propagatedAt,
+  });
+}
+
+export function buildGovernanceChangeVersionGraph(input: {
+  change: GovernanceChange;
+  proposals: GovernanceDownstreamProposal[];
+  completedRefs?: GovernancePropagationInput["completedRefs"];
+}): GovernanceChangeVersionGraph {
+  const downstreamProposalKeys = input.proposals.map((proposal) => proposal.proposalKey).sort();
+  const basis = {
+    graphVersion: GOVERNANCEIQ_CHANGE_VERSION_GRAPH_VERSION,
+    workspaceId: input.change.workspaceId,
+    dealId: input.change.dealId,
+    propertyId: input.change.propertyId,
+    governanceRecordId: input.change.governanceRecordId,
+    governanceFindingId: input.change.governanceFindingId,
+    findingVersion: input.change.findingVersion,
+    acceptanceVersion: input.change.acceptanceVersion,
+    triggeringEventId: input.change.triggeringEventId,
+    downstreamProposalKeys,
+    completedRefs: input.completedRefs ?? {},
+  };
+  return deepFreeze({
+    graphVersion: GOVERNANCEIQ_CHANGE_VERSION_GRAPH_VERSION,
+    workspaceId: input.change.workspaceId,
+    dealId: input.change.dealId,
+    propertyId: input.change.propertyId,
+    governanceRecordId: input.change.governanceRecordId,
+    governanceFindingId: input.change.governanceFindingId,
+    findingVersion: input.change.findingVersion,
+    acceptanceVersion: input.change.acceptanceVersion,
+    triggeringEventId: input.change.triggeringEventId,
+    downstreamProposalKeys,
+    underwritingSnapshotId: input.completedRefs?.underwritingSnapshotId,
+    underwritingSnapshotVersion: input.completedRefs?.underwritingSnapshotVersion,
+    strategyEvaluationId: input.completedRefs?.strategyEvaluationId,
+    strategyEvaluationVersion: input.completedRefs?.strategyEvaluationVersion,
+    financeConditionId: input.completedRefs?.financeConditionId,
+    financeConditionVersion: input.completedRefs?.financeConditionVersion,
+    cockpitProjectionId: input.completedRefs?.cockpitProjectionId,
+    cockpitProjectionVersion: input.completedRefs?.cockpitProjectionVersion,
+    graphHash: deterministicHash(basis),
+  });
+}
+
+export function governancePropagationStateAfterFailure(input: {
+  domain: Exclude<GovernanceImpactDomain, "none" | "reporting">;
+  hasPriorValidResult: boolean;
+}): GovernancePropagationState {
+  if (input.domain === "cockpit") return input.hasPriorValidResult ? "failed_with_prior_valid" : "blocked";
+  return input.hasPriorValidResult ? "failed_with_prior_valid" : "blocked";
+}
 
 export function analyzeGovernanceFinancialHealth(input: GovernanceFinancialAnalysisInput): GovernanceFinancialAnalysisResult {
   if (input.contractVersion !== GOVERNANCEIQ_FINANCIAL_ANALYSIS_CONTRACT_VERSION) throw new Error("Unsupported GovernanceIQ financial analysis contract version.");
@@ -1231,6 +1527,254 @@ function riskGroupForRestriction(category: string): GovernanceRiskGroup {
   if (["insurance", "insurance_expense", "deductible"].includes(category)) return "insurance";
   if (["transfer", "right_of_first_refusal", "board_approval", "lender_requirement", "governance_financing_risk"].includes(category)) return "transfer_financing";
   return "legal_review";
+}
+
+function isAcceptedGovernanceState(state: GovernanceAcceptanceState) {
+  return ["accepted", "accepted_with_verification", "accepted_professional", "confirmed"].includes(state);
+}
+
+function temporalMateriality(effectiveAt: string | undefined, expiresAt: string | undefined, asOf: string): GovernanceChangeMateriality {
+  const now = Date.parse(asOf);
+  if (Number.isNaN(now)) return "material";
+  if (effectiveAt && Date.parse(effectiveAt) > now) return "upcoming";
+  if (expiresAt && Date.parse(expiresAt) <= now) return "expired";
+  return "material";
+}
+
+function uncertaintyReason(input: Pick<GovernanceChangeBuildInput, "verificationState" | "conflictState">): string | undefined {
+  if (input.conflictState === "unresolved_conflict" || input.verificationState === "conflicting") return "uncertain_conflicted_governance";
+  if (["unknown", "unverified", "document_extracted", "professional_review_recommended"].includes(input.verificationState)) return "uncertain_requires_review";
+  return undefined;
+}
+
+function classifyGovernanceImpact(input: {
+  category: string | GovernanceFindingCategory;
+  normalizedValue: Record<string, Json>;
+  verificationState: GovernanceVerificationState;
+  conflictState?: GovernanceRestrictionSourceFinding["conflictState"];
+  temporalMateriality: GovernanceChangeMateriality;
+  activeStrategyIds: string[];
+  affectedStrategyUses: string[];
+}): { materiality: GovernanceChangeMateriality; impactDomains: GovernanceImpactDomain[]; reasonCodes: string[] } {
+  const category = String(input.category);
+  const domains = new Set<GovernanceImpactDomain>(["cockpit", "reporting"]);
+  const reasons = new Set<string>();
+  const assessmentStatus = String(input.normalizedValue.assessmentStatus ?? input.normalizedValue.status ?? "").toUpperCase();
+  const hasRelevantVehicleUse = input.affectedStrategyUses.some((use) => /trailer|rv|boat|vehicle|parking/i.test(use));
+
+  if (["dues", "recurring_governance_fee", "association_fee"].includes(category)) {
+    domains.add("underwriting");
+    reasons.add("recurring_governance_cost");
+  } else if (category === "assessment") {
+    if (["ADOPTED", "BILLED", "PAID"].includes(assessmentStatus)) {
+      domains.add("underwriting");
+      reasons.add("adopted_assessment_cost");
+    } else {
+      domains.add("task_deadline");
+      reasons.add("assessment_not_authoritative_for_underwriting");
+    }
+  } else if (["insurance"].includes(category) && input.normalizedValue.amount !== undefined) {
+    domains.add("underwriting");
+    domains.add("finance");
+    reasons.add("accepted_insurance_cost_or_gap");
+  } else if (["short_term_rental", "rental", "room_rental", "occupancy"].includes(category)) {
+    domains.add("strategy");
+    reasons.add("rental_strategy_constraint");
+  } else if (["trailer", "rv", "boat", "parking", "commercial_vehicle", "pickup_truck"].includes(category)) {
+    if (hasRelevantVehicleUse || category === "parking") {
+      domains.add("strategy");
+      reasons.add("vehicle_or_parking_strategy_constraint");
+    } else {
+      reasons.add("vehicle_restriction_no_active_dependent_strategy");
+    }
+  } else if (["architectural_approval", "renovation", "contractor_requirement", "work_hours", "materials_colors"].includes(category)) {
+    domains.add("strategy");
+    domains.add("task_deadline");
+    reasons.add("renovation_condition_or_task_candidate");
+  } else if (["litigation", "lender_requirement", "governance_financing_risk", "entity_ownership", "board_approval", "right_of_first_refusal", "transfer"].includes(category)) {
+    domains.add("finance");
+    if (category === "entity_ownership") domains.add("strategy");
+    if (["right_of_first_refusal", "board_approval"].includes(category)) domains.add("task_deadline");
+    reasons.add("financing_or_transfer_condition_candidate");
+  }
+
+  if (input.temporalMateriality === "upcoming") reasons.add("future_effective_not_current");
+  if (domains.size === 2 && domains.has("cockpit") && domains.has("reporting")) {
+    domains.clear();
+    domains.add("none");
+    return { materiality: "not_material", impactDomains: ["none"], reasonCodes: sortedUniqueStrings([...reasons, "no_targeted_downstream_domain"]) };
+  }
+  return { materiality: "material", impactDomains: [...domains], reasonCodes: sortedUniqueStrings([...reasons]) };
+}
+
+function buildDownstreamProposals(change: GovernanceChange, existingProposalKeys: string[]): GovernanceDownstreamProposal[] {
+  if (!["material", "upcoming", "uncertain"].includes(change.materiality)) return [];
+  const existing = new Set(existingProposalKeys);
+  const proposals: GovernanceDownstreamProposal[] = [];
+  const add = (
+    domain: Exclude<GovernanceImpactDomain, "none" | "reporting">,
+    proposalType: GovernanceDownstreamProposalType,
+    targetField: string | undefined,
+    explanation: string,
+    targetStrategyIds: string[] = [],
+  ) => {
+    const proposalKey = `${change.governanceFindingId}:v${change.findingVersion}:${domain}:${targetField ?? proposalType}`;
+    if (existing.has(proposalKey)) return;
+    proposals.push({
+      proposalType,
+      domain,
+      proposalKey,
+      targetField,
+      targetStrategyIds: sortedUniqueStrings(targetStrategyIds),
+      normalizedValue: change.normalizedValue,
+      sourceFindingId: change.governanceFindingId,
+      sourceFindingVersion: change.findingVersion,
+      sourceEvidenceId: change.sourceEvidenceId,
+      sourceAnchor: change.sourceAnchor,
+      state: change.materiality === "uncertain" ? "blocked" : change.materiality === "upcoming" ? "queued" : "proposed",
+      explanation,
+      idempotencyKey: `${change.idempotencyKey}:${domain}:${targetField ?? proposalType}`,
+    });
+  };
+
+  if (change.impactDomains.includes("underwriting")) {
+    add("underwriting", "underwriting_input", underwritingFieldFor(change.category), explanationForChange(change));
+  }
+  if (change.impactDomains.includes("strategy")) {
+    add("strategy", "strategy_constraint", strategyConstraintFor(change.category), explanationForChange(change), strategyTargetsFor(change.category));
+  }
+  if (change.impactDomains.includes("finance")) {
+    add("finance", "finance_condition", financeConditionFor(change.category), explanationForChange(change));
+  }
+  if (change.impactDomains.includes("cockpit")) {
+    add("cockpit", "cockpit_warning", "governance_impact", explanationForChange(change));
+  }
+  if (change.impactDomains.includes("task_deadline")) {
+    add("task_deadline", "task_proposal", taskProposalFor(change.category), explanationForChange(change));
+  }
+  return proposals.sort((a, b) => a.domain.localeCompare(b.domain) || a.proposalKey.localeCompare(b.proposalKey));
+}
+
+function downstreamStatesFor(
+  change: GovernanceChange,
+  failures: GovernancePropagationFailure[],
+  hasPriorValidResult: boolean,
+  proposals: GovernanceDownstreamProposal[],
+): Record<Exclude<GovernanceImpactDomain, "none" | "reporting">, GovernancePropagationState> {
+  const domains: Array<Exclude<GovernanceImpactDomain, "none" | "reporting">> = ["underwriting", "strategy", "finance", "cockpit", "task_deadline"];
+  const state = Object.fromEntries(domains.map((domain) => [domain, "not_affected" as GovernancePropagationState])) as Record<Exclude<GovernanceImpactDomain, "none" | "reporting">, GovernancePropagationState>;
+  for (const proposal of proposals) {
+    state[proposal.domain] = proposal.state === "blocked" ? "blocked" : proposal.state === "queued" ? "queued" : "stale";
+  }
+  for (const failure of failures) state[failure.domain] = governancePropagationStateAfterFailure({ domain: failure.domain, hasPriorValidResult });
+  if (change.materiality === "expired") {
+    for (const domain of domains) if (state[domain] !== "not_affected") state[domain] = "superseded";
+  }
+  return state;
+}
+
+function buildGovernanceChangeExplanations(
+  change: GovernanceChange,
+  proposals: GovernanceDownstreamProposal[],
+  failures: GovernancePropagationFailure[],
+): string[] {
+  const explanations = new Set<string>();
+  explanations.add(explanationForChange(change));
+  if (change.materiality === "upcoming" && change.effectiveAt) explanations.add(`Accepted ${humanCategory(change.category)} is future-effective on ${change.effectiveAt}; current downstream results remain current until that date.`);
+  if (change.materiality === "uncertain") explanations.add(`Accepted ${humanCategory(change.category)} remains uncertain and is routed for review, not as a verified hard downstream fact.`);
+  for (const proposal of proposals) explanations.add(proposal.explanation);
+  for (const failure of failures) explanations.add(`${humanDomain(failure.domain)} propagation failed with prior valid result preserved: ${failure.safeMessage}`);
+  return sortedUniqueStrings([...explanations]);
+}
+
+function explanationForChange(change: GovernanceChange): string {
+  const previous = conciseValue(change.previousAcceptedValue);
+  const current = conciseValue(change.normalizedValue);
+  if (previous !== "unset" && current !== "unset") return `Accepted ${humanCategory(change.category)} changed from ${previous} to ${current}.`;
+  if (change.category === "short_term_rental" && change.normalizedValue.allowed === false) return "Short-term rentals are prohibited by accepted governance finding.";
+  if (change.category === "architectural_approval") return "Architectural approval is required by accepted governance finding.";
+  if (change.category === "litigation") return "Governance litigation requires FinanceIQ condition review.";
+  return `Accepted ${humanCategory(change.category)} changed.`;
+}
+
+function underwritingFieldFor(category: string) {
+  if (category === "dues") return "operating_expenses.hoa_dues";
+  if (category === "assessment") return "project_costs.governance_assessment";
+  if (category === "insurance") return "operating_expenses.insurance";
+  return "accepted_governance_input";
+}
+
+function strategyConstraintFor(category: string) {
+  if (category === "short_term_rental" || category === "rental" || category === "room_rental") return "governance_rental_constraint";
+  if (category === "architectural_approval" || category === "renovation") return "governance_renovation_condition";
+  if (["trailer", "rv", "boat", "parking", "commercial_vehicle"].includes(category)) return "governance_vehicle_parking_constraint";
+  if (category === "entity_ownership") return "governance_entity_ownership_constraint";
+  return "governance_strategy_constraint";
+}
+
+function financeConditionFor(category: string) {
+  if (category === "litigation") return "governance_litigation_review";
+  if (category === "insurance") return "governance_master_insurance_review";
+  if (category === "entity_ownership") return "governance_entity_ownership_review";
+  if (category === "lender_requirement") return "association_lender_questionnaire";
+  return "governance_financing_condition";
+}
+
+function taskProposalFor(category: string) {
+  if (category === "architectural_approval") return "obtain_architectural_approval";
+  if (category === "right_of_first_refusal") return "attorney_review_right_of_first_refusal";
+  if (category === "assessment") return "confirm_special_assessment";
+  if (category === "lender_requirement") return "obtain_lender_questionnaire";
+  return "review_governance_requirement";
+}
+
+function strategyTargetsFor(category: string) {
+  if (category === "short_term_rental") return ["residential.short_term_rental", "residential.medium_term_rental"];
+  if (category === "room_rental") return ["residential.rent_by_room", "residential.co_living"];
+  if (category === "architectural_approval" || category === "renovation") return ["residential.fix_and_flip", "residential.brrrr", "residential.light_value_add"];
+  return [];
+}
+
+function conciseValue(value?: Record<string, Json>) {
+  if (!value) return "unset";
+  const amount = value.amount ?? value.duesAmount ?? value.assessmentAmount;
+  const frequency = value.frequency ?? value.duesFrequency;
+  if (typeof amount === "number") return `${amount}${frequency ? ` ${frequency}` : ""}`;
+  if (value.allowed === false) return "prohibited";
+  if (value.approvalRequired === true) return "approval required";
+  return stableStringify(value);
+}
+
+function humanCategory(category: string) {
+  return category.replace(/_/g, " ");
+}
+
+function humanDomain(domain: string) {
+  return domain.replace(/_/g, " ");
+}
+
+function sortedImpactDomains(domains: GovernanceImpactDomain[]) {
+  return [...new Set(domains.filter(Boolean))].sort((a, b) => impactDomainOrder(a) - impactDomainOrder(b));
+}
+
+function impactDomainOrder(domain: GovernanceImpactDomain) {
+  return ["underwriting", "strategy", "finance", "cockpit", "task_deadline", "reporting", "none"].indexOf(domain);
+}
+
+function sortedUniqueStrings(values: string[]) {
+  return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function stableObject(value: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value).filter(([, entryValue]) => entryValue !== undefined).sort(([a], [b]) => a.localeCompare(b)));
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value as Record<string, unknown>)) if (child && typeof child === "object") deepFreeze(child);
+  }
+  return value;
 }
 
 function arrayOfStrings(value: Json | undefined): string[] {
