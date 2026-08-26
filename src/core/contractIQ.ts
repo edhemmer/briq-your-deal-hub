@@ -2,6 +2,7 @@ export const CONTRACTIQ_FOUNDATION_CONTRACT_VERSION = "contractiq-foundation-v1"
 export const CONTRACTIQ_PROJECTION_CONTRACT_VERSION = "contractiq-projection-v1" as const;
 export const CONTRACTIQ_DOCUMENT_ANALYSIS_CONTRACT_VERSION = "contractiq-document-analysis-v1" as const;
 export const CONTRACTIQ_EXTRACTION_CONTRACT_VERSION = "contractiq-extraction-v1" as const;
+export const CONTRACTIQ_DEADLINE_ENGINE_VERSION = "contractiq-deadline-engine-v1" as const;
 
 export const CONTRACT_TYPES = [
   "purchase_agreement",
@@ -149,6 +150,55 @@ export const CONTRACT_PARTY_MATCH_STATES = ["exact_match", "likely_match", "ambi
 export const CONTRACT_BASE_MATCH_STATES = ["exact_base_match", "likely_base_match", "ambiguous_base_match", "missing_base_contract", "manual_review_required"] as const;
 export const CONTRACT_CURRENTNESS_STATES = ["current_candidate", "historical", "superseded_candidate", "conflicting", "uncertain"] as const;
 export const CONTRACT_AMBIGUITY_STATES = ["none", "ambiguous", "conflicting", "incomplete", "manual_review_required"] as const;
+export const CONTRACT_DEADLINE_TRIGGER_TYPES = [
+  "contract_execution",
+  "mutual_acceptance",
+  "effective_date",
+  "delivery",
+  "receipt",
+  "notice",
+  "deposit",
+  "inspection",
+  "disclosure_delivery",
+  "title_delivery",
+  "survey_delivery",
+  "financing_application",
+  "loan_commitment",
+  "appraisal",
+  "attorney_review_start",
+  "amendment_execution",
+  "closing",
+  "possession",
+  "custom_verified_date",
+] as const;
+export const CONTRACT_DEADLINE_OFFSET_UNITS = ["hours", "calendar_days", "business_days", "weeks", "months", "years"] as const;
+export const CONTRACT_DEADLINE_COUNTING_RULES = [
+  "start_after_trigger",
+  "include_trigger_day",
+  "exclude_trigger_day",
+  "exact_elapsed_hours",
+  "calendar_date_offset",
+  "business_day_offset",
+] as const;
+export const CONTRACT_DEADLINE_BUSINESS_DAY_RULES = ["none", "exclude_weekends_and_holidays", "source_specific", "uncertain"] as const;
+export const CONTRACT_DEADLINE_WEEKEND_RULES = ["no_adjustment", "next_business_day", "previous_business_day", "next_calendar_day", "source_specific", "uncertain"] as const;
+export const CONTRACT_DEADLINE_TIME_OF_DAY_RULES = ["exact_stated_time", "end_of_day", "close_of_business", "noon", "midnight", "time_unspecified"] as const;
+export const CONTRACT_DEADLINE_TRIGGER_VERIFICATION_STATES = ["extracted_proposed", "user_confirmed", "source_verified", "professional_verified", "conflicted", "unknown"] as const;
+export const CONTRACT_DEADLINE_RESULT_STATUSES = [
+  "proposed",
+  "current",
+  "uncertain",
+  "missing_trigger",
+  "missing_rule",
+  "stale",
+  "superseded",
+  "failed_with_prior_valid",
+  "waived",
+  "completed",
+  "missed",
+  "cancelled",
+  "expired",
+] as const;
 
 export type ContractType = (typeof CONTRACT_TYPES)[number];
 export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
@@ -168,6 +218,14 @@ export type ContractPartyMatchState = (typeof CONTRACT_PARTY_MATCH_STATES)[numbe
 export type ContractBaseMatchState = (typeof CONTRACT_BASE_MATCH_STATES)[number];
 export type ContractCurrentnessState = (typeof CONTRACT_CURRENTNESS_STATES)[number];
 export type ContractAmbiguityState = (typeof CONTRACT_AMBIGUITY_STATES)[number];
+export type ContractDeadlineTriggerType = (typeof CONTRACT_DEADLINE_TRIGGER_TYPES)[number];
+export type ContractDeadlineOffsetUnit = (typeof CONTRACT_DEADLINE_OFFSET_UNITS)[number];
+export type ContractDeadlineCountingRule = (typeof CONTRACT_DEADLINE_COUNTING_RULES)[number];
+export type ContractDeadlineBusinessDayRule = (typeof CONTRACT_DEADLINE_BUSINESS_DAY_RULES)[number];
+export type ContractDeadlineWeekendRule = (typeof CONTRACT_DEADLINE_WEEKEND_RULES)[number];
+export type ContractDeadlineTimeOfDayRule = (typeof CONTRACT_DEADLINE_TIME_OF_DAY_RULES)[number];
+export type ContractDeadlineTriggerVerificationState = (typeof CONTRACT_DEADLINE_TRIGGER_VERIFICATION_STATES)[number];
+export type ContractDeadlineResultStatus = (typeof CONTRACT_DEADLINE_RESULT_STATUSES)[number];
 
 export type ContractSourceAnchorKind =
   | "page"
@@ -357,6 +415,113 @@ export interface ContractDetectedConflict {
   detectionMethod: "deterministic_normalized_value";
   professionalReviewRequired: boolean;
 }
+
+export interface ContractHolidayCalendarDefinition {
+  calendarId: string;
+  calendarVersion: number;
+  calendarType: "us_federal" | "custom_source_defined";
+  timezone: string;
+  weekendDays: number[];
+  holidays: Array<{
+    date: string;
+    name: string;
+    source: "rule" | "source_defined";
+  }>;
+}
+
+export interface ContractDeadlineCalculationInput {
+  workspaceId: string;
+  dealId: string;
+  contractId: string;
+  contractVersion: number;
+  contractDeadlineId: string;
+  deadlineVersion: number;
+  deadlineType: string;
+  triggerType: ContractDeadlineTriggerType;
+  triggerTermId: string;
+  triggerSourceEvidenceId: string;
+  triggerSourceAnchor: ContractSourceAnchor;
+  verifiedTriggerAt?: string;
+  offsetValue?: number;
+  offsetUnit?: ContractDeadlineOffsetUnit;
+  countingRule?: ContractDeadlineCountingRule;
+  businessDayRule?: ContractDeadlineBusinessDayRule;
+  weekendRule?: ContractDeadlineWeekendRule;
+  holidayCalendarId?: string;
+  holidayCalendarVersion?: number;
+  timezone?: string;
+  timeOfDayRule?: ContractDeadlineTimeOfDayRule;
+  sourceVerificationState: ContractDeadlineTriggerVerificationState;
+  effectiveDate: string;
+  calculationContractVersion: typeof CONTRACTIQ_DEADLINE_ENGINE_VERSION | string;
+  correlationId: string;
+  sourceEvidenceId: string;
+  sourceAnchor: ContractSourceAnchor;
+  statedLocalTime?: string;
+  supersedesCalculationId?: string;
+}
+
+export interface ContractDeadlineCalculationResult {
+  calculationId: string;
+  calculationVersion: number;
+  contractDeadlineId: string;
+  contractDeadlineVersion: number;
+  triggerAt?: string;
+  triggerVerification: ContractDeadlineTriggerVerificationState;
+  dueAt?: string;
+  timezone: string;
+  offsetValue?: number;
+  offsetUnit?: ContractDeadlineOffsetUnit;
+  countingRule?: ContractDeadlineCountingRule;
+  weekendRule?: ContractDeadlineWeekendRule;
+  holidayCalendarId?: string;
+  holidayCalendarVersion?: number;
+  holidaysApplied: Array<{ date: string; name: string }>;
+  adjustmentApplied?: { from: string; to: string; reason: string };
+  sourceEvidenceId: string;
+  sourceAnchor: ContractSourceAnchor;
+  status: ContractDeadlineResultStatus;
+  warnings: string[];
+  staleReason?: string;
+  generatedAt: string;
+  deterministicHash: string;
+}
+
+export interface ContractDeadlineCanonicalLinkageState {
+  canonicalDeadlineId?: string;
+  canonicalTaskId?: string;
+  canonicalDeadlineVersion?: number;
+  canonicalStatus?: "open" | "changed" | "completed" | "cancelled";
+  linkedCalculationVersion?: number;
+  syncVersion?: number;
+}
+
+export type ContractDeadlineCanonicalSyncPlan =
+  | { action: "skip"; reason: string; mayCreateOperationalDeadline: false }
+  | {
+      action: "create" | "update";
+      mayCreateOperationalDeadline: true;
+      contractDeadlineId: string;
+      calculationVersion: number;
+      canonicalDeadlineId?: string;
+      expectedCanonicalVersion?: number;
+      source: "contractiq_deadline_calculation";
+      syncVersion: number;
+      deadlineInput: {
+        title: string;
+        due_at: string;
+        is_all_day: false;
+        timezone: string;
+        source_type: "contractiq";
+        source_record_id: string;
+        source_term: string;
+        source_description: string;
+        trigger_date: string;
+        calculation_rule: string;
+        verification_state: "source_verified";
+        status: "open" | "changed";
+      };
+    };
 
 export function assertContractIQSourceBoundary(source: string) {
   const forbidden = [
@@ -584,6 +749,193 @@ export function contractAnalysisStateAfterProviderFailure(input: { hasPriorValid
   } as const;
 }
 
+export function calculateContractDeadline(
+  input: ContractDeadlineCalculationInput,
+  calendar: ContractHolidayCalendarDefinition | undefined,
+  options: { generatedAt?: string; asOf?: string } = {},
+): ContractDeadlineCalculationResult {
+  const generatedAt = options.generatedAt ?? new Date().toISOString();
+  const warnings: string[] = [];
+  const timezone = clean(input.timezone) ?? "";
+  const triggerVerification = input.sourceVerificationState;
+  const base = {
+    calculationVersion: 1,
+    contractDeadlineId: input.contractDeadlineId,
+    contractDeadlineVersion: input.deadlineVersion,
+    triggerVerification,
+    timezone,
+    offsetValue: input.offsetValue,
+    offsetUnit: input.offsetUnit,
+    countingRule: input.countingRule,
+    weekendRule: input.weekendRule,
+    holidayCalendarId: input.holidayCalendarId,
+    holidayCalendarVersion: input.holidayCalendarVersion,
+    holidaysApplied: [] as Array<{ date: string; name: string }>,
+    sourceEvidenceId: input.sourceEvidenceId,
+    sourceAnchor: input.sourceAnchor,
+    generatedAt,
+  };
+
+  const requiredIssue = validateDeadlineCalculationInput(input, calendar);
+  if (requiredIssue) {
+    warnings.push(requiredIssue);
+    return finalizeDeadlineResult(input, { ...base, status: requiredIssue === "MISSING_TRIGGER" ? "missing_trigger" : "missing_rule", warnings });
+  }
+  if (!isContractSourceAnchor(input.sourceAnchor) || !isContractSourceAnchor(input.triggerSourceAnchor)) {
+    warnings.push("SOURCE_ANCHOR_INCOMPLETE");
+    return finalizeDeadlineResult(input, { ...base, status: "missing_rule", warnings });
+  }
+  if (!isAuthoritativeTimezone(timezone)) {
+    warnings.push("TIMEZONE_UNCERTAIN");
+    return finalizeDeadlineResult(input, { ...base, status: "missing_rule", warnings });
+  }
+  if (triggerVerification === "conflicted") {
+    warnings.push("DEADLINE_CONFLICT");
+    return finalizeDeadlineResult(input, { ...base, status: "uncertain", triggerAt: input.verifiedTriggerAt, warnings });
+  }
+  if (triggerVerification === "unknown") {
+    warnings.push("TRIGGER_UNKNOWN");
+    return finalizeDeadlineResult(input, { ...base, status: "missing_trigger", triggerAt: input.verifiedTriggerAt, warnings });
+  }
+  if (input.countingRule === undefined) {
+    warnings.push("COUNTING_RULE_UNCERTAIN");
+    return finalizeDeadlineResult(input, { ...base, status: "missing_rule", triggerAt: input.verifiedTriggerAt, warnings });
+  }
+  if (!calendar) {
+    warnings.push("HOLIDAY_CALENDAR_UNCERTAIN");
+    return finalizeDeadlineResult(input, { ...base, status: "missing_rule", triggerAt: input.verifiedTriggerAt, warnings });
+  }
+  if (calendar.calendarId !== input.holidayCalendarId || calendar.calendarVersion !== input.holidayCalendarVersion) {
+    warnings.push("HOLIDAY_CALENDAR_UNCERTAIN");
+    return finalizeDeadlineResult(input, { ...base, status: "missing_rule", triggerAt: input.verifiedTriggerAt, warnings });
+  }
+  if (input.timeOfDayRule === "close_of_business") {
+    warnings.push("TIME_OF_DAY_UNCERTAIN");
+    return finalizeDeadlineResult(input, { ...base, status: "uncertain", triggerAt: input.verifiedTriggerAt, warnings });
+  }
+  if (input.weekendRule === "uncertain" || input.weekendRule === "source_specific") {
+    warnings.push("WEEKEND_RULE_UNCERTAIN");
+    return finalizeDeadlineResult(input, { ...base, status: "uncertain", triggerAt: input.verifiedTriggerAt, warnings });
+  }
+  if (input.businessDayRule === "uncertain" || input.businessDayRule === "source_specific") {
+    warnings.push("BUSINESS_DAY_RULE_UNCERTAIN");
+    return finalizeDeadlineResult(input, { ...base, status: "uncertain", triggerAt: input.verifiedTriggerAt, warnings });
+  }
+
+  const triggerInstant = new Date(input.verifiedTriggerAt ?? "");
+  const triggerLocal = zonedParts(triggerInstant, timezone);
+  const holidaysApplied = new Map<string, string>();
+  let dueAt: string;
+  let adjustmentApplied: ContractDeadlineCalculationResult["adjustmentApplied"];
+
+  if (input.countingRule === "exact_elapsed_hours") {
+    if (input.offsetUnit !== "hours") {
+      warnings.push("COUNTING_RULE_UNCERTAIN");
+      return finalizeDeadlineResult(input, { ...base, status: "missing_rule", triggerAt: input.verifiedTriggerAt, warnings });
+    }
+    dueAt = new Date(triggerInstant.getTime() + (input.offsetValue ?? 0) * 60 * 60 * 1000).toISOString();
+  } else {
+    const dueDate = calculateLocalDueDate(triggerLocal, input, calendar, holidaysApplied);
+    const dueTime = resolveDeadlineTime(input, triggerLocal);
+    if (!dueTime) {
+      warnings.push("TIME_OF_DAY_UNCERTAIN");
+      return finalizeDeadlineResult(input, { ...base, status: "uncertain", triggerAt: input.verifiedTriggerAt, warnings });
+    }
+    let dueLocal = { ...dueDate, ...dueTime };
+    const beforeAdjustment = formatLocalDateTime(dueLocal);
+    dueLocal = applyWeekendHolidayAdjustment(dueLocal, input.weekendRule ?? "no_adjustment", calendar, holidaysApplied);
+    const afterAdjustment = formatLocalDateTime(dueLocal);
+    if (beforeAdjustment !== afterAdjustment) adjustmentApplied = { from: beforeAdjustment, to: afterAdjustment, reason: input.weekendRule ?? "no_adjustment" };
+    dueAt = zonedTimeToUtcIso(dueLocal, timezone);
+  }
+
+  const status = triggerVerification === "extracted_proposed"
+    ? "proposed"
+    : options.asOf && new Date(dueAt).getTime() < new Date(options.asOf).getTime()
+      ? "missed"
+      : "current";
+
+  return finalizeDeadlineResult(input, {
+    ...base,
+    triggerAt: input.verifiedTriggerAt,
+    dueAt,
+    status,
+    warnings,
+    holidaysApplied: [...holidaysApplied.entries()].map(([date, name]) => ({ date, name })).sort((a, b) => a.date.localeCompare(b.date)),
+    adjustmentApplied,
+  });
+}
+
+export function buildUsFederalHolidayCalendar(years: number[], timezone: string, calendarVersion = 1): ContractHolidayCalendarDefinition {
+  const uniqueYears = [...new Set(years)].sort((a, b) => a - b);
+  return deepFreeze({
+    calendarId: "us_federal",
+    calendarVersion,
+    calendarType: "us_federal",
+    timezone,
+    weekendDays: [0, 6],
+    holidays: uniqueYears.flatMap(usFederalHolidaysForYear).sort((a, b) => a.date.localeCompare(b.date)),
+  });
+}
+
+export function buildCustomSourceHolidayCalendar(input: {
+  calendarId: string;
+  calendarVersion: number;
+  timezone: string;
+  weekendDays?: number[];
+  holidays: Array<{ date: string; name: string }>;
+}): ContractHolidayCalendarDefinition {
+  return deepFreeze({
+    calendarId: clean(input.calendarId) ?? "custom_source_defined",
+    calendarVersion: input.calendarVersion,
+    calendarType: "custom_source_defined",
+    timezone: input.timezone,
+    weekendDays: [...new Set(input.weekendDays ?? [0, 6])].sort((a, b) => a - b),
+    holidays: input.holidays.map((holiday) => ({ date: holiday.date, name: holiday.name, source: "source_defined" as const })).sort((a, b) => a.date.localeCompare(b.date)),
+  });
+}
+
+export function planContractDeadlineCanonicalSync(input: {
+  result: ContractDeadlineCalculationResult;
+  deadlineType: string;
+  sourceRuleSummary: string;
+  triggerDate: string;
+  linkage?: ContractDeadlineCanonicalLinkageState;
+}): ContractDeadlineCanonicalSyncPlan {
+  const result = input.result;
+  if (result.status !== "current" || !result.dueAt) {
+    return { action: "skip", reason: `Contract deadline result is ${result.status}; operational deadline creation is not allowed.`, mayCreateOperationalDeadline: false };
+  }
+  if (input.linkage?.canonicalStatus === "completed" || input.linkage?.canonicalStatus === "cancelled") {
+    return { action: "skip", reason: `Canonical deadline is ${input.linkage.canonicalStatus}; ContractIQ will not resurrect historical operational work.`, mayCreateOperationalDeadline: false };
+  }
+  const syncVersion = (input.linkage?.syncVersion ?? 0) + 1;
+  return {
+    action: input.linkage?.canonicalDeadlineId ? "update" : "create",
+    mayCreateOperationalDeadline: true,
+    contractDeadlineId: result.contractDeadlineId,
+    calculationVersion: result.calculationVersion,
+    canonicalDeadlineId: input.linkage?.canonicalDeadlineId,
+    expectedCanonicalVersion: input.linkage?.canonicalDeadlineVersion,
+    source: "contractiq_deadline_calculation",
+    syncVersion,
+    deadlineInput: {
+      title: `Contract deadline: ${input.deadlineType}`,
+      due_at: result.dueAt,
+      is_all_day: false,
+      timezone: result.timezone,
+      source_type: "contractiq",
+      source_record_id: result.contractDeadlineId,
+      source_term: input.sourceRuleSummary,
+      source_description: `ContractIQ calculation ${result.calculationId} from ${result.triggerVerification} trigger.`,
+      trigger_date: input.triggerDate,
+      calculation_rule: `${result.offsetValue} ${result.offsetUnit} / ${result.countingRule} / ${result.weekendRule}`,
+      verification_state: "source_verified",
+      status: input.linkage?.canonicalDeadlineId ? "changed" : "open",
+    },
+  };
+}
+
 export function deterministicContractExtractionHash(input: {
   evidenceHash: string;
   evidenceVersion: number;
@@ -677,6 +1029,274 @@ function conflictTypeFor(normalizedType: string, extractionType: ContractExtract
   if (/assignment|transfer/i.test(normalizedType)) return "assignment_rights_conflict";
   if (/inspection|contingency/i.test(normalizedType)) return "inspection_period_conflict";
   return "term_conflict";
+}
+
+type LocalDate = { year: number; month: number; day: number };
+type LocalTime = { hour: number; minute: number; second: number; millisecond: number };
+type LocalDateTime = LocalDate & LocalTime;
+
+function validateDeadlineCalculationInput(input: ContractDeadlineCalculationInput, calendar: ContractHolidayCalendarDefinition | undefined) {
+  const requiredStrings = [
+    input.workspaceId,
+    input.dealId,
+    input.contractId,
+    input.contractDeadlineId,
+    input.deadlineType,
+    input.triggerType,
+    input.triggerTermId,
+    input.triggerSourceEvidenceId,
+    input.effectiveDate,
+    input.calculationContractVersion,
+    input.correlationId,
+    input.sourceEvidenceId,
+  ];
+  if (requiredStrings.some((value) => !clean(value))) return "MISSING_RULE";
+  if (!input.verifiedTriggerAt || Number.isNaN(Date.parse(input.verifiedTriggerAt))) return "MISSING_TRIGGER";
+  if (!Number.isInteger(input.contractVersion) || !Number.isInteger(input.deadlineVersion)) return "MISSING_RULE";
+  if (!Number.isFinite(input.offsetValue) || (input.offsetValue ?? 0) < 0 || !input.offsetUnit) return "MISSING_RULE";
+  if (!input.countingRule || !input.businessDayRule || !input.weekendRule || !input.timeOfDayRule) return "MISSING_RULE";
+  if (!input.holidayCalendarId || !input.holidayCalendarVersion || !calendar) return "HOLIDAY_CALENDAR_UNCERTAIN";
+  if (!CONTRACT_DEADLINE_TRIGGER_TYPES.includes(input.triggerType)) return "MISSING_RULE";
+  if (!CONTRACT_DEADLINE_OFFSET_UNITS.includes(input.offsetUnit)) return "MISSING_RULE";
+  if (!CONTRACT_DEADLINE_COUNTING_RULES.includes(input.countingRule)) return "COUNTING_RULE_UNCERTAIN";
+  if (!CONTRACT_DEADLINE_TRIGGER_VERIFICATION_STATES.includes(input.sourceVerificationState)) return "MISSING_TRIGGER";
+  return undefined;
+}
+
+function finalizeDeadlineResult(
+  input: ContractDeadlineCalculationInput,
+  result: Omit<ContractDeadlineCalculationResult, "calculationId" | "deterministicHash">,
+): ContractDeadlineCalculationResult {
+  const uniqueWarnings = [...new Set(result.warnings)].sort();
+  const hashBasis = {
+    workspaceId: input.workspaceId,
+    dealId: input.dealId,
+    contractId: input.contractId,
+    contractVersion: input.contractVersion,
+    contractDeadlineId: input.contractDeadlineId,
+    deadlineVersion: input.deadlineVersion,
+    deadlineType: input.deadlineType,
+    triggerType: input.triggerType,
+    triggerTermId: input.triggerTermId,
+    triggerSourceEvidenceId: input.triggerSourceEvidenceId,
+    triggerSourceAnchor: input.triggerSourceAnchor,
+    verifiedTriggerAt: result.triggerAt,
+    triggerVerification: result.triggerVerification,
+    dueAt: result.dueAt,
+    timezone: result.timezone,
+    offsetValue: result.offsetValue,
+    offsetUnit: result.offsetUnit,
+    countingRule: result.countingRule,
+    businessDayRule: input.businessDayRule,
+    weekendRule: result.weekendRule,
+    holidayCalendarId: result.holidayCalendarId,
+    holidayCalendarVersion: result.holidayCalendarVersion,
+    holidaysApplied: result.holidaysApplied,
+    adjustmentApplied: result.adjustmentApplied,
+    sourceEvidenceId: result.sourceEvidenceId,
+    sourceAnchor: result.sourceAnchor,
+    status: result.status,
+    warnings: uniqueWarnings,
+    staleReason: result.staleReason,
+    calculationContractVersion: input.calculationContractVersion,
+  };
+  const resultHash = deterministicHash(hashBasis);
+  return deepFreeze({
+    ...result,
+    warnings: uniqueWarnings,
+    calculationId: `contract-deadline:${resultHash.replace("fnv1a32:", "")}`,
+    deterministicHash: resultHash,
+  });
+}
+
+function calculateLocalDueDate(
+  trigger: LocalDateTime,
+  input: ContractDeadlineCalculationInput,
+  calendar: ContractHolidayCalendarDefinition,
+  holidaysApplied: Map<string, string>,
+): LocalDate {
+  const offset = input.offsetValue ?? 0;
+  if (input.offsetUnit === "business_days" || input.countingRule === "business_day_offset") {
+    return addBusinessDays(trigger, offset, input.countingRule ?? "business_day_offset", calendar, holidaysApplied);
+  }
+  if (input.offsetUnit === "months") return addLocalMonths(trigger, offset);
+  if (input.offsetUnit === "years") return addLocalMonths(trigger, offset * 12);
+  const days = input.offsetUnit === "weeks" ? offset * 7 : offset;
+  return addLocalDays(trigger, daysForCountingRule(days, input.countingRule ?? "calendar_date_offset"));
+}
+
+function daysForCountingRule(days: number, rule: ContractDeadlineCountingRule) {
+  if (rule === "include_trigger_day") return Math.max(0, days - 1);
+  return days;
+}
+
+function addBusinessDays(
+  trigger: LocalDate,
+  offset: number,
+  rule: ContractDeadlineCountingRule,
+  calendar: ContractHolidayCalendarDefinition,
+  holidaysApplied: Map<string, string>,
+): LocalDate {
+  if (offset === 0) return trigger;
+  let current = { year: trigger.year, month: trigger.month, day: trigger.day };
+  let counted = rule === "include_trigger_day" && isBusinessDay(current, calendar, holidaysApplied) ? 1 : 0;
+  while (counted < offset) {
+    current = addLocalDays(current, 1);
+    if (isBusinessDay(current, calendar, holidaysApplied)) counted += 1;
+  }
+  return current;
+}
+
+function resolveDeadlineTime(input: ContractDeadlineCalculationInput, triggerLocal: LocalDateTime): LocalTime | undefined {
+  switch (input.timeOfDayRule) {
+    case "exact_stated_time":
+      return parseLocalTime(input.statedLocalTime) ?? { hour: triggerLocal.hour, minute: triggerLocal.minute, second: triggerLocal.second, millisecond: triggerLocal.millisecond };
+    case "end_of_day":
+      return { hour: 23, minute: 59, second: 59, millisecond: 999 };
+    case "noon":
+      return { hour: 12, minute: 0, second: 0, millisecond: 0 };
+    case "midnight":
+      return { hour: 0, minute: 0, second: 0, millisecond: 0 };
+    case "time_unspecified":
+      return { hour: triggerLocal.hour, minute: triggerLocal.minute, second: triggerLocal.second, millisecond: triggerLocal.millisecond };
+    case "close_of_business":
+      return undefined;
+  }
+}
+
+function applyWeekendHolidayAdjustment(
+  dueLocal: LocalDateTime,
+  weekendRule: ContractDeadlineWeekendRule,
+  calendar: ContractHolidayCalendarDefinition,
+  holidaysApplied: Map<string, string>,
+): LocalDateTime {
+  if (weekendRule === "no_adjustment") return dueLocal;
+  if (weekendRule === "next_calendar_day") return addLocalDays(dueLocal, 1);
+  let adjusted = dueLocal;
+  const direction = weekendRule === "previous_business_day" ? -1 : 1;
+  while (!isBusinessDay(adjusted, calendar, holidaysApplied)) adjusted = addLocalDays(adjusted, direction);
+  return adjusted;
+}
+
+function isBusinessDay(local: LocalDate, calendar: ContractHolidayCalendarDefinition, holidaysApplied: Map<string, string>) {
+  const date = formatLocalDate(local);
+  const weekend = calendar.weekendDays.includes(localDayOfWeek(local));
+  const holiday = calendar.holidays.find((candidate) => candidate.date === date);
+  if (holiday) holidaysApplied.set(holiday.date, holiday.name);
+  return !weekend && !holiday;
+}
+
+function zonedParts(date: Date, timezone: string): LocalDateTime {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value);
+  return { year: get("year"), month: get("month"), day: get("day"), hour: get("hour"), minute: get("minute"), second: get("second"), millisecond: date.getUTCMilliseconds() };
+}
+
+function zonedTimeToUtcIso(local: LocalDateTime, timezone: string) {
+  let utc = Date.UTC(local.year, local.month - 1, local.day, local.hour, local.minute, local.second, local.millisecond);
+  for (let i = 0; i < 4; i += 1) {
+    const actual = zonedParts(new Date(utc), timezone);
+    const deltaMinutes = localDateTimeDifferenceMinutes(local, actual);
+    if (deltaMinutes === 0) break;
+    utc += deltaMinutes * 60 * 1000;
+  }
+  return new Date(utc).toISOString();
+}
+
+function localDateTimeDifferenceMinutes(target: LocalDateTime, actual: LocalDateTime) {
+  const targetUtc = Date.UTC(target.year, target.month - 1, target.day, target.hour, target.minute, target.second, target.millisecond);
+  const actualUtc = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, actual.second, actual.millisecond);
+  return Math.round((targetUtc - actualUtc) / 60000);
+}
+
+function addLocalDays<T extends LocalDate>(local: T, days: number): T {
+  const date = new Date(Date.UTC(local.year, local.month - 1, local.day + days));
+  return { ...local, year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate() };
+}
+
+function addLocalMonths(local: LocalDate, months: number): LocalDate {
+  const targetMonthZero = local.month - 1 + months;
+  const year = local.year + Math.floor(targetMonthZero / 12);
+  const monthZero = ((targetMonthZero % 12) + 12) % 12;
+  const maxDay = new Date(Date.UTC(year, monthZero + 1, 0)).getUTCDate();
+  return { year, month: monthZero + 1, day: Math.min(local.day, maxDay) };
+}
+
+function localDayOfWeek(local: LocalDate) {
+  return new Date(Date.UTC(local.year, local.month - 1, local.day)).getUTCDay();
+}
+
+function parseLocalTime(value?: string): LocalTime | undefined {
+  const match = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(clean(value) ?? "");
+  if (!match) return undefined;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const second = Number(match[3] ?? 0);
+  if (hour > 23 || minute > 59 || second > 59) return undefined;
+  return { hour, minute, second, millisecond: 0 };
+}
+
+function formatLocalDate(local: LocalDate) {
+  return `${local.year.toString().padStart(4, "0")}-${local.month.toString().padStart(2, "0")}-${local.day.toString().padStart(2, "0")}`;
+}
+
+function formatLocalDateTime(local: LocalDateTime) {
+  return `${formatLocalDate(local)}T${local.hour.toString().padStart(2, "0")}:${local.minute.toString().padStart(2, "0")}:${local.second.toString().padStart(2, "0")}`;
+}
+
+function isAuthoritativeTimezone(timezone: string) {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date());
+    return timezone.includes("/");
+  } catch {
+    return false;
+  }
+}
+
+function usFederalHolidaysForYear(year: number): ContractHolidayCalendarDefinition["holidays"] {
+  const holidays = [
+    observedFixedHoliday(year, 1, 1, "New Year's Day"),
+    nthWeekday(year, 1, 1, 3, "Martin Luther King Jr. Day"),
+    nthWeekday(year, 2, 1, 3, "Washington's Birthday"),
+    lastWeekday(year, 5, 1, "Memorial Day"),
+    observedFixedHoliday(year, 6, 19, "Juneteenth National Independence Day"),
+    observedFixedHoliday(year, 7, 4, "Independence Day"),
+    nthWeekday(year, 9, 1, 1, "Labor Day"),
+    nthWeekday(year, 10, 1, 2, "Columbus Day"),
+    observedFixedHoliday(year, 11, 11, "Veterans Day"),
+    nthWeekday(year, 11, 4, 4, "Thanksgiving Day"),
+    observedFixedHoliday(year, 12, 25, "Christmas Day"),
+  ];
+  return holidays.map((holiday) => ({ ...holiday, source: "rule" as const }));
+}
+
+function observedFixedHoliday(year: number, month: number, day: number, name: string) {
+  const date = { year, month, day };
+  const weekday = localDayOfWeek(date);
+  if (weekday === 6) return { date: formatLocalDate(addLocalDays(date, -1)), name };
+  if (weekday === 0) return { date: formatLocalDate(addLocalDays(date, 1)), name };
+  return { date: formatLocalDate(date), name };
+}
+
+function nthWeekday(year: number, month: number, weekday: number, nth: number, name: string) {
+  let cursor = { year, month, day: 1 };
+  while (localDayOfWeek(cursor) !== weekday) cursor = addLocalDays(cursor, 1);
+  return { date: formatLocalDate(addLocalDays(cursor, (nth - 1) * 7)), name };
+}
+
+function lastWeekday(year: number, month: number, weekday: number, name: string) {
+  let cursor = { year, month, day: new Date(Date.UTC(year, month, 0)).getUTCDate() };
+  while (localDayOfWeek(cursor) !== weekday) cursor = addLocalDays(cursor, -1);
+  return { date: formatLocalDate(cursor), name };
 }
 
 function deterministicHash(value: unknown) {
