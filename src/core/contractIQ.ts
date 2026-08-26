@@ -3,6 +3,7 @@ export const CONTRACTIQ_PROJECTION_CONTRACT_VERSION = "contractiq-projection-v1"
 export const CONTRACTIQ_DOCUMENT_ANALYSIS_CONTRACT_VERSION = "contractiq-document-analysis-v1" as const;
 export const CONTRACTIQ_EXTRACTION_CONTRACT_VERSION = "contractiq-extraction-v1" as const;
 export const CONTRACTIQ_DEADLINE_ENGINE_VERSION = "contractiq-deadline-engine-v1" as const;
+export const CONTRACTIQ_PERSPECTIVE_ANALYSIS_VERSION = "contractiq-perspective-analysis-v1" as const;
 
 export const CONTRACT_TYPES = [
   "purchase_agreement",
@@ -200,6 +201,22 @@ export const CONTRACT_DEADLINE_RESULT_STATUSES = [
   "expired",
 ] as const;
 
+export const CONTRACT_PERSPECTIVE_FINDING_GROUPS = [
+  "benefit",
+  "risk",
+  "unusual_term",
+  "missing_protection",
+  "missing_information",
+  "conflict",
+  "amendment_impact",
+  "obligation",
+  "professional_review",
+] as const;
+export const CONTRACT_PERSPECTIVE_SEVERITIES = ["informational", "low", "moderate", "high", "critical", "unknown"] as const;
+export const CONTRACT_PERSPECTIVE_ANALYSIS_STATES = ["current", "current_with_conflicts", "partial", "stale", "failed_with_prior_analysis", "professional_review_required"] as const;
+export const CONTRACT_PERSPECTIVE_COMPLETENESS_STATES = ["complete", "partial", "missing_source", "missing_signature", "conflicted", "stale", "failed_with_prior_valid"] as const;
+export const CONTRACT_DOWNSTREAM_IMPACT_DOMAINS = ["financeiq", "underwriting", "strategy", "governanceiq", "decision_cockpit"] as const;
+
 export type ContractType = (typeof CONTRACT_TYPES)[number];
 export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
 export type ContractPerspective = (typeof CONTRACT_PERSPECTIVES)[number];
@@ -226,6 +243,11 @@ export type ContractDeadlineWeekendRule = (typeof CONTRACT_DEADLINE_WEEKEND_RULE
 export type ContractDeadlineTimeOfDayRule = (typeof CONTRACT_DEADLINE_TIME_OF_DAY_RULES)[number];
 export type ContractDeadlineTriggerVerificationState = (typeof CONTRACT_DEADLINE_TRIGGER_VERIFICATION_STATES)[number];
 export type ContractDeadlineResultStatus = (typeof CONTRACT_DEADLINE_RESULT_STATUSES)[number];
+export type ContractPerspectiveFindingGroup = (typeof CONTRACT_PERSPECTIVE_FINDING_GROUPS)[number];
+export type ContractPerspectiveSeverity = (typeof CONTRACT_PERSPECTIVE_SEVERITIES)[number];
+export type ContractPerspectiveAnalysisState = (typeof CONTRACT_PERSPECTIVE_ANALYSIS_STATES)[number];
+export type ContractPerspectiveCompletenessState = (typeof CONTRACT_PERSPECTIVE_COMPLETENESS_STATES)[number];
+export type ContractDownstreamImpactDomain = (typeof CONTRACT_DOWNSTREAM_IMPACT_DOMAINS)[number];
 
 export type ContractSourceAnchorKind =
   | "page"
@@ -522,6 +544,180 @@ export type ContractDeadlineCanonicalSyncPlan =
         status: "open" | "changed";
       };
     };
+
+export interface ContractPerspectiveSourceTerm {
+  contractTermId: string;
+  version: number;
+  termCategory: string;
+  termType: string;
+  title: string;
+  normalizedValue?: Record<string, unknown>;
+  displayValue?: string;
+  sourceEvidenceId: string;
+  sourceAnchor: ContractSourceAnchor;
+  verificationState: ContractVerificationState;
+  proposalState: ContractProposalState;
+  materiality?: "immaterial" | "informational" | "material" | "critical" | "unknown";
+  effectiveDate?: string;
+  expirationDate?: string;
+}
+
+export interface ContractPerspectiveSourceParty {
+  contractPartyId: string;
+  version: number;
+  displayName: string;
+  partyRole: string;
+  signatureStatus?: "not_required" | "unsigned" | "partially_signed" | "signed" | "unknown";
+  authorityCapacity?: string;
+  sourceEvidenceId?: string;
+  sourceAnchor?: ContractSourceAnchor;
+  verificationState: ContractVerificationState;
+}
+
+export interface ContractPerspectiveConflictInput {
+  contractConflictId: string;
+  version: number;
+  conflictType: string;
+  severity: ContractPerspectiveSeverity;
+  summary: string;
+  resolutionState: "unresolved" | "under_review" | "resolved" | "professional_review_required" | "superseded" | "unknown";
+  sourceAEvidenceId?: string;
+  sourceAAnchor: ContractSourceAnchor;
+  sourceBEvidenceId?: string;
+  sourceBAnchor: ContractSourceAnchor;
+  professionalReviewRequired: boolean;
+}
+
+export interface ContractPerspectiveDeadlineResultInput {
+  contractDeadlineId: string;
+  calculationId: string;
+  calculationVersion: number;
+  contractDeadlineVersion: number;
+  deadlineType: string;
+  dueAt?: string;
+  status: ContractDeadlineResultStatus;
+  triggerVerification: ContractDeadlineTriggerVerificationState;
+  sourceEvidenceId: string;
+  sourceAnchor: ContractSourceAnchor;
+  warnings: string[];
+}
+
+export interface ContractPerspectiveRelationshipInput {
+  contractRelationshipId: string;
+  version: number;
+  relationshipType: ContractRelationshipType;
+  relatedContractId?: string;
+  relatedContractVersion?: number;
+  sourceEvidenceId?: string;
+  sourceAnchor: ContractSourceAnchor;
+  verificationState: ContractVerificationState;
+}
+
+export interface ContractPerspectiveAnalysisInput {
+  workspaceId: string;
+  dealId: string;
+  propertyId: string;
+  contractId: string;
+  contractVersion: number;
+  contractType: ContractType;
+  perspective: ContractPerspective;
+  status: ContractStatus;
+  analysisContractVersion: typeof CONTRACTIQ_PERSPECTIVE_ANALYSIS_VERSION | string;
+  terms: ContractPerspectiveSourceTerm[];
+  parties: ContractPerspectiveSourceParty[];
+  deadlineResults: ContractPerspectiveDeadlineResultInput[];
+  conflicts: ContractPerspectiveConflictInput[];
+  relationships: ContractPerspectiveRelationshipInput[];
+  baseMatchCandidates?: ContractBaseMatchCandidate[];
+  supersessionCandidates?: ContractSupersessionCandidate[];
+  priorValidAnalysis?: ContractPerspectiveAnalysisResult;
+  failure?: { errorCode: ContractAnalysisErrorCode; safeMessage?: string };
+  asOf: string;
+  correlationId: string;
+}
+
+export interface ContractPerspectiveSourceRef {
+  sourceType: "term" | "party" | "deadline_result" | "conflict" | "relationship" | "contract";
+  recordId: string;
+  recordVersion?: number;
+  evidenceId?: string;
+  sourceAnchor: ContractSourceAnchor;
+}
+
+export interface ContractPerspectiveFinding {
+  id: string;
+  group: ContractPerspectiveFindingGroup;
+  findingType: string;
+  category: string;
+  severity: ContractPerspectiveSeverity;
+  title: string;
+  summary: string;
+  whyItMatters: string;
+  sourceRefs: ContractPerspectiveSourceRef[];
+  professionalReviewRequired: boolean;
+  downstreamImpactCandidates: ContractDownstreamImpactCandidate[];
+  status: "current" | "needs_review" | "stale" | "superseded";
+}
+
+export interface ContractPerspectiveQuestion {
+  id: string;
+  question: string;
+  targetRole: string;
+  reason: string;
+  sourceRefs: ContractPerspectiveSourceRef[];
+  professionalReviewRequired: boolean;
+  status: "open";
+}
+
+export interface ContractNegotiationConcept {
+  id: string;
+  title: string;
+  concept: string;
+  discussionDraftLabel: "DISCUSSION DRAFT";
+  professionalReviewLabel: "FOR LICENSED PROFESSIONAL REVIEW";
+  sourceRefs: ContractPerspectiveSourceRef[];
+  generatedFromFindingIds: string[];
+  status: "candidate_only";
+}
+
+export interface ContractDownstreamImpactCandidate {
+  domain: ContractDownstreamImpactDomain;
+  impactType: string;
+  summary: string;
+  sourceRefs: ContractPerspectiveSourceRef[];
+  mutationAllowed: false;
+}
+
+export interface ContractPerspectiveAnalysisResult {
+  analysisId: string;
+  analysisContractVersion: typeof CONTRACTIQ_PERSPECTIVE_ANALYSIS_VERSION;
+  workspaceId: string;
+  dealId: string;
+  propertyId: string;
+  contractId: string;
+  contractVersion: number;
+  perspective: ContractPerspective;
+  analysisState: ContractPerspectiveAnalysisState;
+  completenessState: ContractPerspectiveCompletenessState;
+  benefitFindings: ContractPerspectiveFinding[];
+  riskFindings: ContractPerspectiveFinding[];
+  unusualTermFindings: ContractPerspectiveFinding[];
+  missingProtectionFindings: ContractPerspectiveFinding[];
+  missingInformationFindings: ContractPerspectiveFinding[];
+  conflictFindings: ContractPerspectiveFinding[];
+  amendmentImpactFindings: ContractPerspectiveFinding[];
+  obligationFindings: ContractPerspectiveFinding[];
+  professionalReviewItems: ContractPerspectiveFinding[];
+  questions: ContractPerspectiveQuestion[];
+  negotiationConcepts: ContractNegotiationConcept[];
+  downstreamImpactCandidates: ContractDownstreamImpactCandidate[];
+  sourceVersionGraph: Record<string, unknown>;
+  deterministicHash: string;
+  generatedAt: string;
+  warnings: string[];
+  priorValidPreserved: boolean;
+  failureCode?: ContractAnalysisErrorCode;
+}
 
 export function assertContractIQSourceBoundary(source: string) {
   const forbidden = [
@@ -950,6 +1146,435 @@ export function deterministicContractExtractionHash(input: {
     providerId: clean(input.providerId),
     providerMethod: clean(input.providerMethod),
   });
+}
+
+export function analyzeContractPerspective(
+  input: ContractPerspectiveAnalysisInput,
+  options: { generatedAt?: string } = {},
+): ContractPerspectiveAnalysisResult {
+  validatePerspectiveAnalysisInput(input);
+  const generatedAt = options.generatedAt ?? new Date().toISOString();
+  if (input.failure) return perspectiveFailureResult(input, generatedAt);
+
+  const sourceTerms = input.terms.filter((term) => term.proposalState === "accepted" && authoritativeVerification(term.verificationState));
+  const proposedOrUnverifiedTerms = input.terms.filter((term) => term.proposalState !== "accepted" || !authoritativeVerification(term.verificationState));
+  const findings: ContractPerspectiveFinding[] = [];
+  const downstream: ContractDownstreamImpactCandidate[] = [];
+
+  for (const term of sourceTerms) {
+    findings.push(...findingsForTerm(input, term));
+  }
+  for (const term of proposedOrUnverifiedTerms) {
+    if (/contingency|financing|inspection|assignment|default|remedy|signature|closing/i.test(`${term.termCategory} ${term.termType} ${term.title}`)) {
+      findings.push(makeFinding(input, "missing_information", "term_requires_verification", term.termCategory, "moderate", `Verify ${term.title}`, `${term.title} is present but is not accepted with a current source-backed verification state.`, "ContractIQ can surface the item, but it cannot treat proposed or unverified output as accepted contract truth.", [termRef(term)], true, []));
+    }
+  }
+
+  const acceptedTypes = new Set(sourceTerms.map(termKey));
+  addMissingProtections(input, acceptedTypes, findings);
+  addSignatureFindings(input, findings);
+  addDeadlineFindings(input, findings);
+  addConflictFindings(input, findings);
+  addAmendmentFindings(input, findings);
+
+  for (const finding of findings) downstream.push(...finding.downstreamImpactCandidates);
+  const uniqueDownstream = uniqueImpacts(downstream);
+  const professionalReviewItems = findings.filter((finding) => finding.professionalReviewRequired || finding.group === "professional_review");
+  const questions = buildPerspectiveQuestions(input, findings);
+  const negotiationConcepts = buildNegotiationConcepts(input, findings);
+  const warnings = buildPerspectiveWarnings(input, proposedOrUnverifiedTerms);
+  const completenessState = perspectiveCompletenessState(input, findings);
+  const analysisState = perspectiveAnalysisState(completenessState, findings);
+  const sourceVersionGraph = buildPerspectiveSourceVersionGraph(input);
+  const hashBasis = {
+    analysisContractVersion: CONTRACTIQ_PERSPECTIVE_ANALYSIS_VERSION,
+    workspaceId: input.workspaceId,
+    dealId: input.dealId,
+    propertyId: input.propertyId,
+    contractId: input.contractId,
+    contractVersion: input.contractVersion,
+    perspective: input.perspective,
+    analysisState,
+    completenessState,
+    findings,
+    questions,
+    negotiationConcepts,
+    downstreamImpactCandidates: uniqueDownstream,
+    sourceVersionGraph,
+    warnings,
+  };
+  const deterministicHashValue = deterministicHash(hashBasis);
+
+  return deepFreeze({
+    analysisId: `contract-perspective:${deterministicHashValue.replace("fnv1a32:", "")}`,
+    analysisContractVersion: CONTRACTIQ_PERSPECTIVE_ANALYSIS_VERSION,
+    workspaceId: input.workspaceId,
+    dealId: input.dealId,
+    propertyId: input.propertyId,
+    contractId: input.contractId,
+    contractVersion: input.contractVersion,
+    perspective: input.perspective,
+    analysisState,
+    completenessState,
+    benefitFindings: findings.filter((finding) => finding.group === "benefit"),
+    riskFindings: findings.filter((finding) => finding.group === "risk"),
+    unusualTermFindings: findings.filter((finding) => finding.group === "unusual_term"),
+    missingProtectionFindings: findings.filter((finding) => finding.group === "missing_protection"),
+    missingInformationFindings: findings.filter((finding) => finding.group === "missing_information"),
+    conflictFindings: findings.filter((finding) => finding.group === "conflict"),
+    amendmentImpactFindings: findings.filter((finding) => finding.group === "amendment_impact"),
+    obligationFindings: findings.filter((finding) => finding.group === "obligation"),
+    professionalReviewItems,
+    questions,
+    negotiationConcepts,
+    downstreamImpactCandidates: uniqueDownstream,
+    sourceVersionGraph,
+    deterministicHash: deterministicHashValue,
+    generatedAt,
+    warnings,
+    priorValidPreserved: false,
+  });
+}
+
+export function contractPerspectiveAnalysisStateAfterFailure(input: {
+  priorValidAnalysis?: ContractPerspectiveAnalysisResult;
+  errorCode: ContractAnalysisErrorCode;
+  generatedAt?: string;
+}) {
+  return deepFreeze({
+    analysisState: input.priorValidAnalysis ? "failed_with_prior_analysis" : "partial",
+    priorValidPreserved: Boolean(input.priorValidAnalysis),
+    priorValidAnalysisId: input.priorValidAnalysis?.analysisId,
+    priorValidHash: input.priorValidAnalysis?.deterministicHash,
+    errorCode: input.errorCode,
+    generatedAt: input.generatedAt ?? new Date().toISOString(),
+  } as const);
+}
+
+function validatePerspectiveAnalysisInput(input: ContractPerspectiveAnalysisInput) {
+  const required = [input.workspaceId, input.dealId, input.propertyId, input.contractId, input.analysisContractVersion, input.correlationId, input.asOf];
+  if (required.some((value) => !clean(value))) throw new Error("ContractIQ perspective analysis requires canonical workspace, deal, property, contract, version, timestamp, and correlation identity.");
+  if (!Number.isInteger(input.contractVersion) || input.contractVersion < 1) throw new Error("ContractIQ perspective analysis requires a positive contract version.");
+  if (input.analysisContractVersion !== CONTRACTIQ_PERSPECTIVE_ANALYSIS_VERSION) throw new Error("Unsupported ContractIQ perspective analysis version.");
+  if (!CONTRACT_PERSPECTIVES.includes(input.perspective)) throw new Error("Unsupported ContractIQ analysis perspective.");
+  for (const term of input.terms) {
+    if (!clean(term.contractTermId) || !Number.isInteger(term.version) || !isContractSourceAnchor(term.sourceAnchor) || !clean(term.sourceEvidenceId)) throw new Error("ContractIQ perspective terms must be versioned and source-linked.");
+  }
+  for (const deadline of input.deadlineResults) {
+    if (!clean(deadline.calculationId) || !isContractSourceAnchor(deadline.sourceAnchor) || !clean(deadline.sourceEvidenceId)) throw new Error("ContractIQ perspective deadlines must be calculated Slice 3 outputs with source anchors.");
+  }
+  for (const conflict of input.conflicts) {
+    if (!clean(conflict.contractConflictId) || !isContractSourceAnchor(conflict.sourceAAnchor) || !isContractSourceAnchor(conflict.sourceBAnchor)) throw new Error("ContractIQ perspective conflicts must preserve both source anchors.");
+  }
+}
+
+function findingsForTerm(input: ContractPerspectiveAnalysisInput, term: ContractPerspectiveSourceTerm): ContractPerspectiveFinding[] {
+  const haystack = termHaystack(term);
+  const refs = [termRef(term)];
+  const impacts: ContractDownstreamImpactCandidate[] = [];
+  const output: ContractPerspectiveFinding[] = [];
+  const buyerLike = ["buyer", "tenant", "borrower", "developer", "investor", "guarantor"].includes(input.perspective);
+  const sellerLike = ["seller", "landlord", "lender"].includes(input.perspective);
+
+  if (/earnest|deposit|non.?refundable|liquidated damage/i.test(haystack)) {
+    if (buyerLike) {
+      impacts.push(impact("financeiq", "cash_exposure_candidate", "Deposit or non-refundable money term may affect required cash and downside review.", refs));
+      output.push(makeFinding(input, "risk", "deposit_exposure", "money", /non.?refundable|liquidated damage/i.test(haystack) ? "high" : "moderate", "Deposit exposure requires review", term.displayValue ?? term.title, "From this perspective, money at risk can change downside planning and professional review priorities.", refs, /non.?refundable|liquidated damage/i.test(haystack), impacts));
+    } else if (sellerLike) {
+      output.push(makeFinding(input, "benefit", "deposit_deal_certainty", "money", "moderate", "Deposit may support deal certainty", term.displayValue ?? term.title, "From this perspective, the same deposit term may improve counterparty commitment while still requiring source review.", refs, false, [impact("decision_cockpit", "certainty_candidate", "Deposit term may be relevant to decision context without changing accepted facts.", refs)]));
+    }
+    output.push(makeFinding(input, "obligation", "deposit_deliverable", "obligation", "moderate", "Track deposit delivery obligation", `Accepted source term: ${term.displayValue ?? term.title}`, "Deposit delivery is an operational obligation candidate; ContractIQ does not create a task unless a later canonical workflow accepts it.", refs, false, [impact("decision_cockpit", "obligation_candidate", "Deposit delivery may require Deal cockpit visibility.", refs)]));
+  }
+
+  if (/financing|loan|mortgage|lender/i.test(haystack)) {
+    const hasContingency = /contingen|subject to|approval|commitment/i.test(haystack);
+    output.push(makeFinding(input, hasContingency && buyerLike ? "benefit" : sellerLike ? "risk" : "risk", hasContingency ? "financing_contingency" : "financing_term_review", "financing", hasContingency ? "moderate" : "high", hasContingency && buyerLike ? "Financing contingency identified" : "Financing term needs attention", term.displayValue ?? term.title, hasContingency && buyerLike ? "This may preserve a financing-related exit path, subject to professional review and deadlines." : "Financing language can affect certainty, timing, and capital assumptions from this perspective.", refs, !hasContingency, [impact("financeiq", "financing_condition_candidate", "Financing language may affect debt assumptions after explicit acceptance.", refs), impact("underwriting", "capital_assumption_candidate", "Financing language may affect underwriting assumptions only after accepted downstream.", refs)]));
+  }
+
+  if (/inspection|due diligence|feasibility|access/i.test(haystack)) {
+    output.push(makeFinding(input, buyerLike ? "benefit" : "risk", "inspection_or_due_diligence_window", "contingency", "moderate", buyerLike ? "Inspection or due diligence protection identified" : "Inspection or due diligence condition affects certainty", term.displayValue ?? term.title, buyerLike ? "This may create a review window before the investor is locked into later obligations." : "This may give the counterparty a decision window that affects closing certainty.", refs, false, [impact("decision_cockpit", "contingency_candidate", "Due diligence language may affect go/no-go review context.", refs)]));
+  }
+
+  if (/assignment|assign|transfer/i.test(haystack)) {
+    const consentRequired = /consent|required|approval/i.test(haystack);
+    const affiliateException = /affiliate|related entit|controlled entit/i.test(haystack);
+    output.push(makeFinding(input, affiliateException ? "unusual_term" : "risk", "assignment_rights", "assignment_transfer", consentRequired ? "moderate" : "high", affiliateException ? "Assignment exception needs review" : "Assignment restriction needs review", term.displayValue ?? term.title, affiliateException ? "The exception should be preserved exactly; it may matter for entity or investor structuring." : "Assignment limits may constrain exit, financing, or entity strategy.", refs, true, [impact("strategy", "assignment_strategy_candidate", "Assignment language may affect strategy selection after explicit acceptance.", refs)]));
+  }
+
+  if (/default|remed|specific performance|attorney fee|prevailing party|indemn/i.test(haystack)) {
+    output.push(makeFinding(input, "professional_review", "default_remedy_review", "default_remedy", /specific performance|indemn/i.test(haystack) ? "high" : "moderate", "Default or remedy language requires professional review", term.displayValue ?? term.title, "ContractIQ flags the clause for licensed review and does not conclude legal enforceability.", refs, true, [impact("decision_cockpit", "professional_review_candidate", "Default/remedy language may affect decision readiness.", refs)]));
+  }
+
+  if (/hoa|association|restriction|cc&r|rental cap|leasing restriction/i.test(haystack)) {
+    output.push(makeFinding(input, "risk", "governance_restriction_candidate", "governance", "high", "Governance restriction candidate identified", term.displayValue ?? term.title, "ContractIQ can identify the source-linked clause, but GovernanceIQ owns accepted restriction interpretation.", refs, true, [impact("governanceiq", "restriction_review_candidate", "Governance language should be reviewed in GovernanceIQ after explicit acceptance.", refs)]));
+  }
+
+  if (/closing|possession|proration|credit|seller concession/i.test(haystack)) {
+    output.push(makeFinding(input, "obligation", "closing_deliverable", "obligation", "moderate", "Closing or possession deliverable identified", term.displayValue ?? term.title, "This is an operational candidate that may affect cash, timing, or required deliverables.", refs, false, [impact("financeiq", "closing_cost_candidate", "Closing economics may affect FinanceIQ assumptions after acceptance.", refs)]));
+  }
+
+  return output;
+}
+
+function addMissingProtections(input: ContractPerspectiveAnalysisInput, acceptedTypes: Set<string>, findings: ContractPerspectiveFinding[]) {
+  const buyerLike = ["buyer", "tenant", "borrower", "developer", "investor", "guarantor"].includes(input.perspective);
+  if (buyerLike && !setHasPattern(acceptedTypes, /inspection|due_diligence|feasibility/)) {
+    findings.push(missingFinding(input, "missing_inspection_or_due_diligence_protection", "contingency", "Inspection or due diligence protection not identified", "No accepted source-backed inspection or due diligence contingency was identified in the analyzed contract inputs."));
+  }
+  if ((input.perspective === "buyer" || input.perspective === "borrower") && !setHasPattern(acceptedTypes, /financing|loan|mortgage/)) {
+    findings.push(missingFinding(input, "missing_financing_protection", "financing", "Financing protection not identified", "No accepted source-backed financing contingency or financing condition was identified in the analyzed contract inputs."));
+  }
+  if (!setHasPattern(acceptedTypes, /notice/)) {
+    findings.push(missingFinding(input, "missing_notice_mechanics", "notice", "Notice mechanics not identified", "No accepted source-backed notice method, address, or delivery mechanics were identified."));
+  }
+}
+
+function addSignatureFindings(input: ContractPerspectiveAnalysisInput, findings: ContractPerspectiveFinding[]) {
+  for (const party of input.parties) {
+    if (party.signatureStatus === "unsigned" || party.signatureStatus === "partially_signed" || party.signatureStatus === "unknown") {
+      const refs = party.sourceAnchor ? [partyRef(party)] : [contractRef(input)];
+      findings.push(makeFinding(input, "professional_review", "signature_authority_review", "signature_authority", "high", "Signature or authority requires review", `${party.displayName} signature status is ${party.signatureStatus}.`, "Execution status and authority should be verified before relying on the contract analysis.", refs, true, []));
+    }
+  }
+}
+
+function addDeadlineFindings(input: ContractPerspectiveAnalysisInput, findings: ContractPerspectiveFinding[]) {
+  const asOf = Date.parse(input.asOf);
+  for (const deadline of input.deadlineResults) {
+    const refs = [deadlineRef(deadline)];
+    let severity: ContractPerspectiveSeverity = "informational";
+    let title = "Contract deadline identified";
+    if (deadline.status === "missed") {
+      severity = "critical";
+      title = "Missed contract deadline requires review";
+    } else if (["uncertain", "missing_rule", "missing_trigger", "failed_with_prior_valid", "stale"].includes(deadline.status)) {
+      severity = "high";
+      title = "Uncertain contract deadline requires review";
+    } else if (deadline.dueAt && Number.isFinite(asOf)) {
+      const daysUntilDue = (Date.parse(deadline.dueAt) - asOf) / 86400000;
+      severity = daysUntilDue <= 2 ? "high" : daysUntilDue <= 7 ? "moderate" : "informational";
+      title = daysUntilDue <= 7 ? "Upcoming contract deadline" : "Contract deadline identified";
+    }
+    findings.push(makeFinding(input, deadline.status === "current" ? "obligation" : "professional_review", "deadline_attention", "deadline", severity, title, deadline.dueAt ? `${deadline.deadlineType} due ${deadline.dueAt}` : `${deadline.deadlineType} has no current due date.`, "Deadline status comes from the deterministic Slice 3 result; Slice 4 does not recalculate legal date rules.", refs, severity === "high" || severity === "critical", [impact("decision_cockpit", "deadline_attention_candidate", "Deadline may affect Deal cockpit readiness after accepted sync.", refs)]));
+  }
+}
+
+function addConflictFindings(input: ContractPerspectiveAnalysisInput, findings: ContractPerspectiveFinding[]) {
+  for (const conflict of input.conflicts.filter((item) => !["resolved", "superseded"].includes(item.resolutionState))) {
+    const refs = [conflictRef(conflict, "A"), conflictRef(conflict, "B")];
+    findings.push(makeFinding(input, "conflict", conflict.conflictType, "professional_review", conflict.severity, "Contract conflict preserves competing sources", conflict.summary, "ContractIQ keeps both source-backed candidates visible and does not choose a winner.", refs, true, [impact("decision_cockpit", "conflict_candidate", "Unresolved contract conflict may affect readiness.", refs)]));
+  }
+}
+
+function addAmendmentFindings(input: ContractPerspectiveAnalysisInput, findings: ContractPerspectiveFinding[]) {
+  for (const relationship of input.relationships.filter((item) => ["amends", "amended_by", "supersedes", "superseded_by", "supplements", "restates"].includes(item.relationshipType))) {
+    const refs = [relationshipRef(relationship)];
+    findings.push(makeFinding(input, "amendment_impact", "amendment_relationship_impact", "amendment_effect", relationship.verificationState === "conflicted" ? "high" : "moderate", "Amendment relationship may change contract currentness", `${relationship.relationshipType.replace(/_/g, " ")} relationship identified.`, "The relationship is an impact candidate only; accepted current contract hierarchy remains a server-authorized ContractIQ decision.", refs, relationship.verificationState === "conflicted", [impact("decision_cockpit", "amendment_currentness_candidate", "Amendment relationship may affect which contract facts are current.", refs)]));
+  }
+  for (const candidate of input.supersessionCandidates ?? []) {
+    const refs = [termRefFromExtraction(candidate.replacementExtraction), { sourceType: "term" as const, recordId: candidate.oldTermId ?? "unknown-old-term", sourceAnchor: candidate.sourceAnchor }];
+    findings.push(makeFinding(input, "amendment_impact", "term_supersession_candidate", "amendment_effect", candidate.currentnessState === "conflicting" ? "high" : "moderate", "Term supersession candidate identified", `${candidate.relationshipType.replace(/_/g, " ")} candidate for ${candidate.replacementExtraction.normalizedType}.`, "ContractIQ identifies candidate impact but does not silently replace accepted terms.", refs, true, [impact("underwriting", "term_change_candidate", "Accepted amendment impact may later affect underwriting assumptions.", refs)]));
+  }
+}
+
+function buildPerspectiveQuestions(input: ContractPerspectiveAnalysisInput, findings: ContractPerspectiveFinding[]): ContractPerspectiveQuestion[] {
+  return findings
+    .filter((finding) => finding.professionalReviewRequired || ["missing_protection", "missing_information", "conflict", "amendment_impact"].includes(finding.group))
+    .slice(0, 12)
+    .map((finding) => deepFreeze({
+      id: deterministicQuestionId(input, finding),
+      question: questionText(input, finding),
+      targetRole: questionRole(input, finding),
+      reason: finding.whyItMatters,
+      sourceRefs: finding.sourceRefs,
+      professionalReviewRequired: finding.professionalReviewRequired,
+      status: "open" as const,
+    }));
+}
+
+function buildNegotiationConcepts(input: ContractPerspectiveAnalysisInput, findings: ContractPerspectiveFinding[]): ContractNegotiationConcept[] {
+  return findings
+    .filter((finding) => ["risk", "unusual_term", "missing_protection", "conflict", "amendment_impact"].includes(finding.group))
+    .slice(0, 8)
+    .map((finding) => deepFreeze({
+      id: `concept:${finding.id.replace("finding:", "")}`,
+      title: `Discussion concept: ${finding.title}`,
+      concept: `Consider discussing whether the source-linked ${finding.category.replace(/_/g, " ")} item can be clarified, narrowed, confirmed, or documented before relying on it from the ${input.perspective} perspective.`,
+      discussionDraftLabel: "DISCUSSION DRAFT" as const,
+      professionalReviewLabel: "FOR LICENSED PROFESSIONAL REVIEW" as const,
+      sourceRefs: finding.sourceRefs,
+      generatedFromFindingIds: [finding.id],
+      status: "candidate_only" as const,
+    }));
+}
+
+function perspectiveFailureResult(input: ContractPerspectiveAnalysisInput, generatedAt: string): ContractPerspectiveAnalysisResult {
+  const failure = contractPerspectiveAnalysisStateAfterFailure({ priorValidAnalysis: input.priorValidAnalysis, errorCode: input.failure?.errorCode ?? "unknown_error", generatedAt });
+  const sourceVersionGraph = buildPerspectiveSourceVersionGraph(input);
+  const basis = { failure, sourceVersionGraph, contractId: input.contractId, contractVersion: input.contractVersion, perspective: input.perspective };
+  const hash = deterministicHash(basis);
+  return deepFreeze({
+    analysisId: `contract-perspective-failure:${hash.replace("fnv1a32:", "")}`,
+    analysisContractVersion: CONTRACTIQ_PERSPECTIVE_ANALYSIS_VERSION,
+    workspaceId: input.workspaceId,
+    dealId: input.dealId,
+    propertyId: input.propertyId,
+    contractId: input.contractId,
+    contractVersion: input.contractVersion,
+    perspective: input.perspective,
+    analysisState: failure.analysisState,
+    completenessState: input.priorValidAnalysis ? "failed_with_prior_valid" : "partial",
+    benefitFindings: input.priorValidAnalysis?.benefitFindings ?? [],
+    riskFindings: input.priorValidAnalysis?.riskFindings ?? [],
+    unusualTermFindings: input.priorValidAnalysis?.unusualTermFindings ?? [],
+    missingProtectionFindings: input.priorValidAnalysis?.missingProtectionFindings ?? [],
+    missingInformationFindings: input.priorValidAnalysis?.missingInformationFindings ?? [],
+    conflictFindings: input.priorValidAnalysis?.conflictFindings ?? [],
+    amendmentImpactFindings: input.priorValidAnalysis?.amendmentImpactFindings ?? [],
+    obligationFindings: input.priorValidAnalysis?.obligationFindings ?? [],
+    professionalReviewItems: input.priorValidAnalysis?.professionalReviewItems ?? [],
+    questions: input.priorValidAnalysis?.questions ?? [],
+    negotiationConcepts: input.priorValidAnalysis?.negotiationConcepts ?? [],
+    downstreamImpactCandidates: input.priorValidAnalysis?.downstreamImpactCandidates ?? [],
+    sourceVersionGraph,
+    deterministicHash: hash,
+    generatedAt,
+    warnings: [`PERSPECTIVE_ANALYSIS_FAILED:${input.failure?.errorCode ?? "unknown_error"}`],
+    priorValidPreserved: Boolean(input.priorValidAnalysis),
+    failureCode: input.failure?.errorCode ?? "unknown_error",
+  });
+}
+
+function makeFinding(input: ContractPerspectiveAnalysisInput, group: ContractPerspectiveFindingGroup, findingType: string, category: string, severity: ContractPerspectiveSeverity, title: string, summary: string, whyItMatters: string, sourceRefs: ContractPerspectiveSourceRef[], professionalReviewRequired: boolean, downstreamImpactCandidates: ContractDownstreamImpactCandidate[]): ContractPerspectiveFinding {
+  const basis = { contractId: input.contractId, contractVersion: input.contractVersion, perspective: input.perspective, group, findingType, category, severity, sourceRefs, summary };
+  return deepFreeze({ id: `finding:${deterministicHash(basis).replace("fnv1a32:", "")}`, group, findingType, category, severity, title, summary, whyItMatters, sourceRefs, professionalReviewRequired, downstreamImpactCandidates: uniqueImpacts(downstreamImpactCandidates), status: professionalReviewRequired ? "needs_review" : "current" });
+}
+
+function missingFinding(input: ContractPerspectiveAnalysisInput, findingType: string, category: string, title: string, summary: string) {
+  return makeFinding(input, "missing_protection", findingType, category, "high", title, summary, "Absence is based only on analyzed accepted inputs, so a professional or source-completeness review should confirm whether the protection exists elsewhere.", [contractRef(input)], true, [impact("decision_cockpit", "missing_protection_candidate", summary, [contractRef(input)])]);
+}
+
+function impact(domain: ContractDownstreamImpactDomain, impactType: string, summary: string, sourceRefs: ContractPerspectiveSourceRef[]): ContractDownstreamImpactCandidate {
+  return deepFreeze({ domain, impactType, summary, sourceRefs, mutationAllowed: false });
+}
+
+function uniqueImpacts(items: ContractDownstreamImpactCandidate[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = stableStringify({ domain: item.domain, impactType: item.impactType, sourceRefs: item.sourceRefs });
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function perspectiveCompletenessState(input: ContractPerspectiveAnalysisInput, findings: ContractPerspectiveFinding[]): ContractPerspectiveCompletenessState {
+  if (input.deadlineResults.some((deadline) => ["stale", "failed_with_prior_valid"].includes(deadline.status))) return "stale";
+  if (findings.some((finding) => finding.group === "conflict")) return "conflicted";
+  if (findings.some((finding) => finding.findingType === "signature_authority_review")) return "missing_signature";
+  if (input.terms.length === 0) return "missing_source";
+  if (findings.some((finding) => finding.group === "missing_information" || finding.group === "missing_protection")) return "partial";
+  return "complete";
+}
+
+function perspectiveAnalysisState(completeness: ContractPerspectiveCompletenessState, findings: ContractPerspectiveFinding[]): ContractPerspectiveAnalysisState {
+  if (completeness === "stale") return "stale";
+  if (completeness === "conflicted") return "current_with_conflicts";
+  if (findings.some((finding) => finding.professionalReviewRequired)) return "professional_review_required";
+  if (completeness === "missing_source" || completeness === "partial" || completeness === "missing_signature") return "partial";
+  return "current";
+}
+
+function buildPerspectiveWarnings(input: ContractPerspectiveAnalysisInput, proposedOrUnverifiedTerms: ContractPerspectiveSourceTerm[]) {
+  const warnings: string[] = [];
+  if (proposedOrUnverifiedTerms.length) warnings.push("PROPOSED_OR_UNVERIFIED_TERMS_EXCLUDED_FROM_CURRENT_FACTS");
+  if (input.conflicts.some((conflict) => !["resolved", "superseded"].includes(conflict.resolutionState))) warnings.push("UNRESOLVED_CONTRACT_CONFLICTS_PRESENT");
+  if (input.deadlineResults.some((deadline) => ["uncertain", "missing_rule", "missing_trigger", "failed_with_prior_valid"].includes(deadline.status))) warnings.push("DEADLINE_REVIEW_REQUIRED");
+  return warnings.sort();
+}
+
+function buildPerspectiveSourceVersionGraph(input: ContractPerspectiveAnalysisInput) {
+  return {
+    contract: { id: input.contractId, version: input.contractVersion, type: input.contractType, status: input.status },
+    perspective: input.perspective,
+    terms: input.terms.map((term) => ({ id: term.contractTermId, version: term.version, proposalState: term.proposalState, verificationState: term.verificationState })).sort(compareById),
+    parties: input.parties.map((party) => ({ id: party.contractPartyId, version: party.version, signatureStatus: party.signatureStatus, verificationState: party.verificationState })).sort(compareById),
+    deadlineResults: input.deadlineResults.map((deadline) => ({ id: deadline.calculationId, contractDeadlineId: deadline.contractDeadlineId, version: deadline.calculationVersion, deadlineVersion: deadline.contractDeadlineVersion, status: deadline.status })).sort(compareById),
+    conflicts: input.conflicts.map((conflict) => ({ id: conflict.contractConflictId, version: conflict.version, resolutionState: conflict.resolutionState })).sort(compareById),
+    relationships: input.relationships.map((relationship) => ({ id: relationship.contractRelationshipId, version: relationship.version, relationshipType: relationship.relationshipType, relatedContractId: relationship.relatedContractId, relatedContractVersion: relationship.relatedContractVersion })).sort(compareById),
+  };
+}
+
+function questionText(input: ContractPerspectiveAnalysisInput, finding: ContractPerspectiveFinding) {
+  if (finding.group === "conflict") return `Which source controls the ${finding.category.replace(/_/g, " ")} item for the ${input.perspective} analysis?`;
+  if (finding.group === "missing_protection") return `Is there another source that supplies the missing ${finding.category.replace(/_/g, " ")} protection?`;
+  if (finding.group === "amendment_impact") return "Does this amendment or supersession candidate change the currently accepted contract term?";
+  return `Should the ${finding.title.toLowerCase()} be revised, accepted as-is, or reviewed by a licensed professional?`;
+}
+
+function questionRole(input: ContractPerspectiveAnalysisInput, finding: ContractPerspectiveFinding) {
+  if (finding.professionalReviewRequired) return input.perspective === "seller" ? "seller_attorney" : input.perspective === "lender" ? "lender" : "buyer_attorney";
+  if (finding.category === "financing") return "lender";
+  if (finding.category === "title_survey") return "title_company";
+  return input.perspective;
+}
+
+function deterministicQuestionId(input: ContractPerspectiveAnalysisInput, finding: ContractPerspectiveFinding) {
+  return `question:${deterministicHash({ contractId: input.contractId, perspective: input.perspective, findingId: finding.id }).replace("fnv1a32:", "")}`;
+}
+
+function authoritativeVerification(state: ContractVerificationState) {
+  return state === "source_backed" || state === "verified" || state === "professional_verified";
+}
+
+function setHasPattern(values: Set<string>, pattern: RegExp) {
+  return [...values].some((value) => pattern.test(value));
+}
+
+function termHaystack(term: ContractPerspectiveSourceTerm) {
+  return stableStringify({ category: term.termCategory, type: term.termType, title: term.title, display: term.displayValue, value: term.normalizedValue }).toLowerCase();
+}
+
+function termKey(term: ContractPerspectiveSourceTerm) {
+  return `${term.termCategory}:${term.termType}:${term.title}`.toLowerCase();
+}
+
+function termRef(term: ContractPerspectiveSourceTerm): ContractPerspectiveSourceRef {
+  return { sourceType: "term", recordId: term.contractTermId, recordVersion: term.version, evidenceId: term.sourceEvidenceId, sourceAnchor: term.sourceAnchor };
+}
+
+function partyRef(party: ContractPerspectiveSourceParty): ContractPerspectiveSourceRef {
+  return { sourceType: "party", recordId: party.contractPartyId, recordVersion: party.version, evidenceId: party.sourceEvidenceId, sourceAnchor: party.sourceAnchor ?? { kind: "reference" } };
+}
+
+function deadlineRef(deadline: ContractPerspectiveDeadlineResultInput): ContractPerspectiveSourceRef {
+  return { sourceType: "deadline_result", recordId: deadline.calculationId, recordVersion: deadline.calculationVersion, evidenceId: deadline.sourceEvidenceId, sourceAnchor: deadline.sourceAnchor };
+}
+
+function conflictRef(conflict: ContractPerspectiveConflictInput, side: "A" | "B"): ContractPerspectiveSourceRef {
+  return side === "A"
+    ? { sourceType: "conflict", recordId: contractSideRecordId(conflict, side), recordVersion: conflict.version, evidenceId: conflict.sourceAEvidenceId, sourceAnchor: conflict.sourceAAnchor }
+    : { sourceType: "conflict", recordId: contractSideRecordId(conflict, side), recordVersion: conflict.version, evidenceId: conflict.sourceBEvidenceId, sourceAnchor: conflict.sourceBAnchor };
+}
+
+function relationshipRef(relationship: ContractPerspectiveRelationshipInput): ContractPerspectiveSourceRef {
+  return { sourceType: "relationship", recordId: relationship.contractRelationshipId, recordVersion: relationship.version, evidenceId: relationship.sourceEvidenceId, sourceAnchor: relationship.sourceAnchor };
+}
+
+function termRefFromExtraction(extraction: ContractExtractionCandidate): ContractPerspectiveSourceRef {
+  return { sourceType: "term", recordId: extraction.normalizedType, evidenceId: extraction.evidenceId, sourceAnchor: extraction.sourceAnchor };
+}
+
+function contractRef(input: ContractPerspectiveAnalysisInput): ContractPerspectiveSourceRef {
+  return { sourceType: "contract", recordId: input.contractId, recordVersion: input.contractVersion, sourceAnchor: { kind: "reference", label: "Analyzed contract input set" } };
+}
+
+function contractSideRecordId(conflict: ContractPerspectiveConflictInput, side: "A" | "B") {
+  return `${conflict.contractConflictId}:${side}`;
+}
+
+function compareById(left: { id?: string }, right: { id?: string }) {
+  return (left.id ?? "").localeCompare(right.id ?? "");
 }
 
 function classificationResult(

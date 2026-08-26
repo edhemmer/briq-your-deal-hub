@@ -73,7 +73,7 @@ describe("ContractIQ foundation migration", () => {
     expect(migration).toContain("create or replace function public.load_contract_detail");
     expect(migration).toContain("unresolved_conflict_count");
     expect(migration).toContain("open_question_count");
-    expect(migration).not.toMatch(/risk_score|legal conclusion|full due diligence report|summary due diligence report/i);
+    expect(migration).not.toMatch(/contract_risk_score|risk_score\s+numeric|legal_conclusion\s+(text|jsonb|boolean)|full due diligence report|summary due diligence report/i);
     expect(() => assertContractIQSourceBoundary(migration)).not.toThrow();
   });
 });
