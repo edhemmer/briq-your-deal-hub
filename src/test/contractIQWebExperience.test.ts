@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildContractIQPresentation, contractSectionFromFocus, sourceAnchorLabel } from "../core/contractIQPresentation";
 import type { ContractIQWorkspaceData } from "../core/contractIQClient";
+import type { Json } from "../core/supabaseDatabase.types";
 
 describe("ContractIQ web experience presentation", () => {
   it("builds Deal-scoped sections from canonical ContractIQ projections without changing facts by perspective", () => {
@@ -224,7 +225,7 @@ function fixtureData(): ContractIQWorkspaceData {
   };
 }
 
-function detail(recordType: string, recordId: string, label: string, status: string, payload: Record<string, unknown>) {
+function detail(recordType: string, recordId: string, label: string, status: string, payload: { [key: string]: Json | undefined }) {
   return {
     recordType,
     recordId,
