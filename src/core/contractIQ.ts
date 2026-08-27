@@ -4,6 +4,9 @@ export const CONTRACTIQ_DOCUMENT_ANALYSIS_CONTRACT_VERSION = "contractiq-documen
 export const CONTRACTIQ_EXTRACTION_CONTRACT_VERSION = "contractiq-extraction-v1" as const;
 export const CONTRACTIQ_DEADLINE_ENGINE_VERSION = "contractiq-deadline-engine-v1" as const;
 export const CONTRACTIQ_PERSPECTIVE_ANALYSIS_VERSION = "contractiq-perspective-analysis-v1" as const;
+export const CONTRACTIQ_CHANGE_PROPAGATION_VERSION = "contractiq-change-propagation-v1" as const;
+export const CONTRACTIQ_CHANGE_CLASSIFICATION_VERSION = "contractiq-change-classification-v1" as const;
+export const CONTRACTIQ_CHANGE_VERSION_GRAPH_VERSION = "contractiq-change-version-graph-v1" as const;
 
 export const CONTRACT_TYPES = [
   "purchase_agreement",
@@ -216,6 +219,21 @@ export const CONTRACT_PERSPECTIVE_SEVERITIES = ["informational", "low", "moderat
 export const CONTRACT_PERSPECTIVE_ANALYSIS_STATES = ["current", "current_with_conflicts", "partial", "stale", "failed_with_prior_analysis", "professional_review_required"] as const;
 export const CONTRACT_PERSPECTIVE_COMPLETENESS_STATES = ["complete", "partial", "missing_source", "missing_signature", "conflicted", "stale", "failed_with_prior_valid"] as const;
 export const CONTRACT_DOWNSTREAM_IMPACT_DOMAINS = ["financeiq", "underwriting", "strategy", "governanceiq", "decision_cockpit"] as const;
+export const CONTRACT_CHANGE_TARGET_DOMAINS = [
+  "deal_fact",
+  "property_fact",
+  "finance",
+  "underwriting_input",
+  "strategy_requirement",
+  "governance_reference",
+  "task_deadline",
+  "cockpit_attention",
+  "reporting_candidate",
+  "offer_candidate",
+  "none",
+] as const;
+export const CONTRACT_CHANGE_PROPAGATION_STATUSES = ["queued", "partial", "completed", "failed", "blocked", "retrying", "stale", "superseded"] as const;
+export const CONTRACT_CHANGE_DOWNSTREAM_STATUSES = ["not_affected", "queued", "stale", "completed", "failed", "failed_with_prior_valid", "blocked"] as const;
 
 export type ContractType = (typeof CONTRACT_TYPES)[number];
 export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
@@ -248,6 +266,10 @@ export type ContractPerspectiveSeverity = (typeof CONTRACT_PERSPECTIVE_SEVERITIE
 export type ContractPerspectiveAnalysisState = (typeof CONTRACT_PERSPECTIVE_ANALYSIS_STATES)[number];
 export type ContractPerspectiveCompletenessState = (typeof CONTRACT_PERSPECTIVE_COMPLETENESS_STATES)[number];
 export type ContractDownstreamImpactDomain = (typeof CONTRACT_DOWNSTREAM_IMPACT_DOMAINS)[number];
+export type ContractChangeTargetDomain = (typeof CONTRACT_CHANGE_TARGET_DOMAINS)[number];
+export type ContractChangePropagationStatus = (typeof CONTRACT_CHANGE_PROPAGATION_STATUSES)[number];
+export type ContractChangeDownstreamStatus = (typeof CONTRACT_CHANGE_DOWNSTREAM_STATUSES)[number];
+export type ContractChangeMateriality = "immaterial" | "informational" | "material" | "critical" | "uncertain" | "expired";
 
 export type ContractSourceAnchorKind =
   | "page"
@@ -717,6 +739,117 @@ export interface ContractPerspectiveAnalysisResult {
   warnings: string[];
   priorValidPreserved: boolean;
   failureCode?: ContractAnalysisErrorCode;
+}
+
+export interface ContractChangePropagationRequest {
+  propagationContractVersion: typeof CONTRACTIQ_CHANGE_PROPAGATION_VERSION | string;
+  workspaceId: string;
+  dealId: string;
+  propertyId?: string;
+  contractId: string;
+  contractVersion: number;
+  contractTermId: string;
+  contractTermVersion: number;
+  contractFindingId?: string;
+  contractFindingVersion?: number;
+  acceptedProposalId: string;
+  acceptedProposalVersion: number;
+  sourceEvidenceId: string;
+  sourceAnchor: ContractSourceAnchor;
+  verificationState: ContractVerificationState;
+  perspective: ContractPerspective;
+  proposalType: string;
+  targetDomain?: ContractChangeTargetDomain;
+  normalizedValue: Record<string, unknown>;
+  previousCanonicalValue?: Record<string, unknown>;
+  previousCanonicalVersion?: number;
+  materiality: ContractChangeMateriality | ContractTermProposal["materiality"];
+  effectiveAt?: string;
+  expiresAt?: string;
+  triggeringEventId: string;
+  correlationId: string;
+  requestedBy: string;
+  idempotencyKey: string;
+}
+
+export interface ContractChangeTargetProposal {
+  targetDomain: ContractChangeTargetDomain;
+  targetCanonicalType: string;
+  targetField: string;
+  proposalKey: string;
+  propagationAction: "propose_update" | "mark_stale" | "reconcile_deadline" | "refresh_projection" | "link_reference" | "no_action";
+  requiresOwnerCommand: boolean;
+  explanation: string;
+}
+
+export interface ContractChangeVersionGraph {
+  graphVersion: typeof CONTRACTIQ_CHANGE_VERSION_GRAPH_VERSION;
+  workspaceId: string;
+  dealId: string;
+  propertyId?: string;
+  contractId: string;
+  contractVersion: number;
+  contractTermId: string;
+  contractTermVersion: number;
+  contractFindingId?: string;
+  contractFindingVersion?: number;
+  acceptedProposalId: string;
+  acceptedProposalVersion: number;
+  sourceEvidenceId: string;
+  triggeringEventId: string;
+  targetProposalKeys: string[];
+  targetCanonicalId?: string;
+  previousTargetVersion?: number;
+  newTargetVersion?: number;
+  priorValidReferences: string[];
+  graphHash: string;
+}
+
+export interface ContractChangePropagationFailure {
+  targetDomain: Exclude<ContractChangeTargetDomain, "none">;
+  code: string;
+  message: string;
+  retryable: boolean;
+  priorValidReference?: string;
+}
+
+export interface ContractChangePropagationResult {
+  propagationId: string;
+  propagationVersion: number;
+  propagationContractVersion: typeof CONTRACTIQ_CHANGE_PROPAGATION_VERSION;
+  workspaceId: string;
+  dealId: string;
+  propertyId?: string;
+  contractId: string;
+  contractVersion: number;
+  contractTermId: string;
+  contractTermVersion: number;
+  contractFindingId?: string;
+  contractFindingVersion?: number;
+  acceptedProposalId: string;
+  acceptedProposalVersion: number;
+  sourceEvidenceId: string;
+  sourceAnchor: ContractSourceAnchor;
+  targetDomain: ContractChangeTargetDomain;
+  targetCanonicalId?: string;
+  previousTargetVersion?: number;
+  newTargetVersion?: number;
+  status: ContractChangePropagationStatus;
+  affectedDomains: ContractChangeTargetDomain[];
+  underwritingStatus: ContractChangeDownstreamStatus;
+  strategyStatus: ContractChangeDownstreamStatus;
+  financeStatus: ContractChangeDownstreamStatus;
+  deadlineTaskStatus: ContractChangeDownstreamStatus;
+  cockpitStatus: ContractChangeDownstreamStatus;
+  timelineStatus: ContractChangeDownstreamStatus;
+  warnings: string[];
+  failures: ContractChangePropagationFailure[];
+  retryCount: number;
+  priorValidReferences: string[];
+  targetProposals: ContractChangeTargetProposal[];
+  versionGraph: ContractChangeVersionGraph;
+  generatedAt: string;
+  deterministicRequestHash: string;
 }
 
 export function assertContractIQSourceBoundary(source: string) {
@@ -1251,6 +1384,208 @@ export function contractPerspectiveAnalysisStateAfterFailure(input: {
   } as const);
 }
 
+export function classifyContractChangeTargetDomain(input: Pick<ContractChangePropagationRequest, "proposalType" | "normalizedValue" | "targetDomain"> & {
+  termCategory?: string;
+  termType?: string;
+  findingCategory?: string;
+  findingType?: string;
+}): ContractChangeTargetDomain {
+  if (input.targetDomain && input.targetDomain !== "none") return input.targetDomain;
+  const haystack = `${input.proposalType} ${input.termCategory ?? ""} ${input.termType ?? ""} ${input.findingCategory ?? ""} ${input.findingType ?? ""} ${Object.keys(input.normalizedValue).join(" ")}`.toLowerCase();
+  if (/governance|hoa|association|condo|poa|rofr|right_of_first_refusal/.test(haystack)) return "governance_reference";
+  if (/closing|possession|inspection|appraisal|attorney|title|survey|deadline|due|contingenc/.test(haystack)) return "task_deadline";
+  if (/financing|loan|rate|ltv|ltc|dscr|debt|lender|mortgage|commitment/.test(haystack)) return "finance";
+  if (/price|purchase|credit|concession|repair|holdback|escrow|earnest|deposit|closing_cost|proration/.test(haystack)) return "underwriting_input";
+  if (/assignment|transfer|affiliate|nominee|entity|consent|remedy|specific_performance|default/.test(haystack)) return "strategy_requirement";
+  if (/address|parcel|legal_description|property_identity|included_asset|excluded_asset/.test(haystack)) return "property_fact";
+  if (/stage|status|buyer|seller|party|execution|effective/.test(haystack)) return "deal_fact";
+  if (/report/.test(haystack)) return "reporting_candidate";
+  if (/offer|counter|negotiat/.test(haystack)) return "offer_candidate";
+  if (/cockpit|attention|review|question|missing/.test(haystack)) return "cockpit_attention";
+  return "none";
+}
+
+export function buildContractChangePropagationRequest(input: Omit<ContractChangePropagationRequest, "propagationContractVersion" | "targetDomain"> & {
+  targetDomain?: ContractChangeTargetDomain;
+  termCategory?: string;
+  termType?: string;
+  findingCategory?: string;
+  findingType?: string;
+}): ContractChangePropagationRequest {
+  const request: ContractChangePropagationRequest = {
+    ...input,
+    propagationContractVersion: CONTRACTIQ_CHANGE_PROPAGATION_VERSION,
+    targetDomain: classifyContractChangeTargetDomain(input),
+    normalizedValue: stableObjectRejectingRawText(input.normalizedValue),
+    previousCanonicalValue: input.previousCanonicalValue ? stableObjectRejectingRawText(input.previousCanonicalValue) : undefined,
+    sourceAnchor: normalizeAnchor(input.sourceAnchor),
+    materiality: normalizeContractChangeMateriality(input),
+  };
+  validateContractChangePropagationRequest(request);
+  return deepFreeze(request);
+}
+
+export function buildContractChangePropagationResult(input: {
+  request: ContractChangePropagationRequest;
+  propagationVersion?: number;
+  targetCanonicalId?: string;
+  newTargetVersion?: number;
+  failures?: ContractChangePropagationFailure[];
+  retryCount?: number;
+  priorValidReferences?: string[];
+  completedDomains?: ContractChangeTargetDomain[];
+  generatedAt?: string;
+}): ContractChangePropagationResult {
+  validateContractChangePropagationRequest(input.request);
+  const failures = [...(input.failures ?? [])].sort((a, b) => `${a.targetDomain}:${a.code}`.localeCompare(`${b.targetDomain}:${b.code}`));
+  const targetProposals = buildContractTargetProposals(input.request);
+  const affectedDomains = sortedContractTargetDomains(targetProposals.map((proposal) => proposal.targetDomain).filter((domain) => domain !== "none"));
+  const priorValidReferences = sortedUniqueStrings([...(input.priorValidReferences ?? []), ...failures.flatMap((failure) => failure.priorValidReference ? [failure.priorValidReference] : [])]);
+  const completed = new Set(input.completedDomains ?? []);
+  const status = propagationStatusFor(affectedDomains, failures, completed);
+  const deterministicRequestHash = deterministicHash(contractRequestHashBasis(input.request));
+  const versionGraph = buildContractChangeVersionGraph({
+    request: input.request,
+    targetProposals,
+    targetCanonicalId: input.targetCanonicalId,
+    newTargetVersion: input.newTargetVersion,
+    priorValidReferences,
+  });
+
+  return deepFreeze({
+    propagationId: `contract-propagation:${deterministicRequestHash.replace("fnv1a32:", "")}`,
+    propagationVersion: input.propagationVersion ?? 1,
+    propagationContractVersion: CONTRACTIQ_CHANGE_PROPAGATION_VERSION,
+    workspaceId: input.request.workspaceId,
+    dealId: input.request.dealId,
+    propertyId: input.request.propertyId,
+    contractId: input.request.contractId,
+    contractVersion: input.request.contractVersion,
+    contractTermId: input.request.contractTermId,
+    contractTermVersion: input.request.contractTermVersion,
+    contractFindingId: input.request.contractFindingId,
+    contractFindingVersion: input.request.contractFindingVersion,
+    acceptedProposalId: input.request.acceptedProposalId,
+    acceptedProposalVersion: input.request.acceptedProposalVersion,
+    sourceEvidenceId: input.request.sourceEvidenceId,
+    sourceAnchor: input.request.sourceAnchor,
+    targetDomain: input.request.targetDomain ?? "none",
+    targetCanonicalId: input.targetCanonicalId,
+    previousTargetVersion: input.request.previousCanonicalVersion,
+    newTargetVersion: input.newTargetVersion,
+    status,
+    affectedDomains,
+    underwritingStatus: downstreamStatusFor("underwriting_input", affectedDomains, failures, completed, priorValidReferences),
+    strategyStatus: downstreamStatusFor("strategy_requirement", affectedDomains, failures, completed, priorValidReferences),
+    financeStatus: downstreamStatusFor("finance", affectedDomains, failures, completed, priorValidReferences),
+    deadlineTaskStatus: downstreamStatusFor("task_deadline", affectedDomains, failures, completed, priorValidReferences),
+    cockpitStatus: affectedDomains.length ? downstreamStatusFor("cockpit_attention", ["cockpit_attention"], failures, completed, priorValidReferences) : "not_affected",
+    timelineStatus: failures.some((failure) => failure.targetDomain === "cockpit_attention" && !failure.retryable) ? "failed" : "queued",
+    warnings: contractChangeWarnings(input.request, failures),
+    failures,
+    retryCount: input.retryCount ?? 0,
+    priorValidReferences,
+    targetProposals,
+    versionGraph,
+    generatedAt: input.generatedAt ?? new Date().toISOString(),
+    deterministicRequestHash,
+  });
+}
+
+export function contractChangePropagationStateAfterFailure(input: {
+  targetDomain: Exclude<ContractChangeTargetDomain, "none">;
+  hasPriorValidResult: boolean;
+}): ContractChangeDownstreamStatus {
+  return input.hasPriorValidResult ? "failed_with_prior_valid" : "blocked";
+}
+
+function validateContractChangePropagationRequest(request: ContractChangePropagationRequest) {
+  const required = [
+    request.workspaceId,
+    request.dealId,
+    request.contractId,
+    request.contractTermId,
+    request.acceptedProposalId,
+    request.sourceEvidenceId,
+    request.triggeringEventId,
+    request.correlationId,
+    request.requestedBy,
+    request.idempotencyKey,
+  ];
+  if (required.some((value) => !clean(value))) throw new Error("ContractIQ change propagation requires canonical source, actor, event, correlation, and retry identity.");
+  if (request.propagationContractVersion !== CONTRACTIQ_CHANGE_PROPAGATION_VERSION) throw new Error("Unsupported ContractIQ change propagation version.");
+  if (!Number.isInteger(request.contractVersion) || !Number.isInteger(request.contractTermVersion) || !Number.isInteger(request.acceptedProposalVersion)) throw new Error("ContractIQ change propagation requires source contract, term, and accepted proposal versions.");
+  if (request.contractFindingId && !Number.isInteger(request.contractFindingVersion)) throw new Error("ContractIQ change propagation requires the linked finding version.");
+  if (!authoritativeVerification(request.verificationState)) throw new Error("ContractIQ change propagation requires accepted source-backed, verified, or professionally verified terms.");
+  if (!isContractSourceAnchor(request.sourceAnchor)) throw new Error("ContractIQ change propagation requires a source anchor.");
+  if (request.materiality === "uncertain" && request.targetDomain !== "cockpit_attention") throw new Error("Uncertain ContractIQ changes may only propagate as review/attention candidates.");
+  if (request.materiality === "expired") throw new Error("Expired ContractIQ changes cannot propagate downstream.");
+}
+
+function buildContractTargetProposals(request: ContractChangePropagationRequest): ContractChangeTargetProposal[] {
+  const targetDomain = request.targetDomain ?? "none";
+  if (targetDomain === "none") return [targetProposal(request, "none", "contract_change", "none", "no_action", false)];
+  const proposals: ContractChangeTargetProposal[] = [];
+  proposals.push(targetProposal(request, targetDomain, canonicalTypeForTarget(targetDomain), targetFieldForChange(request), actionForTarget(targetDomain), true));
+  if (["finance", "underwriting_input"].includes(targetDomain)) proposals.push(targetProposal(request, "underwriting_input", "underwriting_input", targetFieldForChange(request), "mark_stale", true));
+  if (["finance", "underwriting_input", "strategy_requirement", "governance_reference"].includes(targetDomain)) proposals.push(targetProposal(request, "strategy_requirement", "strategy_requirement", targetFieldForChange(request), "mark_stale", true));
+  if (targetDomain !== "cockpit_attention") proposals.push(targetProposal(request, "cockpit_attention", "decision_cockpit_projection", "contract_change_attention", "refresh_projection", false));
+  return uniqueContractTargetProposals(proposals);
+}
+
+function targetProposal(request: ContractChangePropagationRequest, targetDomain: ContractChangeTargetDomain, targetCanonicalType: string, targetField: string, propagationAction: ContractChangeTargetProposal["propagationAction"], requiresOwnerCommand: boolean): ContractChangeTargetProposal {
+  const proposalKey = `${request.acceptedProposalId}:v${request.acceptedProposalVersion}:${targetDomain}:${targetField}`;
+  return {
+    targetDomain,
+    targetCanonicalType,
+    targetField,
+    proposalKey,
+    propagationAction,
+    requiresOwnerCommand,
+    explanation: explanationForContractChange(request, targetDomain, targetField, propagationAction),
+  };
+}
+
+function buildContractChangeVersionGraph(input: {
+  request: ContractChangePropagationRequest;
+  targetProposals: ContractChangeTargetProposal[];
+  targetCanonicalId?: string;
+  newTargetVersion?: number;
+  priorValidReferences: string[];
+}): ContractChangeVersionGraph {
+  const targetProposalKeys = input.targetProposals.map((proposal) => proposal.proposalKey).sort();
+  const basis = {
+    graphVersion: CONTRACTIQ_CHANGE_VERSION_GRAPH_VERSION,
+    source: contractRequestHashBasis(input.request),
+    targetProposalKeys,
+    targetCanonicalId: input.targetCanonicalId,
+    newTargetVersion: input.newTargetVersion,
+    priorValidReferences: input.priorValidReferences,
+  };
+  return {
+    graphVersion: CONTRACTIQ_CHANGE_VERSION_GRAPH_VERSION,
+    workspaceId: input.request.workspaceId,
+    dealId: input.request.dealId,
+    propertyId: input.request.propertyId,
+    contractId: input.request.contractId,
+    contractVersion: input.request.contractVersion,
+    contractTermId: input.request.contractTermId,
+    contractTermVersion: input.request.contractTermVersion,
+    contractFindingId: input.request.contractFindingId,
+    contractFindingVersion: input.request.contractFindingVersion,
+    acceptedProposalId: input.request.acceptedProposalId,
+    acceptedProposalVersion: input.request.acceptedProposalVersion,
+    sourceEvidenceId: input.request.sourceEvidenceId,
+    triggeringEventId: input.request.triggeringEventId,
+    targetProposalKeys,
+    targetCanonicalId: input.targetCanonicalId,
+    previousTargetVersion: input.request.previousCanonicalVersion,
+    newTargetVersion: input.newTargetVersion,
+    priorValidReferences: input.priorValidReferences,
+    graphHash: deterministicHash(basis),
+  };
+}
+
 function validatePerspectiveAnalysisInput(input: ContractPerspectiveAnalysisInput) {
   const required = [input.workspaceId, input.dealId, input.propertyId, input.contractId, input.analysisContractVersion, input.correlationId, input.asOf];
   if (required.some((value) => !clean(value))) throw new Error("ContractIQ perspective analysis requires canonical workspace, deal, property, contract, version, timestamp, and correlation identity.");
@@ -1525,6 +1860,178 @@ function deterministicQuestionId(input: ContractPerspectiveAnalysisInput, findin
 
 function authoritativeVerification(state: ContractVerificationState) {
   return state === "source_backed" || state === "verified" || state === "professional_verified";
+}
+
+function normalizeContractChangeMateriality(input: Pick<ContractChangePropagationRequest, "materiality" | "verificationState" | "expiresAt">): ContractChangeMateriality {
+  if (!authoritativeVerification(input.verificationState)) return "uncertain";
+  if (input.materiality === "expired") return "expired";
+  if (input.materiality === "critical") return "critical";
+  if (input.materiality === "material") return "material";
+  if (input.materiality === "informational") return "informational";
+  if (input.materiality === "immaterial") return "immaterial";
+  return "uncertain";
+}
+
+function stableObjectRejectingRawText(input: Record<string, unknown>): Record<string, unknown> {
+  return stableObject(input, "ContractIQ change propagation request");
+}
+
+function stableObject(input: Record<string, unknown>, scope: string): Record<string, unknown> {
+  const output: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input).sort(([left], [right]) => left.localeCompare(right))) {
+    if (/raw|full.*text|document.*text|ocr|fileContents|sourceQuote|suggestedLanguage/i.test(key)) {
+      throw new Error(`${scope} cannot copy raw document text into propagation payloads.`);
+    }
+    if (value && typeof value === "object" && !Array.isArray(value)) output[key] = stableObject(value as Record<string, unknown>, scope);
+    else if (Array.isArray(value)) output[key] = value.map((item) => (item && typeof item === "object" && !Array.isArray(item) ? stableObject(item as Record<string, unknown>, scope) : item));
+    else if (value !== undefined) output[key] = value;
+  }
+  return output;
+}
+
+function canonicalTypeForTarget(domain: ContractChangeTargetDomain) {
+  switch (domain) {
+    case "deal_fact":
+      return "deal_fact";
+    case "property_fact":
+      return "property_fact";
+    case "finance":
+      return "financing_structure";
+    case "underwriting_input":
+      return "underwriting_input";
+    case "strategy_requirement":
+      return "strategy_requirement";
+    case "governance_reference":
+      return "governance_record";
+    case "task_deadline":
+      return "deadline";
+    case "cockpit_attention":
+      return "decision_cockpit_projection";
+    case "reporting_candidate":
+      return "report_candidate";
+    case "offer_candidate":
+      return "offer_candidate";
+    case "none":
+      return "contract_change";
+  }
+}
+
+function targetFieldForChange(request: ContractChangePropagationRequest) {
+  const keys = Object.keys(request.normalizedValue).join(" ").toLowerCase();
+  const text = `${request.proposalType} ${keys}`.toLowerCase();
+  if (/purchase.*price|price/.test(text)) return "purchase_price";
+  if (/seller.*credit|credit|concession/.test(text)) return "seller_credit";
+  if (/repair|holdback|escrow/.test(text)) return "repair_credit_holdback";
+  if (/closing/.test(text)) return "closing_date";
+  if (/possession/.test(text)) return "possession_date";
+  if (/earnest|deposit/.test(text)) return "earnest_money";
+  if (/contingenc|inspection|appraisal|attorney|title|survey/.test(text)) return "contingency";
+  if (/rate|loan|financing|mortgage|lender/.test(text)) return "financing_terms";
+  if (/assignment|affiliate|nominee|entity|consent/.test(text)) return "assignment_entity_restriction";
+  if (/governance|hoa|association|condo/.test(text)) return "governance_cross_reference";
+  if (/address|parcel|legal_description|property/.test(text)) return "property_identity";
+  if (/specific_performance|remedy|default/.test(text)) return "professional_review";
+  return "contract_change";
+}
+
+function actionForTarget(domain: ContractChangeTargetDomain): ContractChangeTargetProposal["propagationAction"] {
+  if (domain === "task_deadline") return "reconcile_deadline";
+  if (domain === "cockpit_attention") return "refresh_projection";
+  if (domain === "governance_reference") return "link_reference";
+  if (domain === "none") return "no_action";
+  return "propose_update";
+}
+
+function explanationForContractChange(
+  request: ContractChangePropagationRequest,
+  domain: ContractChangeTargetDomain,
+  targetField: string,
+  action: ContractChangeTargetProposal["propagationAction"],
+) {
+  if (domain === "none") return "Accepted ContractIQ change recorded with no downstream canonical owner affected.";
+  const owner = domain === "underwriting_input" ? "Spec 005 underwriting" : domain === "strategy_requirement" ? "Spec 006 strategy" : domain === "finance" ? "FinanceIQ" : domain === "task_deadline" ? "Spec 003 task/deadline" : domain === "cockpit_attention" ? "Decision Cockpit" : domain === "governance_reference" ? "GovernanceIQ" : domain === "deal_fact" ? "canonical Deal" : domain === "property_fact" ? "canonical Property" : domain;
+  return `Accepted ContractIQ proposal ${request.acceptedProposalId} creates a ${action.replace(/_/g, " ")} for ${owner} field ${targetField}; ContractIQ does not overwrite owner results directly.`;
+}
+
+function uniqueContractTargetProposals(proposals: ContractChangeTargetProposal[]) {
+  const seen = new Set<string>();
+  const order = new Map(CONTRACT_CHANGE_TARGET_DOMAINS.map((domain, index) => [domain, index]));
+  return proposals.filter((proposal) => {
+    if (seen.has(proposal.proposalKey)) return false;
+    seen.add(proposal.proposalKey);
+    return true;
+  }).sort((a, b) => ((order.get(a.targetDomain) ?? 99) - (order.get(b.targetDomain) ?? 99)) || a.targetField.localeCompare(b.targetField));
+}
+
+function sortedContractTargetDomains(domains: ContractChangeTargetDomain[]) {
+  const order = new Map(CONTRACT_CHANGE_TARGET_DOMAINS.map((domain, index) => [domain, index]));
+  return [...new Set(domains)].sort((a, b) => (order.get(a) ?? 99) - (order.get(b) ?? 99));
+}
+
+function sortedUniqueStrings(values: string[]) {
+  return [...new Set(values.filter(Boolean))].sort();
+}
+
+function propagationStatusFor(affectedDomains: ContractChangeTargetDomain[], failures: ContractChangePropagationFailure[], completed: Set<ContractChangeTargetDomain>): ContractChangePropagationStatus {
+  if (!affectedDomains.length) return "completed";
+  if (failures.length && completed.size) return "partial";
+  if (failures.length) return failures.some((failure) => failure.retryable) ? "retrying" : "failed";
+  if (affectedDomains.every((domain) => completed.has(domain))) return "completed";
+  return "queued";
+}
+
+function downstreamStatusFor(
+  domain: ContractChangeTargetDomain,
+  affectedDomains: ContractChangeTargetDomain[],
+  failures: ContractChangePropagationFailure[],
+  completed: Set<ContractChangeTargetDomain>,
+  priorValidReferences: string[],
+): ContractChangeDownstreamStatus {
+  if (!affectedDomains.includes(domain)) return "not_affected";
+  const failure = failures.find((item) => item.targetDomain === domain);
+  if (failure) return priorValidReferences.length || failure.priorValidReference ? "failed_with_prior_valid" : failure.retryable ? "failed" : "blocked";
+  return completed.has(domain) ? "completed" : domain === "task_deadline" ? "queued" : "stale";
+}
+
+function contractChangeWarnings(request: ContractChangePropagationRequest, failures: ContractChangePropagationFailure[]) {
+  return sortedUniqueStrings([
+    request.materiality === "uncertain" ? "UNCERTAIN_CHANGE_REQUIRES_REVIEW_ONLY" : "",
+    request.previousCanonicalValue ? "" : "PREVIOUS_CANONICAL_VALUE_NOT_AVAILABLE",
+    failures.length ? "PARTIAL_OR_FAILED_DOWNSTREAM_PROPAGATION_PRESENT" : "",
+  ]);
+}
+
+function contractRequestHashBasis(request: ContractChangePropagationRequest) {
+  return {
+    propagationContractVersion: CONTRACTIQ_CHANGE_PROPAGATION_VERSION,
+    workspaceId: request.workspaceId,
+    dealId: request.dealId,
+    propertyId: request.propertyId,
+    contractId: request.contractId,
+    contractVersion: request.contractVersion,
+    contractTermId: request.contractTermId,
+    contractTermVersion: request.contractTermVersion,
+    contractFindingId: request.contractFindingId,
+    contractFindingVersion: request.contractFindingVersion,
+    acceptedProposalId: request.acceptedProposalId,
+    acceptedProposalVersion: request.acceptedProposalVersion,
+    sourceEvidenceId: request.sourceEvidenceId,
+    sourceAnchor: request.sourceAnchor,
+    verificationState: request.verificationState,
+    perspective: request.perspective,
+    proposalType: request.proposalType,
+    targetDomain: request.targetDomain,
+    normalizedValue: request.normalizedValue,
+    previousCanonicalValue: request.previousCanonicalValue,
+    previousCanonicalVersion: request.previousCanonicalVersion,
+    materiality: request.materiality,
+    effectiveAt: request.effectiveAt,
+    expiresAt: request.expiresAt,
+    triggeringEventId: request.triggeringEventId,
+    correlationId: request.correlationId,
+    requestedBy: request.requestedBy,
+    idempotencyKey: request.idempotencyKey,
+  };
 }
 
 function setHasPattern(values: Set<string>, pattern: RegExp) {
