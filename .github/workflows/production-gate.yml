@@ -34,5 +34,20 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Run production verification
-        run: npm run verify:ci
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Production authority check
+        run: npm run check:authority
+
+      - name: Production dependency audit
+        run: npm run audit:prod
+
+      - name: Test
+        run: npm run test -- --environment jsdom --config vitest.config.ts
+
+      - name: Build
+        run: npm run build
