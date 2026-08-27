@@ -23,7 +23,7 @@ type RpcClient = {
 };
 
 type JsonRecord = Record<string, unknown>;
-type JsonObject = Record<string, Json>;
+type JsonObject = { [key: string]: Json | undefined };
 
 export type ContractSourceAnchorValue = JsonObject;
 
