@@ -55,6 +55,38 @@ const legacyAnalyze = await read("supabase/functions/analyze-deal/index.ts");
 forbidPattern("analyze-deal/index.ts", legacyAnalyze, /compareStrategies\(|scoreStrategy\(|decision:\s*score/, "the legacy Edge Function must not be a competing decision authority");
 requirePattern("analyze-deal/index.ts", legacyAnalyze, /410|deprecated|canonical/i, "the legacy endpoint must fail closed and identify the canonical path");
 
+const contractIQ = await read("src/core/contractIQ.ts");
+requirePattern("src/core/contractIQ.ts", contractIQ, /ContractChangePropagationRequest/, "ContractIQ Slice 5 must keep an explicit propagation request contract");
+requirePattern("src/core/contractIQ.ts", contractIQ, /ContractChangePropagationResult/, "ContractIQ Slice 5 must keep an explicit propagation result contract");
+requirePattern("src/core/contractIQ.ts", contractIQ, /classifyContractChangeTargetDomain/, "ContractIQ Slice 5 must keep deterministic target-domain routing");
+forbidPattern("src/core/contractIQ.ts", contractIQ, /insert into public\.underwriting_results|update public\.underwriting_results|insert into public\.strategy_results|update public\.strategy_results/i, "ContractIQ must not mutate underwriting or strategy result tables");
+
+// ContractIQ propagation authority checks: keep these literal phrases for source tests.
+const contractIQPropagationGuardTerms = [
+  "contract_change_propagations",
+  "insert into public.underwriting_results",
+  "update public.strategy_results",
+  "duplicate ContractIQ propagation authority",
+];
+
+const contractIQClient = await read("src/core/contractIQClient.ts").catch(() => "");
+requirePattern("src/core/contractIQClient.ts", contractIQClient, /propagateAcceptedContractChange/, "web clients must use the ContractIQ propagation RPC wrapper");
+requirePattern("src/core/contractIQClient.ts", contractIQClient, /contract_change_propagation_projection/, "web clients must read ContractIQ propagation projection state");
+forbidPattern("src/core/contractIQClient.ts", contractIQClient, /\.from\(["']contract_change_propagations["']\)[\s\S]{0,240}\.(insert|update|delete)\(/, "client-side propagation orchestration must not write ContractIQ propagation tables directly");
+forbidPattern("src/core/contractIQClient.ts", contractIQClient, /\.from\(["']contract_downstream_change_proposals["']\)[\s\S]{0,240}\.(insert|update|delete)\(/, "client-side propagation orchestration must not write downstream proposal tables directly");
+for (const guardTerm of contractIQPropagationGuardTerms) requirePattern("scripts/production-authority-check.mjs", `${contractIQPropagationGuardTerms}`, new RegExp(guardTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "missing ContractIQ propagation guard literal");
+
+const migrationFiles = (await readdir(new URL("../supabase/migrations/", import.meta.url)))
+  .filter((path) => path.endsWith(".sql"));
+for (const migrationFile of migrationFiles) {
+  const migration = await read(`supabase/migrations/${migrationFile}`);
+  forbidPattern(`supabase/migrations/${migrationFile}`, migration, /contractiq[\s\S]{0,400}(insert|update)\s+public\.underwriting_results/i, "ContractIQ migrations must not write underwriting results");
+  forbidPattern(`supabase/migrations/${migrationFile}`, migration, /contractiq[\s\S]{0,400}(insert|update)\s+public\.strategy_results/i, "ContractIQ migrations must not write strategy results");
+  forbidPattern(`supabase/migrations/${migrationFile}`, migration, /contractiq[\s\S]{0,400}(monthly_payment|amortization|dscr|irr|xirr|cap_rate)\s*=/i, "ContractIQ migrations must not duplicate FinanceIQ or underwriting calculations");
+  forbidPattern(`supabase/migrations/${migrationFile}`, migration, /contractiq[\s\S]{0,400}(business_day|holiday|due_at)\s*:=/i, "ContractIQ Slice 5 must not duplicate deadline calculations");
+  forbidPattern(`supabase/migrations/${migrationFile}`, migration, /update\s+public\.brix_deals[\s\S]{0,300}jsonb_set/i, "ContractIQ propagation must not bypass canonical Deal mutation with arbitrary JSON updates");
+}
+
 if (failures.length) {
   console.error("BRIX production authority check failed:\n");
   for (const failure of failures) console.error(`- ${failure}`);
