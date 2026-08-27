@@ -75,7 +75,11 @@ describe("BRIX deep-link routing", () => {
     expect(parseBrixDeepLink("brixrealestate://evil/share_12345678")).toMatchObject({ ok: false, reason: "unapproved_host" });
     expect(parseBrixDeepLink("https://brixrealestate.app/deals?next=https://evil.example")).toMatchObject({ ok: false, reason: "unknown_parameters" });
     expect(parseBrixDeepLink("https://brixrealestate.app/share-intake/share_12345678?payload=private")).toMatchObject({ ok: false, reason: "unknown_parameters" });
-    expect(parseBrixDeepLink("https://brixrealestate.app/deals/deal-1?section=contractiq")).toMatchObject({ ok: false, reason: "malformed" });
+    expect(parseBrixDeepLink("https://brixrealestate.app/deals/deal-1?section=contractiq")).toMatchObject({
+      ok: true,
+      destination: { kind: "deal", dealId: "deal-1", section: "contractiq" },
+      canonicalPath: "/deals/deal-1?section=contractiq",
+    });
     expect(parseBrixDeepLink("https://brixrealestate.app/deals/deal-1?focus=source-record-1")).toMatchObject({ ok: false, reason: "malformed" });
     expect(parseBrixDeepLink("https://brixrealestate.app/deals/deal-1?section=underwriting&sourceUrl=https://evil.example")).toMatchObject({ ok: false, reason: "unknown_parameters" });
     expect(parseBrixDeepLink("https://brixrealestate.app/auth/callback?next=https%3A%2F%2Fevil.example%2Fdeals%2Fdeal-1")).toMatchObject({ ok: false });

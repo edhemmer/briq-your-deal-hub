@@ -40,6 +40,21 @@ export type DecisionCockpitDestinationType =
   | "governance_question"
   | "governance_change"
   | "governance_propagation"
+  | "contractiq_overview"
+  | "contract_document"
+  | "contract_source"
+  | "contract_party"
+  | "contract_money"
+  | "contract_term"
+  | "contract_deadline"
+  | "contract_contingency"
+  | "contract_risk"
+  | "contract_amendment"
+  | "contract_conflict"
+  | "contract_question"
+  | "contract_negotiation"
+  | "contract_change"
+  | "contract_propagation"
   | "recommendation_detail"
   | "risk_detail"
   | "missing_input_detail"
@@ -62,6 +77,7 @@ export type DecisionCockpitGoverningModule =
   | "Strategy"
   | "FinanceIQ"
   | "GovernanceIQ"
+  | "ContractIQ"
   | "Evidence"
   | "DealWork"
   | "Reports";
@@ -97,7 +113,7 @@ export type DecisionCockpitNavigationErrorCode =
   | "unsafe_external_url"
   | "internal_navigation_error";
 
-export type DecisionCockpitRouteSection = "overview" | "property" | "underwriting" | "strategies" | "financeiq" | "governanceiq" | "work" | "history";
+export type DecisionCockpitRouteSection = "overview" | "property" | "underwriting" | "strategies" | "financeiq" | "governanceiq" | "contractiq" | "work" | "history";
 
 export type DecisionCockpitCanonicalRecordType =
   | "deal"
@@ -123,6 +139,14 @@ export type DecisionCockpitCanonicalRecordType =
   | "governance_conflict"
   | "governance_question"
   | "governance_change_propagation"
+  | "contract"
+  | "contract_document"
+  | "contract_party"
+  | "contract_term"
+  | "contract_deadline"
+  | "contract_conflict"
+  | "contract_question"
+  | "contract_change_propagation"
   | "risk"
   | "missing_input"
   | "assumption"
@@ -279,6 +303,28 @@ export const DECISION_COCKPIT_ROUTE_REGISTRY: readonly DecisionCockpitRouteDefin
     "governance_question",
     "governance_change",
     "governance_propagation",
+    "risk_detail",
+    "missing_input_detail",
+    "conflict_detail",
+    "professional_review",
+    "governing_workflow",
+  ]),
+  route("decision_cockpit.contractiq", "ContractIQ", [
+    "contractiq_overview",
+    "contract_document",
+    "contract_source",
+    "contract_party",
+    "contract_money",
+    "contract_term",
+    "contract_deadline",
+    "contract_contingency",
+    "contract_risk",
+    "contract_amendment",
+    "contract_conflict",
+    "contract_question",
+    "contract_negotiation",
+    "contract_change",
+    "contract_propagation",
     "risk_detail",
     "missing_input_detail",
     "conflict_detail",
@@ -640,6 +686,7 @@ function riskDestinations(items: DecisionCockpitRiskProjection[], base: Destinat
   return items.map((risk) => {
     const governingModule = moduleFromString(risk.governingModule);
     const governance = governingModule === "GovernanceIQ";
+    const contract = governingModule === "ContractIQ";
     return destination({
       ...base,
       workspaceId: risk.workspaceId ?? base.workspaceId,
@@ -652,8 +699,8 @@ function riskDestinations(items: DecisionCockpitRiskProjection[], base: Destinat
         sourceRecordId: risk.sourceReference,
         evidenceId: risk.evidenceRefs[0],
       },
-      routeId: governance ? "decision_cockpit.governanceiq" : "decision_cockpit.work",
-      section: governance ? "governanceiq" : "work",
+      routeId: contract ? "decision_cockpit.contractiq" : governance ? "decision_cockpit.governanceiq" : "decision_cockpit.work",
+      section: contract ? "contractiq" : governance ? "governanceiq" : "work",
       requiredPermission: "deals:read",
       availability: availabilityFromPanelState(risk.currentState),
       stableOrdinal: offset + risk.stableOrdinal,
@@ -665,6 +712,7 @@ function missingInputDestinations(items: DecisionCockpitMissingInputProjection[]
   return items.map((item) => {
     const governingModule = moduleFromString(item.sourceModule);
     const governance = governingModule === "GovernanceIQ";
+    const contract = governingModule === "ContractIQ";
     return destination({
       ...base,
       workspaceId: item.workspaceId ?? base.workspaceId,
@@ -673,8 +721,8 @@ function missingInputDestinations(items: DecisionCockpitMissingInputProjection[]
       governingModule,
       canonicalRecordType: item.status === "conflicted" ? "conflict" : "missing_input",
       canonicalRecordId: item.missingInputId,
-      routeId: governance ? "decision_cockpit.governanceiq" : "decision_cockpit.work",
-      section: governance ? "governanceiq" : "work",
+      routeId: contract ? "decision_cockpit.contractiq" : governance ? "decision_cockpit.governanceiq" : "decision_cockpit.work",
+      section: contract ? "contractiq" : governance ? "governanceiq" : "work",
       requiredPermission: item.status === "missing" ? "deals:manage" : "deals:read",
       availability: availabilityFromPanelState(item.staleState),
       stableOrdinal: offset + item.stableOrdinal,
@@ -815,9 +863,11 @@ function stateFromPanel(state: string): DecisionCockpitDestinationReference["sta
 }
 
 function routeForWorkflow(destination: string, moduleId?: string) {
+  if (moduleId === "ContractIQ") return "decision_cockpit.contractiq";
   if (moduleId === "GovernanceIQ") return "decision_cockpit.governanceiq";
   if (destination === "underwriting_inputs") return "decision_cockpit.underwriting";
   if (destination === "strategy_review") return "decision_cockpit.strategy";
+  if (destination === "contract_review" || destination === "contractiq") return "decision_cockpit.contractiq";
   if (destination === "governance_review" || destination === "governanceiq") return "decision_cockpit.governanceiq";
   if (destination === "deal_work") return "decision_cockpit.work";
   if (destination === "evidence_review") return "decision_cockpit.evidence";
@@ -825,9 +875,11 @@ function routeForWorkflow(destination: string, moduleId?: string) {
 }
 
 function sectionFromWorkflow(destination: string, moduleId?: string): DecisionCockpitRouteSection {
+  if (moduleId === "ContractIQ") return "contractiq";
   if (moduleId === "GovernanceIQ") return "governanceiq";
   if (destination === "underwriting_inputs") return "underwriting";
   if (destination === "strategy_review") return "strategies";
+  if (destination === "contract_review" || destination === "contractiq") return "contractiq";
   if (destination === "governance_review" || destination === "governanceiq") return "governanceiq";
   if (destination === "deal_work") return "work";
   if (destination === "evidence_review") return "underwriting";
@@ -839,6 +891,7 @@ function moduleFromWorkflow(moduleId: string): DecisionCockpitGoverningModule {
   if (moduleId === "Underwriting") return "Underwriting";
   if (moduleId === "Strategy") return "Strategy";
   if (moduleId === "GovernanceIQ") return "GovernanceIQ";
+  if (moduleId === "ContractIQ") return "ContractIQ";
   if (moduleId === "Evidence") return "Evidence";
   return "DecisionCockpit";
 }
@@ -846,6 +899,7 @@ function moduleFromWorkflow(moduleId: string): DecisionCockpitGoverningModule {
 function moduleFromString(value: string): DecisionCockpitGoverningModule {
   const normalized = value.toLowerCase();
   if (normalized.includes("governance") || normalized.includes("hoa") || normalized.includes("association") || normalized.includes("restriction")) return "GovernanceIQ";
+  if (normalized.includes("contract") || normalized.includes("lease") || normalized.includes("amendment") || normalized.includes("addendum")) return "ContractIQ";
   if (normalized.includes("financeiq") || normalized.includes("financing")) return "FinanceIQ";
   if (normalized.includes("underwriting") || normalized.includes("market") || normalized.includes("finance")) return "Underwriting";
   if (normalized.includes("strategy")) return "Strategy";
@@ -863,7 +917,7 @@ function isSafeDealId(value: string) {
 }
 
 function isSafeSection(value: string): value is DecisionCockpitRouteSection {
-  return ["overview", "property", "underwriting", "strategies", "financeiq", "governanceiq", "work", "history"].includes(value);
+  return ["overview", "property", "underwriting", "strategies", "financeiq", "governanceiq", "contractiq", "work", "history"].includes(value);
 }
 
 function isSafeFocus(value: string): value is DecisionCockpitDestinationType {
@@ -894,6 +948,21 @@ function isSafeFocus(value: string): value is DecisionCockpitDestinationType {
     "governance_question",
     "governance_change",
     "governance_propagation",
+    "contractiq_overview",
+    "contract_document",
+    "contract_source",
+    "contract_party",
+    "contract_money",
+    "contract_term",
+    "contract_deadline",
+    "contract_contingency",
+    "contract_risk",
+    "contract_amendment",
+    "contract_conflict",
+    "contract_question",
+    "contract_negotiation",
+    "contract_change",
+    "contract_propagation",
     "recommendation_detail",
     "risk_detail",
     "missing_input_detail",

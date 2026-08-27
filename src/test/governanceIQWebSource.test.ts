@@ -46,7 +46,7 @@ describe("GovernanceIQ web source boundary", () => {
     expect(deepLinks).toContain('"governance_finding"');
     expect(destinations).toContain('"GovernanceIQ"');
     expect(destinations).toContain('"decision_cockpit.governanceiq"');
-    expect(destinations).toContain('section: governance ? "governanceiq" : "work"');
+    expect(destinations).toContain('section: contract ? "contractiq" : governance ? "governanceiq" : "work"');
   });
 });
 
