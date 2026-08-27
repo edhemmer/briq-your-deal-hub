@@ -7,7 +7,7 @@ export type BrixDeepLinkDestination =
   | { kind: "deal"; dealId: string; section?: BrixDealSection; focus?: BrixDealFocus }
   | { kind: "share-intake"; handoffId: string };
 
-export type BrixDealSection = "overview" | "property" | "underwriting" | "strategies" | "financeiq" | "governanceiq" | "work" | "history";
+export type BrixDealSection = "overview" | "property" | "underwriting" | "strategies" | "financeiq" | "governanceiq" | "contractiq" | "work" | "history";
 
 export type BrixDealFocus =
   | "deal_overview"
@@ -36,6 +36,21 @@ export type BrixDealFocus =
   | "governance_question"
   | "governance_change"
   | "governance_propagation"
+  | "contractiq_overview"
+  | "contract_document"
+  | "contract_source"
+  | "contract_party"
+  | "contract_money"
+  | "contract_term"
+  | "contract_deadline"
+  | "contract_contingency"
+  | "contract_risk"
+  | "contract_amendment"
+  | "contract_conflict"
+  | "contract_question"
+  | "contract_negotiation"
+  | "contract_change"
+  | "contract_propagation"
   | "recommendation_detail"
   | "risk_detail"
   | "missing_input_detail"
@@ -60,7 +75,7 @@ const DEVELOPMENT_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
 const SAFE_TOKEN_PATTERN = /^[A-Za-z0-9._~-]{8,512}$/;
 const SAFE_DEAL_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
 const SAFE_SHARE_HANDOFF_PATTERN = /^share_[A-Za-z0-9._:-]{8,160}$/;
-const SAFE_DEAL_SECTIONS: readonly BrixDealSection[] = ["overview", "property", "underwriting", "strategies", "financeiq", "governanceiq", "work", "history"];
+const SAFE_DEAL_SECTIONS: readonly BrixDealSection[] = ["overview", "property", "underwriting", "strategies", "financeiq", "governanceiq", "contractiq", "work", "history"];
 const SAFE_DEAL_FOCUS_TYPES: readonly BrixDealFocus[] = [
   "deal_overview",
   "property_detail",
@@ -88,6 +103,21 @@ const SAFE_DEAL_FOCUS_TYPES: readonly BrixDealFocus[] = [
   "governance_question",
   "governance_change",
   "governance_propagation",
+  "contractiq_overview",
+  "contract_document",
+  "contract_source",
+  "contract_party",
+  "contract_money",
+  "contract_term",
+  "contract_deadline",
+  "contract_contingency",
+  "contract_risk",
+  "contract_amendment",
+  "contract_conflict",
+  "contract_question",
+  "contract_negotiation",
+  "contract_change",
+  "contract_propagation",
   "recommendation_detail",
   "risk_detail",
   "missing_input_detail",
