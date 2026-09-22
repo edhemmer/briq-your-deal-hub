@@ -266,6 +266,27 @@ export const CONTRACTIQ_REPORT_POSITION_STATES = [
   "Renegotiate Material Terms",
   "Do Not Proceed",
 ] as const;
+export const CONTRACTIQ_QUESTION_CATEGORIES = [
+  "contract_term", "deadline", "contingency", "money", "financing", "title", "survey", "inspection",
+  "appraisal", "insurance", "governance", "tax", "utility", "solar", "property_condition", "disclosure",
+  "ownership_cost", "legal_review", "missing_document", "conflict", "amendment", "authority", "signature",
+  "closing", "possession", "other",
+] as const;
+export const CONTRACTIQ_QUESTION_TARGET_ROLES = [
+  "buyer", "seller", "buyer_attorney", "seller_attorney", "title_company", "realtor", "broker", "lender",
+  "insurer", "hoa", "utility", "solar_provider", "battery_provider", "service_provider", "inspector",
+  "appraiser", "contractor", "specialist", "municipality", "county", "escrow_agent", "property_manager", "other",
+] as const;
+export const CONTRACTIQ_QUESTION_PRIORITIES = ["informational", "low", "normal", "high", "critical"] as const;
+export const CONTRACTIQ_QUESTION_STATUSES = ["open", "in_progress", "answered", "resolved", "accepted", "deferred", "blocked", "dismissed", "superseded", "cancelled"] as const;
+export const CONTRACTIQ_QUESTION_RESOLUTION_STATES = [
+  "unresolved", "response_received_unverified", "partially_resolved", "verified_resolved", "accepted_risk",
+  "contradicted", "professional_review_pending", "professional_review_required", "resolved", "accepted", "superseded",
+] as const;
+export const CONTRACTIQ_QUESTION_RESPONSE_SOURCES = [
+  "user", "seller", "attorney", "lender", "title", "insurer", "hoa", "utility", "provider", "professional",
+  "document", "external_official_source", "other",
+] as const;
 
 export type ContractType = (typeof CONTRACT_TYPES)[number];
 export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
@@ -306,6 +327,12 @@ export type ContractIQReportSnapshotState = (typeof CONTRACTIQ_REPORT_SNAPSHOT_S
 export type ContractIQReportEvidenceClassification = (typeof CONTRACTIQ_REPORT_EVIDENCE_CLASSIFICATIONS)[number];
 export type ContractIQReportReconciliationState = (typeof CONTRACTIQ_REPORT_RECONCILIATION_STATES)[number];
 export type ContractIQReportPositionState = (typeof CONTRACTIQ_REPORT_POSITION_STATES)[number];
+export type ContractIQQuestionCategory = (typeof CONTRACTIQ_QUESTION_CATEGORIES)[number];
+export type ContractIQQuestionTargetRole = (typeof CONTRACTIQ_QUESTION_TARGET_ROLES)[number];
+export type ContractIQQuestionPriority = (typeof CONTRACTIQ_QUESTION_PRIORITIES)[number];
+export type ContractIQQuestionStatus = (typeof CONTRACTIQ_QUESTION_STATUSES)[number];
+export type ContractIQQuestionResolutionState = (typeof CONTRACTIQ_QUESTION_RESOLUTION_STATES)[number];
+export type ContractIQQuestionResponseSource = (typeof CONTRACTIQ_QUESTION_RESPONSE_SOURCES)[number];
 
 export type ContractSourceAnchorKind =
   | "page"
@@ -836,6 +863,69 @@ export interface ContractIQReportSnapshotSignals {
   unresolvedQuestionCount: number;
   unresolvedMaterialConflictCount: number;
   professionalReviewCount: number;
+}
+
+export interface ContractIQCanonicalQuestionResponse {
+  responseId: string;
+  responseVersion: number;
+  questionVersion: number;
+  response: string;
+  responderUserId?: string;
+  responderContactId?: string;
+  responderOrganizationId?: string;
+  responderRole: string;
+  sourceClassification: ContractIQQuestionResponseSource;
+  responseEvidenceId?: string;
+  responseAnchor: Record<string, unknown>;
+  verificationState: ContractVerificationState | "contradicted";
+  receivedAt: string;
+  contentHash: string;
+}
+
+export interface ContractIQCanonicalQuestion {
+  questionId: string;
+  version: number;
+  workspaceId: string;
+  dealId: string;
+  propertyId: string;
+  contractId: string;
+  contractVersion: number;
+  perspective: ContractPerspective;
+  question: string;
+  rationale: string;
+  whyItMatters: string;
+  priority: ContractIQQuestionPriority;
+  category: ContractIQQuestionCategory;
+  targetRole: ContractIQQuestionTargetRole;
+  semanticKey: string;
+  deterministicKey: string;
+  status: ContractIQQuestionStatus;
+  response?: string;
+  resolutionState: ContractIQQuestionResolutionState;
+  professionalReviewRequired: boolean;
+  reportInclusion: Record<string, boolean>;
+  sourceEvidenceIds: string[];
+  sourceAnchors: readonly Record<string, unknown>[];
+  linkedTaskId?: string;
+  responses: ContractIQCanonicalQuestionResponse[];
+  contentHash: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function contractIQQuestionOrder(question: Pick<ContractIQCanonicalQuestion, "status" | "priority" | "professionalReviewRequired" | "targetRole" | "category" | "deterministicKey">): string {
+  const unresolved = ["open", "in_progress", "blocked", "deferred"].includes(question.status);
+  const statusRank = unresolved ? 1 : question.professionalReviewRequired ? 2 : question.status === "answered" ? 3 : question.status === "resolved" ? 4 : question.status === "accepted" ? 5 : 6;
+  const priorityRank = ({ critical: 1, high: 2, normal: 3, low: 4, informational: 5 } as const)[question.priority];
+  return [statusRank, priorityRank, question.targetRole, question.category, question.deterministicKey].join(":");
+}
+
+export function assertCanonicalQuestion(question: ContractIQCanonicalQuestion): ContractIQCanonicalQuestion {
+  if (!question.questionId || !question.workspaceId || !question.dealId || !question.contractId) throw new Error("Canonical question identity is incomplete.");
+  if (!question.question.trim() || !question.rationale.trim() || !question.whyItMatters.trim()) throw new Error("Canonical question text is incomplete.");
+  if (!/^[0-9a-f]{64}$/.test(question.deterministicKey) || !/^[0-9a-f]{64}$/.test(question.contentHash)) throw new Error("Canonical question hashes are invalid.");
+  if (!question.sourceEvidenceIds.length && !question.semanticKey.trim()) throw new Error("Canonical question source linkage is incomplete.");
+  return question;
 }
 
 export interface ContractIQReportVersionVector {

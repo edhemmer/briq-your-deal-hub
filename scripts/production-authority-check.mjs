@@ -82,6 +82,12 @@ requirePattern("src/core/contractIQClient.ts", contractIQClient, /create_contrac
 requirePattern("src/core/contractIQClient.ts", contractIQClient, /contractiq_report_snapshot_projection/, "web clients must read the authorized ContractIQ report snapshot projection");
 forbidPattern("src/core/contractIQClient.ts", contractIQClient, /\.from\(["']contractiq_report_snapshots["']\)[\s\S]{0,240}\.(insert|update|delete)\(/, "clients must not mutate immutable ContractIQ report snapshots directly");
 forbidPattern("src/core/contractIQ.ts", contractIQ, /pdf|docx|word_render|report_artifact|report_share/i, "ContractIQ R1 must not implement ReportIQ rendering, artifact, or sharing authority");
+requirePattern("src/core/contractIQ.ts", contractIQ, /ContractIQCanonicalQuestion/, "ContractIQ R2 must keep one strict canonical question contract");
+requirePattern("src/core/contractIQ.ts", contractIQ, /contractIQQuestionOrder/, "ContractIQ R2 must keep deterministic question ordering");
+requirePattern("src/core/contractIQClient.ts", contractIQClient, /create_contractiq_canonical_question/, "web clients must use the canonical ContractIQ question command");
+requirePattern("src/core/contractIQClient.ts", contractIQClient, /contractiq_question_detail_projection/, "web clients must read the authorized canonical question projection");
+forbidPattern("src/core/contractIQClient.ts", contractIQClient, /\.from\(["']contract_questions["']\)[\s\S]{0,240}\.(insert|update|delete)\(/, "clients must not mutate canonical ContractIQ questions directly");
+forbidPattern("src/core/contractIQClient.ts", contractIQClient, /\.from\(["']contract_question_responses["']\)[\s\S]{0,240}\.(insert|update|delete)\(/, "clients must not mutate immutable ContractIQ responses directly");
 
 const migrationFiles = (await readdir(new URL("../supabase/migrations/", import.meta.url)))
   .filter((path) => path.endsWith(".sql"));
@@ -92,6 +98,7 @@ for (const migrationFile of migrationFiles) {
   forbidPattern(`supabase/migrations/${migrationFile}`, migration, /contractiq[\s\S]{0,400}(monthly_payment|amortization|dscr|irr|xirr|cap_rate)\s*=/i, "ContractIQ migrations must not duplicate FinanceIQ or underwriting calculations");
   forbidPattern(`supabase/migrations/${migrationFile}`, migration, /contractiq[\s\S]{0,400}(business_day|holiday|due_at)\s*:=/i, "ContractIQ Slice 5 must not duplicate deadline calculations");
   forbidPattern(`supabase/migrations/${migrationFile}`, migration, /update\s+public\.brix_deals[\s\S]{0,300}jsonb_set/i, "ContractIQ propagation must not bypass canonical Deal mutation with arbitrary JSON updates");
+  forbidPattern(`supabase/migrations/${migrationFile}`, migration, /(full_report_questions|summary_report_questions|questions_report_questions)/i, "ContractIQ reports must not create duplicate question truth stores");
 }
 
 if (failures.length) {

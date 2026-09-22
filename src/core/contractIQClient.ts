@@ -6,6 +6,11 @@ import type {
   ContractDocumentClassificationState,
   ContractIQReportReconciliationState,
   ContractIQReportSnapshotState,
+  ContractIQQuestionCategory,
+  ContractIQQuestionPriority,
+  ContractIQQuestionResolutionState,
+  ContractIQQuestionStatus,
+  ContractIQQuestionTargetRole,
   ContractPerspective,
   ContractType,
   ContractVerificationState,
@@ -75,6 +80,66 @@ export type ContractIQReportSnapshotCommandResult = {
   failureCode?: string;
   priorValidPreserved?: boolean;
   reused: boolean;
+};
+
+export type ContractIQCanonicalQuestionProjection = {
+  questionId: string;
+  questionVersion: number;
+  workspaceId: string;
+  dealId: string;
+  propertyId: string;
+  contractId: string;
+  contractVersion: number;
+  perspective: ContractPerspective;
+  question: string;
+  rationale: string;
+  whyItMatters: string;
+  priority: ContractIQQuestionPriority;
+  category: ContractIQQuestionCategory;
+  targetRole: ContractIQQuestionTargetRole;
+  semanticKey: string;
+  deterministicKey: string;
+  status: ContractIQQuestionStatus;
+  response?: string;
+  resolutionState: ContractIQQuestionResolutionState;
+  professionalReviewRequired: boolean;
+  reportInclusion: JsonObject;
+  sourceEvidenceIds: string[];
+  sourceAnchors: Json[];
+  linkedTaskId?: string;
+  responseHistory: Json[];
+  versionHistory: Json[];
+  contentHash: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ContractIQQuestionCommandResult = {
+  questionId: string;
+  questionVersion: number;
+  status: ContractIQQuestionStatus;
+  resolutionState?: ContractIQQuestionResolutionState;
+  responseId?: string;
+  responseVersion?: number;
+  taskId?: string;
+  reused: boolean;
+};
+
+export type ContractIQQuestionRegistryProjection = {
+  workspaceId: string;
+  dealId: string;
+  propertyId: string;
+  contractId: string;
+  perspective: ContractPerspective;
+  questionCount: number;
+  unresolvedCount: number;
+  professionalReviewCount: number;
+  staleSupersededCount: number;
+  recentlyResolvedCount: number;
+  countsByRole: JsonObject;
+  countsByPriority: JsonObject;
+  countsByStatus: JsonObject;
+  updatedAt: string;
 };
 
 export type ContractProjectionRecord = {
@@ -412,6 +477,103 @@ export async function loadContractIQReportSnapshots(contractId: string): Promise
     .order("generated_at", { ascending: false });
   if (error) throw new Error(error.message || "BRIX could not load ContractIQ report snapshots.");
   return (data ?? []).map(mapReportSnapshotProjection);
+}
+
+export async function createContractIQCanonicalQuestion(input: {
+  contractId: string;
+  question: JsonObject;
+  idempotencyKey: string;
+  correlationId: string;
+}): Promise<ContractIQQuestionCommandResult> {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.rpc<JsonObject>("create_contractiq_canonical_question", {
+    target_contract_id: input.contractId, question_input: input.question,
+    idempotency_key: input.idempotencyKey, correlation_id: input.correlationId,
+  });
+  if (error) throw new Error(error.message || "BRIX could not create the canonical ContractIQ question.");
+  return mapQuestionCommand(objectValue(data));
+}
+
+export async function addContractIQQuestionResponse(input: {
+  questionId: string; response: JsonObject; expectedQuestionVersion: number; idempotencyKey: string; correlationId: string;
+}): Promise<ContractIQQuestionCommandResult> {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.rpc<JsonObject>("add_contractiq_question_response", {
+    target_question_id: input.questionId, response_input: input.response,
+    expected_question_version: input.expectedQuestionVersion, idempotency_key: input.idempotencyKey, correlation_id: input.correlationId,
+  });
+  if (error) throw new Error(error.message || "BRIX could not save the ContractIQ question response.");
+  return mapQuestionCommand(objectValue(data));
+}
+
+export async function updateContractIQCanonicalQuestion(input: {
+  questionId: string; question: JsonObject; expectedQuestionVersion: number; idempotencyKey: string; correlationId: string;
+}): Promise<ContractIQQuestionCommandResult> {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.rpc<JsonObject>("update_contractiq_canonical_question", {
+    target_question_id: input.questionId, question_input: input.question,
+    expected_question_version: input.expectedQuestionVersion, idempotency_key: input.idempotencyKey, correlation_id: input.correlationId,
+  });
+  if (error) throw new Error(error.message || "BRIX could not update the canonical ContractIQ question.");
+  return mapQuestionCommand(objectValue(data));
+}
+
+export async function resolveContractIQQuestion(input: {
+  questionId: string; resolution: JsonObject; expectedQuestionVersion: number; idempotencyKey: string; correlationId: string;
+}): Promise<ContractIQQuestionCommandResult> {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.rpc<JsonObject>("resolve_contractiq_question", {
+    target_question_id: input.questionId, resolution_input: input.resolution,
+    expected_question_version: input.expectedQuestionVersion, idempotency_key: input.idempotencyKey, correlation_id: input.correlationId,
+  });
+  if (error) throw new Error(error.message || "BRIX could not resolve the ContractIQ question.");
+  return mapQuestionCommand(objectValue(data));
+}
+
+export async function reopenContractIQQuestion(input: {
+  questionId: string; expectedQuestionVersion: number; idempotencyKey: string; correlationId: string;
+}): Promise<ContractIQQuestionCommandResult> {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.rpc<JsonObject>("reopen_contractiq_question", {
+    target_question_id: input.questionId, expected_question_version: input.expectedQuestionVersion,
+    idempotency_key: input.idempotencyKey, correlation_id: input.correlationId,
+  });
+  if (error) throw new Error(error.message || "BRIX could not reopen the ContractIQ question.");
+  return mapQuestionCommand(objectValue(data));
+}
+
+export async function linkContractIQQuestionTask(input: {
+  questionId: string; taskId: string; expectedQuestionVersion: number; idempotencyKey: string; correlationId: string;
+}): Promise<ContractIQQuestionCommandResult> {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.rpc<JsonObject>("link_contractiq_question_task", {
+    target_question_id: input.questionId, target_task_id: input.taskId, expected_question_version: input.expectedQuestionVersion,
+    idempotency_key: input.idempotencyKey, correlation_id: input.correlationId,
+  });
+  if (error) throw new Error(error.message || "BRIX could not link the ContractIQ question task.");
+  return mapQuestionCommand(objectValue(data));
+}
+
+export async function loadContractIQCanonicalQuestions(contractId: string): Promise<ContractIQCanonicalQuestionProjection[]> {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.from("contractiq_question_detail_projection").select("*").eq("contract_id", contractId).order("priority_sort", { ascending: true });
+  if (error) throw new Error(error.message || "BRIX could not load canonical ContractIQ questions.");
+  return (data ?? []).map(mapCanonicalQuestion);
+}
+
+export async function loadContractIQQuestionRegistry(contractId: string): Promise<ContractIQQuestionRegistryProjection[]> {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.from("contractiq_question_registry_projection").select("*").eq("contract_id", contractId).order("updated_at", { ascending: false });
+  if (error) throw new Error(error.message || "BRIX could not load the ContractIQ question registry.");
+  return (data ?? []).map(mapQuestionRegistry);
+}
+
+export async function reconcileContractIQQuestionRegistry(contractId: string): Promise<{ reconciled: boolean; mismatches: Json[]; checkedAt: string }> {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.rpc<JsonObject>("reconcile_contractiq_question_registry", { target_contract_id: contractId });
+  if (error) throw new Error(error.message || "BRIX could not reconcile the ContractIQ question registry.");
+  const result = objectValue(data);
+  return { reconciled: booleanValue(result.reconciled), mismatches: arrayValue(result.mismatches), checkedAt: stringValue(result.checkedAt) };
 }
 
 async function loadContractProjections(dealId: string): Promise<ContractProjectionRecord[]> {
@@ -769,6 +931,50 @@ function mapReportSnapshotCommand(value: JsonRecord): ContractIQReportSnapshotCo
   };
 }
 
+function mapQuestionCommand(value: JsonRecord): ContractIQQuestionCommandResult {
+  return {
+    questionId: stringValue(value.questionId),
+    questionVersion: numberValue(value.questionVersion) ?? 0,
+    status: stringValue(value.status) as ContractIQQuestionStatus,
+    resolutionState: optionalString(value.resolutionState) as ContractIQQuestionResolutionState | undefined,
+    responseId: optionalString(value.responseId),
+    responseVersion: numberValue(value.responseVersion),
+    taskId: optionalString(value.taskId),
+    reused: booleanValue(value.reused),
+  };
+}
+
+function mapCanonicalQuestion(row: JsonRecord): ContractIQCanonicalQuestionProjection {
+  return {
+    questionId: stringValue(row.question_id), questionVersion: numberValue(row.question_version) ?? 0,
+    workspaceId: stringValue(row.workspace_id), dealId: stringValue(row.deal_id), propertyId: stringValue(row.property_id),
+    contractId: stringValue(row.contract_id), contractVersion: numberValue(row.contract_version) ?? 0,
+    perspective: stringValue(row.perspective) as ContractPerspective, question: stringValue(row.question),
+    rationale: stringValue(row.rationale), whyItMatters: stringValue(row.why_it_matters),
+    priority: stringValue(row.priority) as ContractIQQuestionPriority, category: stringValue(row.category) as ContractIQQuestionCategory,
+    targetRole: stringValue(row.target_role) as ContractIQQuestionTargetRole, semanticKey: stringValue(row.semantic_key),
+    deterministicKey: stringValue(row.deterministic_key), status: stringValue(row.status) as ContractIQQuestionStatus,
+    response: optionalString(row.response), resolutionState: stringValue(row.resolution_state) as ContractIQQuestionResolutionState,
+    professionalReviewRequired: booleanValue(row.professional_review_required), reportInclusion: objectValue(row.report_inclusion) as JsonObject,
+    sourceEvidenceIds: arrayValue(row.source_evidence_ids).map(String), sourceAnchors: arrayValue(row.source_anchors),
+    linkedTaskId: optionalString(row.linked_task_id), responseHistory: arrayValue(row.response_history), versionHistory: arrayValue(row.version_history),
+    contentHash: stringValue(row.content_hash), createdAt: stringValue(row.created_at), updatedAt: stringValue(row.updated_at),
+  };
+}
+
+function mapQuestionRegistry(row: JsonRecord): ContractIQQuestionRegistryProjection {
+  return {
+    workspaceId: stringValue(row.workspace_id), dealId: stringValue(row.deal_id), propertyId: stringValue(row.property_id),
+    contractId: stringValue(row.contract_id), perspective: stringValue(row.perspective) as ContractPerspective,
+    questionCount: numberValue(row.question_count) ?? 0, unresolvedCount: numberValue(row.unresolved_count) ?? 0,
+    professionalReviewCount: numberValue(row.professional_review_count) ?? 0,
+    staleSupersededCount: numberValue(row.stale_superseded_count) ?? 0,
+    recentlyResolvedCount: numberValue(row.recently_resolved_count) ?? 0,
+    countsByRole: objectValue(row.counts_by_role) as JsonObject, countsByPriority: objectValue(row.counts_by_priority) as JsonObject,
+    countsByStatus: objectValue(row.counts_by_status) as JsonObject, updatedAt: stringValue(row.updated_at),
+  };
+}
+
 function stringValue(value: unknown) {
   return typeof value === "string" ? value : value == null ? "" : String(value);
 }
@@ -785,6 +991,10 @@ function numberValue(value: unknown) {
     return Number.isFinite(parsed) ? parsed : undefined;
   }
   return undefined;
+}
+
+function booleanValue(value: unknown) {
+  return value === true || value === "true";
 }
 
 function objectValue(value: unknown): JsonRecord {
