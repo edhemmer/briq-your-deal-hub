@@ -6,6 +6,7 @@ const migrationPath = "supabase/migrations/20260921121609_spec011a_r1_contractiq
 const migration = readFileSync(migrationPath, "utf8");
 const supersessionRepair = readFileSync("supabase/migrations/20260921123630_spec011a_r1_snapshot_supersession_order_repair.sql", "utf8");
 const supersessionFkRepair = readFileSync("supabase/migrations/20260922114358_spec011a_r1_snapshot_supersession_fk_repair.sql", "utf8");
+const perspectiveIndexRepair = readFileSync("supabase/migrations/20260922120556_spec011a_r1_snapshot_perspective_index.sql", "utf8");
 const core = readFileSync("src/core/contractIQ.ts", "utf8");
 const client = readFileSync("src/core/contractIQClient.ts", "utf8");
 
@@ -15,6 +16,7 @@ describe("ContractIQ 011A R1 snapshot source boundaries", () => {
     expect(migration).toContain("protect_contractiq_report_snapshot_content");
     expect(migration).toContain("ContractIQ report snapshot content is immutable");
     expect(migration).toContain("idx_contractiq_report_snapshots_current");
+    expect(perspectiveIndexRepair).toContain("idx_contractiq_report_snapshots_perspective");
     expect(migration).not.toMatch(/create table if not exists public\.(full_report_snapshot|summary_report_snapshot|questions_report_snapshot)/i);
     expect(migration).not.toMatch(/create table if not exists public\.(report_artifacts|report_requests|report_shares)/i);
   });
