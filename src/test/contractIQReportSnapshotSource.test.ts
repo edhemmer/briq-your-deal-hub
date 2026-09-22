@@ -113,6 +113,6 @@ describe("ContractIQ 011A R1 snapshot source boundaries", () => {
     expect(client).toContain("create_contractiq_report_snapshot");
     expect(client).toContain("reconcile_contractiq_report_snapshot");
     expect(client).toContain("contractiq_report_snapshot_projection");
-    expect(`${core}\n${client}\n${migration}`).not.toMatch(/pdf renderer|word renderer|buyer due diligence summary definition|full due diligence report definition/i);
+    expect(`${core}\n${client}\n${migration}`).not.toMatch(/pdf renderer|word renderer|buyer due diligence summary definition/i);
   });
 });

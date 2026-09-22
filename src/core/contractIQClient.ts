@@ -6,6 +6,7 @@ import type {
   ContractDocumentClassificationState,
   ContractIQReportReconciliationState,
   ContractIQReportSnapshotState,
+  ContractIQFullReportState,
   ContractIQQuestionCategory,
   ContractIQQuestionPriority,
   ContractIQQuestionResolutionState,
@@ -77,6 +78,53 @@ export type ContractIQReportSnapshotCommandResult = {
   snapshotState: ContractIQReportSnapshotState;
   contentHash?: string;
   reconciliationStatus: ContractIQReportReconciliationState;
+  failureCode?: string;
+  priorValidPreserved?: boolean;
+  reused: boolean;
+};
+
+export type ContractIQFullReportDefinitionProjection = {
+  reportDefinitionId: string;
+  reportDefinitionVersion: number;
+  definitionContractVersion: string;
+  templateContractVersion: string;
+  workspaceId: string;
+  dealId: string;
+  propertyId: string;
+  contractId: string;
+  perspective: ContractPerspective;
+  snapshotId: string;
+  snapshotVersion: number;
+  snapshotHash: string;
+  analysisVersion: number;
+  reportState: ContractIQFullReportState;
+  snapshotState: ContractIQReportSnapshotState;
+  reconciliationState: ContractIQReportReconciliationState;
+  recommendationState?: string;
+  sourceCutoffAt: string;
+  staleReason?: string;
+  sectionCount: number;
+  materialIssueCount: number;
+  questionCount: number;
+  conflictCount: number;
+  deadlineCount: number;
+  sourceCompleteness: JsonObject;
+  validationResult: JsonObject;
+  contentHash?: string;
+  deterministicDefinitionHash?: string;
+  isCurrent: boolean;
+  generatedAt: string;
+  definitionPayload: JsonObject;
+  history: Json[];
+};
+
+export type ContractIQFullReportDefinitionCommandResult = {
+  reportDefinitionId?: string;
+  reportDefinitionVersion?: number;
+  reportState: ContractIQFullReportState;
+  contentHash?: string;
+  deterministicDefinitionHash?: string;
+  validationEligible: boolean;
   failureCode?: string;
   priorValidPreserved?: boolean;
   reused: boolean;
@@ -477,6 +525,45 @@ export async function loadContractIQReportSnapshots(contractId: string): Promise
     .order("generated_at", { ascending: false });
   if (error) throw new Error(error.message || "BRIX could not load ContractIQ report snapshots.");
   return (data ?? []).map(mapReportSnapshotProjection);
+}
+
+export async function createContractIQFullReportDefinition(input: {
+  snapshotId: string;
+  templateVersion?: string;
+  idempotencyKey: string;
+  correlationId: string;
+  simulateFailure?: boolean;
+}): Promise<ContractIQFullReportDefinitionCommandResult> {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.rpc<JsonObject>("create_contractiq_full_report_definition", {
+    target_snapshot_id: input.snapshotId,
+    target_template_version: input.templateVersion ?? "contractiq-full-report-template-v1",
+    idempotency_key: input.idempotencyKey,
+    correlation_id: input.correlationId,
+    simulate_failure: input.simulateFailure ?? false,
+  });
+  if (error) throw new Error(error.message || "BRIX could not create the Full Due Diligence Report definition.");
+  return mapFullReportDefinitionCommand(objectValue(data));
+}
+
+export async function reconcileContractIQFullReportDefinition(definitionId: string, idempotencyKey: string) {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.rpc<JsonObject>("reconcile_contractiq_full_report_definition", {
+    target_definition_id: definitionId,
+    idempotency_key: idempotencyKey,
+  });
+  if (error) throw new Error(error.message || "BRIX could not reconcile the Full Due Diligence Report definition.");
+  return mapFullReportDefinitionCommand(objectValue(data));
+}
+
+export async function loadContractIQFullReportDefinitions(contractId: string): Promise<ContractIQFullReportDefinitionProjection[]> {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.from("contractiq_full_report_definition_projection")
+    .select("*")
+    .eq("contract_id", contractId)
+    .order("generated_at", { ascending: false });
+  if (error) throw new Error(error.message || "BRIX could not load Full Due Diligence Report definitions.");
+  return (data ?? []).map(mapFullReportDefinitionProjection);
 }
 
 export async function createContractIQCanonicalQuestion(input: {
@@ -928,6 +1015,41 @@ function mapReportSnapshotCommand(value: JsonRecord): ContractIQReportSnapshotCo
     failureCode: optionalString(value.failureCode),
     priorValidPreserved: typeof value.priorValidPreserved === "boolean" ? value.priorValidPreserved : undefined,
     reused: Boolean(value.reused),
+  };
+}
+
+function mapFullReportDefinitionCommand(value: JsonRecord): ContractIQFullReportDefinitionCommandResult {
+  return {
+    reportDefinitionId: optionalString(value.reportDefinitionId),
+    reportDefinitionVersion: numberValue(value.reportDefinitionVersion),
+    reportState: stringValue(value.reportState) as ContractIQFullReportState,
+    contentHash: optionalString(value.contentHash),
+    deterministicDefinitionHash: optionalString(value.deterministicDefinitionHash),
+    validationEligible: booleanValue(value.validationEligible),
+    failureCode: optionalString(value.failureCode),
+    priorValidPreserved: typeof value.priorValidPreserved === "boolean" ? value.priorValidPreserved : undefined,
+    reused: booleanValue(value.reused),
+  };
+}
+
+function mapFullReportDefinitionProjection(row: JsonRecord): ContractIQFullReportDefinitionProjection {
+  return {
+    reportDefinitionId: stringValue(row.report_definition_id), reportDefinitionVersion: numberValue(row.report_definition_version) ?? 0,
+    definitionContractVersion: stringValue(row.definition_contract_version), templateContractVersion: stringValue(row.template_contract_version),
+    workspaceId: stringValue(row.workspace_id), dealId: stringValue(row.deal_id), propertyId: stringValue(row.property_id),
+    contractId: stringValue(row.contract_id), perspective: stringValue(row.perspective) as ContractPerspective,
+    snapshotId: stringValue(row.snapshot_id), snapshotVersion: numberValue(row.snapshot_version) ?? 0, snapshotHash: stringValue(row.snapshot_hash),
+    analysisVersion: numberValue(row.analysis_version) ?? 0, reportState: stringValue(row.report_state) as ContractIQFullReportState,
+    snapshotState: stringValue(row.snapshot_state) as ContractIQReportSnapshotState,
+    reconciliationState: stringValue(row.reconciliation_state) as ContractIQReportReconciliationState,
+    recommendationState: optionalString(row.recommendation_state), sourceCutoffAt: stringValue(row.source_cutoff_at),
+    staleReason: optionalString(row.stale_reason), sectionCount: numberValue(row.section_count) ?? 0,
+    materialIssueCount: numberValue(row.material_issue_count) ?? 0, questionCount: numberValue(row.question_count) ?? 0,
+    conflictCount: numberValue(row.conflict_count) ?? 0, deadlineCount: numberValue(row.deadline_count) ?? 0,
+    sourceCompleteness: objectValue(row.source_completeness) as JsonObject, validationResult: objectValue(row.validation_result) as JsonObject,
+    contentHash: optionalString(row.content_hash), deterministicDefinitionHash: optionalString(row.deterministic_definition_hash),
+    isCurrent: booleanValue(row.is_current), generatedAt: stringValue(row.generated_at),
+    definitionPayload: objectValue(row.definition_payload) as JsonObject, history: arrayValue(row.history),
   };
 }
 

@@ -10,6 +10,8 @@ export const CONTRACTIQ_CHANGE_VERSION_GRAPH_VERSION = "contractiq-change-versio
 export const CONTRACTIQ_REPORT_SNAPSHOT_VERSION = "contractiq-report-snapshot-v1" as const;
 export const CONTRACTIQ_REPORT_SOURCE_GRAPH_VERSION = "contractiq-report-source-graph-v1" as const;
 export const CONTRACTIQ_REPORT_TEMPLATE_CONTRACT_VERSION = "contractiq-report-template-contract-v1" as const;
+export const CONTRACTIQ_FULL_REPORT_DEFINITION_VERSION = "contractiq-full-report-definition-v1" as const;
+export const CONTRACTIQ_FULL_REPORT_TEMPLATE_VERSION = "contractiq-full-report-template-v1" as const;
 
 export const CONTRACT_TYPES = [
   "purchase_agreement",
@@ -287,6 +289,8 @@ export const CONTRACTIQ_QUESTION_RESPONSE_SOURCES = [
   "user", "seller", "attorney", "lender", "title", "insurer", "hoa", "utility", "provider", "professional",
   "document", "external_official_source", "other",
 ] as const;
+export const CONTRACTIQ_FULL_REPORT_STATES = ["generating", "current", "stale", "failed_with_prior_valid", "superseded"] as const;
+export const CONTRACTIQ_FULL_REPORT_SECTION_STATES = ["included", "not_applicable"] as const;
 
 export type ContractType = (typeof CONTRACT_TYPES)[number];
 export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
@@ -333,6 +337,8 @@ export type ContractIQQuestionPriority = (typeof CONTRACTIQ_QUESTION_PRIORITIES)
 export type ContractIQQuestionStatus = (typeof CONTRACTIQ_QUESTION_STATUSES)[number];
 export type ContractIQQuestionResolutionState = (typeof CONTRACTIQ_QUESTION_RESOLUTION_STATES)[number];
 export type ContractIQQuestionResponseSource = (typeof CONTRACTIQ_QUESTION_RESPONSE_SOURCES)[number];
+export type ContractIQFullReportState = (typeof CONTRACTIQ_FULL_REPORT_STATES)[number];
+export type ContractIQFullReportSectionState = (typeof CONTRACTIQ_FULL_REPORT_SECTION_STATES)[number];
 
 export type ContractSourceAnchorKind =
   | "page"
@@ -926,6 +932,147 @@ export function assertCanonicalQuestion(question: ContractIQCanonicalQuestion): 
   if (!/^[0-9a-f]{64}$/.test(question.deterministicKey) || !/^[0-9a-f]{64}$/.test(question.contentHash)) throw new Error("Canonical question hashes are invalid.");
   if (!question.sourceEvidenceIds.length && !question.semanticKey.trim()) throw new Error("Canonical question source linkage is incomplete.");
   return question;
+}
+
+export interface ContractIQFullReportSectionCatalogEntry {
+  sectionId: string;
+  canonicalTitle: string;
+  orderingKey: number;
+  anchor: string;
+}
+
+export const CONTRACTIQ_FULL_REPORT_SECTION_CATALOG: readonly ContractIQFullReportSectionCatalogEntry[] = deepFreeze([
+  { sectionId: "transaction-identity", canonicalTitle: "Cover / Transaction Identity", orderingKey: 10, anchor: "transaction-identity" },
+  { sectionId: "executive-overview", canonicalTitle: "Executive Transaction Overview", orderingKey: 20, anchor: "executive-overview" },
+  { sectionId: "document-inventory", canonicalTitle: "Document Inventory and Contract Hierarchy", orderingKey: 30, anchor: "document-inventory" },
+  { sectionId: "parties-property", canonicalTitle: "Parties, Authority, and Property Identity", orderingKey: 40, anchor: "parties-property" },
+  { sectionId: "economic-terms", canonicalTitle: "Contract Terms and Economics", orderingKey: 50, anchor: "economic-terms" },
+  { sectionId: "money-obligations", canonicalTitle: "Earnest Money, Credits, Escrows, and Obligations", orderingKey: 60, anchor: "money-obligations" },
+  { sectionId: "contingencies", canonicalTitle: "Contingencies and Due-Diligence Rights", orderingKey: 70, anchor: "contingencies" },
+  { sectionId: "deadlines", canonicalTitle: "Deadlines and Timing", orderingKey: 80, anchor: "deadlines" },
+  { sectionId: "amendments", canonicalTitle: "Amendments and Supersession", orderingKey: 90, anchor: "amendments" },
+  { sectionId: "conflicts", canonicalTitle: "Conflicts and Contradictions", orderingKey: 100, anchor: "conflicts" },
+  { sectionId: "property-condition", canonicalTitle: "Property Condition / Inspection Context", orderingKey: 110, anchor: "property-condition" },
+  { sectionId: "seller-disclosures", canonicalTitle: "Seller Disclosures", orderingKey: 120, anchor: "seller-disclosures" },
+  { sectionId: "title-survey", canonicalTitle: "Title and Survey", orderingKey: 130, anchor: "title-survey" },
+  { sectionId: "financing-appraisal", canonicalTitle: "Financing and Appraisal", orderingKey: 140, anchor: "financing-appraisal" },
+  { sectionId: "insurance", canonicalTitle: "Insurance", orderingKey: 150, anchor: "insurance" },
+  { sectionId: "governance", canonicalTitle: "HOA / Governance", orderingKey: 160, anchor: "governance" },
+  { sectionId: "taxes-assessments", canonicalTitle: "Taxes and Assessments", orderingKey: 170, anchor: "taxes-assessments" },
+  { sectionId: "utilities", canonicalTitle: "Utilities", orderingKey: 180, anchor: "utilities" },
+  { sectionId: "solar-service", canonicalTitle: "Solar / Battery / Service Agreements", orderingKey: 190, anchor: "solar-service" },
+  { sectionId: "ownership-exposure", canonicalTitle: "Long-Term Ownership and Financial Exposure", orderingKey: 200, anchor: "ownership-exposure" },
+  { sectionId: "defaults-remedies-transfer", canonicalTitle: "Defaults, Remedies, Assignment, and Transfer", orderingKey: 210, anchor: "defaults-remedies-transfer" },
+  { sectionId: "missing-records", canonicalTitle: "Missing Records and Unknowns", orderingKey: 220, anchor: "missing-records" },
+  { sectionId: "professional-questions", canonicalTitle: "Professional and Transaction Questions", orderingKey: 230, anchor: "professional-questions" },
+  { sectionId: "open-items", canonicalTitle: "Open Items / Resolution Plan", orderingKey: 240, anchor: "open-items" },
+  { sectionId: "recommendation", canonicalTitle: "Recommendation / Decision Conditions", orderingKey: 250, anchor: "recommendation" },
+  { sectionId: "verification-checklist", canonicalTitle: "Verification Checklist", orderingKey: 260, anchor: "verification-checklist" },
+  { sectionId: "source-appendix", canonicalTitle: "Source / Evidence Appendix", orderingKey: 270, anchor: "source-appendix" },
+]);
+
+export interface ContractIQFullReportQuestionReference {
+  questionId: string;
+  questionVersion: number;
+  wording: string;
+  targetRole: string;
+  priority: string;
+  status: string;
+  resolutionState: string;
+}
+
+export interface ContractIQFullReportSectionDefinition {
+  sectionId: string;
+  canonicalTitle: string;
+  subtitle?: string;
+  orderingKey: number;
+  state: ContractIQFullReportSectionState;
+  materiality: "informational" | "material" | "critical" | "mixed";
+  itemIds: string[];
+  questionIds: string[];
+  sourceRefs: ContractIQReportSourceRef[];
+  anchor: string;
+  crossReferenceIds: string[];
+}
+
+export interface ContractIQFullDueDiligenceReportDefinition {
+  reportDefinitionId: string;
+  reportDefinitionVersion: number;
+  definitionContractVersion: typeof CONTRACTIQ_FULL_REPORT_DEFINITION_VERSION;
+  snapshotId: string;
+  snapshotVersion: number;
+  snapshotHash: string;
+  workspaceId: string;
+  dealId: string;
+  propertyId: string;
+  contractId: string;
+  perspective: ContractPerspective;
+  analysisVersion: number;
+  reportState: ContractIQFullReportState;
+  snapshotState: ContractIQReportSnapshotState;
+  reconciliationState: ContractIQReportReconciliationState;
+  recommendationState?: ContractIQReportPositionState;
+  sourceCutoffAt: string;
+  generatedAt: string;
+  staleReason?: string;
+  title: string;
+  executiveOverview: Record<string, unknown>;
+  sectionDefinitions: ContractIQFullReportSectionDefinition[];
+  sectionOrdering: string[];
+  materialityRules: Record<string, unknown>;
+  sourceReferenceRules: Record<string, unknown>;
+  questionReferences: ContractIQFullReportQuestionReference[];
+  openItemReferences: readonly Record<string, unknown>[];
+  recommendationReferences: readonly string[];
+  appendixDefinitions: readonly Record<string, unknown>[];
+  templateContractVersion: typeof CONTRACTIQ_FULL_REPORT_TEMPLATE_VERSION;
+  contentHash: string;
+  deterministicDefinitionHash: string;
+  validation: { eligible: boolean; errors: string[] };
+}
+
+export function validateContractIQFullReportDefinition(definition: ContractIQFullDueDiligenceReportDefinition) {
+  const errors: string[] = [];
+  if (definition.definitionContractVersion !== CONTRACTIQ_FULL_REPORT_DEFINITION_VERSION) errors.push("unsupported_definition_contract_version");
+  if (definition.templateContractVersion !== CONTRACTIQ_FULL_REPORT_TEMPLATE_VERSION) errors.push("unsupported_template_contract_version");
+  if (!definition.reportDefinitionId || !definition.snapshotId || !definition.workspaceId || !definition.dealId || !definition.propertyId || !definition.contractId) errors.push("incomplete_definition_identity");
+  if (definition.reportDefinitionVersion < 1 || definition.snapshotVersion < 1 || definition.analysisVersion < 1) errors.push("invalid_definition_version");
+  if (!/^[0-9a-f]{64}$/.test(definition.snapshotHash) || !/^[0-9a-f]{64}$/.test(definition.contentHash) || !/^[0-9a-f]{64}$/.test(definition.deterministicDefinitionHash)) errors.push("invalid_definition_hash");
+
+  const included = definition.sectionDefinitions.filter((section) => section.state === "included").sort((left, right) => left.orderingKey - right.orderingKey);
+  const anchors = new Set<string>();
+  const primaryItems = new Set<string>();
+  for (const section of definition.sectionDefinitions) {
+    const catalog = CONTRACTIQ_FULL_REPORT_SECTION_CATALOG.find((entry) => entry.sectionId === section.sectionId);
+    if (!catalog || catalog.orderingKey !== section.orderingKey || catalog.anchor !== section.anchor) errors.push(`invalid_section_contract:${section.sectionId}`);
+    if (anchors.has(section.anchor)) errors.push(`duplicate_section_anchor:${section.anchor}`);
+    anchors.add(section.anchor);
+    for (const itemId of section.itemIds) {
+      if (primaryItems.has(itemId)) errors.push(`duplicate_primary_item:${itemId}`);
+      primaryItems.add(itemId);
+    }
+    if (section.state === "included" && ["material", "critical", "mixed"].includes(section.materiality) && section.itemIds.length > 0 && section.sourceRefs.length === 0) {
+      errors.push(`material_section_missing_source:${section.sectionId}`);
+    }
+  }
+  if (definition.sectionOrdering.join("|") !== included.map((section) => section.sectionId).join("|")) errors.push("section_order_mismatch");
+
+  const questionKeys = new Set<string>();
+  for (const question of definition.questionReferences) {
+    const key = `${question.questionId}:${question.questionVersion}`;
+    if (!question.questionId || question.questionVersion < 1 || !question.wording.trim()) errors.push(`invalid_question_reference:${key}`);
+    if (questionKeys.has(key)) errors.push(`duplicate_question_reference:${key}`);
+    questionKeys.add(key);
+  }
+  if (definition.recommendationState && definition.recommendationReferences.length === 0 && definition.openItemReferences.length === 0) errors.push("recommendation_missing_support");
+  if (definition.reportState === "current" && definition.reconciliationState !== "reconciled") errors.push("current_definition_not_reconciled");
+  return deepFreeze({ eligible: errors.length === 0, errors });
+}
+
+export function assertContractIQFullReportDefinition(definition: ContractIQFullDueDiligenceReportDefinition) {
+  const validation = validateContractIQFullReportDefinition(definition);
+  if (!validation.eligible) throw new Error(`ContractIQ Full Report definition is invalid: ${validation.errors.join(", ")}`);
+  return deepFreeze(definition);
 }
 
 export interface ContractIQReportVersionVector {
