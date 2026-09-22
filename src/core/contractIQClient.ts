@@ -4,6 +4,8 @@ import type {
   ContractAnalysisState,
   ContractCurrentnessState,
   ContractDocumentClassificationState,
+  ContractIQReportReconciliationState,
+  ContractIQReportSnapshotState,
   ContractPerspective,
   ContractType,
   ContractVerificationState,
@@ -26,6 +28,54 @@ type JsonRecord = Record<string, unknown>;
 type JsonObject = { [key: string]: Json | undefined };
 
 export type ContractSourceAnchorValue = JsonObject;
+
+export type ContractIQReportSnapshotProjection = {
+  snapshotId: string;
+  snapshotVersion: number;
+  snapshotContractVersion: string;
+  workspaceId: string;
+  dealId: string;
+  propertyId: string;
+  contractId: string;
+  contractVersion: number;
+  perspective: ContractPerspective;
+  analysisRunId: string;
+  analysisRunVersion: number;
+  analysisContractVersion: string;
+  analysisState: string;
+  analysisGeneratedAt: string;
+  sourceDocumentCutoffAt: string;
+  sourceVersionGraphHash: string;
+  evidenceSetHash: string;
+  questionRegistryVersion: string;
+  deadlineSetVersion: string;
+  conflictSetVersion: string;
+  contentHash: string;
+  snapshotState: ContractIQReportSnapshotState;
+  reconciliationStatus: ContractIQReportReconciliationState;
+  reconciliationDetails: JsonObject;
+  reportEligibility: JsonObject;
+  recommendationState?: string;
+  professionalReviewState: string;
+  inputCounts: JsonObject;
+  isCurrent: boolean;
+  staleReason?: string;
+  supersededBySnapshotId?: string;
+  generatedAt: string;
+  lastReconciledAt: string;
+  snapshotPayload: JsonObject;
+};
+
+export type ContractIQReportSnapshotCommandResult = {
+  snapshotId?: string;
+  snapshotVersion?: number;
+  snapshotState: ContractIQReportSnapshotState;
+  contentHash?: string;
+  reconciliationStatus: ContractIQReportReconciliationState;
+  failureCode?: string;
+  priorValidPreserved?: boolean;
+  reused: boolean;
+};
 
 export type ContractProjectionRecord = {
   contractId: string;
@@ -323,6 +373,45 @@ export async function loadContractChangePropagations(contractId: string): Promis
     .order("generated_at", { ascending: false });
   if (error) throw new Error(error.message ?? "BRIX could not load ContractIQ propagation state.");
   return (data ?? []).map(mapPropagation);
+}
+
+export async function createContractIQReportSnapshot(input: {
+  contractId: string;
+  perspective: ContractPerspective;
+  expectedAnalysisRunId: string;
+  idempotencyKey: string;
+  correlationId: string;
+}): Promise<ContractIQReportSnapshotCommandResult> {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.rpc<JsonObject>("create_contractiq_report_snapshot", {
+    target_contract_id: input.contractId,
+    target_perspective: input.perspective,
+    expected_analysis_run_id: input.expectedAnalysisRunId,
+    idempotency_key: input.idempotencyKey,
+    correlation_id: input.correlationId,
+  });
+  if (error) throw new Error(error.message || "BRIX could not create the ContractIQ report snapshot.");
+  return mapReportSnapshotCommand(objectValue(data));
+}
+
+export async function reconcileContractIQReportSnapshotRecord(snapshotId: string, idempotencyKey: string): Promise<ContractIQReportSnapshotCommandResult> {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.rpc<JsonObject>("reconcile_contractiq_report_snapshot", {
+    target_snapshot_id: snapshotId,
+    idempotency_key: idempotencyKey,
+  });
+  if (error) throw new Error(error.message || "BRIX could not reconcile the ContractIQ report snapshot.");
+  return mapReportSnapshotCommand(objectValue(data));
+}
+
+export async function loadContractIQReportSnapshots(contractId: string): Promise<ContractIQReportSnapshotProjection[]> {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.from("contractiq_report_snapshot_projection")
+    .select("*")
+    .eq("contract_id", contractId)
+    .order("generated_at", { ascending: false });
+  if (error) throw new Error(error.message || "BRIX could not load ContractIQ report snapshots.");
+  return (data ?? []).map(mapReportSnapshotProjection);
 }
 
 async function loadContractProjections(dealId: string): Promise<ContractProjectionRecord[]> {
@@ -625,6 +714,58 @@ function mapPropagation(row: JsonRecord): ContractChangePropagationProjection {
     generatedAt: stringValue(row.generated_at),
     updatedAt: stringValue(row.updated_at),
     loadedAt: stringValue(row.loaded_at),
+  };
+}
+
+function mapReportSnapshotProjection(row: JsonRecord): ContractIQReportSnapshotProjection {
+  return {
+    snapshotId: stringValue(row.snapshot_id),
+    snapshotVersion: numberValue(row.snapshot_version) ?? 1,
+    snapshotContractVersion: stringValue(row.snapshot_contract_version),
+    workspaceId: stringValue(row.workspace_id),
+    dealId: stringValue(row.deal_id),
+    propertyId: stringValue(row.property_id),
+    contractId: stringValue(row.contract_id),
+    contractVersion: numberValue(row.contract_version) ?? 1,
+    perspective: stringValue(row.perspective) as ContractPerspective,
+    analysisRunId: stringValue(row.analysis_run_id),
+    analysisRunVersion: numberValue(row.analysis_run_version) ?? 1,
+    analysisContractVersion: stringValue(row.analysis_contract_version),
+    analysisState: stringValue(row.analysis_state),
+    analysisGeneratedAt: stringValue(row.analysis_generated_at),
+    sourceDocumentCutoffAt: stringValue(row.source_document_cutoff_at),
+    sourceVersionGraphHash: stringValue(row.source_version_graph_hash),
+    evidenceSetHash: stringValue(row.evidence_set_hash),
+    questionRegistryVersion: stringValue(row.question_registry_version),
+    deadlineSetVersion: stringValue(row.deadline_set_version),
+    conflictSetVersion: stringValue(row.conflict_set_version),
+    contentHash: stringValue(row.content_hash),
+    snapshotState: stringValue(row.snapshot_state) as ContractIQReportSnapshotState,
+    reconciliationStatus: stringValue(row.reconciliation_status) as ContractIQReportReconciliationState,
+    reconciliationDetails: objectValue(row.reconciliation_details) as JsonObject,
+    reportEligibility: objectValue(row.report_eligibility) as JsonObject,
+    recommendationState: optionalString(row.recommendation_state),
+    professionalReviewState: stringValue(row.professional_review_state),
+    inputCounts: objectValue(row.input_counts) as JsonObject,
+    isCurrent: Boolean(row.is_current),
+    staleReason: optionalString(row.stale_reason),
+    supersededBySnapshotId: optionalString(row.superseded_by_snapshot_id),
+    generatedAt: stringValue(row.generated_at),
+    lastReconciledAt: stringValue(row.last_reconciled_at),
+    snapshotPayload: objectValue(row.snapshot_payload) as JsonObject,
+  };
+}
+
+function mapReportSnapshotCommand(value: JsonRecord): ContractIQReportSnapshotCommandResult {
+  return {
+    snapshotId: optionalString(value.snapshotId),
+    snapshotVersion: numberValue(value.snapshotVersion),
+    snapshotState: stringValue(value.snapshotState) as ContractIQReportSnapshotState,
+    contentHash: optionalString(value.contentHash),
+    reconciliationStatus: stringValue(value.reconciliationStatus) as ContractIQReportReconciliationState,
+    failureCode: optionalString(value.failureCode),
+    priorValidPreserved: typeof value.priorValidPreserved === "boolean" ? value.priorValidPreserved : undefined,
+    reused: Boolean(value.reused),
   };
 }
 

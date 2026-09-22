@@ -7,6 +7,9 @@ export const CONTRACTIQ_PERSPECTIVE_ANALYSIS_VERSION = "contractiq-perspective-a
 export const CONTRACTIQ_CHANGE_PROPAGATION_VERSION = "contractiq-change-propagation-v1" as const;
 export const CONTRACTIQ_CHANGE_CLASSIFICATION_VERSION = "contractiq-change-classification-v1" as const;
 export const CONTRACTIQ_CHANGE_VERSION_GRAPH_VERSION = "contractiq-change-version-graph-v1" as const;
+export const CONTRACTIQ_REPORT_SNAPSHOT_VERSION = "contractiq-report-snapshot-v1" as const;
+export const CONTRACTIQ_REPORT_SOURCE_GRAPH_VERSION = "contractiq-report-source-graph-v1" as const;
+export const CONTRACTIQ_REPORT_TEMPLATE_CONTRACT_VERSION = "contractiq-report-template-contract-v1" as const;
 
 export const CONTRACT_TYPES = [
   "purchase_agreement",
@@ -234,6 +237,35 @@ export const CONTRACT_CHANGE_TARGET_DOMAINS = [
 ] as const;
 export const CONTRACT_CHANGE_PROPAGATION_STATUSES = ["queued", "partial", "completed", "failed", "blocked", "retrying", "stale", "superseded"] as const;
 export const CONTRACT_CHANGE_DOWNSTREAM_STATUSES = ["not_affected", "queued", "stale", "completed", "failed", "failed_with_prior_valid", "blocked"] as const;
+export const CONTRACTIQ_REPORT_SNAPSHOT_STATES = [
+  "draft",
+  "generating",
+  "current",
+  "current_with_open_questions",
+  "current_with_conflicts",
+  "stale",
+  "failed_with_prior_valid",
+  "superseded",
+  "professional_review_recommended",
+] as const;
+export const CONTRACTIQ_REPORT_EVIDENCE_CLASSIFICATIONS = ["verified_fact", "supported_concern", "open_question", "professional_recommendation"] as const;
+export const CONTRACTIQ_REPORT_RECONCILIATION_STATES = [
+  "reconciled",
+  "stale",
+  "source_version_mismatch",
+  "question_version_mismatch",
+  "deadline_version_mismatch",
+  "conflict_version_mismatch",
+  "unauthorized_source",
+  "incomplete_material_context",
+] as const;
+export const CONTRACTIQ_REPORT_POSITION_STATES = [
+  "Proceed",
+  "Proceed with Conditions",
+  "Pause Pending Information",
+  "Renegotiate Material Terms",
+  "Do Not Proceed",
+] as const;
 
 export type ContractType = (typeof CONTRACT_TYPES)[number];
 export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
@@ -270,6 +302,10 @@ export type ContractChangeTargetDomain = (typeof CONTRACT_CHANGE_TARGET_DOMAINS)
 export type ContractChangePropagationStatus = (typeof CONTRACT_CHANGE_PROPAGATION_STATUSES)[number];
 export type ContractChangeDownstreamStatus = (typeof CONTRACT_CHANGE_DOWNSTREAM_STATUSES)[number];
 export type ContractChangeMateriality = "immaterial" | "informational" | "material" | "critical" | "uncertain" | "expired";
+export type ContractIQReportSnapshotState = (typeof CONTRACTIQ_REPORT_SNAPSHOT_STATES)[number];
+export type ContractIQReportEvidenceClassification = (typeof CONTRACTIQ_REPORT_EVIDENCE_CLASSIFICATIONS)[number];
+export type ContractIQReportReconciliationState = (typeof CONTRACTIQ_REPORT_RECONCILIATION_STATES)[number];
+export type ContractIQReportPositionState = (typeof CONTRACTIQ_REPORT_POSITION_STATES)[number];
 
 export type ContractSourceAnchorKind =
   | "page"
@@ -666,6 +702,156 @@ export interface ContractPerspectiveSourceRef {
   sourceAnchor: ContractSourceAnchor;
 }
 
+export interface ContractIQReportInclusion {
+  fullReport: boolean;
+  summaryReport: boolean;
+  questionsReport: boolean;
+  professionalOnly: boolean;
+  optionalAppendix: boolean;
+  excludedNonMaterial: boolean;
+}
+
+export interface ContractIQReportSourceRef {
+  evidenceId?: string;
+  documentId?: string;
+  sourceAnchor?: ContractSourceAnchor | Record<string, unknown>;
+  recordType: "contract" | "term" | "finding" | "conflict" | "deadline" | "question" | "party" | "relationship" | "external_research" | "cross_module";
+  recordId: string;
+  recordVersion: number;
+  verificationState: string;
+}
+
+export interface ContractIQReportMaterialItem {
+  itemId: string;
+  itemVersion: number;
+  itemType: string;
+  materiality: "immaterial" | "informational" | "material" | "critical" | "unknown";
+  evidenceClassification: ContractIQReportEvidenceClassification;
+  inclusion: ContractIQReportInclusion;
+  sourceRefs: ContractIQReportSourceRef[];
+  status: string;
+  payload: Record<string, unknown>;
+}
+
+export interface ContractIQReportVersionGraph {
+  graphContractVersion: typeof CONTRACTIQ_REPORT_SOURCE_GRAPH_VERSION;
+  contract: { id: string; version: number };
+  analysis: { id: string; version: number; deterministicHash: string };
+  evidenceSetHash: string;
+  questionRegistryVersion: string;
+  deadlineSetVersion: string;
+  conflictSetVersion: string;
+  sourceDocumentCutoffAt: string;
+}
+
+export interface ContractIQReportEligibilityResult {
+  eligible: boolean;
+  blockingReasons: string[];
+}
+
+export interface ContractIQReportEligibility {
+  fullReport: ContractIQReportEligibilityResult;
+  summaryReport: ContractIQReportEligibilityResult;
+  questionsReport: ContractIQReportEligibilityResult;
+  openQuestionsAreDisclosureNotBlocker: true;
+}
+
+export interface ContractIQReportSnapshotPayload {
+  identity: {
+    workspaceId: string;
+    dealId: string;
+    propertyId: string;
+    contractId: string;
+    contractVersion: number;
+    perspective: ContractPerspective;
+  };
+  analysis: {
+    analysisId: string;
+    analysisVersion: number;
+    analysisContractVersion: string;
+    analysisStatus: string;
+    generatedAt: string;
+    effectiveAt: string;
+  };
+  sourceCutoff: ContractIQReportVersionGraph;
+  documentInventory: readonly Record<string, unknown>[];
+  evidenceInventory: readonly Record<string, unknown>[];
+  partiesProperty: Record<string, unknown>;
+  economicTerms: readonly Record<string, unknown>[];
+  contingenciesRightsObligations: readonly Record<string, unknown>[];
+  deadlines: readonly Record<string, unknown>[];
+  findings: readonly Record<string, unknown>[];
+  conflicts: readonly Record<string, unknown>[];
+  questions: readonly Record<string, unknown>[];
+  openItems: readonly Record<string, unknown>[];
+  amendmentImpacts: readonly Record<string, unknown>[];
+  crossModuleContext: readonly Record<string, unknown>[];
+  ownershipExposure: Record<string, unknown>;
+  externalResearch: readonly Record<string, unknown>[];
+  recommendation: {
+    currentPosition?: ContractIQReportPositionState;
+    rationaleReferences: readonly string[];
+    conditions: readonly string[];
+    unresolvedBlockers: readonly string[];
+    materialityState: string;
+  };
+  reportMetadata: {
+    templateContractVersion: typeof CONTRACTIQ_REPORT_TEMPLATE_CONTRACT_VERSION;
+    snapshotContractVersion: typeof CONTRACTIQ_REPORT_SNAPSHOT_VERSION;
+    professionalReviewState: "not_required" | "recommended" | "required" | "completed";
+  };
+}
+
+export interface ContractIQReportSnapshot {
+  snapshotId: string;
+  snapshotVersion: number;
+  snapshotContractVersion: typeof CONTRACTIQ_REPORT_SNAPSHOT_VERSION;
+  workspaceId: string;
+  dealId: string;
+  propertyId: string;
+  contractId: string;
+  contractVersion: number;
+  perspective: ContractPerspective;
+  analysisId: string;
+  analysisVersion: number;
+  analysisContractVersion: string;
+  analysisStatus: string;
+  analysisGeneratedAt: string;
+  analysisEffectiveAt: string;
+  sourceDocumentCutoffAt: string;
+  sourceVersionGraph: ContractIQReportVersionGraph;
+  sourceVersionGraphHash: string;
+  contentHash: string;
+  state: ContractIQReportSnapshotState;
+  reconciliationStatus: ContractIQReportReconciliationState;
+  reportEligibility: ContractIQReportEligibility;
+  payload: ContractIQReportSnapshotPayload;
+  generatedAt: string;
+  createdBy: string;
+  staleReason?: string;
+  supersededBySnapshotId?: string;
+}
+
+export interface ContractIQReportSnapshotSignals {
+  unresolvedQuestionCount: number;
+  unresolvedMaterialConflictCount: number;
+  professionalReviewCount: number;
+}
+
+export interface ContractIQReportVersionVector {
+  contractVersion: number;
+  analysisId: string;
+  analysisVersion: number;
+  analysisIsCurrent: boolean;
+  evidenceSetHash: string;
+  questionRegistryVersion: string;
+  deadlineSetVersion: string;
+  conflictSetVersion: string;
+  authorizedSourceCount: number;
+  totalSourceCount: number;
+  materialContextComplete: boolean;
+}
+
 export interface ContractPerspectiveFinding {
   id: string;
   group: ContractPerspectiveFindingGroup;
@@ -850,6 +1036,99 @@ export interface ContractChangePropagationResult {
   versionGraph: ContractChangeVersionGraph;
   generatedAt: string;
   deterministicRequestHash: string;
+}
+
+export function contractIQReportSnapshotState(signals: ContractIQReportSnapshotSignals): ContractIQReportSnapshotState {
+  assertNonNegativeCount(signals.unresolvedQuestionCount, "unresolved question count");
+  assertNonNegativeCount(signals.unresolvedMaterialConflictCount, "unresolved material conflict count");
+  assertNonNegativeCount(signals.professionalReviewCount, "professional review count");
+  if (signals.unresolvedMaterialConflictCount > 0) return "current_with_conflicts";
+  if (signals.unresolvedQuestionCount > 0) return "current_with_open_questions";
+  if (signals.professionalReviewCount > 0) return "professional_review_recommended";
+  return "current";
+}
+
+export function contractIQReportInclusion(input: {
+  materiality: ContractIQReportMaterialItem["materiality"];
+  evidenceClassification: ContractIQReportEvidenceClassification;
+  question?: boolean;
+  professionalOnly?: boolean;
+  unresolvedConflict?: boolean;
+}): ContractIQReportInclusion {
+  const material = input.materiality === "material" || input.materiality === "critical";
+  const excludedNonMaterial = input.materiality === "immaterial";
+  return deepFreeze({
+    fullReport: !excludedNonMaterial,
+    summaryReport: material || input.unresolvedConflict === true,
+    questionsReport: input.question === true,
+    professionalOnly: input.professionalOnly === true || input.evidenceClassification === "professional_recommendation",
+    optionalAppendix: input.materiality === "informational" || input.materiality === "unknown",
+    excludedNonMaterial,
+  });
+}
+
+export function reconcileContractIQReportSnapshot(
+  frozen: ContractIQReportVersionVector,
+  current: ContractIQReportVersionVector,
+): ContractIQReportReconciliationState {
+  validateContractIQReportVersionVector(frozen);
+  validateContractIQReportVersionVector(current);
+  if (current.authorizedSourceCount !== current.totalSourceCount) return "unauthorized_source";
+  if (!current.materialContextComplete) return "incomplete_material_context";
+  if (!current.analysisIsCurrent || current.contractVersion !== frozen.contractVersion || current.analysisId !== frozen.analysisId || current.analysisVersion !== frozen.analysisVersion) {
+    return "source_version_mismatch";
+  }
+  if (current.evidenceSetHash !== frozen.evidenceSetHash) return "source_version_mismatch";
+  if (current.questionRegistryVersion !== frozen.questionRegistryVersion) return "question_version_mismatch";
+  if (current.deadlineSetVersion !== frozen.deadlineSetVersion) return "deadline_version_mismatch";
+  if (current.conflictSetVersion !== frozen.conflictSetVersion) return "conflict_version_mismatch";
+  return "reconciled";
+}
+
+export function contractIQReportEligibility(input: {
+  reconciliationStatus: ContractIQReportReconciliationState;
+  analysisState: string;
+  criticalSourceConflict: boolean;
+  missingRequiredContract: boolean;
+  incompleteMaterialSourceSet: boolean;
+  openQuestionCount: number;
+}): ContractIQReportEligibility {
+  assertNonNegativeCount(input.openQuestionCount, "open question count");
+  const blockingReasons: string[] = [];
+  if (input.analysisState === "stale" || input.analysisState === "failed_with_prior_analysis") blockingReasons.push("analysis_stale");
+  if (input.criticalSourceConflict) blockingReasons.push("critical_source_conflict");
+  if (input.missingRequiredContract) blockingReasons.push("missing_required_contract");
+  if (input.incompleteMaterialSourceSet) blockingReasons.push("incomplete_material_source_set");
+  if (input.reconciliationStatus !== "reconciled") blockingReasons.push(`snapshot_${input.reconciliationStatus}`);
+  const uniqueReasons = [...new Set(blockingReasons)];
+  const eligibility = { eligible: uniqueReasons.length === 0, blockingReasons: uniqueReasons };
+  return deepFreeze({
+    fullReport: { ...eligibility },
+    summaryReport: { ...eligibility },
+    questionsReport: { ...eligibility },
+    openQuestionsAreDisclosureNotBlocker: true as const,
+  });
+}
+
+export function assertContractIQReportSnapshot(snapshot: ContractIQReportSnapshot): ContractIQReportSnapshot {
+  if (snapshot.snapshotContractVersion !== CONTRACTIQ_REPORT_SNAPSHOT_VERSION) throw new Error("Unsupported ContractIQ report snapshot contract version.");
+  if (!snapshot.snapshotId || !snapshot.workspaceId || !snapshot.dealId || !snapshot.propertyId || !snapshot.contractId || !snapshot.analysisId) {
+    throw new Error("ContractIQ report snapshot identity is incomplete.");
+  }
+  if (snapshot.snapshotVersion < 1 || snapshot.contractVersion < 1 || snapshot.analysisVersion < 1) throw new Error("ContractIQ report snapshot versions must be positive.");
+  if (snapshot.payload.identity.contractId !== snapshot.contractId || snapshot.payload.identity.dealId !== snapshot.dealId || snapshot.payload.identity.workspaceId !== snapshot.workspaceId) {
+    throw new Error("ContractIQ report snapshot payload scope does not match snapshot identity.");
+  }
+  if (snapshot.payload.analysis.analysisId !== snapshot.analysisId || snapshot.payload.sourceCutoff.analysis.id !== snapshot.analysisId) {
+    throw new Error("ContractIQ report snapshot analysis references do not reconcile.");
+  }
+  if (snapshot.payload.sourceCutoff.contract.id !== snapshot.contractId || snapshot.payload.sourceCutoff.contract.version !== snapshot.contractVersion) {
+    throw new Error("ContractIQ report snapshot contract version graph does not reconcile.");
+  }
+  if (snapshot.reconciliationStatus !== "reconciled" && (snapshot.reportEligibility.fullReport.eligible || snapshot.reportEligibility.summaryReport.eligible || snapshot.reportEligibility.questionsReport.eligible)) {
+    throw new Error("An unreconciled ContractIQ report snapshot cannot be report eligible.");
+  }
+  return deepFreeze(snapshot);
 }
 
 export function assertContractIQSourceBoundary(source: string) {
@@ -2429,6 +2708,26 @@ function lastWeekday(year: number, month: number, weekday: number, name: string)
   let cursor = { year, month, day: new Date(Date.UTC(year, month, 0)).getUTCDate() };
   while (localDayOfWeek(cursor) !== weekday) cursor = addLocalDays(cursor, -1);
   return { date: formatLocalDate(cursor), name };
+}
+
+function assertNonNegativeCount(value: number, label: string) {
+  if (!Number.isInteger(value) || value < 0) throw new Error(`ContractIQ report ${label} must be a non-negative integer.`);
+}
+
+function validateContractIQReportVersionVector(vector: ContractIQReportVersionVector) {
+  if (!Number.isInteger(vector.contractVersion) || vector.contractVersion < 1) throw new Error("ContractIQ report contract version must be positive.");
+  if (!Number.isInteger(vector.analysisVersion) || vector.analysisVersion < 1 || !vector.analysisId) throw new Error("ContractIQ report analysis version is invalid.");
+  assertNonNegativeCount(vector.authorizedSourceCount, "authorized source count");
+  assertNonNegativeCount(vector.totalSourceCount, "total source count");
+  if (vector.authorizedSourceCount > vector.totalSourceCount) throw new Error("ContractIQ report authorized source count cannot exceed total sources.");
+  for (const [label, hash] of [
+    ["evidence set", vector.evidenceSetHash],
+    ["question registry", vector.questionRegistryVersion],
+    ["deadline set", vector.deadlineSetVersion],
+    ["conflict set", vector.conflictSetVersion],
+  ] as const) {
+    if (!hash.trim()) throw new Error(`ContractIQ report ${label} version is required.`);
+  }
 }
 
 function deterministicHash(value: unknown) {
