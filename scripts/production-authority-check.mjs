@@ -76,6 +76,13 @@ forbidPattern("src/core/contractIQClient.ts", contractIQClient, /\.from\(["']con
 forbidPattern("src/core/contractIQClient.ts", contractIQClient, /\.from\(["']contract_downstream_change_proposals["']\)[\s\S]{0,240}\.(insert|update|delete)\(/, "client-side propagation orchestration must not write downstream proposal tables directly");
 for (const guardTerm of contractIQPropagationGuardTerms) requirePattern("scripts/production-authority-check.mjs", `${contractIQPropagationGuardTerms}`, new RegExp(guardTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "missing ContractIQ propagation guard literal");
 
+requirePattern("src/core/contractIQ.ts", contractIQ, /ContractIQReportSnapshot/, "ContractIQ R1 must keep one strict shared report snapshot contract");
+requirePattern("src/core/contractIQ.ts", contractIQ, /reconcileContractIQReportSnapshot/, "ContractIQ R1 must keep deterministic report snapshot reconciliation");
+requirePattern("src/core/contractIQClient.ts", contractIQClient, /create_contractiq_report_snapshot/, "web clients must use the server-authoritative ContractIQ report snapshot command");
+requirePattern("src/core/contractIQClient.ts", contractIQClient, /contractiq_report_snapshot_projection/, "web clients must read the authorized ContractIQ report snapshot projection");
+forbidPattern("src/core/contractIQClient.ts", contractIQClient, /\.from\(["']contractiq_report_snapshots["']\)[\s\S]{0,240}\.(insert|update|delete)\(/, "clients must not mutate immutable ContractIQ report snapshots directly");
+forbidPattern("src/core/contractIQ.ts", contractIQ, /pdf|docx|word_render|report_artifact|report_share/i, "ContractIQ R1 must not implement ReportIQ rendering, artifact, or sharing authority");
+
 const migrationFiles = (await readdir(new URL("../supabase/migrations/", import.meta.url)))
   .filter((path) => path.endsWith(".sql"));
 for (const migrationFile of migrationFiles) {
