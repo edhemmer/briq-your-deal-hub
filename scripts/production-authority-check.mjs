@@ -88,6 +88,11 @@ requirePattern("src/core/contractIQClient.ts", contractIQClient, /create_contrac
 requirePattern("src/core/contractIQClient.ts", contractIQClient, /contractiq_question_detail_projection/, "web clients must read the authorized canonical question projection");
 forbidPattern("src/core/contractIQClient.ts", contractIQClient, /\.from\(["']contract_questions["']\)[\s\S]{0,240}\.(insert|update|delete)\(/, "clients must not mutate canonical ContractIQ questions directly");
 forbidPattern("src/core/contractIQClient.ts", contractIQClient, /\.from\(["']contract_question_responses["']\)[\s\S]{0,240}\.(insert|update|delete)\(/, "clients must not mutate immutable ContractIQ responses directly");
+requirePattern("src/core/contractIQ.ts", contractIQ, /ContractIQFullDueDiligenceReportDefinition/, "ContractIQ R3 must keep one strict Full Due Diligence Report definition contract");
+requirePattern("src/core/contractIQ.ts", contractIQ, /CONTRACTIQ_FULL_REPORT_SECTION_CATALOG/, "ContractIQ R3 must keep deterministic Full Report sections and anchors");
+requirePattern("src/core/contractIQClient.ts", contractIQClient, /create_contractiq_full_report_definition/, "web clients must use the server-authoritative Full Report definition command");
+requirePattern("src/core/contractIQClient.ts", contractIQClient, /contractiq_full_report_definition_projection/, "web clients must read the authorized Full Report definition projection");
+forbidPattern("src/core/contractIQClient.ts", contractIQClient, /\.from\(["']contractiq_full_report_definitions["']\)[\s\S]{0,240}\.(insert|update|delete)\(/, "clients must not mutate immutable Full Report definitions directly");
 
 const migrationFiles = (await readdir(new URL("../supabase/migrations/", import.meta.url)))
   .filter((path) => path.endsWith(".sql"));
