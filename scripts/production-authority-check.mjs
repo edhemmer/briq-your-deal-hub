@@ -93,6 +93,11 @@ requirePattern("src/core/contractIQ.ts", contractIQ, /CONTRACTIQ_FULL_REPORT_SEC
 requirePattern("src/core/contractIQClient.ts", contractIQClient, /create_contractiq_full_report_definition/, "web clients must use the server-authoritative Full Report definition command");
 requirePattern("src/core/contractIQClient.ts", contractIQClient, /contractiq_full_report_definition_projection/, "web clients must read the authorized Full Report definition projection");
 forbidPattern("src/core/contractIQClient.ts", contractIQClient, /\.from\(["']contractiq_full_report_definitions["']\)[\s\S]{0,240}\.(insert|update|delete)\(/, "clients must not mutate immutable Full Report definitions directly");
+requirePattern("src/core/contractIQ.ts", contractIQ, /ContractIQBuyerSummaryReportDefinition/, "ContractIQ R4 must keep one Buyer Summary definition contract");
+requirePattern("src/core/contractIQ.ts", contractIQ, /CONTRACTIQ_BUYER_SUMMARY_SECTION_CATALOG/, "ContractIQ R4 must keep seven stable Summary sections");
+requirePattern("src/core/contractIQClient.ts", contractIQClient, /create_contractiq_buyer_summary_definition/, "web clients must use the server-authoritative Buyer Summary command");
+requirePattern("src/core/contractIQClient.ts", contractIQClient, /contractiq_buyer_summary_definition_projection/, "web clients must read the authorized Buyer Summary projection");
+forbidPattern("src/core/contractIQClient.ts", contractIQClient, /\.from\(["']contractiq_buyer_summary_definitions["']\)[\s\S]{0,240}\.(insert|update|delete)\(/, "clients must not mutate immutable Buyer Summaries directly");
 
 const migrationFiles = (await readdir(new URL("../supabase/migrations/", import.meta.url)))
   .filter((path) => path.endsWith(".sql"));
