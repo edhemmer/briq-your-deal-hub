@@ -53,7 +53,7 @@ describe("ContractIQ Full Report definition source contract", () => {
   });
 
   it("provides authorized RPCs, RLS, and a security-invoker projection", () => {
-    expect(migration).toContain("contractiq_full_report_definition_projection\nwith (security_invoker=true)");
+    expect(migration).toMatch(/contractiq_full_report_definition_projection\s+with \(security_invoker=true\)/);
     expect(migration).toContain("contractiq full report definitions no direct insert");
     expect(migration).toContain("from public,anon");
     expect(client).toContain("createContractIQFullReportDefinition");

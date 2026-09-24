@@ -291,6 +291,21 @@ export const CONTRACTIQ_QUESTION_RESPONSE_SOURCES = [
 ] as const;
 export const CONTRACTIQ_FULL_REPORT_STATES = ["generating", "current", "stale", "failed_with_prior_valid", "superseded"] as const;
 export const CONTRACTIQ_FULL_REPORT_SECTION_STATES = ["included", "not_applicable"] as const;
+export const CONTRACTIQ_BUYER_SUMMARY_DEFINITION_VERSION = "contractiq-buyer-summary-definition-v1" as const;
+export const CONTRACTIQ_BUYER_SUMMARY_TEMPLATE_VERSION = "contractiq-buyer-summary-template-v1" as const;
+export const CONTRACTIQ_BUYER_SUMMARY_STATES = [
+  "draft", "generating", "current", "current_with_open_questions", "current_with_conflicts",
+  "stale", "failed_with_prior_valid", "superseded", "professional_review_recommended",
+] as const;
+export const CONTRACTIQ_BUYER_SUMMARY_SECTION_CATALOG = deepFreeze([
+  { sectionId: "executive-decision-summary", title: "Executive Decision Summary" },
+  { sectionId: "quick-review", title: "Quick Review" },
+  { sectionId: "contract-transaction-terms", title: "Contract & Transaction Terms" },
+  { sectionId: "primary-long-term-obligation", title: "Primary Financial / Long-Term Obligation" },
+  { sectionId: "material-property-findings", title: "Material Property Findings" },
+  { sectionId: "questions-resolution-plan", title: "Questions & Resolution Plan" },
+  { sectionId: "open-items-final-decision", title: "Open Items & Final Decision" },
+]);
 
 export type ContractType = (typeof CONTRACT_TYPES)[number];
 export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
@@ -339,6 +354,7 @@ export type ContractIQQuestionResolutionState = (typeof CONTRACTIQ_QUESTION_RESO
 export type ContractIQQuestionResponseSource = (typeof CONTRACTIQ_QUESTION_RESPONSE_SOURCES)[number];
 export type ContractIQFullReportState = (typeof CONTRACTIQ_FULL_REPORT_STATES)[number];
 export type ContractIQFullReportSectionState = (typeof CONTRACTIQ_FULL_REPORT_SECTION_STATES)[number];
+export type ContractIQBuyerSummaryState = (typeof CONTRACTIQ_BUYER_SUMMARY_STATES)[number];
 
 export type ContractSourceAnchorKind =
   | "page"
@@ -989,6 +1005,7 @@ export interface ContractIQFullReportSectionDefinition {
   state: ContractIQFullReportSectionState;
   materiality: "informational" | "material" | "critical" | "mixed";
   itemIds: string[];
+  itemReferences?: { itemId: string; materiality: string }[];
   questionIds: string[];
   sourceRefs: ContractIQReportSourceRef[];
   anchor: string;
@@ -1073,6 +1090,81 @@ export function assertContractIQFullReportDefinition(definition: ContractIQFullD
   const validation = validateContractIQFullReportDefinition(definition);
   if (!validation.eligible) throw new Error(`ContractIQ Full Report definition is invalid: ${validation.errors.join(", ")}`);
   return deepFreeze(definition);
+}
+
+export interface ContractIQBuyerSummaryReportDefinition {
+  summaryDefinitionId: string;
+  summaryDefinitionVersion: number;
+  definitionContractVersion: typeof CONTRACTIQ_BUYER_SUMMARY_DEFINITION_VERSION;
+  templateVersion: typeof CONTRACTIQ_BUYER_SUMMARY_TEMPLATE_VERSION;
+  workspaceId: string;
+  dealId: string;
+  propertyId: string;
+  contractId: string;
+  perspective: "buyer";
+  snapshotId: string;
+  snapshotVersion: number;
+  snapshotHash: string;
+  fullReportDefinitionId: string;
+  fullReportDefinitionVersion: number;
+  fullReportContentHash: string;
+  analysisVersion: number;
+  summaryState: ContractIQBuyerSummaryState;
+  recommendationState: ContractIQReportPositionState;
+  reconciliationState: ContractIQReportReconciliationState;
+  sourceCutoffAt: string;
+  generatedAt: string;
+  staleReason?: string;
+  definitionPayload: Record<string, unknown>;
+  validation: { eligible: boolean; errors: string[] };
+  contentHash: string;
+  deterministicDefinitionHash: string;
+}
+
+export function validateContractIQBuyerSummaryDefinition(
+  summary: ContractIQBuyerSummaryReportDefinition,
+  full: ContractIQFullDueDiligenceReportDefinition,
+) {
+  const errors: string[] = [];
+  if (summary.definitionContractVersion !== CONTRACTIQ_BUYER_SUMMARY_DEFINITION_VERSION ||
+    summary.templateVersion !== CONTRACTIQ_BUYER_SUMMARY_TEMPLATE_VERSION) errors.push("unsupported_summary_version");
+  if (summary.perspective !== "buyer" || full.perspective !== "buyer") errors.push("buyer_perspective_required");
+  if (summary.workspaceId !== full.workspaceId || summary.dealId !== full.dealId ||
+    summary.propertyId !== full.propertyId || summary.contractId !== full.contractId ||
+    summary.snapshotId !== full.snapshotId || summary.snapshotVersion !== full.snapshotVersion ||
+    summary.snapshotHash !== full.snapshotHash || summary.analysisVersion !== full.analysisVersion ||
+    summary.sourceCutoffAt !== full.sourceCutoffAt ||
+    summary.fullReportDefinitionId !== full.reportDefinitionId ||
+    summary.fullReportDefinitionVersion !== full.reportDefinitionVersion ||
+    summary.fullReportContentHash !== full.contentHash) errors.push("full_summary_identity_mismatch");
+  if (summary.recommendationState !== full.recommendationState ||
+    !CONTRACTIQ_REPORT_POSITION_STATES.includes(summary.recommendationState)) errors.push("recommendation_mismatch");
+  if (summary.summaryState.startsWith("current") &&
+    (full.reportState !== "current" || summary.reconciliationState !== "reconciled")) errors.push("current_summary_not_reconciled");
+  if (![summary.snapshotHash, summary.fullReportContentHash, summary.contentHash, summary.deterministicDefinitionHash]
+    .every((hash) => /^[0-9a-f]{64}$/.test(hash))) errors.push("invalid_summary_hash");
+  const payload = summary.definitionPayload;
+  const sections = Array.isArray(payload.sectionDefinitions) ? payload.sectionDefinitions : [];
+  const sectionIds = sections.map((section) => (section as { sectionId?: string }).sectionId);
+  if (sectionIds.join("|") !== CONTRACTIQ_BUYER_SUMMARY_SECTION_CATALOG.map((section) => section.sectionId).join("|"))
+    errors.push("summary_section_mismatch");
+  const included = Array.isArray(payload.includedItemReferences) ? payload.includedItemReferences : [];
+  const dispositions = Array.isArray(payload.materialDispositions) ? payload.materialDispositions : [];
+  const includedIds = included.map((entry) => (entry as { itemId?: string }).itemId);
+  if (new Set(includedIds).size !== includedIds.length) errors.push("duplicate_summary_item");
+  for (const section of full.sectionDefinitions) {
+    for (const item of section.itemReferences ?? []) {
+      if (item.materiality !== "material" && item.materiality !== "critical") continue;
+      const itemId = item.itemId;
+      if (!dispositions.some((entry) => (entry as { itemId?: string; disposition?: string }).itemId === itemId &&
+        (entry as { disposition?: string }).disposition === "included")) errors.push(`material_item_omitted:${itemId}`);
+    }
+  }
+  const quickRows = Array.isArray(payload.quickReviewRows) ? payload.quickReviewRows : [];
+  if (quickRows.length > 7 || quickRows.some((row) => !includedIds.includes((row as { itemId?: string }).itemId)))
+    errors.push("quick_review_reference_mismatch");
+  if (summary.validation.eligible !== true || summary.validation.errors.length > 0) errors.push("server_validation_failed");
+  return deepFreeze({ eligible: errors.length === 0, errors });
 }
 
 export interface ContractIQReportVersionVector {
