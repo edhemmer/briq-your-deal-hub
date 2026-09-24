@@ -15,16 +15,43 @@ declare
   contract_id constant uuid := 'c5555555-5555-4555-8555-555555555555';
   evidence_id constant uuid := 'c6666666-6666-4666-8666-666666666666';
   evidence_link_id constant uuid := 'c6666666-6666-4666-8666-666666666667';
+  amendment_evidence_id constant uuid := 'c6666666-6666-4666-8666-666666666668';
+  amendment_link_id constant uuid := 'c6666666-6666-4666-8666-666666666669';
+  solar_evidence_id constant uuid := 'c6666666-6666-4666-8666-66666666666a';
   term_id constant uuid := 'c7777777-7777-4777-8777-777777777777';
+  earnest_term_id constant uuid := 'c7777777-7777-4777-8777-777777777778';
+  amended_term_id constant uuid := 'c7777777-7777-4777-8777-777777777779';
+  solar_term_id constant uuid := 'c7777777-7777-4777-8777-77777777777a';
   deadline_id constant uuid := 'c8888888-8888-4888-8888-888888888888';
   deadline_result_id constant uuid := 'c8888888-8888-4888-8888-888888888889';
+  amended_deadline_result_id constant uuid := 'c8888888-8888-4888-8888-88888888888a';
   analysis_id constant uuid := 'c9999999-9999-4999-8999-999999999999';
   finding_id constant uuid := 'ca111111-1111-4111-8111-111111111111';
   solar_finding_id constant uuid := 'ca111111-1111-4111-8111-111111111112';
   solar_transfer_id constant uuid := 'ca111111-1111-4111-8111-111111111113';
+  financing_finding_id constant uuid := 'ca111111-1111-4111-8111-111111111114';
+  solar_roof_id constant uuid := 'ca111111-1111-4111-8111-111111111115';
+  solar_finance_id constant uuid := 'ca111111-1111-4111-8111-111111111116';
+  solar_insurance_id constant uuid := 'ca111111-1111-4111-8111-111111111117';
+  solar_utility_id constant uuid := 'ca111111-1111-4111-8111-111111111118';
   conflict_id constant uuid := 'cb111111-1111-4111-8111-111111111111';
   question_id constant uuid := 'cc111111-1111-4111-8111-111111111111';
+  attorney_question_id constant uuid := 'cc111111-1111-4111-8111-111111111112';
+  financing_question_id constant uuid := 'cc111111-1111-4111-8111-111111111113';
+  solar_buyout_question_id constant uuid := 'cc111111-1111-4111-8111-111111111114';
+  solar_transfer_question_id constant uuid := 'cc111111-1111-4111-8111-111111111115';
+  solar_lender_question_id constant uuid := 'cc111111-1111-4111-8111-111111111116';
+  solar_insurer_question_id constant uuid := 'cc111111-1111-4111-8111-111111111117';
+  solar_roof_question_id constant uuid := 'cc111111-1111-4111-8111-111111111118';
   snapshot_one jsonb;
+  clean_snapshot jsonb;
+  clean_definition jsonb;
+  clean_summary jsonb;
+  clean_top_issue_count integer;
+  clean_quick_review_count integer;
+  amended_snapshot jsonb;
+  amended_definition jsonb;
+  amended_summary jsonb;
   snapshot_two jsonb;
   snapshot_three jsonb;
   definition_one jsonb;
@@ -104,8 +131,18 @@ begin
       proposal_state,applicable_perspective,accepted_by,accepted_at,created_by,updated_by
     ) values(
       term_id,workspace_id,contract_id,'economic','purchase_price','Purchase price',
-      '{"amount":425000}'::jsonb,'$425,000','USD',evidence_id,
+      '{"amount":400000}'::jsonb,'$400,000','USD',evidence_id,
       '{"kind":"section","label":"Purchase Price"}'::jsonb,'Section 2',100,'source_backed','material',
+      'accepted','buyer',user_id,now(),user_id,user_id
+    );
+    insert into public.contract_terms(
+      id,workspace_id,contract_id,term_category,term_type,title,normalized_value,display_value,currency,
+      source_evidence_id,source_anchor,source_quote_ref,confidence,verification_state,materiality,
+      proposal_state,applicable_perspective,accepted_by,accepted_at,created_by,updated_by
+    ) values(
+      earnest_term_id,workspace_id,contract_id,'economic','earnest_money','Earnest money',
+      '{"amount":10000}'::jsonb,'$10,000','USD',evidence_id,
+      '{"kind":"section","label":"Earnest Money"}'::jsonb,'Section 3',100,'source_backed','material',
       'accepted','buyer',user_id,now(),user_id,user_id
     );
     insert into public.contract_deadlines(
@@ -113,9 +150,9 @@ begin
       offset_unit,business_day_rule,timezone,calculated_due_at,source_evidence_id,source_anchor,
       verification_state,status,professional_review_required,confidence,created_by,updated_by
     ) values(
-      deadline_id,workspace_id,contract_id,term_id,'inspection_period','effective_date',current_date,10,
-      'calendar_days','none','America/Chicago',now() + interval '10 days',evidence_id,
-      '{"kind":"section","label":"Inspection Period"}'::jsonb,'verified','current',false,100,user_id,user_id
+      deadline_id,workspace_id,contract_id,term_id,'closing','effective_date',current_date,10,
+      'calendar_days','none','America/Chicago','2026-09-30 17:00:00-05',evidence_id,
+      '{"kind":"section","label":"Closing Date"}'::jsonb,'verified','current',false,100,user_id,user_id
     );
     insert into public.contract_deadline_results(
       id,workspace_id,deal_id,contract_id,contract_deadline_id,calculation_version,contract_deadline_version,
@@ -123,9 +160,9 @@ begin
       weekend_rule,source_evidence_id,source_anchor,status,calculation_contract_version,deterministic_hash,
       is_current,correlation_id,generated_at,created_by
     ) values(
-      deadline_result_id,workspace_id,deal_id,contract_id,deadline_id,1,1,now(),'source_verified',now() + interval '10 days',
+      deadline_result_id,workspace_id,deal_id,contract_id,deadline_id,1,1,now(),'source_verified','2026-09-30 17:00:00-05',
       'America/Chicago',10,'calendar_days','start_after_trigger','none','no_adjustment',evidence_id,
-      '{"kind":"section","label":"Inspection Period"}'::jsonb,'current','contractiq-deadline-engine-v1',
+      '{"kind":"section","label":"Closing Date"}'::jsonb,'current','contractiq-deadline-engine-v1',
       repeat('d',64),true,'spec011a-r4-deadline',now(),user_id
     );
 
@@ -136,11 +173,169 @@ begin
       analysis_id,workspace_id,deal_id,property_id,contract_id,1,'buyer','current','complete',
       jsonb_build_object('contractId',contract_id,'contractVersion',1),
       jsonb_build_object(
-        'currentPosition','Proceed with Conditions',
+        'currentPosition','Proceed',
         'recommendationRationaleRefs',jsonb_build_array(term_id),
-        'recommendationConditions',jsonb_build_array('Resolve title conflict before closing.')
+        'recommendationConditions','[]'::jsonb
       ),repeat('e',64),repeat('f',64),true,user_id,user_id
     );
+    perform set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated')::text,true);
+    execute 'set local role authenticated';
+    clean_snapshot := public.create_contractiq_report_snapshot(
+      contract_id,'buyer',analysis_id,'spec011a-r4-clean-snapshot',
+      'cd111111-1111-4111-8111-111111111120');
+    clean_definition := public.create_contractiq_full_report_definition(
+      (clean_snapshot ->> 'snapshotId')::uuid,'contractiq-full-report-template-v1',
+      'spec011a-r4-clean-full','ce111111-1111-4111-8111-111111111120',false);
+    clean_summary := public.create_contractiq_buyer_summary_definition(
+      (clean_definition ->> 'reportDefinitionId')::uuid,'contractiq-buyer-summary-template-v1',
+      'spec011a-r4-clean-summary','cf111111-1111-4111-8111-111111111120',false);
+    select jsonb_array_length(definition_payload #> '{frontMatter,topIssues}'),
+           jsonb_array_length(definition_payload -> 'quickReviewRows')
+      into clean_top_issue_count,clean_quick_review_count
+      from public.contractiq_buyer_summary_definitions
+      where id=(clean_summary ->> 'summaryDefinitionId')::uuid;
+    if clean_summary ->> 'recommendationState'<>'Proceed'
+      or clean_definition ->> 'recommendationState'<>'Proceed'
+      or clean_summary ->> 'summaryState'<>'current'
+      or clean_top_issue_count>0 or clean_quick_review_count>0 then
+      raise exception 'clean-deal golden fixture failed: summary %, issues %, review %',
+        clean_summary,clean_top_issue_count,clean_quick_review_count;
+    end if;
+    if not exists(select 1 from public.contractiq_report_snapshots r
+      join public.contractiq_full_report_definitions f on f.snapshot_id=r.id
+      join public.contractiq_buyer_summary_definitions s on s.full_report_definition_id=f.id
+      where r.id=(clean_snapshot ->> 'snapshotId')::uuid
+        and s.id=(clean_summary ->> 'summaryDefinitionId')::uuid
+        and r.recommendation_state=f.recommendation_state
+        and f.recommendation_state=s.recommendation_state
+        and s.snapshot_version=r.snapshot_version
+        and s.source_cutoff_at=f.source_cutoff_at
+        and jsonb_array_length(s.definition_payload -> 'materialQuestions')=0
+        and s.definition_payload #>> '{primaryLongTermObligation,primaryItem}' is null
+        and (s.validation_result ->> 'materialOmissionCount')::integer=0
+    ) then raise exception 'clean-deal identity, no-filler or omission check failed'; end if;
+    execute 'reset role';
+    insert into public.evidence_items(
+      id,workspace_id,deal_id,property_id,evidence_type,original_filename,sanitized_filename,
+      detected_mime_type,byte_size,content_hash,storage_object_key,uploaded_by,processing_status,extraction_status
+    ) values(
+      amendment_evidence_id,workspace_id,deal_id,property_id,'document','accepted-amendment.pdf',
+      'accepted-amendment.pdf','application/pdf',1024,repeat('a',64),
+      'spec011a-r4/accepted-amendment.pdf',user_id,'complete','complete');
+    insert into public.contract_evidence_links(
+      id,workspace_id,contract_id,evidence_id,link_role,source_anchor,verification_state,created_by,updated_by
+    ) values(
+      amendment_link_id,workspace_id,contract_id,amendment_evidence_id,'addendum',
+      '{"kind":"document","label":"Accepted amendment"}'::jsonb,'source_backed',user_id,user_id);
+    insert into public.contract_terms(
+      id,workspace_id,contract_id,term_category,term_type,title,normalized_value,display_value,currency,
+      source_evidence_id,source_anchor,source_quote_ref,confidence,verification_state,materiality,
+      proposal_state,applicable_perspective,accepted_by,accepted_at,created_by,updated_by
+    ) values(
+      amended_term_id,workspace_id,contract_id,'economic','purchase_price','Purchase price (amended)',
+      '{"amount":385000}'::jsonb,'$385,000','USD',amendment_evidence_id,
+      '{"kind":"section","label":"Amended Purchase Price"}'::jsonb,'Amendment Section 1',100,
+      'source_backed','material','accepted','buyer',user_id,now(),user_id,user_id);
+    update public.contract_terms set superseded_by_term_id=amended_term_id,
+      currentness_state='historical' where id=term_id;
+    update public.contract_deadline_results set is_current=false,status='superseded'
+      where id=deadline_result_id;
+    update public.contract_deadlines set calculated_due_at='2026-10-15 17:00:00-05',
+      source_evidence_id=amendment_evidence_id,
+      source_anchor='{"kind":"section","label":"Amended Closing Date"}'::jsonb
+      where id=deadline_id;
+    insert into public.contract_deadline_results(
+      id,workspace_id,deal_id,contract_id,contract_deadline_id,calculation_version,contract_deadline_version,
+      trigger_at,trigger_verification,due_at,timezone,offset_value,offset_unit,counting_rule,business_day_rule,
+      weekend_rule,source_evidence_id,source_anchor,status,calculation_contract_version,deterministic_hash,
+      supersedes_calculation_id,is_current,correlation_id,generated_at,created_by
+    ) values(
+      amended_deadline_result_id,workspace_id,deal_id,contract_id,deadline_id,2,2,now(),'source_verified',
+      '2026-10-15 17:00:00-05','America/Chicago',10,'calendar_days','start_after_trigger','none',
+      'no_adjustment',amendment_evidence_id,
+      '{"kind":"section","label":"Amended Closing Date"}'::jsonb,'current',
+      'contractiq-deadline-engine-v1',repeat('b',64),deadline_result_id,true,
+      'spec011a-r4-amended-closing',now(),user_id);
+    insert into public.contract_amendment_impact_results(
+      workspace_id,deal_id,property_id,contract_id,analysis_run_id,base_contract_id,
+      impact_type,impact_summary,changed_term_ids,superseded_term_ids,changed_deadline_ids,
+      source_refs,deterministic_hash,status,created_by,updated_by
+    ) values(
+      workspace_id,deal_id,property_id,contract_id,analysis_id,contract_id,'economic_and_deadline',
+      'Accepted amendment changes purchase price and closing date.',jsonb_build_array(amended_term_id),
+      jsonb_build_array(term_id),jsonb_build_array(deadline_id),
+      jsonb_build_array(jsonb_build_object('evidenceId',amendment_evidence_id,
+        'recordType','amendment','recordId',amended_term_id,'recordVersion',1,
+        'sourceAnchor',jsonb_build_object('kind','document','label','Accepted amendment'))),
+      repeat('c',64),'accepted_for_review',user_id,user_id);
+    perform set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated')::text,true);
+    execute 'set local role authenticated';
+    amended_snapshot := public.create_contractiq_report_snapshot(
+      contract_id,'buyer',analysis_id,'spec011a-r4-amended-snapshot',
+      'cd111111-1111-4111-8111-111111111121');
+    amended_definition := public.create_contractiq_full_report_definition(
+      (amended_snapshot ->> 'snapshotId')::uuid,'contractiq-full-report-template-v1',
+      'spec011a-r4-amended-full','ce111111-1111-4111-8111-111111111121',false);
+    amended_summary := public.create_contractiq_buyer_summary_definition(
+      (amended_definition ->> 'reportDefinitionId')::uuid,'contractiq-buyer-summary-template-v1',
+      'spec011a-r4-amended-summary','cf111111-1111-4111-8111-111111111121',false);
+    if amended_snapshot ->> 'failureCode' is not null
+      or amended_definition ->> 'failureCode' is not null
+      or amended_summary ->> 'failureCode' is not null then
+      raise exception 'amendment fixture generation failed: %, %, %',
+        amended_snapshot,amended_definition,amended_summary;
+    end if;
+    if not exists(select 1 from public.contractiq_report_snapshots s
+      join public.contractiq_full_report_definitions f on f.snapshot_id=s.id
+      join public.contractiq_buyer_summary_definitions b on b.full_report_definition_id=f.id
+      where s.id=(amended_snapshot ->> 'snapshotId')::uuid
+        and b.id=(amended_summary ->> 'summaryDefinitionId')::uuid
+        and s.recommendation_state=f.recommendation_state
+        and f.recommendation_state=b.recommendation_state
+        and s.source_document_cutoff_at=f.source_cutoff_at
+        and f.source_cutoff_at=b.source_cutoff_at
+        and exists(select 1 from jsonb_array_elements(s.snapshot_payload -> 'economicTerms') t
+          where t ->> 'termId'=amended_term_id::text and t ->> 'displayValue'='$385,000')
+        and not exists(select 1 from jsonb_array_elements(s.snapshot_payload -> 'economicTerms') t
+          where t ->> 'displayValue'='$400,000')
+        and exists(select 1 from jsonb_array_elements(f.section_definitions) section
+          cross join lateral jsonb_array_elements(section -> 'itemReferences') item
+          where item ->> 'itemId'='term:' || amended_term_id::text
+            and section ->> 'anchor'='economic-terms')
+        and exists(select 1 from jsonb_array_elements(b.definition_payload -> 'contractTransactionTerms') t
+          where t #>> '{canonicalContent,displayValue}'='$385,000')
+        and not exists(select 1 from jsonb_array_elements(b.definition_payload -> 'contractTransactionTerms') t
+          where t #>> '{canonicalContent,displayValue}'='$400,000')
+        and exists(select 1 from jsonb_array_elements(s.snapshot_payload -> 'deadlines') d
+          where d ->> 'deadlineId'=deadline_id::text and (d ->> 'dueAt')::timestamptz::date='2026-10-15')
+        and exists(select 1 from jsonb_array_elements(b.definition_payload -> 'criticalDeadlines') d
+          where d ->> 'itemId'='deadline:' || deadline_id::text
+            and (d #>> '{canonicalContent,dueAt}')::timestamptz::date='2026-10-15')
+        and exists(select 1 from jsonb_array_elements(s.snapshot_payload -> 'amendmentImpacts') a
+          where a ->> 'status'='accepted_for_review'
+            and a -> 'supersededTermIds' @> jsonb_build_array(term_id))
+    ) then raise exception 'amended price/date or R1/R3/R4 reconciliation failed'; end if;
+    if not exists(select 1 from public.contract_terms old_term
+      join public.contract_terms new_term on new_term.id=old_term.superseded_by_term_id
+      join public.contract_deadline_results old_date on old_date.id=deadline_result_id
+      join public.contract_deadline_results new_date on new_date.supersedes_calculation_id=old_date.id
+      where old_term.id=term_id and old_term.display_value='$400,000'
+        and old_term.currentness_state='historical' and new_term.id=amended_term_id
+        and new_term.source_evidence_id=amendment_evidence_id
+        and not old_date.is_current and old_date.due_at::date='2026-09-30'
+        and new_date.is_current and new_date.due_at::date='2026-10-15'
+        and new_date.source_evidence_id=amendment_evidence_id
+    ) then raise exception 'amendment historical value or source linkage failed'; end if;
+    if not exists(select 1 from public.contractiq_buyer_summary_definitions
+      where id=(clean_summary ->> 'summaryDefinitionId')::uuid and not is_current
+        and summary_state in ('stale','superseded')) then
+      raise exception 'clean Summary did not become historical after amendment'; end if;
+    execute 'reset role';
+    update public.contract_perspective_analysis_runs set result_payload=jsonb_build_object(
+      'currentPosition','Pause Pending Information',
+      'recommendationRationaleRefs',jsonb_build_array(conflict_id,financing_finding_id,attorney_question_id),
+      'recommendationConditions',jsonb_build_array('Resolve title conflict and confirm financing before approval.'))
+      where id=analysis_id;
     insert into public.contract_perspective_analysis_items(
       id,workspace_id,deal_id,property_id,contract_id,analysis_run_id,item_kind,finding_group,finding_type,
       category,severity,title,summary,perspective,source_refs,professional_review_required,status,created_by,updated_by
@@ -187,6 +382,37 @@ begin
       '{"fullReport":true,"summaryReport":true,"standaloneQuestionsReport":true,"roleExport":true}'::jsonb,
       repeat('2',64),user_id,user_id
     );
+    insert into public.contract_perspective_analysis_items(
+      id,workspace_id,deal_id,property_id,contract_id,analysis_run_id,item_kind,finding_group,finding_type,
+      category,severity,title,summary,perspective,source_refs,professional_review_required,status,created_by,updated_by
+    ) values(
+      financing_finding_id,workspace_id,deal_id,property_id,contract_id,analysis_id,'finding',
+      'missing_information','financing_confirmation','financing','high','Financing confirmation missing',
+      'Written financing confirmation has not been provided.','buyer',
+      jsonb_build_array(jsonb_build_object('evidenceId',evidence_id,'recordType','finding',
+        'recordId',financing_finding_id,'recordVersion',1,
+        'sourceAnchor',jsonb_build_object('kind','section','label','Financing Contingency'),
+        'verificationState','source_backed')),false,'current',user_id,user_id);
+    insert into public.contract_questions(
+      id,workspace_id,contract_id,property_id,contract_version,question,recipient_role,priority,category,
+      rationale,why_it_matters,semantic_key,deterministic_key,perspective,status,resolution_state,
+      source_evidence_id,source_anchor,contract_conflict_id,contract_conflict_version,
+      professional_review_required,report_inclusion,content_hash,created_by,updated_by
+    ) values(
+      attorney_question_id,workspace_id,contract_id,property_id,1,
+      'Which legal description controls under the signed documents?','buyer_attorney','high','title',
+      'Two source anchors conflict.','The buyer needs legal review before approval.',
+      'title:attorney-controlling-description',repeat('3',64),'buyer','open','unresolved',
+      evidence_id,'{"kind":"exhibit","label":"Exhibit A"}'::jsonb,conflict_id,1,true,
+      '{"fullReport":true,"summaryReport":true,"standaloneQuestionsReport":true,"roleExport":true}'::jsonb,
+      repeat('4',64),user_id,user_id),
+      (financing_question_id,workspace_id,contract_id,property_id,1,
+      'Will the lender confirm the current financing terms in writing?','lender','high','financing',
+      'No confirmation is in the evidence set.','Closing feasibility remains uncertain.',
+      'financing:written-confirmation',repeat('5',64),'buyer','open','unresolved',
+      evidence_id,'{"kind":"section","label":"Financing Contingency"}'::jsonb,null,null,false,
+      '{"fullReport":true,"summaryReport":true,"standaloneQuestionsReport":true,"roleExport":true}'::jsonb,
+      repeat('6',64),user_id,user_id);
 
     perform set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated')::text,true);
     execute 'set local role authenticated';
@@ -243,8 +469,8 @@ begin
     if not exists(select 1 from public.contractiq_buyer_summary_definition_projection s,
       lateral jsonb_array_elements(s.definition_payload -> 'contractTransactionTerms') item
       where s.summary_definition_id=summary_one_id
-        and item ->> 'itemId'='term:' || term_id::text
-        and item #>> '{canonicalContent,displayValue}'='$425,000'
+        and item ->> 'itemId'='term:' || amended_term_id::text
+        and item #>> '{canonicalContent,displayValue}'='$385,000'
         and item ->> 'fullAnchor'='economic-terms'
     ) then raise exception 'Buyer Summary projection lost the current purchase price'; end if;
     if not exists(select 1 from public.contractiq_buyer_summary_definition_projection s,
@@ -254,6 +480,30 @@ begin
         and item ->> 'fullAnchor'='conflicts'
         and item #>> '{canonicalContent,resolutionState}'='unresolved'
     ) then raise exception 'Buyer Summary lost the unresolved conflict state'; end if;
+    if not exists(select 1 from public.contractiq_report_snapshots r
+      join public.contractiq_full_report_definitions f on f.snapshot_id=r.id
+      join public.contractiq_buyer_summary_definitions s on s.full_report_definition_id=f.id
+      where s.id=summary_one_id
+        and r.recommendation_state='Pause Pending Information'
+        and f.recommendation_state=r.recommendation_state
+        and s.recommendation_state=f.recommendation_state
+        and s.definition_payload #>> '{finalDecision,recommendation}'='Pause Pending Information'
+        and s.definition_payload #>> '{identity,snapshotId}'=r.id::text
+        and s.definition_payload #>> '{identity,fullReportDefinitionId}'=f.id::text
+        and exists(select 1 from jsonb_array_elements(s.definition_payload -> 'materialQuestions') q
+          where q ->> 'questionId'=attorney_question_id::text
+            and (q ->> 'questionVersion')::integer=1
+            and q ->> 'targetRole'='buyer_attorney')
+        and exists(select 1 from jsonb_array_elements(s.definition_payload -> 'materialQuestions') q
+          where q ->> 'questionId'=financing_question_id::text
+            and q ->> 'targetRole'='lender')
+        and exists(select 1 from jsonb_array_elements(s.definition_payload -> 'includedItemReferences') item
+          where item ->> 'itemId'='conflict:' || conflict_id::text
+            and item #> '{canonicalContent,sourceA,sourceAnchor}'='{"kind":"exhibit","label":"Exhibit A"}'::jsonb
+            and item #> '{canonicalContent,sourceB,sourceAnchor}'='{"kind":"schedule","label":"Schedule 1"}'::jsonb)
+        and exists(select 1 from jsonb_array_elements(s.definition_payload -> 'includedItemReferences') item
+          where item ->> 'itemId'='finding:' || financing_finding_id::text)
+    ) then raise exception 'conflict/Pause golden fixture lost canonical blocker or question'; end if;
     if not exists(select 1 from public.contractiq_buyer_summary_definition_projection s
       where s.summary_definition_id=summary_one_id
         and s.definition_payload #>> '{primaryLongTermObligation,primaryItem,fullAnchor}'='solar-service'
@@ -304,8 +554,8 @@ begin
     if not exists (
       select 1 from public.contractiq_full_report_definitions definition
       where definition.id=definition_one_id
-        and definition.recommendation_state='Proceed with Conditions'
-        and jsonb_array_length(definition.recommendation_references)=1
+        and definition.recommendation_state='Pause Pending Information'
+        and jsonb_array_length(definition.recommendation_references)=3
         and definition.definition_payload #>> '{executiveOverview,independentConclusionGenerated}'='false'
         and definition.definition_payload #>> '{rendererPaginationOwnedExternally}'='true'
     ) then raise exception 'recommendation linkage or ownership boundary failed'; end if;
@@ -320,6 +570,60 @@ begin
     end if;
 
     execute 'reset role';
+    insert into public.evidence_items(
+      id,workspace_id,deal_id,property_id,evidence_type,original_filename,sanitized_filename,
+      detected_mime_type,byte_size,content_hash,storage_object_key,uploaded_by,processing_status,extraction_status
+    ) values(
+      solar_evidence_id,workspace_id,deal_id,property_id,'document','solar-ppa.pdf','solar-ppa.pdf',
+      'application/pdf',3072,repeat('b',64),'spec011a-r4/solar-ppa.pdf',user_id,'complete','complete');
+    insert into public.contract_evidence_links(
+      workspace_id,contract_id,evidence_id,link_role,source_anchor,verification_state,created_by,updated_by
+    ) values(workspace_id,contract_id,solar_evidence_id,'supporting_record',
+      '{"kind":"document","label":"Solar PPA"}'::jsonb,'source_backed',user_id,user_id);
+    insert into public.contract_terms(
+      id,workspace_id,contract_id,term_category,term_type,title,normalized_value,display_value,currency,
+      source_evidence_id,source_anchor,source_quote_ref,confidence,verification_state,materiality,
+      proposal_state,applicable_perspective,accepted_by,accepted_at,created_by,updated_by
+    ) values(
+      solar_term_id,workspace_id,contract_id,'obligation_deliverable','solar_ppa','Solar power purchase agreement',
+      '{"structure":"PPA","provider":"Solar Provider","paymentAmount":165,"paymentFrequency":"monthly","annualEscalatorPercent":2.9,"buyoutAmount":null,"buyoutState":"unverified","transferState":"unverified","utilityComparison":"unavailable"}'::jsonb,
+      'PPA: $165 monthly; 2.9% escalator; buyout not verified','USD',solar_evidence_id,
+      '{"kind":"section","label":"Solar Payment and Transfer"}'::jsonb,'PPA Sections 2-4',100,
+      'source_backed','material','accepted','buyer',user_id,now(),user_id,user_id);
+    insert into public.contract_perspective_analysis_items(
+      id,workspace_id,deal_id,property_id,contract_id,analysis_run_id,item_kind,finding_group,finding_type,
+      category,severity,title,summary,perspective,source_refs,professional_review_required,status,created_by,updated_by
+    )
+    select value.id,workspace_id,deal_id,property_id,contract_id,analysis_id,'finding','missing_information',
+      value.finding_type,'solar','high',value.title,value.summary,'buyer',
+      jsonb_build_array(jsonb_build_object('evidenceId',solar_evidence_id,'recordType','finding',
+        'recordId',value.id,'recordVersion',1,
+        'sourceAnchor',jsonb_build_object('kind','section','label',value.title),
+        'verificationState','source_backed')),true,'current',user_id,user_id
+    from (values
+      (solar_roof_id,'roof_interaction','Roof interaction unverified','Removal and reinstallation duties need written confirmation.'),
+      (solar_finance_id,'financing_interaction','Lender approval unverified','Lender approval for the solar obligation is not in the evidence set.'),
+      (solar_insurance_id,'insurance_interaction','Insurance review unverified','Insurer documentation requirements remain unknown.'),
+      (solar_utility_id,'utility_comparison','Utility comparison unavailable','Matched bills, production and credits are not available.')
+    ) value(id,finding_type,title,summary);
+    insert into public.contract_questions(
+      id,workspace_id,contract_id,property_id,contract_version,question,recipient_role,priority,category,
+      rationale,why_it_matters,semantic_key,deterministic_key,perspective,status,resolution_state,
+      source_evidence_id,source_anchor,professional_review_required,report_inclusion,content_hash,created_by,updated_by
+    )
+    select value.id,workspace_id,contract_id,property_id,1,value.question,value.recipient_role,
+      'high','solar',value.rationale,value.rationale,value.semantic_key,repeat(value.hash_marker,64),
+      'buyer','open','unresolved',solar_evidence_id,
+      '{"kind":"document","label":"Solar PPA"}'::jsonb,true,
+      '{"fullReport":true,"summaryReport":true,"standaloneQuestionsReport":true,"roleExport":true}'::jsonb,
+      repeat(value.hash_marker,64),user_id,user_id
+    from (values
+      (solar_buyout_question_id,'What is the current buyout or prepayment amount?','solar_provider','The amount is not verified.','solar:buyout','7'),
+      (solar_transfer_question_id,'What transfer conditions apply?','solar_provider','Transfer terms need written confirmation.','solar:transfer','8'),
+      (solar_lender_question_id,'Does the lender approve the solar obligation?','lender','Financing approval is not verified.','solar:lender','9'),
+      (solar_insurer_question_id,'Does the insurer require additional documentation?','insurer','Insurance requirements are unknown.','solar:insurance','a'),
+      (solar_roof_question_id,'Are roof removal and reinstallation obligations documented?','solar_provider','Roof duties need review.','solar:roof','b')
+    ) value(id,question,recipient_role,rationale,semantic_key,hash_marker);
     update public.contract_questions set why_it_matters='Updated material title explanation.' where id=question_id;
     execute 'set local role authenticated';
     snapshot_two := public.create_contractiq_report_snapshot(
@@ -360,6 +664,48 @@ begin
         and jsonb_array_length(s.history)>=2
         and s.full_report_definition_id=definition_two_id
     ) then raise exception 'Buyer Summary save/reopen projection or history failed'; end if;
+    if not exists(select 1 from public.contractiq_report_snapshots r
+      join public.contractiq_full_report_definitions f on f.snapshot_id=r.id
+      join public.contractiq_buyer_summary_definitions s on s.full_report_definition_id=f.id
+      where s.id=summary_two_id
+        and s.snapshot_id=r.id and s.snapshot_version=r.snapshot_version
+        and s.recommendation_state=f.recommendation_state
+        and f.recommendation_state=r.recommendation_state
+        and s.source_cutoff_at=f.source_cutoff_at
+        and s.definition_payload #>> '{primaryLongTermObligation,primaryItem,itemId}'='term:' || solar_term_id::text
+        and s.definition_payload #> '{primaryLongTermObligation,primaryItem,canonicalContent,normalizedValue,buyoutAmount}' is null
+        and s.definition_payload #>> '{primaryLongTermObligation,primaryItem,canonicalContent,normalizedValue,buyoutState}'='unverified'
+        and s.definition_payload #>> '{primaryLongTermObligation,primaryItem,canonicalContent,displayValue}' like '%buyout not verified%'
+        and jsonb_array_length(s.definition_payload #> '{primaryLongTermObligation,relatedMaterialItems}')>=6
+        and (s.validation_result ->> 'duplicatePrimaryItemCount')::integer=0
+        and (s.validation_result ->> 'materialOmissionCount')::integer=0
+        and not (s.definition_payload::text ~* '(saves money|costs more than utility|transfer is guaranteed|payoff is available|resale impact is certain)')
+        and (select count(*) from jsonb_array_elements(s.definition_payload -> 'materialQuestions') q
+          where q ->> 'questionId' in (solar_buyout_question_id::text,solar_transfer_question_id::text,
+            solar_lender_question_id::text,solar_insurer_question_id::text,solar_roof_question_id::text)
+            and (q ->> 'questionVersion')::integer=1)=5
+        and (select count(*) from jsonb_array_elements(f.question_references) q
+          where q ->> 'questionId' in (solar_buyout_question_id::text,solar_transfer_question_id::text,
+            solar_lender_question_id::text,solar_insurer_question_id::text,solar_roof_question_id::text)
+            and (q ->> 'questionVersion')::integer=1)=5
+    ) then raise exception 'solar-heavy golden fixture failed consolidation, unknowns or question reconciliation'; end if;
+    if (select count(distinct s.snapshot_id) from public.contractiq_buyer_summary_definitions s
+      where s.id in ((clean_summary ->> 'summaryDefinitionId')::uuid,
+        (amended_summary ->> 'summaryDefinitionId')::uuid,summary_one_id,summary_two_id))<>4
+      or exists(select 1 from public.contractiq_buyer_summary_definitions s
+        join public.contractiq_full_report_definitions f on f.id=s.full_report_definition_id
+        join public.contractiq_report_snapshots r on r.id=s.snapshot_id
+        where s.id in ((clean_summary ->> 'summaryDefinitionId')::uuid,
+          (amended_summary ->> 'summaryDefinitionId')::uuid,summary_one_id,summary_two_id)
+          and (s.snapshot_version<>r.snapshot_version or f.snapshot_id<>r.id
+            or s.recommendation_state is distinct from f.recommendation_state
+            or f.recommendation_state is distinct from r.recommendation_state
+            or s.source_cutoff_at<>f.source_cutoff_at
+            or exists(select 1 from jsonb_array_elements(s.definition_payload -> 'materialQuestions') q
+              where not exists(select 1 from jsonb_array_elements(f.question_references) fq
+                where fq ->> 'questionId'=q ->> 'questionId'
+                  and fq ->> 'questionVersion'=q ->> 'questionVersion')))) then
+      raise exception 'four-scenario Full/Summary consistency failed'; end if;
 
     execute 'reset role';
     update public.contract_questions set rationale='A failed regeneration must retain the prior valid definition.' where id=question_id;
@@ -461,6 +807,10 @@ begin
   if exists(select 1 from public.contractiq_full_report_definitions where contract_id=contract_id)
      or exists(select 1 from public.contractiq_buyer_summary_definitions where contract_id=contract_id)
      or exists(select 1 from public.contracts where id=contract_id)
+     or exists(select 1 from public.contractiq_report_snapshots where contract_id=contract_id)
+     or exists(select 1 from public.contract_questions where contract_id=contract_id)
+     or exists(select 1 from public.evidence_items where id in (evidence_id,amendment_evidence_id,solar_evidence_id))
+     or exists(select 1 from public.brix_deals where id=deal_id)
      or exists(select 1 from auth.users where id=user_id) then
     raise exception 'rollback smoke left persistent fixture data';
   end if;
@@ -476,6 +826,19 @@ begin
     'summaryPriorValidPreserved',summary_failure ->> 'priorValidPreserved',
     'events',event_count,'audits',audit_count,'fixtureRollbackVerified',true
   ));
+  insert into spec011a_r4_smoke_result(test_name,passed,detail) values
+    ('clean_deal',true,jsonb_build_object('topIssues',clean_top_issue_count,
+      'quickReviewRows',clean_quick_review_count,'summaryId',clean_summary ->> 'summaryDefinitionId',
+      'fixtureRollbackVerified',true)),
+    ('specified_amendment',true,jsonb_build_object('purchasePrice','$385,000',
+      'closingDate','2026-10-15','summaryId',amended_summary ->> 'summaryDefinitionId',
+      'fixtureRollbackVerified',true)),
+    ('conflict_pause',true,jsonb_build_object('recommendation','Pause Pending Information',
+      'summaryId',summary_one_id,'fixtureRollbackVerified',true)),
+    ('solar_heavy',true,jsonb_build_object('solarTermId',solar_term_id,
+      'canonicalQuestionCount',5,'summaryId',summary_two_id,'fixtureRollbackVerified',true)),
+    ('full_summary_consistency',true,jsonb_build_object('distinctScenarios',4,
+      'fixtureRollbackVerified',true));
 end
 $smoke$;
 
