@@ -925,7 +925,7 @@ export interface ContractIQCanonicalQuestion {
   response?: string;
   resolutionState: ContractIQQuestionResolutionState;
   professionalReviewRequired: boolean;
-  reportInclusion: Record<string, boolean>;
+  reportInclusion: Record<string, boolean | readonly ContractIQQuestionTargetRole[]>;
   sourceEvidenceIds: string[];
   sourceAnchors: readonly Record<string, unknown>[];
   linkedTaskId?: string;
@@ -1164,6 +1164,147 @@ export function validateContractIQBuyerSummaryDefinition(
   if (quickRows.length > 7 || quickRows.some((row) => !includedIds.includes((row as { itemId?: string }).itemId)))
     errors.push("quick_review_reference_mismatch");
   if (summary.validation.eligible !== true || summary.validation.errors.length > 0) errors.push("server_validation_failed");
+  return deepFreeze({ eligible: errors.length === 0, errors });
+}
+
+export const CONTRACTIQ_QUESTIONS_REPORT_DEFINITION_VERSION = "contractiq-questions-report-definition-v1" as const;
+export const CONTRACTIQ_QUESTIONS_REPORT_TEMPLATE_VERSION = "contractiq-questions-report-template-v1" as const;
+export const CONTRACTIQ_QUESTIONS_REPORT_MODES = ["all_questions", "grouped_by_role", "selected_role"] as const;
+export type ContractIQQuestionsReportMode = (typeof CONTRACTIQ_QUESTIONS_REPORT_MODES)[number];
+
+export interface ContractIQQuestionsReportItem {
+  questionId: string;
+  questionVersion: number;
+  wording: string;
+  targetRole: ContractIQQuestionTargetRole;
+  displayRole: ContractIQQuestionTargetRole;
+  priority: ContractIQQuestionPriority;
+  status: ContractIQQuestionStatus;
+  resolutionState: ContractIQQuestionResolutionState;
+  responseState: "none" | "received";
+  response?: string | null;
+  responseVerificationState?: string | null;
+  rationale?: string;
+  whyThisMatters?: string;
+  professionalReviewRequired: boolean;
+  category: ContractIQQuestionCategory;
+  semanticKey: string;
+  reportInclusion: { standaloneQuestionsReport?: boolean; roleExport?: boolean; roleExportRoles?: ContractIQQuestionTargetRole[]; professionalOnly?: boolean };
+  sourceRefs: ContractIQReportSourceRef[];
+  requestedEvidenceIds: string[];
+  relevantDeadlineIds: string[];
+  historical: boolean;
+}
+
+export interface ContractIQQuestionsReportDefinition {
+  reportDefinitionId: string;
+  reportDefinitionVersion: number;
+  definitionContractVersion: typeof CONTRACTIQ_QUESTIONS_REPORT_DEFINITION_VERSION;
+  templateVersion: typeof CONTRACTIQ_QUESTIONS_REPORT_TEMPLATE_VERSION;
+  workspaceId: string;
+  dealId: string;
+  propertyId: string;
+  contractId: string;
+  perspective: ContractPerspective;
+  snapshotId: string;
+  snapshotVersion: number;
+  snapshotHash: string;
+  questionSetVersion: string;
+  analysisVersion: number;
+  reportMode: ContractIQQuestionsReportMode;
+  selectedRole?: ContractIQQuestionTargetRole | null;
+  filterRules: { includedStatuses: ContractIQQuestionStatus[]; includedPriorities: ContractIQQuestionPriority[];
+    unresolvedOnly: boolean; professionalReviewOnly: boolean; includeHistorical: boolean };
+  canonicalQuestionRefs: ContractIQQuestionsReportItem[];
+  groupedQuestions: { role: ContractIQQuestionTargetRole; questions: ContractIQQuestionsReportItem[] }[];
+  counts: { totalCurrentQuestions: number; historicalQuestionCount: number; unresolved: number; answeredQuestionCount: number;
+    resolvedQuestionCount: number; professionalReviewCount: number; roleCounts: Record<string, number> };
+  contentScope: { intendedRecipientRole?: ContractIQQuestionTargetRole | null; contentScope: string;
+    sourceVisibilityLevel: string; responseVisibilityLevel: string;
+    professionalOnlyContentIncluded: boolean; privateBuyerNotesExcluded: boolean };
+  sourceCutoffAt: string;
+  contentHash: string;
+  deterministicDefinitionHash: string;
+  reportState: ContractIQBuyerSummaryState;
+  reconciliationState: string;
+  isCurrent: boolean;
+  generatedAt: string;
+  staleReason?: string;
+}
+
+export type ContractIQRoleQuestionExportDefinition = ContractIQQuestionsReportDefinition & {
+  reportMode: "selected_role";
+  selectedRole: ContractIQQuestionTargetRole;
+};
+
+export function validateContractIQQuestionsReportDefinition(
+  definition: ContractIQQuestionsReportDefinition,
+  snapshot: ContractIQReportSnapshot,
+  full: ContractIQFullDueDiligenceReportDefinition,
+  summary?: ContractIQBuyerSummaryReportDefinition,
+) {
+  const errors: string[] = [];
+  if (definition.definitionContractVersion !== CONTRACTIQ_QUESTIONS_REPORT_DEFINITION_VERSION ||
+    definition.templateVersion !== CONTRACTIQ_QUESTIONS_REPORT_TEMPLATE_VERSION) errors.push("unsupported_questions_report_version");
+  if (definition.workspaceId !== snapshot.workspaceId || definition.dealId !== snapshot.dealId ||
+    definition.propertyId !== snapshot.propertyId || definition.contractId !== snapshot.contractId ||
+    definition.perspective !== snapshot.perspective || definition.snapshotId !== snapshot.snapshotId ||
+    definition.snapshotVersion !== snapshot.snapshotVersion || definition.snapshotHash !== snapshot.contentHash ||
+    definition.questionSetVersion !== snapshot.sourceVersionGraph.questionRegistryVersion ||
+    definition.analysisVersion !== snapshot.analysisVersion || definition.sourceCutoffAt !== snapshot.sourceDocumentCutoffAt ||
+    definition.snapshotId !== full.snapshotId || definition.snapshotHash !== full.snapshotHash ||
+    (summary && (summary.snapshotId !== definition.snapshotId || summary.fullReportDefinitionId !== full.reportDefinitionId)))
+    errors.push("questions_report_snapshot_mismatch");
+  if (![definition.contentHash, definition.deterministicDefinitionHash, definition.questionSetVersion]
+    .every((hash) => /^[0-9a-f]{64}$/.test(hash))) errors.push("invalid_questions_report_hash");
+  if (definition.reportMode === "selected_role" ? !definition.selectedRole : Boolean(definition.selectedRole))
+    errors.push("invalid_questions_report_mode_role");
+  if (definition.reportState.startsWith("current") && (!definition.isCurrent || definition.reconciliationState !== "reconciled" ||
+    !snapshot.state.startsWith("current") || full.reportState !== "current")) errors.push("current_questions_report_not_reconciled");
+
+  const frozen = new Map(snapshot.payload.questions.map((entry) => [String(entry.questionId), entry]));
+  const fullRefs = new Map(full.questionReferences.map((entry) => [entry.questionId, entry]));
+  const summaryQuestions = Array.isArray(summary?.definitionPayload.materialQuestions)
+    ? summary.definitionPayload.materialQuestions as Record<string, unknown>[] : [];
+  const seen = new Set<string>();
+  for (const question of definition.canonicalQuestionRefs) {
+    const source = frozen.get(question.questionId);
+    if (seen.has(question.questionId)) errors.push(`duplicate_questions_report_question:${question.questionId}`);
+    seen.add(question.questionId);
+    if (!source || Number(source.version) !== question.questionVersion || source.wording !== question.wording ||
+      source.recipientRole !== question.targetRole || source.priority !== question.priority ||
+      source.status !== question.status || source.resolutionState !== question.resolutionState ||
+      question.responseState !== (source.response == null ? "none" : "received") ||
+      (definition.reportMode !== "selected_role" && (source.response ?? null) !== (question.response ?? null))) {
+      errors.push(`canonical_question_mismatch:${question.questionId}`);
+    }
+    const fullQuestion = fullRefs.get(question.questionId);
+    if (fullQuestion && (fullQuestion.questionVersion !== question.questionVersion || fullQuestion.wording !== question.wording ||
+      fullQuestion.targetRole !== question.targetRole || fullQuestion.priority !== question.priority ||
+      fullQuestion.status !== question.status || fullQuestion.resolutionState !== question.resolutionState))
+      errors.push(`full_question_mismatch:${question.questionId}`);
+    const summaryQuestion = summaryQuestions.find((entry) => entry.questionId === question.questionId);
+    if (summaryQuestion && (summaryQuestion.questionVersion !== question.questionVersion || summaryQuestion.wording !== question.wording ||
+      summaryQuestion.targetRole !== question.targetRole || summaryQuestion.priority !== question.priority ||
+      summaryQuestion.status !== question.status || summaryQuestion.resolutionState !== question.resolutionState))
+      errors.push(`summary_question_mismatch:${question.questionId}`);
+    if (definition.reportMode === "selected_role") {
+      if (question.targetRole !== definition.selectedRole &&
+        !question.reportInclusion.roleExportRoles?.includes(definition.selectedRole!))
+        errors.push(`role_filter_violation:${question.questionId}`);
+      if (question.response != null || !definition.contentScope.privateBuyerNotesExcluded ||
+        definition.contentScope.responseVisibilityLevel !== "state_only") errors.push("role_export_private_content_violation");
+    }
+  }
+  const groupedIds = definition.groupedQuestions.flatMap((group) => group.questions.map((question) => question.questionId));
+  if (groupedIds.length !== seen.size || new Set(groupedIds).size !== seen.size ||
+    groupedIds.some((id) => !seen.has(id))) errors.push("questions_report_group_mismatch");
+  if (definition.counts.totalCurrentQuestions !== definition.canonicalQuestionRefs.filter((question) => !question.historical).length ||
+    definition.counts.historicalQuestionCount !== definition.canonicalQuestionRefs.filter((question) => question.historical).length)
+    errors.push("questions_report_count_mismatch");
+  for (const question of summaryQuestions) {
+    if (!frozen.has(String(question.questionId))) errors.push(`summary_question_missing_from_snapshot:${question.questionId}`);
+  }
   return deepFreeze({ eligible: errors.length === 0, errors });
 }
 
