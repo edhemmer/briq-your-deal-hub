@@ -10,3 +10,6 @@ additional_redirect_urls = [
   "http://localhost:3000/account",
   "http://localhost:3000/account?flow=reset-password",
 ]
+
+[functions.reportiq-sign-artifact]
+verify_jwt = true
