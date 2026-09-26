@@ -101,6 +101,31 @@ declare
   r5_failure_retry jsonb;
   r5_professional_denied boolean := false;
   r5_historical_count_passed boolean := false;
+  r6_full_job jsonb;
+  r6_summary_job jsonb;
+  r6_questions_job jsonb;
+  r6_older_job jsonb;
+  r6_newer_job jsonb;
+  r6_failed_job jsonb;
+  r6_stale_job jsonb;
+  r6_snapshot_b jsonb;
+  r6_full_b jsonb;
+  r6_summary_b jsonb;
+  r6_full_b_job jsonb;
+  r6_summary_b_job jsonb;
+  r6_lender_job jsonb;
+  r6_solar_job jsonb;
+  r6_failure_passed boolean := false;
+  r6_historical_no_stale_passed boolean := false;
+  r6_stale_completion_passed boolean := false;
+  r6_material_stale_passed boolean := false;
+  r6_role_stale_passed boolean := false;
+  r6_direct_write_denied boolean := false;
+  r6_cross_workspace_denied boolean := false;
+  r6_job_id uuid;
+  r6_result jsonb;
+  r6_path text;
+  r6_fixture_passed boolean := false;
 begin
   begin
     insert into auth.users (
@@ -730,6 +755,272 @@ begin
     r5_lender_id := (r5_lender->>'reportDefinitionId')::uuid;
     r5_solar := public.create_contractiq_questions_report_definition(snapshot_two_id,'selected_role','solar_provider','{}'::jsonb,
       'contractiq-questions-report-template-v1','spec011a-r5-solar','d1111111-1111-4111-8111-111111111116');
+    begin
+      execute 'reset role';
+      insert into public.reportiq_renderers(renderer_version,available,activated_at)
+      values('r6-fixture-renderer',true,now());
+      insert into public.reportiq_templates(report_type,template_version)
+      select 'full_due_diligence',template_contract_version from public.contractiq_full_report_definitions
+        where id=definition_two_id
+      union all
+      select 'buyer_summary',template_version from public.contractiq_buyer_summary_definitions
+        where id=summary_two_id
+      union all
+      select 'questions_all',template_version from public.contractiq_questions_report_definitions
+        where id=r5_all_id;
+      perform set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated')::text,true);
+      execute 'set local role authenticated';
+      r6_full_job:=public.request_contractiq_report_regeneration(definition_two_id,'full_due_diligence',null,
+        (select report_definition_version from public.contractiq_full_report_definitions where id=definition_two_id),
+        (select template_contract_version from public.contractiq_full_report_definitions where id=definition_two_id),
+        'r6-fixture-renderer','spec011a-r6-full');
+      r6_summary_job:=public.request_contractiq_report_regeneration(summary_two_id,'buyer_summary',null,
+        (select summary_definition_version from public.contractiq_buyer_summary_definitions where id=summary_two_id),
+        (select template_version from public.contractiq_buyer_summary_definitions where id=summary_two_id),
+        'r6-fixture-renderer','spec011a-r6-summary');
+      r6_questions_job:=public.request_contractiq_report_regeneration(r5_all_id,'questions_all',null,
+        (select report_definition_version from public.contractiq_questions_report_definitions where id=r5_all_id),
+        'contractiq-questions-report-template-v1','r6-fixture-renderer','spec011a-r6-questions');
+      if (public.request_contractiq_report_regeneration(definition_two_id,'full_due_diligence',null,
+          (select report_definition_version from public.contractiq_full_report_definitions where id=definition_two_id),
+          (select template_contract_version from public.contractiq_full_report_definitions where id=definition_two_id),
+          'r6-fixture-renderer','spec011a-r6-full-retry')->>'jobId')<>r6_full_job->>'jobId' then
+        raise exception 'R6 fingerprint idempotency failed'; end if;
+      execute 'reset role';
+      for r6_job_id in select (r6_full_job->>'jobId')::uuid union all select (r6_summary_job->>'jobId')::uuid
+        union all select (r6_questions_job->>'jobId')::uuid loop
+        r6_result:=public.reportiq_start_generation(r6_job_id);
+        if r6_result->>'status'<>'running' then raise exception 'R6 job failed to start: %',r6_result; end if;
+        r6_path:=workspace_id::text || '/' || deal_id::text || '/' || r6_job_id::text || '.pdf';
+        insert into storage.objects(bucket_id,name) values('report-artifacts',r6_path);
+        r6_result:=public.reportiq_finish_generation(r6_job_id,r6_path,repeat('a',64),'application/pdf',100);
+        if r6_result->>'status'<>'completed' or not (r6_result->>'current')::boolean then
+          raise exception 'R6 artifact publication failed: %',r6_result; end if;
+      end loop;
+      if not exists(select 1 from public.reportiq_family_reconciliation_projection
+        where contract_id=contract_id and alignment_state='aligned')
+        or (select count(*) from public.reportiq_artifacts where contract_id=contract_id and state='current')<>3 then
+        raise exception 'R6 initial artifacts did not reconcile'; end if;
+      insert into public.reportiq_templates(report_type,template_version) values
+        ('questions_all','r6-template-v2'),('questions_all','r6-template-v3');
+      perform set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated')::text,true);
+      execute 'set local role authenticated';
+      r6_older_job:=public.request_contractiq_report_regeneration(r5_all_id,'questions_all',null,
+        (select report_definition_version from public.contractiq_questions_report_definitions where id=r5_all_id),
+        'r6-template-v2','r6-fixture-renderer','spec011a-r6-older');
+      r6_newer_job:=public.request_contractiq_report_regeneration(r5_all_id,'questions_all',null,
+        (select report_definition_version from public.contractiq_questions_report_definitions where id=r5_all_id),
+        'r6-template-v3','r6-fixture-renderer','spec011a-r6-newer');
+      execute 'reset role';
+      perform public.reportiq_start_generation((r6_older_job->>'jobId')::uuid);
+      perform public.reportiq_start_generation((r6_newer_job->>'jobId')::uuid);
+      r6_path:=workspace_id::text || '/' || deal_id::text || '/' || (r6_newer_job->>'jobId') || '.pdf';
+      insert into storage.objects(bucket_id,name) values('report-artifacts',r6_path);
+      r6_result:=public.reportiq_finish_generation((r6_newer_job->>'jobId')::uuid,r6_path,
+        repeat('b',64),'application/pdf',101);
+      if not (r6_result->>'current')::boolean then raise exception 'R6 newer job was not current'; end if;
+      r6_path:=workspace_id::text || '/' || deal_id::text || '/' || (r6_older_job->>'jobId') || '.pdf';
+      insert into storage.objects(bucket_id,name) values('report-artifacts',r6_path);
+      r6_result:=public.reportiq_finish_generation((r6_older_job->>'jobId')::uuid,r6_path,
+        repeat('c',64),'application/pdf',102);
+      if (r6_result->>'current')::boolean
+        or not exists(select 1 from public.reportiq_artifacts a where a.job_id=(r6_newer_job->>'jobId')::uuid and a.state='current')
+        or (select count(*) from public.reportiq_artifacts a where a.contract_id=contract_id
+          and a.report_type='questions_all' and a.state='current')<>1 then
+        raise exception 'R6 older out-of-order completion displaced newer artifact: %',r6_result; end if;
+      insert into public.reportiq_templates(report_type,template_version) values('buyer_summary','r6-summary-template-v2');
+      perform set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated')::text,true);
+      execute 'set local role authenticated';
+      r6_failed_job:=public.request_contractiq_report_regeneration(summary_two_id,'buyer_summary',null,
+        (select summary_definition_version from public.contractiq_buyer_summary_definitions where id=summary_two_id),
+        'r6-summary-template-v2','r6-fixture-renderer','spec011a-r6-storage-failure');
+      execute 'reset role';
+      perform public.reportiq_start_generation((r6_failed_job->>'jobId')::uuid);
+      r6_path:=workspace_id::text || '/' || deal_id::text || '/' || (r6_failed_job->>'jobId') || '.pdf';
+      r6_result:=public.reportiq_finish_generation((r6_failed_job->>'jobId')::uuid,r6_path,
+        repeat('d',64),'application/pdf',103,null,true);
+      if r6_result->>'status'<>'failed' or r6_result->>'failureCode'<>'storage_object_missing'
+        or not exists(select 1 from public.reportiq_artifacts a where a.job_id=(r6_summary_job->>'jobId')::uuid
+          and a.state='current') then raise exception 'R6 storage failure lost prior valid artifact: %',r6_result; end if;
+      perform set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated')::text,true);
+      execute 'set local role authenticated';
+      r6_result:=public.retry_contractiq_report_generation((r6_failed_job->>'jobId')::uuid,'spec011a-r6-storage-retry');
+      execute 'reset role';
+      if r6_result->>'status'<>'retrying' then raise exception 'R6 retry was not durable'; end if;
+      perform public.reportiq_start_generation((r6_failed_job->>'jobId')::uuid);
+      insert into storage.objects(bucket_id,name) values('report-artifacts',r6_path);
+      r6_result:=public.reportiq_finish_generation((r6_failed_job->>'jobId')::uuid,r6_path,
+        repeat('d',64),'application/pdf',103);
+      if not (r6_result->>'current')::boolean
+        or not exists(select 1 from public.reportiq_artifacts a where a.job_id=(r6_summary_job->>'jobId')::uuid
+          and a.state='superseded')
+        or not exists(select 1 from public.reportiq_family_reconciliation_projection
+          where contract_id=contract_id and alignment_state='aligned') then
+        raise exception 'R6 storage retry did not restore aligned current artifact: %',r6_result; end if;
+      r6_failure_passed:=true;
+      begin
+        update public.contract_terms set normalized_value='{"amount":370000}'::jsonb,
+          display_value='$370,000' where id=term_id;
+        if not exists(select 1 from public.contractiq_report_snapshots s
+          where s.id=snapshot_two_id and s.snapshot_state in ('current','current_with_conflicts') and s.is_current)
+          or not exists(select 1 from public.contractiq_full_report_definitions f
+            where f.id=definition_two_id and f.report_state='current' and f.is_current)
+          or not exists(select 1 from public.reportiq_artifacts a
+            where a.job_id=(r6_full_job->>'jobId')::uuid and a.state='current') then
+          raise exception 'R6 superseded historical term incorrectly staled current reports: snapshot %, full %, artifact %',
+            (select s.snapshot_state from public.contractiq_report_snapshots s where s.id=snapshot_two_id),
+            (select f.report_state from public.contractiq_full_report_definitions f where f.id=definition_two_id),
+            (select a.state from public.reportiq_artifacts a where a.job_id=(r6_full_job->>'jobId')::uuid); end if;
+        r6_historical_no_stale_passed:=true;
+        raise exception using errcode='BR008',message='SPEC011A_R6_HISTORICAL_ROLLBACK';
+      exception when sqlstate 'BR008' then null; end;
+      if not r6_historical_no_stale_passed then raise exception 'R6 historical term guard not exercised'; end if;
+      begin
+        insert into public.reportiq_renderers(renderer_version,available)
+          values('r6-fixture-renderer-v2',true);
+        insert into public.reportiq_templates(report_type,template_version)
+          values('full_due_diligence','contractiq-full-report-template-v4');
+        perform set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated')::text,true);
+        execute 'set local role authenticated';
+        r6_stale_job:=public.request_contractiq_report_regeneration(definition_two_id,
+          'full_due_diligence',null,
+          (select report_definition_version from public.contractiq_full_report_definitions where id=definition_two_id),
+          'contractiq-full-report-template-v4','r6-fixture-renderer-v2','spec011a-r6-stale-renderer-v2');
+        execute 'reset role';
+        perform public.reportiq_start_generation((r6_stale_job->>'jobId')::uuid);
+        update public.contract_terms set normalized_value='{"amount":384000}'::jsonb,
+          display_value='$384,000' where id=amended_term_id;
+        r6_path:=workspace_id::text || '/' || deal_id::text || '/' || (r6_stale_job->>'jobId') || '.pdf';
+        insert into storage.objects(bucket_id,name) values('report-artifacts',r6_path);
+        r6_result:=public.reportiq_finish_generation((r6_stale_job->>'jobId')::uuid,r6_path,
+          repeat('b',64),'application/pdf',106);
+        if coalesce((r6_result->>'current')::boolean,true)
+          or not exists(select 1 from public.reportiq_artifacts a
+            where a.job_id=(r6_stale_job->>'jobId')::uuid and a.state='superseded'
+              and a.renderer_version='r6-fixture-renderer-v2'
+              and a.stale_reasons @> array['completed_from_stale_definition'])
+          or exists(select 1 from public.reportiq_artifacts a
+            where a.job_id=(r6_stale_job->>'jobId')::uuid and a.state='current') then
+          raise exception 'R6 stale-definition completion was promoted: %',r6_result; end if;
+        r6_stale_completion_passed:=true;
+        if not exists(select 1 from public.contractiq_report_snapshots s where s.id=snapshot_two_id and s.snapshot_state='stale')
+          or not exists(select 1 from public.contractiq_full_report_definitions f where f.id=definition_two_id and f.report_state='stale')
+          or not exists(select 1 from public.reportiq_artifacts a where a.job_id=(r6_full_job->>'jobId')::uuid and a.state='stale')
+          or not exists(select 1 from public.reportiq_artifacts a where a.job_id=(r6_failed_job->>'jobId')::uuid and a.state='stale')
+          or not exists(select 1 from public.reportiq_family_reconciliation_projection p
+            where p.contract_id=contract_id and p.alignment_state='partially_stale')
+          or not exists(select 1 from public.domain_events e where e.workspace_id=workspace_id
+            and e.entity_id=(select a.id from public.reportiq_artifacts a where a.job_id=(r6_full_job->>'jobId')::uuid)
+            and e.event_type='reportiq.artifact_marked_stale')
+          or not exists(select 1 from public.audit_events e where e.workspace_id=workspace_id
+            and e.target_id=(select a.id from public.reportiq_artifacts a where a.job_id=(r6_full_job->>'jobId')::uuid)
+            and e.action='reportiq.artifact_marked_stale')
+          then raise exception 'R6 material source change did not stale retained artifacts'; end if;
+        perform set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated')::text,true);
+        execute 'set local role authenticated';
+        r6_snapshot_b:=public.create_contractiq_report_snapshot(contract_id,'buyer',analysis_id,
+          'spec011a-r6-snapshot-b',gen_random_uuid());
+        r6_full_b:=public.create_contractiq_full_report_definition((r6_snapshot_b->>'snapshotId')::uuid,
+          'contractiq-full-report-template-v1','spec011a-r6-full-b',gen_random_uuid(),false);
+        r6_summary_b:=public.create_contractiq_buyer_summary_definition((r6_full_b->>'reportDefinitionId')::uuid,
+          'contractiq-buyer-summary-template-v1','spec011a-r6-summary-b',gen_random_uuid(),false);
+        if not exists(select 1 from public.contractiq_full_report_definitions f
+          where f.id=(r6_full_b->>'reportDefinitionId')::uuid and f.is_current and f.report_state='current') then
+          raise exception 'R6 lineage B Full definition not current: snapshot %, full %, summary %',
+            r6_snapshot_b,r6_full_b,r6_summary_b; end if;
+        r6_full_b_job:=public.request_contractiq_report_regeneration((r6_full_b->>'reportDefinitionId')::uuid,
+          'full_due_diligence',null,
+          (select report_definition_version from public.contractiq_full_report_definitions
+            where id=(r6_full_b->>'reportDefinitionId')::uuid),
+          'contractiq-full-report-template-v1','r6-fixture-renderer','spec011a-r6-full-b-render');
+        r6_summary_b_job:=public.request_contractiq_report_regeneration((r6_summary_b->>'summaryDefinitionId')::uuid,
+          'buyer_summary',null,
+          (select summary_definition_version from public.contractiq_buyer_summary_definitions
+            where id=(r6_summary_b->>'summaryDefinitionId')::uuid),
+          'contractiq-buyer-summary-template-v1','r6-fixture-renderer','spec011a-r6-summary-b-render');
+        execute 'reset role';
+        for r6_job_id in select (r6_full_b_job->>'jobId')::uuid union all select (r6_summary_b_job->>'jobId')::uuid loop
+          perform public.reportiq_start_generation(r6_job_id);
+          r6_path:=workspace_id::text || '/' || deal_id::text || '/' || r6_job_id::text || '.pdf';
+          insert into storage.objects(bucket_id,name) values('report-artifacts',r6_path);
+          r6_result:=public.reportiq_finish_generation(r6_job_id,r6_path,repeat('f',64),'application/pdf',105);
+          if not (r6_result->>'current')::boolean then raise exception 'R6 lineage B artifact failed: %',r6_result; end if;
+        end loop;
+        if not exists(select 1 from public.reportiq_family_reconciliation_projection p
+          where p.contract_id=contract_id and p.alignment_state='aligned'
+            and p.full_artifact_id=(select a.id from public.reportiq_artifacts a
+              where a.job_id=(r6_full_b_job->>'jobId')::uuid))
+          or not exists(select 1 from public.reportiq_artifacts a
+            where a.job_id=(r6_full_job->>'jobId')::uuid and a.state<>'current')
+          or not exists(select 1 from public.reportiq_artifact_history_projection a
+            where a.job_id=(r6_full_job->>'jobId')::uuid) then
+          raise exception 'R6 regenerated B family did not preserve A history'; end if;
+        r6_material_stale_passed:=true;
+        raise exception using errcode='BR007',message='SPEC011A_R6_MATERIAL_ROLLBACK';
+      exception when sqlstate 'BR007' then null; end;
+      if not r6_material_stale_passed
+        or not exists(select 1 from public.reportiq_artifacts a where a.job_id=(r6_full_job->>'jobId')::uuid and a.state='current')
+        then raise exception 'R6 material subfixture did not roll back'; end if;
+      insert into public.reportiq_templates(report_type,template_version)
+        values('role_export','contractiq-questions-report-template-v1');
+      perform set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated')::text,true);
+      execute 'set local role authenticated';
+      r6_lender_job:=public.request_contractiq_report_regeneration(r5_lender_id,'role_export','lender',
+        (select report_definition_version from public.contractiq_questions_report_definitions where id=r5_lender_id),
+        'contractiq-questions-report-template-v1','r6-fixture-renderer','spec011a-r6-lender');
+      r6_solar_job:=public.request_contractiq_report_regeneration((r5_solar->>'reportDefinitionId')::uuid,
+        'role_export','solar_provider',
+        (select report_definition_version from public.contractiq_questions_report_definitions
+          where id=(r5_solar->>'reportDefinitionId')::uuid),
+        'contractiq-questions-report-template-v1','r6-fixture-renderer','spec011a-r6-solar');
+      begin
+        update public.reportiq_artifacts set state='revoked' where job_id=(r6_full_job->>'jobId')::uuid;
+      exception when insufficient_privilege then r6_direct_write_denied:=true; end;
+      execute 'reset role';
+      if not r6_direct_write_denied then raise exception 'R6 direct artifact write was allowed'; end if;
+      for r6_job_id in select (r6_lender_job->>'jobId')::uuid union all select (r6_solar_job->>'jobId')::uuid loop
+        perform public.reportiq_start_generation(r6_job_id);
+        r6_path:=workspace_id::text || '/' || deal_id::text || '/' || r6_job_id::text || '.pdf';
+        insert into storage.objects(bucket_id,name) values('report-artifacts',r6_path);
+        r6_result:=public.reportiq_finish_generation(r6_job_id,r6_path,repeat('e',64),'application/pdf',104);
+        if not (r6_result->>'current')::boolean then raise exception 'R6 role artifact not current: %',r6_result; end if;
+      end loop;
+      perform set_config('request.jwt.claims',jsonb_build_object('sub',other_user_id,'role','authenticated')::text,true);
+      execute 'set local role authenticated';
+      if exists(select 1 from public.reportiq_artifact_history_projection a where a.workspace_id=workspace_id)
+        then raise exception 'R6 cross-workspace artifact read exposed data'; end if;
+      begin
+        perform public.request_contractiq_report_regeneration(r5_lender_id,'role_export','lender',
+          (select report_definition_version from public.contractiq_questions_report_definitions where id=r5_lender_id),
+          'contractiq-questions-report-template-v1','r6-fixture-renderer','spec011a-r6-crossworkspace');
+      exception when others then r6_cross_workspace_denied:=true; end;
+      execute 'reset role';
+      if not r6_cross_workspace_denied then raise exception 'R6 cross-workspace command was allowed'; end if;
+      begin
+        perform set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated')::text,true);
+        execute 'set local role authenticated';
+        select version into r5_version from public.contract_questions where id=solar_lender_question_id;
+        r5_mutation:=public.update_contractiq_canonical_question(solar_lender_question_id,
+          '{"targetRole":"buyer_attorney"}'::jsonb,r5_version,'spec011a-r6-role-change',gen_random_uuid());
+        execute 'reset role';
+        if not exists(select 1 from public.reportiq_artifacts a where a.job_id=(r6_lender_job->>'jobId')::uuid
+          and a.state='stale')
+          or not exists(select 1 from public.reportiq_artifacts a where a.job_id=(r6_solar_job->>'jobId')::uuid
+            and a.state='current')
+          or not exists(select 1 from public.reportiq_artifacts a where a.job_id=(r6_newer_job->>'jobId')::uuid
+            and a.state='stale') then raise exception 'R6 role change did not target artifact staleness: %',
+            (select jsonb_agg(jsonb_build_object('type',a.report_type,'role',a.selected_role,'state',a.state))
+              from public.reportiq_artifacts a where a.contract_id=contract_id); end if;
+        r6_role_stale_passed:=true;
+        raise exception using errcode='BR008',message='SPEC011A_R6_ROLE_ROLLBACK';
+      exception when sqlstate 'BR008' then null; end;
+      if not r6_role_stale_passed then raise exception 'R6 role fixture incomplete'; end if;
+      r6_fixture_passed:=true;
+      raise exception using errcode='BR006',message='SPEC011A_R6_ROLLBACK';
+    exception when sqlstate 'BR006' then null; end;
+    if not r6_fixture_passed or exists(select 1 from public.reportiq_artifacts where contract_id=contract_id)
+      or exists(select 1 from public.background_jobs where contract_id=contract_id) then
+      raise exception 'R6 fixture did not roll back cleanly'; end if;
     if not exists(select 1 from public.contractiq_questions_report_definition_projection d where d.report_definition_id=r5_all_id
       and d.is_current and jsonb_array_length(d.canonical_question_refs)>=8 and jsonb_array_length(d.grouped_questions)>=4)
       or not exists(select 1 from public.contractiq_role_question_export_projection d
@@ -1039,6 +1330,13 @@ begin
     'events',event_count,'audits',audit_count,'fixtureRollbackVerified',true
   ));
   insert into spec011a_r4_smoke_result(test_name,passed,detail) values
+    ('r6_initial_artifact_history',r6_fixture_passed,jsonb_build_object('aligned',r6_fixture_passed,
+      'outOfOrderProtected',r6_fixture_passed,'storageFailureRetry',r6_failure_passed,
+      'historicalTermNoStale',r6_historical_no_stale_passed,
+      'staleDefinitionCompletion',r6_stale_completion_passed,
+      'materialSourceStale',r6_material_stale_passed,'roleScopedStale',r6_role_stale_passed,
+      'directWriteDenied',r6_direct_write_denied,'crossWorkspaceDenied',r6_cross_workspace_denied,
+      'rollbackVerified',true)),
     ('r5_questions_and_role_exports',true,jsonb_build_object('allDefinitionId',r5_all_id,
       'groupedDefinitionId',r5_grouped->>'reportDefinitionId','attorneyDefinitionId',r5_attorney->>'reportDefinitionId',
       'lenderDefinitionId',r5_lender_id,'solarDefinitionId',r5_solar->>'reportDefinitionId',
