@@ -43,7 +43,7 @@ export function planReportPages(blocks: readonly ReportLayoutBlock[], pageHeight
   };
 
   for (const block of blocks) {
-    if (!block.id || !validHeight(block.height ?? block.headerHeight)) throw new Error("invalid_layout_block");
+    if (!block.id || !validHeight(block.kind === "table" ? block.headerHeight : block.height)) throw new Error("invalid_layout_block");
     if (block.kind === "table") {
       if (!validHeight(block.headerHeight) || block.rowHeights.some((h) => !validHeight(h))) {
         throw new Error("invalid_table_measurement");
