@@ -111,6 +111,19 @@ for (const migrationFile of migrationFiles) {
   forbidPattern(`supabase/migrations/${migrationFile}`, migration, /(full_report_questions|summary_report_questions|questions_report_questions)/i, "ContractIQ reports must not create duplicate question truth stores");
 }
 
+const reportRenderer = await read("src/core/reportRenderer.ts");
+requirePattern("src/core/reportRenderer.ts", reportRenderer, /planReportPages/, "R7 must use the shared measured pagination contract");
+requirePattern("src/core/reportRenderer.ts", reportRenderer, /definitionHash/, "R7 output must retain definition lineage");
+forbidPattern("src/core/reportRenderer.ts", reportRenderer,
+  /from\s+["'][^"']*(?:contractIQ|underwriting|financeIQ|deadline|supabase)[^"']*["']/i,
+  "R7 presentation must not import canonical analysis, calculations or persistence");
+forbidPattern("src/core/reportRenderer.ts", reportRenderer,
+  /getPublicUrl|createSignedUrl|\b(?:client|supabase|admin|storage)\.(?:from|rpc)\s*\(|\bfetch\s*\(/,
+  "R7 renderer must not expose artifacts, bypass the R6 lifecycle or fetch arbitrary assets");
+forbidPattern("src/core/reportRenderer.ts", reportRenderer,
+  /(?:currentPosition|recommendationState|dueAt|canonicalQuestionRefs)\s*=/,
+  "R7 presentation must not change recommendations, deadlines or canonical questions");
+
 if (failures.length) {
   console.error("BRIX production authority check failed:\n");
   for (const failure of failures) console.error(`- ${failure}`);
