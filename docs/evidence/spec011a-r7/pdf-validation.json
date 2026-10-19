@@ -1,0 +1,52 @@
+{
+  "short": {
+    "pages": 2,
+    "bytes": 110022,
+    "validation": "PASS"
+  },
+  "ordinary": {
+    "pages": 4,
+    "bytes": 119865,
+    "validation": "PASS"
+  },
+  "complex": {
+    "pages": 11,
+    "bytes": 137216,
+    "validation": "PASS"
+  },
+  "solar": {
+    "pages": 2,
+    "bytes": 111974,
+    "validation": "PASS"
+  },
+  "inspection": {
+    "pages": 2,
+    "bytes": 112130,
+    "validation": "PASS"
+  },
+  "multi-document": {
+    "pages": 2,
+    "bytes": 111073,
+    "validation": "PASS"
+  },
+  "many-questions": {
+    "pages": 8,
+    "bytes": 116007,
+    "validation": "PASS"
+  },
+  "long-table": {
+    "pages": 8,
+    "bytes": 120581,
+    "validation": "PASS"
+  },
+  "edge-page-break": {
+    "pages": 4,
+    "bytes": 118752,
+    "validation": "PASS"
+  },
+  "summary": {
+    "pages": 2,
+    "bytes": 111174,
+    "validation": "PASS"
+  }
+}

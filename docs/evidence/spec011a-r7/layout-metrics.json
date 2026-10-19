@@ -1,0 +1,62 @@
+{
+  "short": {
+    "pageCount": 2,
+    "durationMs": 137,
+    "sizeBytes": 110022,
+    "fileHash": "7c3fe607e5958a9674ad36be39f64c8acfd9dafec6db9d4c9da88307a04e1690"
+  },
+  "ordinary": {
+    "pageCount": 4,
+    "durationMs": 126,
+    "sizeBytes": 119865,
+    "fileHash": "8fc800b91c570305d6e24adc452c87c95d6d858de8b92c9eb6732f2c53036cf5"
+  },
+  "complex": {
+    "pageCount": 11,
+    "durationMs": 119,
+    "sizeBytes": 137216,
+    "fileHash": "774aca9dfce94e75c250357e5de52cc22a19dfea2683cc2da78728d75fc231dc"
+  },
+  "solar": {
+    "pageCount": 2,
+    "durationMs": 120,
+    "sizeBytes": 111974,
+    "fileHash": "79a0995f22009ce33130cac11109a000a025c08735596e47df30916bd6fd2ec7"
+  },
+  "inspection": {
+    "pageCount": 2,
+    "durationMs": 113,
+    "sizeBytes": 112130,
+    "fileHash": "cc62043f7383d6c5c9edb3bd03384c65714d5fd6cf9938b1dda284f773120af3"
+  },
+  "multi-document": {
+    "pageCount": 2,
+    "durationMs": 140,
+    "sizeBytes": 111073,
+    "fileHash": "6aa68abf3f0a4b3ccf66033cc8c2a627534a3ebc24b58db52c63db5235fc2eec"
+  },
+  "many-questions": {
+    "pageCount": 8,
+    "durationMs": 101,
+    "sizeBytes": 116007,
+    "fileHash": "1f15ccf33f2684fb5acb45c11ae21f4cdcb2a442fff3c056405bf2a011615a23"
+  },
+  "long-table": {
+    "pageCount": 8,
+    "durationMs": 120,
+    "sizeBytes": 120581,
+    "fileHash": "a493bbf594ea508eab6db1440ed415069d3ba6152a6a9e6520e4213461dc5d1b"
+  },
+  "edge-page-break": {
+    "pageCount": 4,
+    "durationMs": 108,
+    "sizeBytes": 118752,
+    "fileHash": "922a34313a1a2065c66c856a72e2d7c1361c4e52c7e08ead3300dfdc9c07a720"
+  },
+  "summary": {
+    "pageCount": 2,
+    "durationMs": 103,
+    "sizeBytes": 111174,
+    "fileHash": "30b77832e86c52a5309ad411da9f6cf04680fe5478696dad03bfb1a9f643c7cb"
+  }
+}
