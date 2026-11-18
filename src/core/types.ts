@@ -42,6 +42,8 @@ export type DealFacts = {
   photoUrls: string[];
   uploadedPhotoNames: string[];
   verification: Record<string, VerificationState>;
+  /** Saved Deal Analyzer assumptions (see core/investorMath). */
+  analyzer?: Partial<import("./investorMath").AnalyzerInputs>;
 };
 
 export type DealPriority = "low" | "normal" | "high" | "urgent";
