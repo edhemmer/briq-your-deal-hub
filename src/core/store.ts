@@ -248,6 +248,8 @@ export function normalizeDealRecord(value: unknown): DealFacts | null {
     if (numberValue !== undefined) Object.assign(deal, { [field]: numberValue });
   }
 
+  if (isRecord(value.analyzer)) deal.analyzer = value.analyzer as DealFacts["analyzer"];
+
   return deal;
 }
 
