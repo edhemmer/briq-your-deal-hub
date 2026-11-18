@@ -1060,7 +1060,7 @@ describe("BRIX app module flow", () => {
     await screen.findByRole("heading", { name: "Home" });
     fireEvent.click(screen.getByRole("button", { name: /Deals Review saved deal work/i }));
 
-    expect(await screen.findByRole("heading", { name: "Authorized Deal records" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Your Deals" })).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Saved Deals" })).toBeInTheDocument();
     expect(screen.getByText("Alpha House")).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "Open Deal" })[0]);
@@ -1090,7 +1090,7 @@ describe("BRIX app module flow", () => {
 
     expect(await screen.findByText("This Deal is no longer available.")).toBeInTheDocument();
     await waitFor(() => expect(window.location.pathname).toBe("/deals"));
-    expect(screen.getByRole("heading", { name: "Authorized Deal records" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Your Deals" })).toBeInTheDocument();
     expect(screen.queryByText("not-authorized")).not.toBeInTheDocument();
   });
 

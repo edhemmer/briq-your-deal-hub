@@ -7,7 +7,7 @@ import { buildStrategyPresentation } from "./core/strategyPresentation";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
 import { Landing } from "./Landing";
 import { DealAnalyzer, DealSnapshot, type AnalyzerSaveState, type AnalyzerView } from "./components/DealAnalyzer";
-import type { AnalyzerInputs } from "./core/investorMath";
+import { analyzeRental, inputsFromDeal, rentalVerdict, usd, type AnalyzerInputs } from "./core/investorMath";
 import { createRemoteDeal, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
 import { archiveDeal, listDealProjections, loadDealDetail, restoreDeal, updateDealCore, updateDealLifecycle, updateProperty } from "./core/dealCrud";
 import type { CanonicalDealOperatingStatus, CanonicalDealStage, DealAttentionState, DealDetailProjection, DealFacts, DealListProjection, DealNote, DealPriority, DealProjectionFilters, DealProjectionSort, DealRelationship, DealRelationshipRole, DealRelationshipStatus, DealStatus, DealTimelineItem, DealWorkItem, DuplicateCandidate, ManualIntakeDraft, ManualPropertyCandidate, PropertySummary, RelationshipTargetType } from "./core/types";
@@ -1848,6 +1848,7 @@ function DealsSurface({
   const isFiltered = Boolean(search.trim()) || hasDealProjectionFilters(filters);
   const finalPage = pageOffset + pageSize >= page.totalCount;
   const visibleDeals = isAuthenticated ? page.deals : deals.map(localDealProjection);
+  const dealMetrics = useDealListFacts(isAuthenticated ? visibleDeals : [], isOnline);
 
   if (workspaceStatus === "failed") {
     return (
@@ -1900,8 +1901,8 @@ function DealsSurface({
         <div className="section-heading">
           <div>
             <p className="eyebrow">Saved Deals</p>
-            <h2>{isProfessional ? "Deal records" : "Authorized Deal records"}</h2>
-            <p className="quiet">{isAuthenticated ? "Search, filters, sorting, archive, and restore use canonical account records." : "Local drafts are shown from this device until you sign in."}</p>
+            <h2>{isProfessional ? "Deal records" : "Your Deals"}</h2>
+            <p className="quiet">{isAuthenticated ? "Every deal you are tracking, with its verdict and cash flow at a glance." : "Local drafts are shown from this device until you sign in."}</p>
           </div>
           <div className="button-row">
             <button className="primary compact" type="button" onClick={onStartIntake}><Plus size={16} /> Add Deal</button>
@@ -2006,6 +2007,7 @@ function DealsSurface({
                 <div>
                   <strong>{deal.displayName}</strong>
                   <span>{secondaryLocation}</span>
+                  <DealRowMetrics facts={isAuthenticated ? dealMetrics.get(deal.dealId) : sourceDeal ?? undefined} />
                 </div>
                 <div>
                   <small>State</small>
@@ -2071,6 +2073,59 @@ type ProjectionPageState = {
   activeCount: number;
   archivedCount: number;
 };
+
+const dealListFactsCache = new Map<string, DealFacts>();
+
+/** Loads saved facts for the visible Deals (4 at a time) so the list can show each Deal's numbers. */
+function useDealListFacts(rows: DealListProjection[], isOnline: boolean) {
+  const [, setVersion] = useState(0);
+  const key = rows.map((row) => `${row.dealId}:${row.updatedAt}`).join("|");
+  useEffect(() => {
+    if (!isOnline || !key) return;
+    let cancelled = false;
+    const pending = rows.filter((row) => !dealListFactsCache.has(`${row.dealId}:${row.updatedAt}`)).slice(0, 50);
+    const queue = [...pending];
+    const worker = async () => {
+      while (!cancelled && queue.length) {
+        const row = queue.shift()!;
+        try {
+          const detail = await loadDealDetail(row.dealId);
+          dealListFactsCache.set(`${row.dealId}:${row.updatedAt}`, detail.deal);
+          if (!cancelled) setVersion((v) => v + 1);
+        } catch {
+          // A row without numbers is fine; the Deal still opens normally.
+        }
+      }
+    };
+    void Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, isOnline]);
+  return new Map(rows.flatMap((row) => {
+    const facts = dealListFactsCache.get(`${row.dealId}:${row.updatedAt}`);
+    return facts ? [[row.dealId, facts] as const] : [];
+  }));
+}
+
+function DealRowMetrics({ facts }: { facts?: DealFacts }) {
+  if (!facts) return null;
+  const inputs = inputsFromDeal(facts);
+  if (inputs.purchasePrice <= 0 || inputs.monthlyRent <= 0) {
+    return <div className="deal-list-metrics"><span className="deal-chip">{inputs.purchasePrice > 0 ? `${usd(inputs.purchasePrice)} · add rent to analyze` : "Add price and rent to analyze"}</span></div>;
+  }
+  const rental = analyzeRental(inputs);
+  const verdict = rentalVerdict(inputs, rental);
+  const tone = verdict.tone === "strong" ? "good" : verdict.tone === "workable" ? "warn" : "bad";
+  const label = verdict.tone === "strong" ? "Meets targets" : verdict.tone === "workable" ? "Workable" : "Doesn't pencil";
+  return (
+    <div className="deal-list-metrics" aria-label="Deal numbers">
+      <span className={`deal-chip ${tone}`}>{label}</span>
+      <span className={`deal-chip ${rental.monthlyCashFlow >= 0 ? "good" : "bad"}`}>{usd(rental.monthlyCashFlow)}/mo</span>
+      <span className="deal-chip">{rental.cashOnCash === null ? "CoC n/a" : `${(rental.cashOnCash * 100).toFixed(1)}% CoC`}</span>
+      <span className="deal-chip">{usd(inputs.purchasePrice)}</span>
+    </div>
+  );
+}
 
 function localDealProjection(deal: DealFacts): DealListProjection {
   return {
@@ -3092,7 +3147,7 @@ function DealWorkspace({
         <h3 ref={sectionHeadingRef} tabIndex={-1}>{dealWorkspaceSections.find((item) => item.id === section)?.label}</h3>
         {section === "overview" && <DealOverviewSection deal={effectiveDeal} detail={detail} property={property} onEdit={() => selectSection("property")} onAnalyze={() => selectSection("underwriting")} />}
         {section === "property" && <DealPropertySection deal={effectiveDeal} detail={detail} property={property} userId={userId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
-        {section === "underwriting" && <DealAnalysisSection key={`${deal.id}:${effectiveDeal.dealVersion ?? 0}:rental`} deal={effectiveDeal} initialView="rental" isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
+        {section === "underwriting" && <DealAnalysisSection key={`${deal.id}:${effectiveDeal.dealVersion ?? 0}:rental`} deal={effectiveDeal} initialView="insights" isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
         {section === "strategies" && <DealStrategySection key={`${deal.id}:${effectiveDeal.dealVersion ?? 0}:compare`} deal={effectiveDeal} presentationMode={presentationMode} isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
         {section === "financeiq" && <Suspense fallback={<p className="quiet" role="status">Loading…</p>}><FinanceIQWorkspace dealId={deal.id} dealName={displayName} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} mode={presentationMode} /></Suspense>}
         {section === "governanceiq" && <Suspense fallback={<p className="quiet" role="status">Loading…</p>}><GovernanceIQWorkspace dealId={deal.id} dealName={displayName} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} mode={presentationMode} /></Suspense>}
