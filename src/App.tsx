@@ -1,25 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject, SetStateAction } from "react";
 import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch, Eye, EyeOff, AlertTriangle, CheckCircle2, Users, UserMinus, Home, Menu, X, WifiOff, RefreshCw, CalendarClock, Pin, Archive, CheckSquare } from "lucide-react";
-import { strategyCatalog, type StrategyId } from "./core/strategyCatalog";
+import { getStrategy, strategyCatalog, type StrategyId } from "./core/strategyCatalog";
+import { StrategyWorkspace } from "./components/StrategyWorkspace";
+import { buildStrategyPresentation } from "./core/strategyPresentation";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
+import { Landing } from "./Landing";
+import { DealAnalyzer, DealSnapshot, type AnalyzerSaveState, type AnalyzerView } from "./components/DealAnalyzer";
+import type { AnalyzerInputs } from "./core/investorMath";
 import { createRemoteDeal, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
 import { archiveDeal, listDealProjections, loadDealDetail, restoreDeal, updateDealCore, updateDealLifecycle, updateProperty } from "./core/dealCrud";
 import type { CanonicalDealOperatingStatus, CanonicalDealStage, DealAttentionState, DealDetailProjection, DealFacts, DealListProjection, DealNote, DealPriority, DealProjectionFilters, DealProjectionSort, DealRelationship, DealRelationshipRole, DealRelationshipStatus, DealStatus, DealTimelineItem, DealWorkItem, DuplicateCandidate, ManualIntakeDraft, ManualPropertyCandidate, PropertySummary, RelationshipTargetType } from "./core/types";
 import { supabase } from "./core/supabase";
-import { downloadDecisionPdf, downloadWorkbook } from "./core/reportExports";
 import { analyzePhotoEvidence } from "./core/photoAnalysis";
 import { areaSearchUrl, ownerOccupiedConveniences, taxSearchUrl } from "./core/areaAndTax";
 import { reviewContractText } from "./core/contractReview";
 import { buildOfferStructures, offerSummary } from "./core/offerEngine";
 import { portfolioMetrics } from "./core/portfolioEngine";
-import { UnderwritingWorkspace } from "./components/UnderwritingWorkspace";
-import { buildUnderwritingPresentation } from "./core/underwritingPresentation";
-import { StrategyWorkspace } from "./components/StrategyWorkspace";
-import { buildStrategyPresentation } from "./core/strategyPresentation";
-import { FinanceIQWorkspace } from "./components/FinanceIQWorkspace";
-import { GovernanceIQWorkspace } from "./components/GovernanceIQWorkspace";
-import { ContractIQWorkspace } from "./components/ContractIQWorkspace";
 import {
   attachExistingRelationship,
   createAndAttachRelationship,
@@ -161,6 +158,10 @@ type InvestorAttentionItem = {
   actionLabel?: string;
   dealId?: string;
 };
+
+const FinanceIQWorkspace = lazy(() => import("./components/FinanceIQWorkspace").then((m) => ({ default: m.FinanceIQWorkspace })));
+const GovernanceIQWorkspace = lazy(() => import("./components/GovernanceIQWorkspace").then((m) => ({ default: m.GovernanceIQWorkspace })));
+const ContractIQWorkspace = lazy(() => import("./components/ContractIQWorkspace").then((m) => ({ default: m.ContractIQWorkspace })));
 
 const nav: Array<{ id: VisibleModule; label: string; icon: typeof Search; purpose: string }> = [
   { id: "home", label: "Home", icon: Home, purpose: "Resume your BRIX account" },
@@ -1389,27 +1390,6 @@ function BrixApp() {
   );
 }
 
-function Landing() {
-  return (
-    <main className="landing">
-      <section className="landing-hero">
-        <div className="brand large">
-          <div className="mark" aria-hidden="true"><span /><span /><span /><span /></div>
-          <div><strong>BRIX</strong><small>Real Estate</small></div>
-        </div>
-        <h1>Real estate decisions with evidence before emotion.</h1>
-        <p>Enter a property, choose a strategy, and BRIX builds the deal file, checks missing facts, compares strategies, and tells you whether to visit, research first, or pass.</p>
-        <button className="primary" onClick={() => window.location.assign("/app")}>Open BRIX</button>
-      </section>
-      <section className="landing-grid">
-        <Step n="1" title="Start with one property" text="Enter the address or descriptive location, then BRIX creates one Deal workspace." />
-        <Step n="2" title="Choose the strategy" text="Owner occupied, rental, BRRRR, flip, seller finance, refinance, tax, development, and partnership paths." />
-        <Step n="3" title="Get decision intelligence" text="Confidence, readiness, missing data, strategy comparison, report export, and next actions." />
-      </section>
-    </main>
-  );
-}
-
 function ShellSearchPanel({
   query,
   results,
@@ -1621,8 +1601,8 @@ function HomeSurface({
   return (
     <section className="home-surface">
       <div className="panel hero-panel home-hero">
-        <StatusBadge tone={accountReady ? "success" : isAuthenticated ? "warning" : "neutral"}>{accountReady ? "Account ready" : isAuthenticated ? "Account loading" : "Local mode"}</StatusBadge>
-        <h2>{accountReady ? isProfessional ? "Ready for deal work." : "Your BRIX account is ready." : isAuthenticated ? "BRIX is confirming your account context." : "Use BRIX locally or sign in when you want cloud continuity."}</h2>
+        <StatusBadge tone={accountReady ? "success" : isAuthenticated ? "warning" : "neutral"}>{accountReady ? "Account ready" : isAuthenticated ? "Account loading" : "Not signed in"}</StatusBadge>
+        <h2>{accountReady ? isProfessional ? "Ready for deal work." : "Your BRIX account is ready." : isAuthenticated ? "BRIX is confirming your account context." : "Create a free account to analyze and save Deals."}</h2>
         <p className="quiet">
           {accountReady
             ? isProfessional
@@ -1630,12 +1610,14 @@ function HomeSurface({
               : "The shell only shows records that exist in your saved workspace. Start a Deal when you are ready to investigate a Property."
             : isAuthenticated
               ? "Cloud Deal information stays hidden until BRIX confirms your account workspace and permissions."
-            : "Local drafts stay on this device until you sign in. Cloud Deals remain separated from local drafts."}
+            : "Deals, analysis, and evidence are saved to your private account so they're there on any device. Sign-up takes under a minute."}
         </p>
         <div className="button-row">
-          <button className="primary" onClick={onStartIntake}><Plus size={18} /> Add Deal</button>
+          {isAuthenticated
+            ? <button className="primary" onClick={onStartIntake}><Plus size={18} /> Add Deal</button>
+            : <button className="primary" onClick={onOpenSettings}><UserCircle size={18} /> Sign in or create account</button>}
           {hasDeals && <button className="primary" onClick={() => onOpenDeal()}><BarChart3 size={18} /> Open Deals</button>}
-          <button className="secondary" onClick={onOpenSettings}><UserCircle size={18} /> {isAuthenticated ? "Account settings" : "Sign in"}</button>
+          {isAuthenticated && <button className="secondary" onClick={onOpenSettings}><UserCircle size={18} /> Account settings</button>}
         </div>
       </div>
 
@@ -2015,7 +1997,10 @@ function DealsSurface({
             {visibleDeals.map((deal) => {
             const sourceDeal = isAuthenticated ? null : deals.find((localDeal) => localDeal.id === deal.dealId);
             const analysis = sourceDeal ? analyzeDeal(sourceDeal) : null;
-            const secondaryLocation = deal.primaryPropertyAddress && deal.primaryPropertyAddress !== deal.displayName ? deal.primaryPropertyAddress : "Location not entered";
+            const strategyName = getStrategy(deal.strategyIntent)?.name;
+            const secondaryLocation = deal.primaryPropertyAddress && deal.primaryPropertyAddress !== deal.displayName
+              ? deal.primaryPropertyAddress
+              : [labelForStage(deal.stage), strategyName].filter(Boolean).join(" · ");
             return (
               <article key={deal.dealId} className={deal.dealId === selectedId ? "deal-list-row active" : "deal-list-row"} role="listitem">
                 <div>
@@ -3105,13 +3090,13 @@ function DealWorkspace({
 
       <div className="deal-section-shell" role="tabpanel" id={`deal-section-${section}`} aria-labelledby={`deal-tab-${section}`}>
         <h3 ref={sectionHeadingRef} tabIndex={-1}>{dealWorkspaceSections.find((item) => item.id === section)?.label}</h3>
-        {section === "overview" && <DealOverviewSection deal={effectiveDeal} detail={detail} property={property} onEdit={() => selectSection("property")} />}
+        {section === "overview" && <DealOverviewSection deal={effectiveDeal} detail={detail} property={property} onEdit={() => selectSection("property")} onAnalyze={() => selectSection("underwriting")} />}
         {section === "property" && <DealPropertySection deal={effectiveDeal} detail={detail} property={property} userId={userId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
-        {section === "underwriting" && <DealUnderwritingSection deal={effectiveDeal} presentationMode={presentationMode} />}
-        {section === "strategies" && <DealStrategySection deal={effectiveDeal} presentationMode={presentationMode} />}
-        {section === "financeiq" && <FinanceIQWorkspace dealId={deal.id} dealName={displayName} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} mode={presentationMode} />}
-        {section === "governanceiq" && <GovernanceIQWorkspace dealId={deal.id} dealName={displayName} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} mode={presentationMode} />}
-        {section === "contractiq" && <ContractIQWorkspace dealId={deal.id} dealName={displayName} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} mode={presentationMode} />}
+        {section === "underwriting" && <DealAnalysisSection key={`${deal.id}:${effectiveDeal.dealVersion ?? 0}:rental`} deal={effectiveDeal} initialView="rental" isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
+        {section === "strategies" && <DealStrategySection key={`${deal.id}:${effectiveDeal.dealVersion ?? 0}:compare`} deal={effectiveDeal} presentationMode={presentationMode} isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
+        {section === "financeiq" && <Suspense fallback={<p className="quiet" role="status">Loading…</p>}><FinanceIQWorkspace dealId={deal.id} dealName={displayName} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} mode={presentationMode} /></Suspense>}
+        {section === "governanceiq" && <Suspense fallback={<p className="quiet" role="status">Loading…</p>}><GovernanceIQWorkspace dealId={deal.id} dealName={displayName} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} mode={presentationMode} /></Suspense>}
+        {section === "contractiq" && <Suspense fallback={<p className="quiet" role="status">Loading…</p>}><ContractIQWorkspace dealId={deal.id} dealName={displayName} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} mode={presentationMode} /></Suspense>}
         {section === "people" && <RelationshipPanel dealId={deal.id} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} />}
         {section === "work" && <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} section="work" />}
         {section === "notes" && <WorkHistoryPanel dealId={deal.id} workspaceId={workspaceId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} section="notes" />}
@@ -3126,19 +3111,21 @@ function DealOverviewSection({
   detail,
   property,
   onEdit,
+  onAnalyze,
 }: {
   deal: DealFacts;
   detail: DealDetailProjection | null;
   property?: PropertySummary;
   onEdit: () => void;
+  onAnalyze: () => void;
 }) {
   const summaryItems = detail ? [
     { label: "Stage", value: labelForStage(detail.stage) },
     { label: "Status", value: labelForOperatingStatus(detail.operatingStatus) },
     { label: "Priority", value: labelForPriority(detail.priority) },
     { label: "Source", value: readableValue(detail.source) },
-    { label: "Deal version", value: String(deal.dealVersion ?? "Reload required") },
-    { label: "Loaded", value: formatShortDate(detail.loadedAt) },
+    { label: "Strategy", value: getStrategy(deal.strategyId)?.name ?? readableValue(deal.strategyId) },
+    { label: "Updated", value: formatShortDate(detail.deal.updatedAt ?? detail.loadedAt) },
   ] : [
     { label: "Status", value: readableValue(deal.status) },
     { label: "Updated", value: formatShortDate(deal.updatedAt) },
@@ -3146,6 +3133,7 @@ function DealOverviewSection({
   ];
   return (
     <div className="deal-section-grid">
+      <DealSnapshot deal={deal} onOpen={onAnalyze} />
       <section className="workspace-card">
         <div className="panel-heading-row">
           <div>
@@ -3287,26 +3275,94 @@ function DealPropertySection({
   );
 }
 
-function DealUnderwritingSection({ deal, presentationMode }: { deal: DealFacts; presentationMode: PresentationMode }) {
-  const model = buildUnderwritingPresentation({
-    dealId: deal.id,
-    dealName: deal.address || "Deal",
-    mode: presentationMode,
-    snapshots: [],
-    runs: [],
-    scenarios: [],
-    sensitivities: [],
-  });
-  return <UnderwritingWorkspace model={model} />;
+function DealAnalysisSection({
+  deal,
+  initialView,
+  isAuthenticated,
+  isOnline,
+  onSaved,
+}: {
+  deal: DealFacts;
+  initialView: AnalyzerView;
+  isAuthenticated: boolean;
+  isOnline: boolean;
+  onSaved: (deal: DealFacts) => void;
+}) {
+  const [saveState, setSaveState] = useState<AnalyzerSaveState>("idle");
+  const [saveMessage, setSaveMessage] = useState<string | undefined>();
+  const canSave = isAuthenticated && isOnline && Boolean(deal.dealVersion);
+
+  async function save(inputs: AnalyzerInputs) {
+    if (!isAuthenticated) {
+      setSaveState("local");
+      setSaveMessage("Sign in to save this analysis to your Deal. Your numbers stay on screen until you leave.");
+      return;
+    }
+    if (!isOnline) {
+      setSaveState("failed");
+      setSaveMessage("You're offline. Your numbers are still on screen; save again when you're back online.");
+      return;
+    }
+    setSaveState("saving");
+    setSaveMessage(undefined);
+    const facts: DealFacts = {
+      ...deal,
+      analyzer: inputs,
+      listPrice: inputs.purchasePrice || undefined,
+      monthlyRent: inputs.monthlyRent || undefined,
+      annualTaxes: inputs.annualTaxes || undefined,
+      annualInsurance: inputs.annualInsurance || undefined,
+      hoaMonthly: inputs.hoaMonthly || undefined,
+      rehabBudget: inputs.rehabBudget || undefined,
+      arv: inputs.arv,
+      interestRate: inputs.interestRate,
+      loanYears: inputs.loanTermYears,
+      downPayment: Math.round(inputs.purchasePrice * (inputs.cashPurchase ? 1 : inputs.downPaymentPct / 100)),
+    };
+    try {
+      const detail = await updateDealCore(deal, {
+        facts,
+        strategyId: deal.strategyId,
+        strategyIntent: deal.strategyId,
+        verification: deal.verification,
+      });
+      onSaved(detail.deal);
+      setSaveState("saved");
+      setSaveMessage("Saved to Deal");
+    } catch (error) {
+      const safe = safeDealCommandMessage(error);
+      setSaveState(safe.status === "stale" ? "stale" : "failed");
+      setSaveMessage(safe.status === "stale" ? "This Deal changed somewhere else. Reload the Deal, then save again. Your numbers are still on screen." : safe.message);
+    }
+  }
+
+  return <DealAnalyzer deal={deal} initialView={initialView} canSave={canSave} saveState={saveState} saveMessage={saveMessage} onSave={(inputs) => void save(inputs)} />;
 }
 
-function DealStrategySection({ deal, presentationMode }: { deal: DealFacts; presentationMode: PresentationMode }) {
+function DealStrategySection({
+  deal,
+  presentationMode,
+  isAuthenticated,
+  isOnline,
+  onSaved,
+}: {
+  deal: DealFacts;
+  presentationMode: PresentationMode;
+  isAuthenticated: boolean;
+  isOnline: boolean;
+  onSaved: (deal: DealFacts) => void;
+}) {
   const model = buildStrategyPresentation({
     dealId: deal.id,
     dealName: deal.address || "Deal",
     mode: presentationMode,
   });
-  return <StrategyWorkspace model={model} />;
+  return (
+    <div className="analyzer">
+      <DealAnalysisSection deal={deal} initialView="compare" isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={onSaved} />
+      {model.hasCanonicalStrategyResults ? <StrategyWorkspace model={model} /> : null}
+    </div>
+  );
 }
 
 function DefinitionList({ items }: { items: Array<{ label: string; value?: string }> }) {
@@ -4559,7 +4615,7 @@ function Reports({ deal }: { deal?: DealFacts }) {
     <section className="panel memo">
       <p className="eyebrow">Decision memo</p>
       <h2>{deal.address}</h2>
-      <div className="button-row"><button className="primary" onClick={() => downloadDecisionPdf(deal, analysis)}>Download PDF</button><button className="secondary" onClick={() => downloadWorkbook(deal, analysis)}>Download XLS</button></div>
+      <div className="button-row"><button className="primary" onClick={() => void import("./core/reportExports").then((m) => m.downloadDecisionPdf(deal, analysis))}>Download PDF</button><button className="secondary" onClick={() => void import("./core/reportExports").then((m) => m.downloadWorkbook(deal, analysis))}>Download XLS</button></div>
       <div className="stat-row">
         <Stat label="Recommendation" value={analysis.decision} />
         <Stat label="Confidence" value={`${analysis.confidence}/100`} />
@@ -5728,9 +5784,6 @@ function NumberField({ label, value, onChange }: { label: string; value?: number
   return <label className="field"><span>{label}</span><input inputMode="decimal" value={value ?? ""} onChange={(event) => onChange(toNumber(event.target.value))} /></label>;
 }
 
-function Step({ n, title, text }: { n: string; title: string; text: string }) {
-  return <div className="step"><b>{n}</b><div><strong>{title}</strong><p>{text}</p></div></div>;
-}
 
 function Empty({ title, text }: { title: string; text: string }) {
   return <section className="panel empty"><h2>{title}</h2><p>{text}</p></section>;

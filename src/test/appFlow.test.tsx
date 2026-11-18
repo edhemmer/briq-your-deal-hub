@@ -865,7 +865,7 @@ describe("BRIX app module flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /Sign out/i }));
 
     await waitFor(() => expect(screen.queryByRole("heading", { name: "My Account" })).not.toBeInTheDocument());
-    expect(await screen.findByText("Use BRIX locally or sign in when you want cloud continuity.")).toBeInTheDocument();
+    expect(await screen.findByText("Create a free account to analyze and save Deals.")).toBeInTheDocument();
     expect(localStorage.getItem("brix.presentationMode:anonymous")).toBe("professional");
   });
 
@@ -1525,7 +1525,7 @@ describe("BRIX app module flow", () => {
     render(<App />);
 
     await screen.findByRole("heading", { name: "Home" });
-    expect(screen.getByText(/Local drafts stay on this device/i)).toBeInTheDocument();
+    expect(screen.getByText(/saved to your private account/i)).toBeInTheDocument();
     expect(mocks.upsert).not.toHaveBeenCalled();
   });
 

@@ -1,4 +1,5 @@
 import { FORMULA_REGISTRY_VERSION, executeFormula, formulaInput } from "./formulaRegistry";
+import { analyzeRental, inputsFromDeal } from "./investorMath";
 import { getStrategy, strategyCatalog } from "./strategyCatalog";
 import type { DealAnalysis, DealFacts, StrategyScore, StrategyInsight } from "./types";
 
@@ -40,57 +41,35 @@ export function analyzeDeal(deal: DealFacts): DealAnalysis {
 
 function calculateFinancials(deal: DealFacts) {
   if (!deal.listPrice) return {};
-  const monthlyPayment = estimateMonthlyPrincipalAndInterest(deal) ?? 0;
+  // The operating statement (vacancy, management, maintenance and CapEx reserves) comes from the
+  // shared investor engine; the headline ratios are executed through the formula registry so every
+  // surface reconciles to the same versioned definitions.
+  const inputs = inputsFromDeal(deal);
+  const rental = analyzeRental(inputs);
   if (!deal.monthlyRent) {
-    return { monthlyDebtService: Math.round(monthlyPayment) };
+    return { monthlyDebtService: Math.round(rental.monthlyPrincipalAndInterest) };
   }
-  const grossRent = deal.monthlyRent;
-  const grossScheduledIncome = formulaNumber("gross_scheduled_income", "gross-scheduled-income", {
-    scheduled_income_monthly: formulaInput(grossRent, "currency", "monthly"),
-  }) ?? grossRent * 12;
-  const vacancy = grossScheduledIncome * 0.06;
-  const maintenance = grossScheduledIncome * 0.08;
-  const management = grossScheduledIncome * 0.08;
-  const effectiveGrossIncome = formulaNumber("effective_gross_income", "effective-gross-income", {
-    gross_scheduled_income: formulaInput(grossScheduledIncome, "currency", "annual"),
-    vacancy_loss: formulaInput(vacancy, "currency", "annual", "USD", "accepted_user_assumption"),
-  }) ?? grossScheduledIncome - vacancy;
-  const totalOperatingExpenses = formulaNumber("total_operating_expenses", "total-operating-expenses", {
-    taxes: formulaInput(deal.annualTaxes ?? 0, "currency", "annual"),
-    insurance: formulaInput(deal.annualInsurance ?? 0, "currency", "annual"),
-    maintenance: formulaInput(maintenance, "currency", "annual", "USD", "accepted_user_assumption"),
-    management: formulaInput(management, "currency", "annual", "USD", "accepted_user_assumption"),
-    hoa: formulaInput((deal.hoaMonthly ?? 0) * 12, "currency", "annual"),
-  }) ?? (deal.annualTaxes ?? 0) + (deal.annualInsurance ?? 0) + maintenance + management + (deal.hoaMonthly ?? 0) * 12;
   const annualNOI = formulaNumber("net_operating_income", "net-operating-income", {
-    effective_gross_income: formulaInput(effectiveGrossIncome, "currency", "annual"),
-    total_operating_expenses: formulaInput(totalOperatingExpenses, "currency", "annual"),
-  }) ?? effectiveGrossIncome - totalOperatingExpenses;
-  const annualDebtService = formulaNumber("annual_debt_service", "annual-debt-service", {
-    monthly_principal_interest: formulaInput(monthlyPayment, "currency", "monthly"),
-  }) ?? monthlyPayment * 12;
-  const annualCashFlow = formulaNumber("pre_tax_cash_flow", "pre-tax-cash-flow", {
-    net_operating_income: formulaInput(annualNOI, "currency", "annual"),
-    annual_debt_service: formulaInput(annualDebtService, "currency", "annual"),
-  }) ?? annualNOI - annualDebtService;
-  const monthlyNOI = Math.round(annualNOI / 12);
-  const monthlyCashFlow = Math.round(annualCashFlow / 12);
-  const cashNeeded = estimateCashNeeded(deal) ?? 0;
+    effective_gross_income: formulaInput(rental.operating.effectiveGrossIncome, "currency", "annual"),
+    total_operating_expenses: formulaInput(rental.operating.totalOperatingExpenses, "currency", "annual"),
+  }) ?? rental.operating.netOperatingIncome;
+  const annualDebtService = rental.annualDebtService;
+  const annualCashFlow = annualNOI - annualDebtService;
   return {
-    monthlyNOI,
-    monthlyDebtService: Math.round(monthlyPayment),
-    monthlyCashFlow,
-    dscr: formulaNumber("debt_service_coverage_ratio", "debt-service-coverage-ratio", {
+    monthlyNOI: Math.round(annualNOI / 12),
+    monthlyDebtService: Math.round(rental.monthlyPrincipalAndInterest),
+    monthlyCashFlow: Math.round(annualCashFlow / 12),
+    dscr: annualDebtService > 0 ? formulaNumber("debt_service_coverage_ratio", "debt-service-coverage-ratio", {
       net_operating_income: formulaInput(annualNOI, "currency", "annual"),
       annual_debt_service: formulaInput(annualDebtService, "currency", "annual"),
-    }),
+    }) : undefined,
     capRate: formulaNumber("capitalization_rate", "capitalization-rate", {
       net_operating_income: formulaInput(annualNOI, "currency", "annual"),
-      value_basis: formulaInput(deal.listPrice, "currency", "one_time"),
+      value_basis: formulaInput(inputs.purchasePrice, "currency", "one_time"),
     }),
-    cashOnCash: cashNeeded > 0 ? formulaNumber("cash_on_cash_return", "cash-on-cash-return", {
+    cashOnCash: rental.totalCashInvested > 0 ? formulaNumber("cash_on_cash_return", "cash-on-cash-return", {
       pre_tax_cash_flow: formulaInput(annualCashFlow, "currency", "annual"),
-      total_cash_invested: formulaInput(cashNeeded, "currency", "one_time"),
+      total_cash_invested: formulaInput(rental.totalCashInvested, "currency", "one_time"),
     }) : undefined,
   };
 }
@@ -269,31 +248,19 @@ function estimateMonthlyPayment(deal: DealFacts) {
 
 function estimateMonthlyPrincipalAndInterest(deal: DealFacts) {
   if (!deal.listPrice) return undefined;
-  const downPayment = deal.downPayment ?? formulaNumber("down_payment_amount", "default-down-payment", {
-    purchase_price: formulaInput(deal.listPrice, "currency", "one_time"),
-    down_payment_percent: formulaInput(20, "percentage", "none", "USD", "accepted_user_assumption"),
-  }) ?? Math.round(deal.listPrice * 0.2);
-  const loanAmount = formulaNumber("loan_amount", "loan-amount", {
-    purchase_price: formulaInput(deal.listPrice, "currency", "one_time"),
-    down_payment_amount: formulaInput(downPayment, "currency", "one_time", "USD", deal.downPayment ? "accepted_fact" : "accepted_user_assumption"),
-  }) ?? Math.max(deal.listPrice - downPayment, 0);
-  const principalAndInterest = formulaNumber("monthly_principal_interest_fixed", "monthly-principal-interest", {
-    loan_amount: formulaInput(loanAmount, "currency", "one_time", "USD", deal.downPayment ? "accepted_fact" : "accepted_user_assumption"),
-    annual_interest_rate: formulaInput(deal.interestRate ?? 7, "percentage", "none", "USD", deal.interestRate ? "accepted_fact" : "accepted_user_assumption"),
-    amortization_years: formulaInput(deal.loanYears ?? 30, "years", "none", "USD", deal.loanYears ? "accepted_fact" : "accepted_user_assumption"),
-  });
-  return principalAndInterest === undefined ? undefined : Math.round(principalAndInterest);
+  return Math.round(analyzeRental(inputsFromDeal(deal)).monthlyPrincipalAndInterest);
 }
 
 function estimateCashNeeded(deal: DealFacts) {
   if (!deal.listPrice) return undefined;
-  return Math.round((deal.downPayment ?? deal.listPrice * 0.2) + deal.listPrice * 0.025 + (deal.rehabBudget ?? 0));
+  return Math.round(analyzeRental(inputsFromDeal(deal)).totalCashInvested);
 }
 
 function calculateAffordability(deal: DealFacts) {
   if (!deal.listPrice) return 0;
   const cash = estimateCashNeeded(deal) ?? 0;
-  const down = deal.downPayment ?? deal.listPrice * 0.2;
+  const inputs = inputsFromDeal(deal);
+  const down = inputs.cashPurchase ? deal.listPrice : deal.listPrice * (inputs.downPaymentPct / 100);
   return clamp(Math.round(100 - Math.max(0, cash - down) / Math.max(deal.listPrice, 1) * 100));
 }
 
