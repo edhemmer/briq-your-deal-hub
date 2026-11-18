@@ -549,6 +549,9 @@ export type DealLike = {
   baths?: number;
   propertyType?: string;
   state?: string;
+  zip?: string;
+  address?: string;
+  city?: string;
 };
 
 export type MarketRateDefaults = { investmentRate30y: number; dscrRate30y: number };

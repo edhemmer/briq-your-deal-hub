@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, CircleAlert, Info, RotateCcw, Save, Sparkles, XCircle } from "lucide-react";
-import { analyzeHouseHack, brixRead, riskFlags, stressTest, taxView, whatItTakes } from "../core/dealIntelligence";
+import { AlertTriangle, CheckCircle2, CircleAlert, FileDown, Info, MapPin, RotateCcw, Save, Sparkles, XCircle } from "lucide-react";
+import { analyzeHouseHack, brixRead, localMarketInsights, riskFlags, stressTest, taxView, whatItTakes } from "../core/dealIntelligence";
+import { loadMarketContext, type MarketContext } from "../core/marketContext";
 import { STATIC_MARKET_RATES, loadMarketRates, type MarketRates } from "../core/marketRates";
 import {
   DEFAULT_ASSUMPTIONS,
@@ -167,6 +168,13 @@ export function DealAnalyzer({
     void loadMarketRates().then((rates) => { if (active) setMarket(rates); });
     return () => { active = false; };
   }, []);
+  const [local, setLocal] = useState<MarketContext | null>(null);
+  useEffect(() => {
+    let active = true;
+    void loadMarketContext(deal.zip).then((ctx) => { if (active) setLocal(ctx); });
+    return () => { active = false; };
+  }, [deal.zip]);
+  const [memoState, setMemoState] = useState<"idle" | "working" | "failed">("idle");
   const savedInputs = useMemo(() => inputsFromDeal(deal, market), [deal, market]);
   const marketDefaults: Partial<Record<keyof AnalyzerInputs, unknown>> = { ...DEFAULT_ASSUMPTIONS, interestRate: market.investmentRate30y, refiRate: market.dscrRate30y };
   const [inputs, setInputs] = useState<AnalyzerInputs>(savedInputs);
@@ -181,7 +189,12 @@ export function DealAnalyzer({
   const maxOffer = useMemo(() => maxRentalOffer(inputs), [inputs]);
   const takes = useMemo(() => whatItTakes(inputs), [inputs]);
   const stress = useMemo(() => stressTest(inputs), [inputs]);
-  const flags = useMemo(() => riskFlags(inputs, deal, rental), [inputs, deal, rental]);
+  const localInsight = useMemo(() => localMarketInsights(inputs, deal, local), [inputs, deal, local]);
+  const flags = useMemo(() => {
+    const all = [...riskFlags(inputs, deal, rental), ...(localInsight?.flags ?? [])];
+    const order = { high: 0, medium: 1, info: 2 } as const;
+    return all.sort((a, b) => order[a.severity] - order[b.severity]);
+  }, [inputs, deal, rental, localInsight]);
   const read = useMemo(() => brixRead(inputs, rental), [inputs, rental]);
   const houseHack = useMemo(() => analyzeHouseHack(inputs), [inputs]);
   const tax = useMemo(() => taxView(inputs, rental), [inputs, rental]);
@@ -204,6 +217,27 @@ export function DealAnalyzer({
           </span>
           <button className="secondary compact" type="button" disabled={!dirty} onClick={() => setInputs(savedInputs)}>
             <RotateCcw size={16} /> Reset
+          </button>
+          <button
+            className="secondary compact"
+            type="button"
+            disabled={inputs.purchasePrice <= 0 || memoState === "working"}
+            onClick={() => {
+              setMemoState("working");
+              void import("../core/dealMemoPdf")
+                .then((m) => m.downloadDealMemo({
+                  title: deal.address || "Deal",
+                  address: [deal.address, [deal.city, [deal.state, deal.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ")].filter(Boolean).join(", "),
+                  inputs,
+                  deal,
+                  market: local,
+                  ratesNote: `Rates: Freddie Mac PMMS week of ${formatAsOf(market.asOf)} (${market.primaryRate30y}% 30-yr); investment loans ≈${market.investmentRate30y}%.`,
+                }))
+                .then(() => setMemoState("idle"))
+                .catch(() => setMemoState("failed"));
+            }}
+          >
+            <FileDown size={16} /> {memoState === "working" ? "Building…" : memoState === "failed" ? "Retry memo" : "Deal Memo PDF"}
           </button>
           <button className="primary compact" type="button" disabled={!canSave || !dirty || saveState === "saving"} onClick={() => onSave(inputs)}>
             <Save size={16} /> Save analysis
@@ -281,6 +315,23 @@ export function DealAnalyzer({
                     </tbody>
                   </table>
                 </div>
+                {localInsight && local ? (
+                  <div className="analyzer-card local-market">
+                    <h5><MapPin size={16} aria-hidden="true" /> Local market · ZIP {local.zip}</h5>
+                    <div className="kpi-grid compact-kpis">
+                      <Kpi label={localInsight.benchmarkLabel.replace(/, ZIP \d+$/, "")} value={localInsight.benchmarkRent ? usd(localInsight.benchmarkRent) : "n/a"} sub="Today's dollars" />
+                      <Kpi label="Your rent vs median" value={localInsight.rentVsBenchmark === null ? "n/a" : `${Math.round(localInsight.rentVsBenchmark * 100)}%`} tone={localInsight.rentVsBenchmark === null ? undefined : localInsight.rentVsBenchmark > 1.3 ? "warn" : "good"} />
+                      <Kpi label="Rental vacancy" value={localInsight.localVacancyPct === null ? "n/a" : `${localInsight.localVacancyPct.toFixed(1)}%`} sub={`You assume ${inputs.vacancyPct}%`} tone={localInsight.localVacancyPct !== null && localInsight.localVacancyPct > inputs.vacancyPct + 1 ? "warn" : undefined} />
+                      <Kpi label="Median household income" value={local.medianHouseholdIncome ? usd(local.medianHouseholdIncome) : "n/a"} sub={localInsight.rentToIncome === null ? undefined : `Rent = ${Math.round(localInsight.rentToIncome * 100)}% of it`} />
+                      <Kpi label="Renter share" value={local.renterShare === null ? "n/a" : `${Math.round(local.renterShare * 100)}%`} />
+                      <Kpi label="Median home value" value={local.medianHomeValue ? usd(local.medianHomeValue) : "n/a"} sub="Survey period" />
+                    </div>
+                    {localInsight.localVacancyPct !== null && localInsight.localVacancyPct > inputs.vacancyPct + 1 ? (
+                      <button className="secondary compact" type="button" onClick={() => update("vacancyPct", Math.ceil(localInsight.localVacancyPct!))}>Use local vacancy ({Math.ceil(localInsight.localVacancyPct)}%)</button>
+                    ) : null}
+                    <p className="analyzer-footnote">{local.survey}{local.rentAdjustment ? `; rents brought to ${formatAsOf(local.rentAdjustment.through)} dollars (×${local.rentAdjustment.factor}) using ${local.rentAdjustment.source}` : ""}. ZIP-level medians include all unit ages and conditions; use them as a sanity check next to real comps.</p>
+                  </div>
+                ) : null}
                 {flags.length ? (
                   <div className="analyzer-card">
                     <h5>Risks and checks ({flags.length})</h5>

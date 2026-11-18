@@ -10,6 +10,7 @@
  *
  * Everything here is deterministic and built on core/investorMath.
  */
+import type { MarketContext } from "./marketContext";
 import {
   MARKET_DEFAULTS,
   analyzeRental,
@@ -293,4 +294,54 @@ export function brixRead(input: AnalyzerInputs, r: RentalAnalysis = analyzeRenta
   }
   const fixes = [price?.feasible && price.needed ? `buying at ${price.needed}` : null, rent?.feasible && rent.needed ? `getting ${rent.needed} rent` : null].filter(Boolean);
   return `At this price it ${r.monthlyCashFlow >= 0 ? `cash flows ${cf}/mo but misses your targets` : `loses ${usd(-r.monthlyCashFlow)}/mo`}. ${fixes.length ? `It works if you can get to ${fixes.join(" or ")}.` : price?.needed ? `It only works near ${price.needed}, ${belowAsk(input.purchasePrice, price.needed)}, so treat it as a pass unless the seller is motivated.` : "No single change fixes it."} Survives ${survived} of ${stress.length - 1} stress tests.`;
+}
+
+// ---------- Local market (Census ACS + BLS rent index) ----------
+
+export type LocalMarketInsight = {
+  benchmarkLabel: string;
+  benchmarkRent: number | null;
+  rentPerUnit: number;
+  rentVsBenchmark: number | null;
+  localVacancyPct: number | null;
+  rentToIncome: number | null;
+  priceToMedianValue: number | null;
+  flags: RiskFlag[];
+};
+
+export function localMarketInsights(input: AnalyzerInputs, deal: DealLike, ctx: MarketContext | null): LocalMarketInsight | null {
+  if (!ctx) return null;
+  const units = Math.max(1, input.units);
+  const rentPerUnit = input.monthlyRent / units;
+  const bedsPerUnit = deal.beds && units === 1 ? Math.round(deal.beds) : undefined;
+  const key = bedsPerUnit === undefined ? undefined : bedsPerUnit <= 0 ? "studio" : String(Math.min(5, bedsPerUnit));
+  const byBeds = key ? ctx.medianRentByBedroomsToday[key as keyof MarketContext["medianRentByBedroomsToday"]] : null;
+  const benchmarkRent = byBeds ?? ctx.medianGrossRentToday;
+  const benchmarkLabel = byBeds ? `${key === "studio" ? "Studio" : `${key}-bedroom`} median rent, ZIP ${ctx.zip}` : `Median rent, ZIP ${ctx.zip}`;
+  const rentVsBenchmark = benchmarkRent && rentPerUnit > 0 ? rentPerUnit / benchmarkRent : null;
+  const localVacancyPct = ctx.rentalVacancyRate === null ? null : ctx.rentalVacancyRate * 100;
+  const rentToIncome = ctx.medianHouseholdIncome && rentPerUnit > 0 ? (rentPerUnit * 12) / ctx.medianHouseholdIncome : null;
+  const priceToMedianValue = ctx.medianHomeValue && input.purchasePrice > 0 ? input.purchasePrice / units / ctx.medianHomeValue : null;
+  const flags: RiskFlag[] = [];
+
+  if (rentVsBenchmark !== null && benchmarkRent) {
+    if (rentVsBenchmark > 1.3) {
+      flags.push({ severity: "medium", title: `Rent is ${Math.round((rentVsBenchmark - 1) * 100)}% above the local median`, detail: `${benchmarkLabel} is about ${usd(benchmarkRent)} in today's dollars. Renovated homes do earn a premium, but get 3+ current comps before relying on ${usd(rentPerUnit)}.` });
+    } else if (rentVsBenchmark < 0.85) {
+      flags.push({ severity: "info", title: `Rent is ${Math.round((1 - rentVsBenchmark) * 100)}% below the local median`, detail: `${benchmarkLabel} is about ${usd(benchmarkRent)} in today's dollars. Your rent may be conservative, which is upside if comps confirm it.` });
+    }
+  }
+  if (localVacancyPct !== null && localVacancyPct > input.vacancyPct + 1) {
+    flags.push({ severity: "medium", title: `Local rental vacancy is ${localVacancyPct.toFixed(1)}%`, detail: `You're assuming ${input.vacancyPct}%. Census data for ZIP ${ctx.zip} shows more vacant rentals than that. Consider underwriting at least ${Math.ceil(localVacancyPct)}%.` });
+  }
+  if (rentToIncome !== null && rentToIncome > 0.35) {
+    flags.push({ severity: "medium", title: `Rent is ${Math.round(rentToIncome * 100)}% of local median income`, detail: "Most landlords screen for income of about 3x rent. At this ratio the qualified tenant pool in this ZIP is thinner, so expect longer vacancies." });
+  }
+  if (priceToMedianValue !== null && priceToMedianValue > 2) {
+    flags.push({ severity: "info", title: "Priced well above the local median home", detail: "Top-of-market homes in a ZIP tend to rent to a smaller pool and resell slower. Make sure comps are true peers." });
+  }
+  if (ctx.renterShare !== null && ctx.renterShare >= 0.5) {
+    flags.push({ severity: "info", title: `Renter-heavy ZIP (${Math.round(ctx.renterShare * 100)}% renters)`, detail: "A deep tenant pool supports occupancy. Check local landlord-tenant rules and any rental licensing." });
+  }
+  return { benchmarkLabel, benchmarkRent, rentPerUnit, rentVsBenchmark, localVacancyPct, rentToIncome, priceToMedianValue, flags };
 }

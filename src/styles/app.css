@@ -805,3 +805,4 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .analyzer-actions { margin-left: auto; }
 .deal-list-metrics .deal-chip { display: inline-flex; width: auto; margin: 0; }
 .deal-list-row .deal-list-metrics { display: flex; flex-wrap: wrap; gap: 6px; }
+.local-market h5 { display: flex; align-items: center; gap: 8px; }

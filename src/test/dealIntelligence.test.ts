@@ -105,3 +105,34 @@ describe("BRIX read", () => {
     expect(read).toMatch(/stress tests/);
   });
 });
+
+describe("local market insights", () => {
+  const ctx = {
+    zip: "60115", survey: "ACS 2020-2024", rentAdjustment: { factor: 1.2, through: "2026-10-01", source: "BLS" },
+    medianGrossRent: 1000, medianGrossRentToday: 1200,
+    medianRentByBedroomsToday: { studio: 800, "1": 950, "2": 1150, "3": 1500, "4": 1800, "5": null },
+    medianHomeValue: 200000, medianHouseholdIncome: 55000, renterShare: 0.55, rentalVacancyRate: 0.08, housingUnits: 20000,
+  };
+
+  it("benchmarks rent against the bedroom-matched median and flags the gap", async () => {
+    const { localMarketInsights } = await import("../core/dealIntelligence");
+    const insight = localMarketInsights(base, { beds: 3 }, ctx)!;
+    expect(insight.benchmarkRent).toBe(1500);
+    expect(insight.rentVsBenchmark).toBeCloseTo(2050 / 1500, 6);
+    expect(insight.flags.some((f) => f.title.startsWith("Rent is 37% above"))).toBe(true);
+    expect(insight.flags.some((f) => f.title.startsWith("Local rental vacancy is 8.0%"))).toBe(true);
+    expect(insight.flags.some((f) => f.title.startsWith("Rent is 45% of local median income"))).toBe(true);
+  });
+
+  it("returns null without market data", async () => {
+    const { localMarketInsights } = await import("../core/dealIntelligence");
+    expect(localMarketInsights(base, {}, null)).toBeNull();
+  });
+});
+
+describe("deal memo PDF text", () => {
+  it("maps symbols outside the built-in PDF font to safe text", async () => {
+    const { pdfSafe } = await import("../core/dealMemoPdf");
+    expect(pdfSafe("≈7.75%, ≥ 1.25, Rent −5%, ×1.2, ∞")).toBe("approx. 7.75%, >= 1.25, Rent -5%, x1.2, infinite");
+  });
+});
