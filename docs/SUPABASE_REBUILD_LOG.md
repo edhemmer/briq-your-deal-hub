@@ -127,3 +127,18 @@ Also configure production auth URLs and redirect URLs for the deployed web app/i
 Production domain:
 
 - `https://brixrealestate.app`
+
+---
+
+## 2026-11-18 — Production moved to `sadhltrjaprzlkfxowmz` (BRIXrealestate, InLight AI org)
+
+- Previous ref `luwaqrkhmxcqsozmilbw` is not in the InLight AI Supabase org and could not be verified.
+- Replayed all 165 migrations from `supabase/migrations` at commit `43704b0` (through
+  `20260926012000_spec011a_r6_historical_term_invalidation_guard`). History recorded in
+  `supabase_migrations.schema_migrations`, so `supabase db push` stays in sync.
+- Deployed the four Edge Functions the web app calls: `extract-listing`, `process-evidence-upload`,
+  `process-email-intake`, `request-account-deletion` (all `verify_jwt = true`). The other six
+  function folders are unused by web/iOS and were not deployed.
+- Vercel `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` (production + preview) updated.
+- Still manual in the Supabase dashboard: Auth Site URL `https://www.brixrealestate.app` and the
+  redirect URLs listed in `supabase/config.toml`.
