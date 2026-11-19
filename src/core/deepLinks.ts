@@ -7,7 +7,7 @@ export type BrixDeepLinkDestination =
   | { kind: "deal"; dealId: string; section?: BrixDealSection; focus?: BrixDealFocus }
   | { kind: "share-intake"; handoffId: string };
 
-export type BrixDealSection = "overview" | "property" | "underwriting" | "strategies" | "financeiq" | "governanceiq" | "contractiq" | "work" | "history";
+export type BrixDealSection = "overview" | "property" | "underwriting" | "strategies" | "performance" | "financeiq" | "governanceiq" | "contractiq" | "people" | "work" | "notes" | "history";
 
 export type BrixDealFocus =
   | "deal_overview"
@@ -75,7 +75,7 @@ const DEVELOPMENT_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
 const SAFE_TOKEN_PATTERN = /^[A-Za-z0-9._~-]{8,512}$/;
 const SAFE_DEAL_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
 const SAFE_SHARE_HANDOFF_PATTERN = /^share_[A-Za-z0-9._:-]{8,160}$/;
-const SAFE_DEAL_SECTIONS: readonly BrixDealSection[] = ["overview", "property", "underwriting", "strategies", "financeiq", "governanceiq", "contractiq", "work", "history"];
+const SAFE_DEAL_SECTIONS: readonly BrixDealSection[] = ["overview", "property", "underwriting", "strategies", "performance", "financeiq", "governanceiq", "contractiq", "people", "work", "notes", "history"];
 const SAFE_DEAL_FOCUS_TYPES: readonly BrixDealFocus[] = [
   "deal_overview",
   "property_detail",

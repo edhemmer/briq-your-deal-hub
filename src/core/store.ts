@@ -249,6 +249,7 @@ export function normalizeDealRecord(value: unknown): DealFacts | null {
   }
 
   if (isRecord(value.analyzer)) deal.analyzer = value.analyzer as DealFacts["analyzer"];
+  if (isRecord(value.actuals)) deal.actuals = value.actuals as DealFacts["actuals"];
 
   return deal;
 }

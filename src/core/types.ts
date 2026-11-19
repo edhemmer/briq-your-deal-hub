@@ -44,6 +44,8 @@ export type DealFacts = {
   verification: Record<string, VerificationState>;
   /** Saved Deal Analyzer assumptions (see core/investorMath). */
   analyzer?: Partial<import("./investorMath").AnalyzerInputs>;
+  /** Actual results once owned (see core/portfolio). */
+  actuals?: import("./portfolio").OwnedActuals;
 };
 
 export type DealPriority = "low" | "normal" | "high" | "urgent";

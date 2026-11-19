@@ -815,3 +815,5 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .scoreboard-best:hover { border-color: var(--blue); }
 .scoreboard-best small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .upload-panel .field input[type=file] { padding: 9px; } .upload-panel .property-facts-grid > label:first-child { grid-column: span 2; }
+.portfolio-summary { margin: 6px 0 4px; } .portfolio-summary .eyebrow { margin: 0 0 8px; }
+.panel-heading-row .primary, .panel-heading-row .secondary { white-space: nowrap; flex: none; }

@@ -7,6 +7,8 @@ import { buildStrategyPresentation } from "./core/strategyPresentation";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
 import { Landing } from "./Landing";
 import { PropertyFacts, type PropertyFactsPatch } from "./components/PropertyFacts";
+import { OwnedPerformance } from "./components/OwnedPerformance";
+import { analyzeOwned, portfolioTotals } from "./core/portfolio";
 import { DealAnalyzer, DealSnapshot, type AnalyzerSaveState, type AnalyzerView } from "./components/DealAnalyzer";
 import { analyzeRental, inputsFromDeal, rentalVerdict, usd, type AnalyzerInputs } from "./core/investorMath";
 import { createRemoteDeal, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
@@ -1892,7 +1894,7 @@ function DealsSurface({
             {recentDeals.map((deal) => (
               <button key={deal.id} className={deal.id === selectedId ? "recent-deal-card active" : "recent-deal-card"} type="button" onClick={() => onOpenDeal(deal.id)}>
                 <strong>{dealTitle(deal)}</strong>
-                <span>{dealLocation(deal)}</span>
+                <span>{dealLocation(deal) || getStrategy(deal.strategyId)?.name || "Deal"}</span>
               </button>
             ))}
           </div>
@@ -1994,6 +1996,7 @@ function DealsSurface({
           />
         )}
 
+        <PortfolioSummary facts={visibleDeals.map((row) => (isAuthenticated ? dealMetrics.get(row.dealId) : deals.find((d) => d.id === row.dealId)))} />
         {visibleDeals.length > 1 && (
           <DealScoreboard
             rows={visibleDeals.map((row) => ({ row, facts: isAuthenticated ? dealMetrics.get(row.dealId) : deals.find((d) => d.id === row.dealId) }))}
@@ -2114,9 +2117,26 @@ function useDealListFacts(rows: DealListProjection[], isOnline: boolean) {
   }));
 }
 
+function PortfolioSummary({ facts }: { facts: Array<DealFacts | undefined> }) {
+  const owned = facts.flatMap((f) => (f?.actuals?.purchaseDate && /^\d{4}-\d{2}-\d{2}$/.test(f.actuals.purchaseDate) ? [analyzeOwned(inputsFromDeal(f), f.actuals)] : []));
+  if (!owned.length) return null;
+  const t = portfolioTotals(owned);
+  return (
+    <section className="portfolio-summary" aria-label="Portfolio">
+      <p className="eyebrow">Portfolio · {t.properties} owned {t.properties === 1 ? "property" : "properties"}</p>
+      <div className="deal-scoreboard">
+        <div className="kpi"><span>Portfolio value</span><strong>{usd(t.value)}</strong></div>
+        <div className="kpi kpi-good"><span>Equity</span><strong>{usd(t.equity)}</strong><small>LTV {t.ltv === null ? "n/a" : `${(t.ltv * 100).toFixed(1)}%`}</small></div>
+        <div className={`kpi ${t.monthlyCashFlow >= 0 ? "kpi-good" : "kpi-bad"}`}><span>Actual cash flow</span><strong>{usd(t.monthlyCashFlow)}/mo</strong><small>{t.cashOnCash === null ? "" : `${(t.cashOnCash * 100).toFixed(1)}% cash-on-cash`}</small></div>
+        <div className="kpi"><span>Debt</span><strong>{usd(t.debt)}</strong><small>DSCR {t.dscr === null ? "n/a" : t.dscr.toFixed(2)}</small></div>
+      </div>
+    </section>
+  );
+}
+
 function DealScoreboard({ rows, onOpenDeal }: { rows: Array<{ row: DealListProjection; facts?: DealFacts }>; onOpenDeal: (dealId: string) => void }) {
   const analyzed = rows.flatMap(({ row, facts }) => {
-    if (!facts) return [];
+    if (!facts || facts.actuals?.purchaseDate) return [];
     const inputs = inputsFromDeal(facts);
     if (inputs.purchasePrice <= 0 || inputs.monthlyRent <= 0) return [];
     const rental = analyzeRental(inputs);
@@ -2130,7 +2150,7 @@ function DealScoreboard({ rows, onOpenDeal }: { rows: Array<{ row: DealListProje
   const totalCash = analyzed.reduce((sum, a) => sum + a.rental.totalCashInvested, 0);
   return (
     <section className="deal-scoreboard" aria-label="Pipeline scoreboard">
-      <div className="kpi"><span>Deals analyzed</span><strong>{analyzed.length}<small> of {rows.length}</small></strong></div>
+      <div className="kpi"><span>Pipeline deals analyzed</span><strong>{analyzed.length}<small> of {rows.length}</small></strong></div>
       <div className={meeting > 0 ? "kpi kpi-good" : "kpi"}><span>Meet your targets</span><strong>{meeting}</strong><small>{workable} workable</small></div>
       <div className={`kpi ${totalCashFlow >= 0 ? "kpi-good" : "kpi-bad"}`}><span>Combined cash flow</span><strong>{usd(totalCashFlow)}/mo</strong><small>If you bought every analyzed deal</small></div>
       <div className="kpi"><span>Cash to buy them all</span><strong>{usd(totalCash)}</strong></div>
@@ -2975,13 +2995,14 @@ function formatFileSize(bytes?: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-type DealWorkspaceSection = "overview" | "property" | "underwriting" | "strategies" | "financeiq" | "governanceiq" | "contractiq" | "people" | "work" | "notes" | "history";
+type DealWorkspaceSection = "overview" | "property" | "underwriting" | "strategies" | "performance" | "financeiq" | "governanceiq" | "contractiq" | "people" | "work" | "notes" | "history";
 
 const dealWorkspaceSections: Array<{ id: DealWorkspaceSection; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "property", label: "Property" },
   { id: "underwriting", label: "Underwriting" },
   { id: "strategies", label: "Strategies" },
+  { id: "performance", label: "Performance" },
   { id: "financeiq", label: "FinanceIQ" },
   { id: "governanceiq", label: "GovernanceIQ" },
   { id: "contractiq", label: "ContractIQ" },
@@ -3048,6 +3069,7 @@ function DealWorkspace({
     property: null,
     underwriting: null,
     strategies: null,
+    performance: null,
     financeiq: null,
     governanceiq: null,
     contractiq: null,
@@ -3185,6 +3207,26 @@ function DealWorkspace({
         {section === "property" && <DealPropertySection deal={effectiveDeal} detail={detail} property={property} userId={userId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
         {section === "underwriting" && <DealAnalysisSection key={`${deal.id}:${effectiveDeal.dealVersion ?? 0}:rental`} deal={effectiveDeal} initialView="insights" isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
         {section === "strategies" && <DealStrategySection key={`${deal.id}:${effectiveDeal.dealVersion ?? 0}:compare`} deal={effectiveDeal} presentationMode={presentationMode} isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
+        {section === "performance" && (
+          <OwnedPerformance
+            deal={effectiveDeal}
+            canSave={isAuthenticated && isOnline && Boolean(effectiveDeal.dealVersion)}
+            onSave={async (actuals) => {
+              try {
+                const next = await updateDealCore(effectiveDeal, {
+                  facts: { ...effectiveDeal, actuals },
+                  strategyId: effectiveDeal.strategyId,
+                  strategyIntent: effectiveDeal.strategyId,
+                  verification: effectiveDeal.verification,
+                });
+                onCanonicalSaved(next.deal);
+                void loadDetail();
+              } catch (error) {
+                throw new Error(safeDealCommandMessage(error).message);
+              }
+            }}
+          />
+        )}
         {section === "financeiq" && <Suspense fallback={<p className="quiet" role="status">Loading…</p>}><FinanceIQWorkspace dealId={deal.id} dealName={displayName} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} mode={presentationMode} /></Suspense>}
         {section === "governanceiq" && <Suspense fallback={<p className="quiet" role="status">Loading…</p>}><GovernanceIQWorkspace dealId={deal.id} dealName={displayName} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} mode={presentationMode} /></Suspense>}
         {section === "contractiq" && <Suspense fallback={<p className="quiet" role="status">Loading…</p>}><ContractIQWorkspace dealId={deal.id} dealName={displayName} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} mode={presentationMode} /></Suspense>}
@@ -5689,7 +5731,7 @@ function dealSearchResult(deal: DealFacts, group: string): ShellSearchResult {
   return {
     key: `deal-${deal.id}`,
     label: dealTitle(deal),
-    description: `${dealLocation(deal)} - ${statusLabel(deal.status)}`,
+    description: [dealLocation(deal), statusLabel(deal.status)].filter(Boolean).join(" - "),
     group,
     target: "deal",
     dealId: deal.id,
@@ -5824,7 +5866,7 @@ function buildInvestorAttentionItems({
       items.push({
         key: `deal-${deal.id}`,
         title: attentionTitleForDeal(deal),
-        detail: `${dealTitle(deal)} - ${dealLocation(deal)} - ${statusLabel(deal.status)} - updated ${formatShortDate(deal.updatedAt)}.`,
+        detail: `${[dealTitle(deal), dealLocation(deal), statusLabel(deal.status)].filter(Boolean).join(" - ")} - updated ${formatShortDate(deal.updatedAt)}.`,
         category: "Needs attention",
         tone: deal.status === "under_contract" ? "warning" : "neutral",
         action: "openDeal",
@@ -6064,7 +6106,7 @@ function dealTitle(deal: DealFacts) {
 
 function dealLocation(deal: DealFacts) {
   const parts = [deal.city, deal.state, deal.zip].filter(Boolean);
-  return parts.length ? parts.join(", ") : "Location not entered";
+  return parts.join(", ");
 }
 
 function useOnlineStatus() {

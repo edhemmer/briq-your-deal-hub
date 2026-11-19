@@ -911,7 +911,7 @@ describe("BRIX app module flow", () => {
     expect(await screen.findByText("Account ready")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "What needs attention now" })).toBeInTheDocument();
     expect(screen.getAllByText("Deal review is in progress").length).toBeGreaterThan(0);
-    expect(screen.getByText(/Active Cloud Deal - Location not entered - Reviewing/i)).toBeInTheDocument();
+    expect(screen.getByText(/Active Cloud Deal - Reviewing/i)).toBeInTheDocument();
     expect(screen.queryByText(/Closed Cloud Deal - Aurora, IL - Closed/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("button", { name: "Open Deal" })[0]);
