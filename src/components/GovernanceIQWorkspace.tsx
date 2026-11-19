@@ -1,3 +1,4 @@
+import { DocumentUploadPanel } from "./DocumentUploadPanel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, FileSearch, Gavel, Landmark, RefreshCw, ShieldCheck, XCircle } from "lucide-react";
 import {
@@ -175,7 +176,10 @@ export function GovernanceIQWorkspace({ dealId, dealName, workspaceId, isAuthent
           {section === "changes" && <GovernanceIQChanges model={model} onDecide={decideFinding} busyFindingId={busyFindingId} />}
         </>
       ) : (
-        <GovernanceIQStateCard title={model.emptyState?.title ?? "No GovernanceIQ record yet"} message={model.emptyState?.nextAction ?? "No governance projection is available."} />
+        <>
+  {workspaceId ? null : <GovernanceIQStateCard title={model.emptyState?.title ?? "No GovernanceIQ record yet"} message={model.emptyState?.nextAction ?? "No governance projection is available."}  />}
+          {workspaceId ? <DocumentUploadPanel kind="governance" workspaceId={workspaceId} dealId={dealId} dealName={dealName} onCreated={() => void load()} /> : null}
+        </>
       )}
     </div>
   );

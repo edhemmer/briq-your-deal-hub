@@ -155,3 +155,13 @@ describe("reconciliation with the formula registry", () => {
     expect(legacy.cashOnCash! / 100).toBeCloseTo(engine.cashOnCash!, 3);
   });
 });
+
+describe("deal workspace deep links", () => {
+  it("accepts every deal workspace tab, including performance, people and notes", async () => {
+    const { parseBrixDeepLink } = await import("../core/deepLinks");
+    for (const section of ["performance", "people", "notes"]) {
+      const parsed = parseBrixDeepLink(`https://www.brixrealestate.app/deals/11111111-2222-4333-8444-555555555555?section=${section}`);
+      expect(parsed.ok).toBe(true);
+    }
+  });
+});

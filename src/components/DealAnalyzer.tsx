@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, CircleAlert, RotateCcw, Save, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CircleAlert, FileDown, Info, MapPin, RotateCcw, Save, Sparkles, XCircle } from "lucide-react";
+import { analyzeHouseHack, brixRead, localMarketInsights, riskFlags, stressTest, taxView, whatItTakes } from "../core/dealIntelligence";
+import { loadMarketContext, type MarketContext } from "../core/marketContext";
+import { STATIC_MARKET_RATES, loadMarketRates, type MarketRates } from "../core/marketRates";
 import {
   DEFAULT_ASSUMPTIONS,
   MARKET_DEFAULTS,
@@ -14,7 +17,7 @@ import {
   type DealLike,
 } from "../core/investorMath";
 
-export type AnalyzerView = "rental" | "brrrr" | "flip" | "projection" | "compare";
+export type AnalyzerView = "insights" | "rental" | "brrrr" | "flip" | "househack" | "projection" | "compare";
 export type AnalyzerSaveState = "idle" | "saving" | "saved" | "failed" | "stale" | "local";
 
 type FieldDef = {
@@ -29,7 +32,7 @@ type FieldDef = {
 const GROUPS: Array<{ title: string; views: AnalyzerView[]; fields: FieldDef[] }> = [
   {
     title: "Purchase",
-    views: ["rental", "brrrr", "flip", "projection", "compare"],
+    views: ["insights", "rental", "brrrr", "flip", "househack", "projection", "compare"],
     fields: [
       { key: "purchasePrice", label: "Purchase price", unit: "$", step: 1000 },
       { key: "closingCostPct", label: "Buyer closing costs", unit: "%", step: 0.25, hint: "Typically 2%-5% of price" },
@@ -40,7 +43,7 @@ const GROUPS: Array<{ title: string; views: AnalyzerView[]; fields: FieldDef[] }
   },
   {
     title: "Long-term loan",
-    views: ["rental", "projection", "compare"],
+    views: ["insights", "rental", "projection", "compare"],
     fields: [
       { key: "downPaymentPct", label: "Down payment", unit: "%", step: 1, hint: "Conventional 1-unit investment: 15%-25%" },
       { key: "interestRate", label: "Interest rate", unit: "%", step: 0.125, market: true },
@@ -50,7 +53,7 @@ const GROUPS: Array<{ title: string; views: AnalyzerView[]; fields: FieldDef[] }
   },
   {
     title: "Income",
-    views: ["rental", "brrrr", "projection", "compare"],
+    views: ["insights", "rental", "brrrr", "househack", "projection", "compare"],
     fields: [
       { key: "monthlyRent", label: "Monthly rent (all units)", unit: "$", step: 25, hint: "Use signed leases or 3+ rent comps" },
       { key: "otherMonthlyIncome", label: "Other income / mo", unit: "$", step: 10, hint: "Laundry, parking, pet fees" },
@@ -59,7 +62,7 @@ const GROUPS: Array<{ title: string; views: AnalyzerView[]; fields: FieldDef[] }
   },
   {
     title: "Operating expenses",
-    views: ["rental", "brrrr", "projection", "compare"],
+    views: ["insights", "rental", "brrrr", "househack", "projection", "compare"],
     fields: [
       { key: "annualTaxes", label: "Property taxes / yr", unit: "$", step: 50, hint: "Check reassessment after sale" },
       { key: "annualInsurance", label: "Insurance / yr", unit: "$", step: 50, hint: "Landlord (DP-3) quote, not homeowner" },
@@ -104,8 +107,28 @@ const GROUPS: Array<{ title: string; views: AnalyzerView[]; fields: FieldDef[] }
     ],
   },
   {
+    title: "House hack (you live in one unit)",
+    views: ["househack"],
+    fields: [
+      { key: "ownerUnitRent", label: "Rent of the unit you'll live in", unit: "$", step: 25, hint: "Rent you give up by living there" },
+      { key: "comparableRentForYou", label: "What you'd pay to rent instead", unit: "$", step: 25 },
+      { key: "houseHackDownPct", label: "Down payment", unit: "%", step: 0.5, hint: "FHA minimum 3.5%; conventional owner-occupied 5% on 1 unit" },
+      { key: "houseHackRate", label: "Owner-occupied rate", unit: "%", step: 0.125, market: true },
+      { key: "houseHackMipPct", label: "Annual MIP / PMI", unit: "%", step: 0.05, hint: "FHA: 0.55% on most 30-year loans" },
+      { key: "houseHackUpfrontMipPct", label: "Upfront MIP (financed)", unit: "%", step: 0.25, hint: "FHA: 1.75%; enter 0 for conventional" },
+    ],
+  },
+  {
+    title: "Taxes",
+    views: ["projection"],
+    fields: [
+      { key: "taxBracketPct", label: "Your marginal tax bracket", unit: "%", step: 1 },
+      { key: "landValuePct", label: "Land share of price (not depreciable)", unit: "%", step: 1, hint: "Use the county assessor's land/improvement split" },
+    ],
+  },
+  {
     title: "Your targets",
-    views: ["rental", "compare"],
+    views: ["insights", "rental", "compare"],
     fields: [
       { key: "targetMonthlyCashFlowPerUnit", label: "Min cash flow / unit / mo", unit: "$", step: 25 },
       { key: "targetCashOnCashPct", label: "Min cash-on-cash", unit: "%", step: 0.5 },
@@ -115,16 +138,18 @@ const GROUPS: Array<{ title: string; views: AnalyzerView[]; fields: FieldDef[] }
 ];
 
 const VIEWS: Array<{ id: AnalyzerView; label: string }> = [
+  { id: "insights", label: "Smart insights" },
   { id: "rental", label: "Rental" },
   { id: "brrrr", label: "BRRRR" },
   { id: "flip", label: "Fix & flip" },
+  { id: "househack", label: "House hack" },
   { id: "projection", label: "10-year view" },
   { id: "compare", label: "Compare" },
 ];
 
 export function DealAnalyzer({
   deal,
-  initialView = "rental",
+  initialView = "insights",
   canSave,
   saveState,
   saveMessage,
@@ -137,7 +162,21 @@ export function DealAnalyzer({
   saveMessage?: string;
   onSave: (inputs: AnalyzerInputs) => void;
 }) {
-  const savedInputs = useMemo(() => inputsFromDeal(deal), [deal]);
+  const [market, setMarket] = useState<MarketRates>(STATIC_MARKET_RATES);
+  useEffect(() => {
+    let active = true;
+    void loadMarketRates().then((rates) => { if (active) setMarket(rates); });
+    return () => { active = false; };
+  }, []);
+  const [local, setLocal] = useState<MarketContext | null>(null);
+  useEffect(() => {
+    let active = true;
+    void loadMarketContext(deal.zip).then((ctx) => { if (active) setLocal(ctx); });
+    return () => { active = false; };
+  }, [deal.zip]);
+  const [memoState, setMemoState] = useState<"idle" | "working" | "failed">("idle");
+  const savedInputs = useMemo(() => inputsFromDeal(deal, market), [deal, market]);
+  const marketDefaults: Partial<Record<keyof AnalyzerInputs, unknown>> = { ...DEFAULT_ASSUMPTIONS, interestRate: market.investmentRate30y, refiRate: market.dscrRate30y };
   const [inputs, setInputs] = useState<AnalyzerInputs>(savedInputs);
   const [view, setView] = useState<AnalyzerView>(initialView);
   useEffect(() => setInputs(savedInputs), [savedInputs]);
@@ -148,6 +187,17 @@ export function DealAnalyzer({
   const brrrr = useMemo(() => analyzeBrrrr(inputs), [inputs]);
   const flip = useMemo(() => analyzeFlip(inputs), [inputs]);
   const maxOffer = useMemo(() => maxRentalOffer(inputs), [inputs]);
+  const takes = useMemo(() => whatItTakes(inputs), [inputs]);
+  const stress = useMemo(() => stressTest(inputs), [inputs]);
+  const localInsight = useMemo(() => localMarketInsights(inputs, deal, local), [inputs, deal, local]);
+  const flags = useMemo(() => {
+    const all = [...riskFlags(inputs, deal, rental), ...(localInsight?.flags ?? [])];
+    const order = { high: 0, medium: 1, info: 2 } as const;
+    return all.sort((a, b) => order[a.severity] - order[b.severity]);
+  }, [inputs, deal, rental, localInsight]);
+  const read = useMemo(() => brixRead(inputs, rental), [inputs, rental]);
+  const houseHack = useMemo(() => analyzeHouseHack(inputs), [inputs]);
+  const tax = useMemo(() => taxView(inputs, rental), [inputs, rental]);
 
   const update = (key: keyof AnalyzerInputs, value: number | boolean | undefined) => setInputs((current) => ({ ...current, [key]: value }));
 
@@ -167,6 +217,27 @@ export function DealAnalyzer({
           </span>
           <button className="secondary compact" type="button" disabled={!dirty} onClick={() => setInputs(savedInputs)}>
             <RotateCcw size={16} /> Reset
+          </button>
+          <button
+            className="secondary compact"
+            type="button"
+            disabled={inputs.purchasePrice <= 0 || memoState === "working"}
+            onClick={() => {
+              setMemoState("working");
+              void import("../core/dealMemoPdf")
+                .then((m) => m.downloadDealMemo({
+                  title: deal.address || "Deal",
+                  address: [deal.address, [deal.city, [deal.state, deal.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ")].filter(Boolean).join(", "),
+                  inputs,
+                  deal,
+                  market: local,
+                  ratesNote: `Rates: Freddie Mac PMMS week of ${formatAsOf(market.asOf)} (${market.primaryRate30y}% 30-yr); investment loans ≈${market.investmentRate30y}%.`,
+                }))
+                .then(() => setMemoState("idle"))
+                .catch(() => setMemoState("failed"));
+            }}
+          >
+            <FileDown size={16} /> {memoState === "working" ? "Building…" : memoState === "failed" ? "Retry memo" : "Deal Memo PDF"}
           </button>
           <button className="primary compact" type="button" disabled={!canSave || !dirty || saveState === "saving"} onClick={() => onSave(inputs)}>
             <Save size={16} /> Save analysis
@@ -191,18 +262,128 @@ export function DealAnalyzer({
                   field={field}
                   value={inputs[field.key] as number | undefined}
                   disabled={inputs.cashPurchase && group.title === "Long-term loan"}
-                  isDefault={(DEFAULT_ASSUMPTIONS as Record<string, unknown>)[field.key] === inputs[field.key]}
+                  isDefault={marketDefaults[field.key] === inputs[field.key]}
+                  marketAsOf={market.asOf}
                   onChange={(value) => update(field.key, value)}
                 />
               ))}
             </fieldset>
           ))}
           <p className="analyzer-footnote">
-            Market rates as of {formatAsOf(MARKET_DEFAULTS.asOf)}: 30-yr primary {MARKET_DEFAULTS.primaryRate30y}% (Freddie Mac), investment ≈{MARKET_DEFAULTS.investmentRate30y}%, DSCR ≈{MARKET_DEFAULTS.dscrRate30y}%, hard money ≈{MARKET_DEFAULTS.hardMoneyRate}% + {MARKET_DEFAULTS.hardMoneyPointsPct} pts. Replace with your lender quote.
+            {market.live ? "Live" : "Built-in"} market rates, week of {formatAsOf(market.asOf)}: 30-yr primary {market.primaryRate30y}% ({market.source}), investment ≈{market.investmentRate30y}%, DSCR ≈{market.dscrRate30y}%, hard money ≈{MARKET_DEFAULTS.hardMoneyRate}% + {MARKET_DEFAULTS.hardMoneyPointsPct} pts, FHA ≈{MARKET_DEFAULTS.fhaRate30y}%. Replace with your lender quote.
           </p>
         </aside>
 
         <section className="analyzer-results" aria-label="Results">
+          {view === "insights" && (
+            verdict.tone === "incomplete" ? <EmptyResult text="Add a purchase price and monthly rent to get BRIX's read on this deal." /> : (
+              <>
+                <VerdictCard tone={verdict.tone} headline={verdict.headline} />
+                {read ? (
+                  <div className="analyzer-card brix-read">
+                    <h5><Sparkles size={16} aria-hidden="true" /> BRIX's read</h5>
+                    <p>{read}</p>
+                  </div>
+                ) : null}
+                <div className="analyzer-card">
+                  <h5>{takes.alreadyMeets ? "How much room you have" : "What it would take to hit your targets"}</h5>
+                  <p className="analyzer-footnote">Each line changes one thing and holds everything else constant.</p>
+                  <div className="lever-grid">
+                    {takes.levers.map((lever) => (
+                      <div key={lever.id} className={`lever ${lever.needed === null ? "lever-none" : lever.feasible ? "lever-ok" : "lever-hard"}`}>
+                        <span>{lever.label}</span>
+                        <strong>{lever.needed ?? "Not possible"}</strong>
+                        <small>{lever.needed ? `from ${lever.current}${lever.change ? ` (${lever.change})` : ""}` : `now ${lever.current}`}</small>
+                        <p>{lever.note}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="analyzer-card table-scroll">
+                  <h5>Stress test</h5>
+                  <table className="projection-table stress-table">
+                    <thead><tr><th>Scenario</th><th>Cash flow / mo</th><th>DSCR</th><th>Holds?</th></tr></thead>
+                    <tbody>
+                      {stress.map((scenario) => (
+                        <tr key={scenario.label}>
+                          <td><strong>{scenario.label}</strong><small>{scenario.detail}</small></td>
+                          <td className={scenario.monthlyCashFlow >= 0 ? "pos" : "neg"}>{usd(scenario.monthlyCashFlow)}</td>
+                          <td>{scenario.dscr === null ? "—" : scenario.dscr.toFixed(2)}</td>
+                          <td>{scenario.survives ? <CheckCircle2 size={18} className="ok" aria-label="Holds" /> : <XCircle size={18} className="no" aria-label="Breaks" />}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {localInsight && local ? (
+                  <div className="analyzer-card local-market">
+                    <h5><MapPin size={16} aria-hidden="true" /> Local market · ZIP {local.zip}</h5>
+                    <div className="kpi-grid compact-kpis">
+                      <Kpi label={localInsight.benchmarkLabel.replace(/, ZIP \d+$/, "")} value={localInsight.benchmarkRent ? usd(localInsight.benchmarkRent) : "n/a"} sub="Today's dollars" />
+                      <Kpi label="Your rent vs median" value={localInsight.rentVsBenchmark === null ? "n/a" : `${Math.round(localInsight.rentVsBenchmark * 100)}%`} tone={localInsight.rentVsBenchmark === null ? undefined : localInsight.rentVsBenchmark > 1.3 ? "warn" : "good"} />
+                      <Kpi label="Rental vacancy" value={localInsight.localVacancyPct === null ? "n/a" : `${localInsight.localVacancyPct.toFixed(1)}%`} sub={`You assume ${inputs.vacancyPct}%`} tone={localInsight.localVacancyPct !== null && localInsight.localVacancyPct > inputs.vacancyPct + 1 ? "warn" : undefined} />
+                      <Kpi label="Median household income" value={local.medianHouseholdIncome ? usd(local.medianHouseholdIncome) : "n/a"} sub={localInsight.rentToIncome === null ? undefined : `Rent = ${Math.round(localInsight.rentToIncome * 100)}% of it`} />
+                      <Kpi label="Renter share" value={local.renterShare === null ? "n/a" : `${Math.round(local.renterShare * 100)}%`} />
+                      <Kpi label="Median home value" value={local.medianHomeValue ? usd(local.medianHomeValue) : "n/a"} sub="Survey period" />
+                    </div>
+                    {localInsight.localVacancyPct !== null && localInsight.localVacancyPct > inputs.vacancyPct + 1 ? (
+                      <button className="secondary compact" type="button" onClick={() => update("vacancyPct", Math.ceil(localInsight.localVacancyPct!))}>Use local vacancy ({Math.ceil(localInsight.localVacancyPct)}%)</button>
+                    ) : null}
+                    <p className="analyzer-footnote">{local.survey}{local.rentAdjustment ? `; rents brought to ${formatAsOf(local.rentAdjustment.through)} dollars (×${local.rentAdjustment.factor}) using ${local.rentAdjustment.source}` : ""}. ZIP-level medians include all unit ages and conditions; use them as a sanity check next to real comps.</p>
+                  </div>
+                ) : null}
+                {flags.length ? (
+                  <div className="analyzer-card">
+                    <h5>Risks and checks ({flags.length})</h5>
+                    <ul className="flag-list">
+                      {flags.map((flag) => (
+                        <li key={flag.title} className={`flag flag-${flag.severity}`}>
+                          {flag.severity === "info" ? <Info size={18} aria-hidden="true" /> : <AlertTriangle size={18} aria-hidden="true" />}
+                          <div><strong>{flag.title}</strong><p>{flag.detail}</p></div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </>
+            )
+          )}
+
+          {view === "househack" && (houseHack ? (
+            <>
+              <VerdictCard
+                tone={houseHack.netMonthlyHousingCost <= 0 ? "strong" : houseHack.savingsVsRentingAfterEquity === null ? "incomplete" : houseHack.savingsVsRenting !== null && houseHack.savingsVsRenting >= 0 ? "strong" : houseHack.savingsVsRentingAfterEquity >= 0 ? "workable" : "weak"}
+                headline={houseHack.netMonthlyHousingCost <= 0
+                  ? `You live free and pocket ${usd(-houseHack.netMonthlyHousingCost)}/mo.`
+                  : houseHack.savingsVsRenting === null
+                    ? `Your net housing cost is ${usd(houseHack.netMonthlyHousingCost)}/mo (${usd(houseHack.costAfterEquity)} after principal paydown). Add what you'd pay to rent to compare.`
+                    : houseHack.savingsVsRenting >= 0
+                      ? `Costs ${usd(houseHack.netMonthlyHousingCost)}/mo to live here, ${usd(houseHack.savingsVsRenting)} less than renting, and you build ${usd(houseHack.monthlyPrincipalPaydown)}/mo of equity.`
+                      : houseHack.savingsVsRentingAfterEquity! >= 0
+                        ? `Costs ${usd(-houseHack.savingsVsRenting)}/mo more than renting in cash, but beats renting by ${usd(houseHack.savingsVsRentingAfterEquity!)}/mo once principal paydown is counted.`
+                        : `Costs ${usd(-houseHack.savingsVsRentingAfterEquity!)}/mo more than renting even after ${usd(houseHack.monthlyPrincipalPaydown)}/mo of principal paydown.`}
+              />
+              <div className="kpi-grid">
+                <Kpi label="Net housing cost / mo" value={usd(houseHack.netMonthlyHousingCost)} tone={houseHack.netMonthlyHousingCost <= 0 ? "good" : undefined} />
+                <Kpi label="Cost after equity build" value={usd(houseHack.costAfterEquity)} sub={`Net cost − ${usd(houseHack.monthlyPrincipalPaydown)}/mo principal`} />
+                <Kpi label="Cash to close" value={usd(houseHack.cashToClose)} sub="Down + closing costs" />
+                <Kpi label="Rent from other units" value={usd(houseHack.rentFromOtherUnits)} sub="After vacancy" />
+                <Kpi label="Cash flow after you move out" value={usd(houseHack.afterMoveOutCashFlow)} tone={houseHack.afterMoveOutCashFlow >= 0 ? "good" : "bad"} sub="Same loan, all units rented" />
+              </div>
+              <Breakdown title="Monthly cost of living there" rows={[
+                ["Principal & interest", houseHack.monthlyPrincipalAndInterest],
+                ["Mortgage insurance", houseHack.monthlyMip],
+                ["Taxes, insurance, HOA", houseHack.monthlyTaxesInsuranceHoa],
+                ["Reserves, management, utilities", houseHack.monthlyReservesAndOther],
+                ["Rent collected from other units", -houseHack.rentFromOtherUnits],
+                ["Net monthly housing cost", houseHack.netMonthlyHousingCost],
+              ]} />
+              {inputs.ownerUnitRent <= 0 ? <p className="max-offer warn">Enter the rent of the unit you'll live in, so BRIX doesn't count it as income.</p> : null}
+              {houseHack.overFhaLimit ? <p className="max-offer warn">This loan may exceed the FHA limit for this county. Check HUD's lookup or use a conventional owner-occupied loan.</p> : null}
+              <p className="analyzer-footnote">FHA requires you to move in within 60 days and live there at least a year. 3-4 unit FHA purchases must pass a self-sufficiency test: 75% of total rent has to cover the full payment. Upfront MIP is financed; annual MIP is modeled on the base loan.</p>
+            </>
+          ) : <EmptyResult text="Add a purchase price to model a house hack." />)}
+
           {view === "rental" && (
             <>
               <VerdictCard tone={verdict.tone} headline={verdict.headline} />
@@ -306,6 +487,8 @@ export function DealAnalyzer({
                 <Kpi label="Equity multiple" value={rental.equityMultiple === null ? "n/a" : `${rental.equityMultiple.toFixed(2)}x`} />
                 <Kpi label="Total profit" value={usd(rental.totalProfit)} tone={rental.totalProfit >= 0 ? "good" : "bad"} />
                 <Kpi label="Net sale proceeds" value={usd(rental.saleProceeds)} sub="After selling costs and loan payoff" />
+                <Kpi label="Year-1 depreciation" value={usd(tax.annualDepreciation)} sub="27.5-yr straight line" />
+                <Kpi label="Year-1 after-tax cash flow" value={usd(tax.afterTaxCashFlow)} tone={tax.afterTaxCashFlow >= 0 ? "good" : "bad"} sub={tax.taxEffect >= 0 ? `${usd(tax.taxEffect)} tax savings at ${inputs.taxBracketPct}%` : `${usd(-tax.taxEffect)} tax at ${inputs.taxBracketPct}%`} />
               </div>
               <div className="analyzer-card table-scroll">
                 <table className="projection-table">
@@ -325,7 +508,7 @@ export function DealAnalyzer({
                   </tbody>
                 </table>
               </div>
-              <p className="analyzer-footnote">Pre-tax. Does not include depreciation, which can shelter rental income (27.5-year schedule for residential buildings; cost segregation may qualify components for 100% bonus depreciation). Confirm with your CPA.</p>
+              <p className="analyzer-footnote">The table is pre-tax. After-tax figures assume rental losses can offset your other income; passive-loss rules limit that for many investors (the $25,000 allowance phases out between $100,000 and $150,000 of modified AGI) unless you qualify as a real estate professional. A cost segregation study can move components into shorter lives eligible for 100% bonus depreciation (permanent for property acquired after Jan 19, 2025). Confirm with your CPA.</p>
             </>
           )}
 
@@ -355,7 +538,7 @@ function displayNumber(value: number | undefined, unit: FieldDef["unit"]) {
   return unit === "$" ? new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value) : String(value);
 }
 
-function NumberInput({ field, value, disabled, isDefault, onChange }: { field: FieldDef; value: number | undefined; disabled?: boolean; isDefault: boolean; onChange: (value: number | undefined) => void }) {
+function NumberInput({ field, value, disabled, isDefault, marketAsOf, onChange }: { field: FieldDef; value: number | undefined; disabled?: boolean; isDefault: boolean; marketAsOf: string; onChange: (value: number | undefined) => void }) {
   const [focused, setFocused] = useState(false);
   const [text, setText] = useState(displayNumber(value, field.unit));
   useEffect(() => {
@@ -366,7 +549,7 @@ function NumberInput({ field, value, disabled, isDefault, onChange }: { field: F
     <div className="analyzer-field">
       <label htmlFor={id}>
         {field.label}
-        {field.market ? <span className="badge-market" title={`Market default as of ${formatAsOf(MARKET_DEFAULTS.asOf)}`}>{isDefault ? "Market" : "Custom"}</span> : null}
+        {field.market ? <span className="badge-market" title={`Market default, week of ${formatAsOf(marketAsOf)}`}>{isDefault ? "Market" : "Custom"}</span> : null}
       </label>
       <div className={`unit-input unit-${field.unit === "$" ? "prefix" : "suffix"}`}>
         {field.unit === "$" ? <span aria-hidden="true">$</span> : null}
@@ -382,10 +565,7 @@ function NumberInput({ field, value, disabled, isDefault, onChange }: { field: F
             if (raw === "") onChange(field.key === "arv" ? undefined : 0);
             else if (Number.isFinite(Number(raw))) onChange(Number(raw));
           }}
-          onFocus={() => {
-            setFocused(true);
-            setText(value === undefined ? "" : String(value));
-          }}
+          onFocus={() => setFocused(true)}
           onBlur={() => {
             setFocused(false);
             setText(displayNumber(value, field.unit));
@@ -485,6 +665,7 @@ export function DealSnapshot({ deal, onOpen }: { deal: DealLike; onOpen: () => v
   const inputs = useMemo(() => inputsFromDeal(deal), [deal]);
   const rental = useMemo(() => analyzeRental(inputs), [inputs]);
   const verdict = useMemo(() => rentalVerdict(inputs, rental), [inputs, rental]);
+  const read = useMemo(() => brixRead(inputs, rental), [inputs, rental]);
   return (
     <section className="workspace-card wide deal-snapshot">
       <div className="panel-heading-row">
@@ -504,6 +685,7 @@ export function DealSnapshot({ deal, onOpen }: { deal: DealLike; onOpen: () => v
           <Kpi label="DSCR" value={rental.dscr === null ? "No loan" : rental.dscr.toFixed(2)} tone={rental.dscr === null ? undefined : rental.dscr >= inputs.targetDscr ? "good" : "bad"} />
         </div>
       ) : null}
+      {read ? <p className="snapshot-read"><Sparkles size={16} aria-hidden="true" /> {read}</p> : null}
     </section>
   );
 }

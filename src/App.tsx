@@ -6,8 +6,11 @@ import { StrategyWorkspace } from "./components/StrategyWorkspace";
 import { buildStrategyPresentation } from "./core/strategyPresentation";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
 import { Landing } from "./Landing";
+import { PropertyFacts, type PropertyFactsPatch } from "./components/PropertyFacts";
+import { OwnedPerformance } from "./components/OwnedPerformance";
+import { analyzeOwned, portfolioTotals } from "./core/portfolio";
 import { DealAnalyzer, DealSnapshot, type AnalyzerSaveState, type AnalyzerView } from "./components/DealAnalyzer";
-import type { AnalyzerInputs } from "./core/investorMath";
+import { analyzeRental, inputsFromDeal, rentalVerdict, usd, type AnalyzerInputs } from "./core/investorMath";
 import { createRemoteDeal, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
 import { archiveDeal, listDealProjections, loadDealDetail, restoreDeal, updateDealCore, updateDealLifecycle, updateProperty } from "./core/dealCrud";
 import type { CanonicalDealOperatingStatus, CanonicalDealStage, DealAttentionState, DealDetailProjection, DealFacts, DealListProjection, DealNote, DealPriority, DealProjectionFilters, DealProjectionSort, DealRelationship, DealRelationshipRole, DealRelationshipStatus, DealStatus, DealTimelineItem, DealWorkItem, DuplicateCandidate, ManualIntakeDraft, ManualPropertyCandidate, PropertySummary, RelationshipTargetType } from "./core/types";
@@ -1848,6 +1851,7 @@ function DealsSurface({
   const isFiltered = Boolean(search.trim()) || hasDealProjectionFilters(filters);
   const finalPage = pageOffset + pageSize >= page.totalCount;
   const visibleDeals = isAuthenticated ? page.deals : deals.map(localDealProjection);
+  const dealMetrics = useDealListFacts(isAuthenticated ? visibleDeals : [], isOnline);
 
   if (workspaceStatus === "failed") {
     return (
@@ -1890,7 +1894,7 @@ function DealsSurface({
             {recentDeals.map((deal) => (
               <button key={deal.id} className={deal.id === selectedId ? "recent-deal-card active" : "recent-deal-card"} type="button" onClick={() => onOpenDeal(deal.id)}>
                 <strong>{dealTitle(deal)}</strong>
-                <span>{dealLocation(deal)}</span>
+                <span>{dealLocation(deal) || getStrategy(deal.strategyId)?.name || "Deal"}</span>
               </button>
             ))}
           </div>
@@ -1900,8 +1904,8 @@ function DealsSurface({
         <div className="section-heading">
           <div>
             <p className="eyebrow">Saved Deals</p>
-            <h2>{isProfessional ? "Deal records" : "Authorized Deal records"}</h2>
-            <p className="quiet">{isAuthenticated ? "Search, filters, sorting, archive, and restore use canonical account records." : "Local drafts are shown from this device until you sign in."}</p>
+            <h2>{isProfessional ? "Deal records" : "Your Deals"}</h2>
+            <p className="quiet">{isAuthenticated ? "Every deal you are tracking, with its verdict and cash flow at a glance." : "Local drafts are shown from this device until you sign in."}</p>
           </div>
           <div className="button-row">
             <button className="primary compact" type="button" onClick={onStartIntake}><Plus size={16} /> Add Deal</button>
@@ -1992,6 +1996,13 @@ function DealsSurface({
           />
         )}
 
+        <PortfolioSummary facts={visibleDeals.map((row) => (isAuthenticated ? dealMetrics.get(row.dealId) : deals.find((d) => d.id === row.dealId)))} />
+        {visibleDeals.length > 1 && (
+          <DealScoreboard
+            rows={visibleDeals.map((row) => ({ row, facts: isAuthenticated ? dealMetrics.get(row.dealId) : deals.find((d) => d.id === row.dealId) }))}
+            onOpenDeal={onOpenDeal}
+          />
+        )}
         {visibleDeals.length > 0 && (
           <div className="deal-list" role="list" aria-label="Saved Deals">
             {visibleDeals.map((deal) => {
@@ -2006,6 +2017,7 @@ function DealsSurface({
                 <div>
                   <strong>{deal.displayName}</strong>
                   <span>{secondaryLocation}</span>
+                  <DealRowMetrics facts={isAuthenticated ? dealMetrics.get(deal.dealId) : sourceDeal ?? undefined} />
                 </div>
                 <div>
                   <small>State</small>
@@ -2071,6 +2083,105 @@ type ProjectionPageState = {
   activeCount: number;
   archivedCount: number;
 };
+
+const dealListFactsCache = new Map<string, DealFacts>();
+
+/** Loads saved facts for the visible Deals (4 at a time) so the list can show each Deal's numbers. */
+function useDealListFacts(rows: DealListProjection[], isOnline: boolean) {
+  const [, setVersion] = useState(0);
+  const key = rows.map((row) => `${row.dealId}:${row.updatedAt}`).join("|");
+  useEffect(() => {
+    if (!isOnline || !key) return;
+    let cancelled = false;
+    const pending = rows.filter((row) => !dealListFactsCache.has(`${row.dealId}:${row.updatedAt}`)).slice(0, 50);
+    const queue = [...pending];
+    const worker = async () => {
+      while (!cancelled && queue.length) {
+        const row = queue.shift()!;
+        try {
+          const detail = await loadDealDetail(row.dealId);
+          dealListFactsCache.set(`${row.dealId}:${row.updatedAt}`, detail.deal);
+          if (!cancelled) setVersion((v) => v + 1);
+        } catch {
+          // A row without numbers is fine; the Deal still opens normally.
+        }
+      }
+    };
+    void Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, isOnline]);
+  return new Map(rows.flatMap((row) => {
+    const facts = dealListFactsCache.get(`${row.dealId}:${row.updatedAt}`);
+    return facts ? [[row.dealId, facts] as const] : [];
+  }));
+}
+
+function PortfolioSummary({ facts }: { facts: Array<DealFacts | undefined> }) {
+  const owned = facts.flatMap((f) => (f?.actuals?.purchaseDate && /^\d{4}-\d{2}-\d{2}$/.test(f.actuals.purchaseDate) ? [analyzeOwned(inputsFromDeal(f), f.actuals)] : []));
+  if (!owned.length) return null;
+  const t = portfolioTotals(owned);
+  return (
+    <section className="portfolio-summary" aria-label="Portfolio">
+      <p className="eyebrow">Portfolio · {t.properties} owned {t.properties === 1 ? "property" : "properties"}</p>
+      <div className="deal-scoreboard">
+        <div className="kpi"><span>Portfolio value</span><strong>{usd(t.value)}</strong></div>
+        <div className="kpi kpi-good"><span>Equity</span><strong>{usd(t.equity)}</strong><small>LTV {t.ltv === null ? "n/a" : `${(t.ltv * 100).toFixed(1)}%`}</small></div>
+        <div className={`kpi ${t.monthlyCashFlow >= 0 ? "kpi-good" : "kpi-bad"}`}><span>Actual cash flow</span><strong>{usd(t.monthlyCashFlow)}/mo</strong><small>{t.cashOnCash === null ? "" : `${(t.cashOnCash * 100).toFixed(1)}% cash-on-cash`}</small></div>
+        <div className="kpi"><span>Debt</span><strong>{usd(t.debt)}</strong><small>DSCR {t.dscr === null ? "n/a" : t.dscr.toFixed(2)}</small></div>
+      </div>
+    </section>
+  );
+}
+
+function DealScoreboard({ rows, onOpenDeal }: { rows: Array<{ row: DealListProjection; facts?: DealFacts }>; onOpenDeal: (dealId: string) => void }) {
+  const analyzed = rows.flatMap(({ row, facts }) => {
+    if (!facts || facts.actuals?.purchaseDate) return [];
+    const inputs = inputsFromDeal(facts);
+    if (inputs.purchasePrice <= 0 || inputs.monthlyRent <= 0) return [];
+    const rental = analyzeRental(inputs);
+    return [{ row, inputs, rental, tone: rentalVerdict(inputs, rental).tone }];
+  });
+  if (!analyzed.length) return null;
+  const meeting = analyzed.filter((a) => a.tone === "strong").length;
+  const workable = analyzed.filter((a) => a.tone === "workable").length;
+  const best = [...analyzed].sort((a, b) => (b.rental.cashOnCash ?? -Infinity) - (a.rental.cashOnCash ?? -Infinity))[0];
+  const totalCashFlow = analyzed.reduce((sum, a) => sum + a.rental.monthlyCashFlow, 0);
+  const totalCash = analyzed.reduce((sum, a) => sum + a.rental.totalCashInvested, 0);
+  return (
+    <section className="deal-scoreboard" aria-label="Pipeline scoreboard">
+      <div className="kpi"><span>Pipeline deals analyzed</span><strong>{analyzed.length}<small> of {rows.length}</small></strong></div>
+      <div className={meeting > 0 ? "kpi kpi-good" : "kpi"}><span>Meet your targets</span><strong>{meeting}</strong><small>{workable} workable</small></div>
+      <div className={`kpi ${totalCashFlow >= 0 ? "kpi-good" : "kpi-bad"}`}><span>Combined cash flow</span><strong>{usd(totalCashFlow)}/mo</strong><small>If you bought every analyzed deal</small></div>
+      <div className="kpi"><span>Cash to buy them all</span><strong>{usd(totalCash)}</strong></div>
+      <button type="button" className="kpi scoreboard-best" onClick={() => onOpenDeal(best.row.dealId)}>
+        <span>Best cash-on-cash</span>
+        <strong>{best.rental.cashOnCash === null ? "n/a" : `${(best.rental.cashOnCash * 100).toFixed(1)}%`}</strong>
+        <small>{best.row.displayName} →</small>
+      </button>
+    </section>
+  );
+}
+
+function DealRowMetrics({ facts }: { facts?: DealFacts }) {
+  if (!facts) return null;
+  const inputs = inputsFromDeal(facts);
+  if (inputs.purchasePrice <= 0 || inputs.monthlyRent <= 0) {
+    return <div className="deal-list-metrics"><span className="deal-chip">{inputs.purchasePrice > 0 ? `${usd(inputs.purchasePrice)} · add rent to analyze` : "Add price and rent to analyze"}</span></div>;
+  }
+  const rental = analyzeRental(inputs);
+  const verdict = rentalVerdict(inputs, rental);
+  const tone = verdict.tone === "strong" ? "good" : verdict.tone === "workable" ? "warn" : "bad";
+  const label = verdict.tone === "strong" ? "Meets targets" : verdict.tone === "workable" ? "Workable" : "Doesn't pencil";
+  return (
+    <div className="deal-list-metrics" aria-label="Deal numbers">
+      <span className={`deal-chip ${tone}`}>{label}</span>
+      <span className={`deal-chip ${rental.monthlyCashFlow >= 0 ? "good" : "bad"}`}>{usd(rental.monthlyCashFlow)}/mo</span>
+      <span className="deal-chip">{rental.cashOnCash === null ? "CoC n/a" : `${(rental.cashOnCash * 100).toFixed(1)}% CoC`}</span>
+      <span className="deal-chip">{usd(inputs.purchasePrice)}</span>
+    </div>
+  );
+}
 
 function localDealProjection(deal: DealFacts): DealListProjection {
   return {
@@ -2884,13 +2995,14 @@ function formatFileSize(bytes?: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-type DealWorkspaceSection = "overview" | "property" | "underwriting" | "strategies" | "financeiq" | "governanceiq" | "contractiq" | "people" | "work" | "notes" | "history";
+type DealWorkspaceSection = "overview" | "property" | "underwriting" | "strategies" | "performance" | "financeiq" | "governanceiq" | "contractiq" | "people" | "work" | "notes" | "history";
 
 const dealWorkspaceSections: Array<{ id: DealWorkspaceSection; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "property", label: "Property" },
   { id: "underwriting", label: "Underwriting" },
   { id: "strategies", label: "Strategies" },
+  { id: "performance", label: "Performance" },
   { id: "financeiq", label: "FinanceIQ" },
   { id: "governanceiq", label: "GovernanceIQ" },
   { id: "contractiq", label: "ContractIQ" },
@@ -2957,6 +3069,7 @@ function DealWorkspace({
     property: null,
     underwriting: null,
     strategies: null,
+    performance: null,
     financeiq: null,
     governanceiq: null,
     contractiq: null,
@@ -3092,8 +3205,28 @@ function DealWorkspace({
         <h3 ref={sectionHeadingRef} tabIndex={-1}>{dealWorkspaceSections.find((item) => item.id === section)?.label}</h3>
         {section === "overview" && <DealOverviewSection deal={effectiveDeal} detail={detail} property={property} onEdit={() => selectSection("property")} onAnalyze={() => selectSection("underwriting")} />}
         {section === "property" && <DealPropertySection deal={effectiveDeal} detail={detail} property={property} userId={userId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
-        {section === "underwriting" && <DealAnalysisSection key={`${deal.id}:${effectiveDeal.dealVersion ?? 0}:rental`} deal={effectiveDeal} initialView="rental" isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
+        {section === "underwriting" && <DealAnalysisSection key={`${deal.id}:${effectiveDeal.dealVersion ?? 0}:rental`} deal={effectiveDeal} initialView="insights" isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
         {section === "strategies" && <DealStrategySection key={`${deal.id}:${effectiveDeal.dealVersion ?? 0}:compare`} deal={effectiveDeal} presentationMode={presentationMode} isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
+        {section === "performance" && (
+          <OwnedPerformance
+            deal={effectiveDeal}
+            canSave={isAuthenticated && isOnline && Boolean(effectiveDeal.dealVersion)}
+            onSave={async (actuals) => {
+              try {
+                const next = await updateDealCore(effectiveDeal, {
+                  facts: { ...effectiveDeal, actuals },
+                  strategyId: effectiveDeal.strategyId,
+                  strategyIntent: effectiveDeal.strategyId,
+                  verification: effectiveDeal.verification,
+                });
+                onCanonicalSaved(next.deal);
+                void loadDetail();
+              } catch (error) {
+                throw new Error(safeDealCommandMessage(error).message);
+              }
+            }}
+          />
+        )}
         {section === "financeiq" && <Suspense fallback={<p className="quiet" role="status">Loading…</p>}><FinanceIQWorkspace dealId={deal.id} dealName={displayName} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} mode={presentationMode} /></Suspense>}
         {section === "governanceiq" && <Suspense fallback={<p className="quiet" role="status">Loading…</p>}><GovernanceIQWorkspace dealId={deal.id} dealName={displayName} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} mode={presentationMode} /></Suspense>}
         {section === "contractiq" && <Suspense fallback={<p className="quiet" role="status">Loading…</p>}><ContractIQWorkspace dealId={deal.id} dealName={displayName} workspaceId={workspaceId} isAuthenticated={isAuthenticated} isOnline={isOnline} mode={presentationMode} /></Suspense>}
@@ -3255,21 +3388,26 @@ function DealPropertySection({
 }) {
   return (
     <div className="deal-section-grid">
-      <section className="workspace-card">
-        <p className="eyebrow">Property summary</p>
-        <h4>{formatPropertyLine(property, deal)}</h4>
-        <DefinitionList items={[
-          { label: "Display address", value: property?.displayAddress ?? deal.address ?? "Not set" },
-          { label: "Address line 1", value: property?.addressLine1 ?? deal.address ?? "Not set" },
-          { label: "Address line 2", value: property?.addressLine2 ?? "Not set" },
-          { label: "City", value: property?.city ?? deal.city ?? "Not set" },
-          { label: "State", value: property?.region ?? deal.state ?? "Not set" },
-          { label: "ZIP", value: property?.postalCode ?? deal.zip ?? "Not set" },
-          { label: "Country", value: property?.country ?? "US" },
-          { label: "Parcel ID", value: property?.parcelIdentifier ?? "Not set" },
-          { label: "Property version", value: String(property?.propertyVersion ?? deal.propertyVersion ?? "Reload required") },
-        ]} />
-      </section>
+      <PropertyFacts
+        deal={detail?.deal ?? deal}
+        address={formatPropertyLine(property, deal)}
+        canSave={isAuthenticated && isOnline && Boolean((detail?.deal ?? deal).dealVersion)}
+        onSave={async (patch: PropertyFactsPatch) => {
+          const current = detail?.deal ?? deal;
+          const { units, ...facts } = patch;
+          try {
+            const next = await updateDealCore(current, {
+              facts: { ...current, ...facts, analyzer: { ...(current.analyzer ?? {}), ...(units ? { units } : {}) } },
+              strategyId: current.strategyId,
+              strategyIntent: current.strategyId,
+              verification: current.verification,
+            });
+            onSaved(next.deal);
+          } catch (error) {
+            throw new Error(safeDealCommandMessage(error).message);
+          }
+        }}
+      />
       <CanonicalDealEditPanel deal={detail?.deal ?? deal} userId={userId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} onSaved={onSaved} />
     </div>
   );
@@ -5593,7 +5731,7 @@ function dealSearchResult(deal: DealFacts, group: string): ShellSearchResult {
   return {
     key: `deal-${deal.id}`,
     label: dealTitle(deal),
-    description: `${dealLocation(deal)} - ${statusLabel(deal.status)}`,
+    description: [dealLocation(deal), statusLabel(deal.status)].filter(Boolean).join(" - "),
     group,
     target: "deal",
     dealId: deal.id,
@@ -5728,7 +5866,7 @@ function buildInvestorAttentionItems({
       items.push({
         key: `deal-${deal.id}`,
         title: attentionTitleForDeal(deal),
-        detail: `${dealTitle(deal)} - ${dealLocation(deal)} - ${statusLabel(deal.status)} - updated ${formatShortDate(deal.updatedAt)}.`,
+        detail: `${[dealTitle(deal), dealLocation(deal), statusLabel(deal.status)].filter(Boolean).join(" - ")} - updated ${formatShortDate(deal.updatedAt)}.`,
         category: "Needs attention",
         tone: deal.status === "under_contract" ? "warning" : "neutral",
         action: "openDeal",
@@ -5968,7 +6106,7 @@ function dealTitle(deal: DealFacts) {
 
 function dealLocation(deal: DealFacts) {
   const parts = [deal.city, deal.state, deal.zip].filter(Boolean);
-  return parts.length ? parts.join(", ") : "Location not entered";
+  return parts.join(", ");
 }
 
 function useOnlineStatus() {

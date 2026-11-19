@@ -765,3 +765,55 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 @media (prefers-reduced-motion: reduce) { .app-loading .mark { animation: none; } }
 @media (max-width: 1100px) { .landing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .landing-grid { grid-template-columns: 1fr; } }
+
+/* Smart insights */
+.brix-read { border-color: rgba(59,130,246,.45); background: linear-gradient(135deg, rgba(59,130,246,.14), rgba(32,211,194,.06)); }
+.brix-read h5 { display: flex; align-items: center; gap: 8px; color: #bcd6ff; }
+.brix-read p { margin: 0; font-size: 16px; line-height: 1.6; color: #e6efff; }
+.lever-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.lever { display: grid; gap: 4px; border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: rgba(10,17,30,.9); align-content: start; }
+.lever span { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.lever strong { font-size: 22px; font-variant-numeric: tabular-nums; }
+.lever small { color: var(--muted-2); font-size: 12px; }
+.lever p { margin: 6px 0 0; color: #cfdcf0; font-size: 13px; line-height: 1.45; }
+.lever-ok { border-color: rgba(25,217,132,.4); }
+.lever-ok strong { color: var(--green); }
+.lever-hard strong { color: var(--amber); }
+.lever-none strong { color: var(--red); font-size: 18px; }
+.stress-table td small { display: block; color: var(--muted-2); font-size: 12px; font-weight: 500; white-space: normal; }
+.stress-table td:first-child { white-space: normal; }
+.stress-table .ok { color: var(--green); }
+.stress-table .no { color: var(--red); }
+.flag-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.flag { display: flex; gap: 10px; align-items: flex-start; border-radius: 12px; padding: 12px; border: 1px solid var(--line); background: rgba(10,17,30,.85); }
+.flag svg { flex: none; margin-top: 2px; }
+.flag strong { display: block; color: white; }
+.flag p { margin: 4px 0 0; color: #cfdcf0; font-size: 13px; line-height: 1.5; }
+.flag-high { border-color: rgba(241,92,92,.45); }
+.flag-high svg { color: var(--red); }
+.flag-medium { border-color: rgba(246,182,63,.4); }
+.flag-medium svg { color: var(--amber); }
+.flag-info svg { color: var(--cyan); }
+.snapshot-read { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0 0; color: #dbe6f7; line-height: 1.55; }
+.snapshot-read svg { flex: none; margin-top: 3px; color: #8fb8ff; }
+/* Deals list metrics */
+.deal-list-metrics { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.deal-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; font-size: 12px; font-weight: 800; color: #cfdcf0; font-variant-numeric: tabular-nums; }
+.deal-chip.good { border-color: rgba(25,217,132,.45); color: var(--green); }
+.deal-chip.warn { border-color: rgba(246,182,63,.45); color: var(--amber); }
+.deal-chip.bad { border-color: rgba(241,92,92,.45); color: #ff9c9c; }
+.analyzer-actions { margin-left: auto; }
+.deal-list-metrics .deal-chip { display: inline-flex; width: auto; margin: 0; }
+.deal-list-row .deal-list-metrics { display: flex; flex-wrap: wrap; gap: 6px; }
+.local-market h5 { display: flex; align-items: center; gap: 8px; }
+.property-facts .eyebrow { display: inline-flex; align-items: center; gap: 6px; }
+.property-facts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.upload-panel .eyebrow { display: inline-flex; align-items: center; gap: 6px; }
+.deal-scoreboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 6px 0 14px; }
+.deal-scoreboard .kpi strong small { font-size: 13px; color: var(--muted); font-weight: 700; }
+.scoreboard-best { text-align: left; cursor: pointer; color: inherit; border-color: rgba(59,130,246,.45); }
+.scoreboard-best:hover { border-color: var(--blue); }
+.scoreboard-best small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-panel .field input[type=file] { padding: 9px; } .upload-panel .property-facts-grid > label:first-child { grid-column: span 2; }
+.portfolio-summary { margin: 6px 0 4px; } .portfolio-summary .eyebrow { margin: 0 0 8px; }
+.panel-heading-row .primary, .panel-heading-row .secondary { white-space: nowrap; flex: none; }

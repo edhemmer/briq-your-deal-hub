@@ -23,11 +23,16 @@ export const MARKET_DEFAULTS = {
   dscrRate30y: 8.25,
   hardMoneyRate: 11,
   hardMoneyPointsPct: 2,
+  fhaRate30y: 7.0,
+  fhaUpfrontMipPct: 1.75,
+  fhaAnnualMipPct: 0.55,
+  fhaLoanLimitFloor1Unit: 541287,
   sources: [
     "Freddie Mac PMMS: 30-year fixed averaged 7.11% for the week of Nov 12, 2026.",
     "Conventional investment-property loans typically price about 0.50%-0.75% above primary-residence rates.",
     "DSCR loans typically price about 1.0%-1.5% above primary-residence rates.",
     "Hard-money / fix-and-flip loans in 2026 commonly run about 10%-12% interest plus 1.5-3 points.",
+    "FHA: 3.5% minimum down, 1.75% upfront MIP and 0.55% annual MIP on a standard 30-year loan; 2026 one-unit floor limit $541,287.",
   ],
 } as const;
 
@@ -74,6 +79,16 @@ export type AnalyzerInputs = {
   refiClosingCostPct: number;
   // Flip
   flipHoldMonths: number;
+  // House hack (owner-occupied 1-4 units, FHA by default)
+  ownerUnitRent: number;
+  houseHackDownPct: number;
+  houseHackRate: number;
+  houseHackMipPct: number;
+  houseHackUpfrontMipPct: number;
+  comparableRentForYou: number;
+  // Taxes
+  landValuePct: number;
+  taxBracketPct: number;
   // Investor targets
   targetCashOnCashPct: number;
   targetDscr: number;
@@ -110,6 +125,14 @@ export const DEFAULT_ASSUMPTIONS: Omit<AnalyzerInputs, "purchasePrice" | "monthl
   refiTermYears: 30,
   refiClosingCostPct: 3,
   flipHoldMonths: 6,
+  ownerUnitRent: 0,
+  houseHackDownPct: 3.5,
+  houseHackRate: MARKET_DEFAULTS.fhaRate30y,
+  houseHackMipPct: MARKET_DEFAULTS.fhaAnnualMipPct,
+  houseHackUpfrontMipPct: MARKET_DEFAULTS.fhaUpfrontMipPct,
+  comparableRentForYou: 0,
+  landValuePct: 20,
+  taxBracketPct: 24,
   targetCashOnCashPct: 8,
   targetDscr: 1.25,
   targetMonthlyCashFlowPerUnit: 100,
@@ -520,9 +543,20 @@ export type DealLike = {
   interestRate?: number;
   loanYears?: number;
   analyzer?: Partial<AnalyzerInputs>;
+  yearBuilt?: number;
+  squareFeet?: number;
+  beds?: number;
+  baths?: number;
+  propertyType?: string;
+  state?: string;
+  zip?: string;
+  address?: string;
+  city?: string;
 };
 
-export function inputsFromDeal(deal: DealLike): AnalyzerInputs {
+export type MarketRateDefaults = { investmentRate30y: number; dscrRate30y: number };
+
+export function inputsFromDeal(deal: DealLike, market?: MarketRateDefaults): AnalyzerInputs {
   const saved = deal.analyzer ?? {};
   const purchasePrice = num(saved.purchasePrice) ?? deal.listPrice ?? 0;
   const derivedDownPct = deal.downPayment !== undefined && purchasePrice > 0 ? (deal.downPayment / purchasePrice) * 100 : undefined;
@@ -536,7 +570,8 @@ export function inputsFromDeal(deal: DealLike): AnalyzerInputs {
     rehabBudget: deal.rehabBudget ?? 0,
     arv: deal.arv,
     downPaymentPct: derivedDownPct ?? DEFAULT_ASSUMPTIONS.downPaymentPct,
-    interestRate: deal.interestRate ?? DEFAULT_ASSUMPTIONS.interestRate,
+    interestRate: deal.interestRate ?? market?.investmentRate30y ?? DEFAULT_ASSUMPTIONS.interestRate,
+    refiRate: market?.dscrRate30y ?? DEFAULT_ASSUMPTIONS.refiRate,
     loanTermYears: deal.loanYears ?? DEFAULT_ASSUMPTIONS.loanTermYears,
   };
   for (const [key, value] of Object.entries(saved)) {
