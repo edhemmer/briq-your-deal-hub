@@ -47,12 +47,12 @@ export function GovernanceIQWorkspace({ dealId, dealName, workspaceId, isAuthent
   const load = useCallback(async (nextGovernanceRecordId = selectedGovernanceRecordId) => {
     if (!isAuthenticated || !workspaceId) {
       setStatus("signed_out");
-      setMessage("Sign in to load canonical GovernanceIQ records for this Deal.");
+      setMessage("Sign in to load your due diligence records for this Deal.");
       return;
     }
     if (!isOnline) {
       setStatus("offline");
-      setMessage("GovernanceIQ requires a connection so BRIX can confirm canonical governance state.");
+      setMessage("Due diligence requires a connection so BRIX can confirm the latest governance state.");
       return;
     }
     setStatus("loading");
@@ -64,7 +64,7 @@ export function GovernanceIQWorkspace({ dealId, dealName, workspaceId, isAuthent
       setStatus("idle");
     } catch (error) {
       setStatus("failed");
-      setMessage(error instanceof Error ? error.message : "BRIX could not load GovernanceIQ.");
+      setMessage(error instanceof Error ? error.message : "BRIX could not load due diligence.");
     }
   }, [dealId, isAuthenticated, isOnline, selectedGovernanceRecordId, workspaceId]);
 
@@ -100,18 +100,18 @@ export function GovernanceIQWorkspace({ dealId, dealName, workspaceId, isAuthent
         finding.governanceFindingId,
         acceptanceState,
         finding.governanceFindingVersion,
-        `${labelize(acceptanceState)} from GovernanceIQ web source review.`,
+        `${labelize(acceptanceState)} from due diligence web source review.`,
       );
       if (acceptanceState === "accepted") {
         await propagateAcceptedGovernanceFinding(finding.governanceFindingId, accepted.governanceFindingVersion);
         setMessage("Finding accepted. Server-owned propagation was queued; prior valid downstream results remain visible during review.");
       } else {
-        setMessage(`Finding marked ${labelize(acceptanceState)}. Canonical GovernanceIQ state will reload now.`);
+        setMessage(`Finding marked ${labelize(acceptanceState)}. Due diligence will reload now.`);
       }
       await load(model.selectedProjection?.governanceRecordId);
     } catch (error) {
       setStatus("failed");
-      setMessage(error instanceof Error ? error.message : "BRIX could not save that GovernanceIQ decision.");
+      setMessage(error instanceof Error ? error.message : "BRIX could not save that due diligence decision.");
     } finally {
       setBusyFindingId(undefined);
       setStatus((current) => current === "failed" ? current : "idle");
@@ -119,15 +119,15 @@ export function GovernanceIQWorkspace({ dealId, dealName, workspaceId, isAuthent
   }
 
   if (status === "signed_out" || status === "offline") {
-    return <GovernanceIQStateCard title={status === "signed_out" ? "GovernanceIQ needs your BRIX account" : "GovernanceIQ is offline"} message={message} />;
+    return <GovernanceIQStateCard title={status === "signed_out" ? "Due diligence needs your BRIX account" : "Due diligence is offline"} message={message} />;
   }
 
   return (
-    <div className="governanceiq-workspace" role="region" aria-label="GovernanceIQ workspace">
+    <div className="governanceiq-workspace" role="region" aria-label="Due diligence workspace">
       <section className="workspace-card wide governanceiq-hero">
         <div className="panel-heading-row">
           <div>
-            <p className="eyebrow">GovernanceIQ</p>
+            <p className="eyebrow">Due diligence</p>
             <h4>{model.selectedProjection?.name ?? model.emptyState?.title ?? "Governance review"}</h4>
             <p className="quiet">{model.emptyState?.detail ?? `${model.stateLabel}. ${model.statusDetail}`}</p>
           </div>
@@ -155,12 +155,12 @@ export function GovernanceIQWorkspace({ dealId, dealName, workspaceId, isAuthent
           </div>
         )}
         {message && <p className={status === "failed" ? "error" : "success-text"}>{message}</p>}
-        {status === "loading" && <p className="quiet">Loading canonical GovernanceIQ records.</p>}
+        {status === "loading" && <p className="quiet">Loading due diligence records.</p>}
       </section>
 
       {model.selectedProjection ? (
         <>
-          <nav className="governanceiq-tabs" role="tablist" aria-label="GovernanceIQ sections">
+          <nav className="governanceiq-tabs" role="tablist" aria-label="Due diligence sections">
             {governanceIqSections.map((item) => (
               <button key={item.id} className={section === item.id ? "deal-section-tab active" : "deal-section-tab"} type="button" role="tab" aria-selected={section === item.id} onClick={() => setSection(item.id)}>
                 {item.label}
@@ -177,7 +177,7 @@ export function GovernanceIQWorkspace({ dealId, dealName, workspaceId, isAuthent
         </>
       ) : (
         <>
-  {workspaceId ? null : <GovernanceIQStateCard title={model.emptyState?.title ?? "No GovernanceIQ record yet"} message={model.emptyState?.nextAction ?? "No governance projection is available."}  />}
+  {workspaceId ? null : <GovernanceIQStateCard title={model.emptyState?.title ?? "No due diligence record yet"} message={model.emptyState?.nextAction ?? "No governance projection is available."}  />}
           {workspaceId ? <DocumentUploadPanel kind="governance" workspaceId={workspaceId} dealId={dealId} dealName={dealName} onCreated={() => void load()} /> : null}
         </>
       )}
@@ -204,7 +204,7 @@ function GovernanceIQOverview({ model }: { model: GovernanceIQPresentationModel 
         <h4>Priority questions</h4>
         <div className="governanceiq-row-list">{model.guidedPriorities.map((priority) => (
           <article className="governanceiq-row compact-row" key={priority}>
-            <ShieldCheck size={16} /><div><strong>{priority}</strong><span>Source-backed GovernanceIQ item</span></div>
+            <ShieldCheck size={16} /><div><strong>{priority}</strong><span>Source-backed due diligence item</span></div>
           </article>
         ))}</div>
       </section>
@@ -334,7 +334,7 @@ function GovernanceIQConflicts({ model }: { model: GovernanceIQPresentationModel
     <section className="workspace-card wide">
       <p className="eyebrow">Conflicts</p>
       <h4>Unresolved source disagreements</h4>
-      {model.conflicts.length === 0 ? <p className="quiet">No unresolved GovernanceIQ conflicts are present in the current projection.</p> : (
+      {model.conflicts.length === 0 ? <p className="quiet">No unresolved due diligence conflicts are present in the current projection.</p> : (
         <div className="governanceiq-row-list">
           {model.conflicts.map((conflict) => (
             <article className="governanceiq-row conflict-row" key={`${conflict.summary}-${sourceAnchorLabel(conflict.sourceAAnchor)}-${sourceAnchorLabel(conflict.sourceBAnchor)}`}>
@@ -360,7 +360,7 @@ function GovernanceIQQuestions({ model }: { model: GovernanceIQPresentationModel
     <section className="workspace-card wide">
       <p className="eyebrow">Questions / Review</p>
       <h4>Canonical follow-up questions</h4>
-      {model.questions.length === 0 ? <p className="quiet">No GovernanceIQ questions are open for this record.</p> : model.questions.map((group) => (
+      {model.questions.length === 0 ? <p className="quiet">No due diligence questions are open for this record.</p> : model.questions.map((group) => (
         <div className="governanceiq-group" key={group.groupId}>
           <h5>{group.label}</h5>
           <div className="governanceiq-row-list">
@@ -389,7 +389,7 @@ function GovernanceIQChanges({ model, onDecide, busyFindingId }: { model: Govern
       <section className="workspace-card wide">
         <p className="eyebrow">Changes / Impact</p>
         <h4>Accepted-change propagation</h4>
-        {model.propagations.length === 0 ? <p className="quiet">No accepted GovernanceIQ change has been propagated yet.</p> : (
+        {model.propagations.length === 0 ? <p className="quiet">No accepted due diligence change has been propagated yet.</p> : (
           <div className="governanceiq-row-list">
             {model.propagations.map((item) => (
               <article className="governanceiq-row propagation-row" key={item.governanceChangePropagationId}>
@@ -416,7 +416,7 @@ function GovernanceIQChanges({ model, onDecide, busyFindingId }: { model: Govern
 }
 
 function FindingGroups({ model, showActions, onDecide, busyFindingId }: { model: GovernanceIQPresentationModel; showActions: boolean; onDecide?: (finding: GovernanceFinding, state: Extract<GovernanceAcceptanceState, "accepted" | "rejected" | "disputed">) => Promise<void>; busyFindingId?: string }) {
-  if (model.findings.length === 0) return <p className="quiet">No GovernanceIQ findings are available in this projection.</p>;
+  if (model.findings.length === 0) return <p className="quiet">No due diligence findings are available in this projection.</p>;
   return (
     <>
       {model.findings.map((group) => (
@@ -463,7 +463,7 @@ function FindingGroups({ model, showActions, onDecide, busyFindingId }: { model:
 function GovernanceIQStateCard({ title, message }: { title: string; message: string }) {
   return (
     <section className="workspace-card wide governanceiq-empty">
-      <p className="eyebrow">GovernanceIQ</p>
+      <p className="eyebrow">Due diligence</p>
       <h4>{title}</h4>
       <p className="quiet">{message}</p>
     </section>

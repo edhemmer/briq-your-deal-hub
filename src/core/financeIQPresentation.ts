@@ -157,14 +157,14 @@ export function buildFinanceIQPresentation(input: BuildFinanceIQPresentationInpu
       status: selectedProjection ? "authoritative_unavailable" : "empty",
       title: selectedProjection ? "Sources & Uses not yet reconciled" : "No source terms available",
       detail: selectedProjection
-        ? "FinanceIQ is showing source-backed capital terms only. BRIX will not display funding gap, required cash, reserves, or surplus until Spec 005 authoritative Sources & Uses outputs are present."
+        ? "Financing is showing source-backed capital terms only. BRIX will not display funding gap, required cash, reserves, or surplus until Spec 005 authoritative Sources & Uses outputs are present."
         : "Add a financing structure before BRIX can show source terms.",
     },
     requirementCounts,
     sourceTerms: buildSourceTerms(input.selectedStructure, capitalSources, debtTranches, equityTranches, conditions, covenants, debtSchedules, input.comparison),
     activeSelection: selectedProjection ? activeSelectionState(selectedProjection) : { canSelect: false, label: "No structure to activate" },
     emptyState: selectedProjection ? undefined : {
-      title: "No FinanceIQ structure yet",
+      title: "No financing structure yet",
       detail: "Create or extract financing terms to connect debt, equity, conditions, covenants, and comparisons to this Deal.",
     },
   };
@@ -330,7 +330,7 @@ function freshnessLabel(projection: FinancingProjection | undefined, reunderwrit
     return { value: "Recalculating", detail: "Prior valid result remains available while BRIX recalculates.", tone: "warning" as const };
   }
   if (projection?.stale) return { value: "Stale", detail: "Financing terms changed after the latest projection.", tone: "warning" as const };
-  return { value: "Current", detail: "Loaded from canonical FinanceIQ projections.", tone: "good" as const };
+  return { value: "Current", detail: "Loaded from canonical financing projections.", tone: "good" as const };
 }
 
 function toneForStructureStatus(status: string, expired?: boolean) {

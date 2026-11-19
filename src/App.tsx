@@ -3019,9 +3019,9 @@ const dealWorkspaceSections: Array<{ id: DealWorkspaceSection; label: string }> 
   { id: "underwriting", label: "Underwriting" },
   { id: "strategies", label: "Strategies" },
   { id: "performance", label: "Performance" },
-  { id: "financeiq", label: "FinanceIQ" },
-  { id: "governanceiq", label: "GovernanceIQ" },
-  { id: "contractiq", label: "ContractIQ" },
+  { id: "financeiq", label: "Financing" },
+  { id: "governanceiq", label: "Due diligence" },
+  { id: "contractiq", label: "Contracts" },
   { id: "people", label: "People" },
   { id: "work", label: "Work" },
   { id: "notes", label: "Notes" },
@@ -4782,7 +4782,7 @@ function ContractIQ({ deal }: { deal?: DealFacts }) {
   return (
     <section className="two-column">
       <div className="panel">
-        <p className="eyebrow">ContractIQ</p>
+        <p className="eyebrow">Contracts</p>
         <h2>{deal.address}</h2>
         <label className="field">
           <span>Paste contract text or key clauses</span>

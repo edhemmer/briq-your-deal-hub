@@ -133,7 +133,7 @@ export function buildContractIQPresentation(input: {
     perspective,
     selectedProjection,
     projections: data.projections,
-    stateLabel: selectedProjection ? analysisStateLabel(selectedProjection.projectionState) : "No Contract Identified",
+    stateLabel: selectedProjection ? analysisStateLabel(selectedProjection.projectionState) : "No contracts yet",
     statusDetail: selectedProjection ? statusDetail(selectedProjection) : "No contract record is linked to this Deal.",
     metrics,
     sourceRows,
@@ -156,8 +156,8 @@ export function buildContractIQPresentation(input: {
     guidedPriorities: guidedPriorities(selectedProjection, data, perspectiveItems),
     professionalDetails: professionalDetails(data),
     emptyState: selectedProjection ? undefined : {
-      title: "No Contract Identified",
-      detail: "ContractIQ appears after a contract, amendment, addendum, disclosure, lease, loan document, or related real estate agreement is linked as canonical Evidence.",
+      title: "No contracts yet",
+      detail: "Contract review appears after a contract, amendment, addendum, disclosure, lease, loan document, or related real estate agreement is linked as canonical Evidence.",
       nextAction: "Upload / link contract Evidence through the canonical Evidence intake.",
     },
   };
@@ -247,10 +247,10 @@ export function targetDomainLabel(value: string | undefined) {
   const labels: Record<string, string> = {
     deal_fact: "Deal",
     property_fact: "Property",
-    finance: "FinanceIQ",
+    finance: "Financing",
     underwriting_input: "Underwriting",
     strategy_requirement: "Strategy",
-    governance_reference: "GovernanceIQ",
+    governance_reference: "Due diligence",
     task_deadline: "Tasks / Deadlines",
     cockpit_attention: "Decision Cockpit",
     reporting_candidate: "Reports Candidate",
@@ -289,7 +289,7 @@ function guidedPriorities(
   data: ContractIQWorkspaceData,
   perspectiveItems: ContractPerspectiveAnalysisItem[],
 ) {
-  if (!projection) return ["Upload or link contract Evidence to begin ContractIQ review."];
+  if (!projection) return ["Upload or link contract Evidence to begin contract review."];
   const priorities: string[] = [];
   if (projection.nextDeadlineDueAt) priorities.push(`Next deadline: ${formatDateTime(projection.nextDeadlineDueAt)}`);
   if (projection.unresolvedConflictCount > 0) priorities.push(`${projection.unresolvedConflictCount} unresolved source conflict${projection.unresolvedConflictCount === 1 ? "" : "s"}.`);
@@ -297,7 +297,7 @@ function guidedPriorities(
   const risk = perspectiveItems.find((item) => item.findingGroup === "risk" || item.severity === "critical" || item.severity === "high");
   if (risk) priorities.push(`${risk.title}: ${risk.summary}`);
   const accepted = data.detail.changeProposals.filter((proposal) => proposal.status === "accepted").length;
-  if (accepted > data.propagations.length) priorities.push("Accepted ContractIQ changes are ready for server-owned propagation.");
+  if (accepted > data.propagations.length) priorities.push("Accepted contract review changes are ready for server-owned propagation.");
   if (!priorities.length) priorities.push("Review source-linked terms, deadlines, and questions before accepting downstream Deal impact.");
   return priorities.slice(0, 5);
 }
@@ -336,7 +336,7 @@ function deadlineSummary(projection: ContractProjectionRecord) {
 }
 
 function statusDetail(projection: ContractProjectionRecord) {
-  if (projection.projectionState === "failed_with_prior_analysis") return "Latest analysis failed. Prior valid ContractIQ result remains available.";
+  if (projection.projectionState === "failed_with_prior_analysis") return "Latest analysis failed. Prior valid contract review result remains available.";
   if (projection.projectionState === "stale") return "New or changed contract Evidence may affect this projection.";
   if (projection.projectionState === "current_with_conflicts") return "Current analysis has unresolved source conflicts.";
   if (projection.projectionState === "professional_review_required") return "Professional review is recommended before relying on this item.";
