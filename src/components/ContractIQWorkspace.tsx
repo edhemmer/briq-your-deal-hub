@@ -1,3 +1,4 @@
+import { DocumentUploadPanel } from "./DocumentUploadPanel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -198,7 +199,10 @@ export function ContractIQWorkspace({ dealId, dealName, workspaceId, isAuthentic
           {section === "changes" && <ContractIQChanges model={model} onPropagate={propagateProposal} busyProposalId={busyProposalId} onSelectSource={setSelectedSource} />}
         </>
       ) : (
-        <ContractIQStateCard title={model.emptyState?.title ?? "No ContractIQ record yet"} message={model.emptyState?.nextAction ?? "No contract projection is available."} />
+        <>
+  {workspaceId ? null : <ContractIQStateCard title={model.emptyState?.title ?? "No ContractIQ record yet"} message={model.emptyState?.nextAction ?? "No contract projection is available."}  />}
+          {workspaceId ? <DocumentUploadPanel kind="contract" workspaceId={workspaceId} dealId={dealId} dealName={dealName} onCreated={() => void load()} /> : null}
+        </>
       )}
     </div>
   );

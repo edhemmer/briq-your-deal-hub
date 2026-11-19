@@ -806,3 +806,12 @@ h2 { font-size: clamp(24px, 2vw, 34px); margin-bottom: 10px; letter-spacing: 0; 
 .deal-list-metrics .deal-chip { display: inline-flex; width: auto; margin: 0; }
 .deal-list-row .deal-list-metrics { display: flex; flex-wrap: wrap; gap: 6px; }
 .local-market h5 { display: flex; align-items: center; gap: 8px; }
+.property-facts .eyebrow { display: inline-flex; align-items: center; gap: 6px; }
+.property-facts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.upload-panel .eyebrow { display: inline-flex; align-items: center; gap: 6px; }
+.deal-scoreboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 6px 0 14px; }
+.deal-scoreboard .kpi strong small { font-size: 13px; color: var(--muted); font-weight: 700; }
+.scoreboard-best { text-align: left; cursor: pointer; color: inherit; border-color: rgba(59,130,246,.45); }
+.scoreboard-best:hover { border-color: var(--blue); }
+.scoreboard-best small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-panel .field input[type=file] { padding: 9px; } .upload-panel .property-facts-grid > label:first-child { grid-column: span 2; }

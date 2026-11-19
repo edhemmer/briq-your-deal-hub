@@ -6,6 +6,7 @@ import { StrategyWorkspace } from "./components/StrategyWorkspace";
 import { buildStrategyPresentation } from "./core/strategyPresentation";
 import { analyzeDeal, formatCurrency } from "./core/underwriting";
 import { Landing } from "./Landing";
+import { PropertyFacts, type PropertyFactsPatch } from "./components/PropertyFacts";
 import { DealAnalyzer, DealSnapshot, type AnalyzerSaveState, type AnalyzerView } from "./components/DealAnalyzer";
 import { analyzeRental, inputsFromDeal, rentalVerdict, usd, type AnalyzerInputs } from "./core/investorMath";
 import { createRemoteDeal, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
@@ -1993,6 +1994,12 @@ function DealsSurface({
           />
         )}
 
+        {visibleDeals.length > 1 && (
+          <DealScoreboard
+            rows={visibleDeals.map((row) => ({ row, facts: isAuthenticated ? dealMetrics.get(row.dealId) : deals.find((d) => d.id === row.dealId) }))}
+            onOpenDeal={onOpenDeal}
+          />
+        )}
         {visibleDeals.length > 0 && (
           <div className="deal-list" role="list" aria-label="Saved Deals">
             {visibleDeals.map((deal) => {
@@ -2105,6 +2112,35 @@ function useDealListFacts(rows: DealListProjection[], isOnline: boolean) {
     const facts = dealListFactsCache.get(`${row.dealId}:${row.updatedAt}`);
     return facts ? [[row.dealId, facts] as const] : [];
   }));
+}
+
+function DealScoreboard({ rows, onOpenDeal }: { rows: Array<{ row: DealListProjection; facts?: DealFacts }>; onOpenDeal: (dealId: string) => void }) {
+  const analyzed = rows.flatMap(({ row, facts }) => {
+    if (!facts) return [];
+    const inputs = inputsFromDeal(facts);
+    if (inputs.purchasePrice <= 0 || inputs.monthlyRent <= 0) return [];
+    const rental = analyzeRental(inputs);
+    return [{ row, inputs, rental, tone: rentalVerdict(inputs, rental).tone }];
+  });
+  if (!analyzed.length) return null;
+  const meeting = analyzed.filter((a) => a.tone === "strong").length;
+  const workable = analyzed.filter((a) => a.tone === "workable").length;
+  const best = [...analyzed].sort((a, b) => (b.rental.cashOnCash ?? -Infinity) - (a.rental.cashOnCash ?? -Infinity))[0];
+  const totalCashFlow = analyzed.reduce((sum, a) => sum + a.rental.monthlyCashFlow, 0);
+  const totalCash = analyzed.reduce((sum, a) => sum + a.rental.totalCashInvested, 0);
+  return (
+    <section className="deal-scoreboard" aria-label="Pipeline scoreboard">
+      <div className="kpi"><span>Deals analyzed</span><strong>{analyzed.length}<small> of {rows.length}</small></strong></div>
+      <div className={meeting > 0 ? "kpi kpi-good" : "kpi"}><span>Meet your targets</span><strong>{meeting}</strong><small>{workable} workable</small></div>
+      <div className={`kpi ${totalCashFlow >= 0 ? "kpi-good" : "kpi-bad"}`}><span>Combined cash flow</span><strong>{usd(totalCashFlow)}/mo</strong><small>If you bought every analyzed deal</small></div>
+      <div className="kpi"><span>Cash to buy them all</span><strong>{usd(totalCash)}</strong></div>
+      <button type="button" className="kpi scoreboard-best" onClick={() => onOpenDeal(best.row.dealId)}>
+        <span>Best cash-on-cash</span>
+        <strong>{best.rental.cashOnCash === null ? "n/a" : `${(best.rental.cashOnCash * 100).toFixed(1)}%`}</strong>
+        <small>{best.row.displayName} →</small>
+      </button>
+    </section>
+  );
 }
 
 function DealRowMetrics({ facts }: { facts?: DealFacts }) {
@@ -3310,21 +3346,26 @@ function DealPropertySection({
 }) {
   return (
     <div className="deal-section-grid">
-      <section className="workspace-card">
-        <p className="eyebrow">Property summary</p>
-        <h4>{formatPropertyLine(property, deal)}</h4>
-        <DefinitionList items={[
-          { label: "Display address", value: property?.displayAddress ?? deal.address ?? "Not set" },
-          { label: "Address line 1", value: property?.addressLine1 ?? deal.address ?? "Not set" },
-          { label: "Address line 2", value: property?.addressLine2 ?? "Not set" },
-          { label: "City", value: property?.city ?? deal.city ?? "Not set" },
-          { label: "State", value: property?.region ?? deal.state ?? "Not set" },
-          { label: "ZIP", value: property?.postalCode ?? deal.zip ?? "Not set" },
-          { label: "Country", value: property?.country ?? "US" },
-          { label: "Parcel ID", value: property?.parcelIdentifier ?? "Not set" },
-          { label: "Property version", value: String(property?.propertyVersion ?? deal.propertyVersion ?? "Reload required") },
-        ]} />
-      </section>
+      <PropertyFacts
+        deal={detail?.deal ?? deal}
+        address={formatPropertyLine(property, deal)}
+        canSave={isAuthenticated && isOnline && Boolean((detail?.deal ?? deal).dealVersion)}
+        onSave={async (patch: PropertyFactsPatch) => {
+          const current = detail?.deal ?? deal;
+          const { units, ...facts } = patch;
+          try {
+            const next = await updateDealCore(current, {
+              facts: { ...current, ...facts, analyzer: { ...(current.analyzer ?? {}), ...(units ? { units } : {}) } },
+              strategyId: current.strategyId,
+              strategyIntent: current.strategyId,
+              verification: current.verification,
+            });
+            onSaved(next.deal);
+          } catch (error) {
+            throw new Error(safeDealCommandMessage(error).message);
+          }
+        }}
+      />
       <CanonicalDealEditPanel deal={detail?.deal ?? deal} userId={userId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} onSaved={onSaved} />
     </div>
   );
