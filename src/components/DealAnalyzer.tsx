@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, CircleAlert, FileDown, Info, MapPin, RotateCcw, Save, Sparkles, XCircle } from "lucide-react";
 import { analyzeHouseHack, brixRead, localMarketInsights, riskFlags, stressTest, taxView, whatItTakes } from "../core/dealIntelligence";
 import { loadMarketContext, type MarketContext } from "../core/marketContext";
+import type { PhotoFinding } from "../core/photoCheck";
+import { AreaCheckCard } from "./AreaCheckCard";
+import { PhotoCheckCard } from "./PhotoCheckCard";
 import { STATIC_MARKET_RATES, loadMarketRates, type MarketRates } from "../core/marketRates";
 import {
   DEFAULT_ASSUMPTIONS,
@@ -147,6 +150,15 @@ const VIEWS: Array<{ id: AnalyzerView; label: string }> = [
   { id: "compare", label: "Compare" },
 ];
 
+/** Secondary assumption groups start folded so the screen leads with what matters for this view. */
+function collapsedByDefault(title: string, view: AnalyzerView) {
+  if (title === "Growth & exit") return view !== "projection";
+  if (title === "Taxes" || title === "Your targets") return true;
+  if (title === "Rehab financing (hard money)") return view !== "brrrr" && view !== "flip";
+  if (title === "Refinance") return view !== "brrrr";
+  return false;
+}
+
 export function DealAnalyzer({
   deal,
   initialView = "insights",
@@ -154,6 +166,8 @@ export function DealAnalyzer({
   saveState,
   saveMessage,
   onSave,
+  photoFindings = [],
+  onSavePhotoFindings,
 }: {
   deal: DealLike;
   initialView?: AnalyzerView;
@@ -161,6 +175,8 @@ export function DealAnalyzer({
   saveState: AnalyzerSaveState;
   saveMessage?: string;
   onSave: (inputs: AnalyzerInputs) => void;
+  photoFindings?: PhotoFinding[];
+  onSavePhotoFindings?: (findings: PhotoFinding[]) => Promise<void>;
 }) {
   const [market, setMarket] = useState<MarketRates>(STATIC_MARKET_RATES);
   useEffect(() => {
@@ -200,6 +216,16 @@ export function DealAnalyzer({
   const tax = useMemo(() => taxView(inputs, rental), [inputs, rental]);
 
   const update = (key: keyof AnalyzerInputs, value: number | boolean | undefined) => setInputs((current) => ({ ...current, [key]: value }));
+  const photoCard = (
+    <PhotoCheckCard
+      saved={photoFindings}
+      squareFeet={deal.squareFeet}
+      rehabBudget={inputs.rehabBudget}
+      canSave={canSave}
+      onSave={onSavePhotoFindings}
+      onUseRehab={(amount) => update("rehabBudget", amount)}
+    />
+  );
 
   return (
     <div className="analyzer">
@@ -249,8 +275,8 @@ export function DealAnalyzer({
       <div className="analyzer-grid">
         <aside className="analyzer-inputs" aria-label="Assumptions">
           {GROUPS.filter((group) => group.views.includes(view)).map((group) => (
-            <fieldset key={group.title} className="analyzer-group">
-              <legend>{group.title}</legend>
+            <details key={`${view}:${group.title}`} className="analyzer-group" open={!collapsedByDefault(group.title, view)}>
+              <summary>{group.title}</summary>
               {group.title === "Long-term loan" ? (
                 <label className="analyzer-toggle">
                   <input type="checkbox" checked={inputs.cashPurchase} onChange={(event) => update("cashPurchase", event.target.checked)} /> All-cash purchase
@@ -267,7 +293,7 @@ export function DealAnalyzer({
                   onChange={(value) => update(field.key, value)}
                 />
               ))}
-            </fieldset>
+            </details>
           ))}
           <p className="analyzer-footnote">
             {market.live ? "Live" : "Built-in"} market rates, week of {formatAsOf(market.asOf)}: 30-yr primary {market.primaryRate30y}% ({market.source}), investment ≈{market.investmentRate30y}%, DSCR ≈{market.dscrRate30y}%, hard money ≈{MARKET_DEFAULTS.hardMoneyRate}% + {MARKET_DEFAULTS.hardMoneyPointsPct} pts, FHA ≈{MARKET_DEFAULTS.fhaRate30y}%. Replace with your lender quote.
@@ -276,7 +302,13 @@ export function DealAnalyzer({
 
         <section className="analyzer-results" aria-label="Results">
           {view === "insights" && (
-            verdict.tone === "incomplete" ? <EmptyResult text="Add a purchase price and monthly rent to get BRIX's read on this deal." /> : (
+            verdict.tone === "incomplete" ? (
+              <>
+                <EmptyResult text="Add a purchase price and monthly rent to get BRIX's read on this deal." />
+                <AreaCheckCard deal={deal} />
+                {photoCard}
+              </>
+            ) : (
               <>
                 <VerdictCard tone={verdict.tone} headline={verdict.headline} />
                 {read ? (
@@ -285,6 +317,8 @@ export function DealAnalyzer({
                     <p>{read}</p>
                   </div>
                 ) : null}
+                <AreaCheckCard deal={deal} />
+                {photoCard}
                 <div className="analyzer-card">
                   <h5>{takes.alreadyMeets ? "How much room you have" : "What it would take to hit your targets"}</h5>
                   <p className="analyzer-footnote">Each line changes one thing and holds everything else constant.</p>

@@ -28,7 +28,7 @@ export function OwnedPerformance({ deal, canSave, onSave }: { deal: DealFacts; c
       <span>{label}</span>
       <input
         inputMode="decimal"
-        value={draft[key] === undefined ? "" : String(draft[key])}
+        value={draft[key] === undefined ? "" : typeof draft[key] === "number" ? (draft[key] as number).toLocaleString("en-US", { maximumFractionDigits: 2 }) : String(draft[key])}
         onChange={(event) => {
           const raw = event.target.value.replace(/[$,\s]/g, "");
           setDraft((d) => ({ ...d, [key]: raw === "" ? undefined : Number.isFinite(Number(raw)) ? Number(raw) : d[key] }));

@@ -24,8 +24,10 @@ export function loadMarketContext(zip: string | undefined): Promise<MarketContex
     cache.set(clean, (async () => {
       try {
         const { data, error } = await supabase.functions.invoke(`market-context?zip=${clean}`, { method: "GET" });
-        if (error || !data || typeof data !== "object" || "error" in data) return null;
-        return data as MarketContext;
+        if (error || !data || typeof data !== "object" || Array.isArray(data) || "error" in data) return null;
+        const ctx = data as Partial<MarketContext>;
+        if (typeof ctx.zip !== "string" || !ctx.medianRentByBedroomsToday || typeof ctx.medianRentByBedroomsToday !== "object") return null;
+        return ctx as MarketContext;
       } catch {
         return null;
       }

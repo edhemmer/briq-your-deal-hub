@@ -142,3 +142,15 @@ Production domain:
 - Vercel `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` (production + preview) updated.
 - Still manual in the Supabase dashboard: Auth Site URL `https://www.brixrealestate.app` and the
   redirect URLs listed in `supabase/config.toml`.
+
+## 2026-11-19: Area check and photo check functions (project `sadhltrjaprzlkfxowmz`)
+
+Deployed and verified:
+
+- `area-check` (verify_jwt false, public, read-only). Census Geocoder + FEMA NFHL layer 28 flood zone. Live-tested 2026-11-19: `164 E Lincoln Hwy, DeKalb, IL 60115` returned zone X; `100 Main St, Houston, TX 77002` returned zone X (0.2 PCT annual chance). Nearby rail, highways, busy roads, industrial land, power lines, landfills, wastewater plants, airports, groceries, schools and parks come from OpenStreetMap's public Overpass API, queried by the web app from the user's browser (`src/core/nearbyFeatures.ts`), because the public Overpass endpoint is intended for browser-based tools and returned 406 to Supabase Edge servers.
+- `photo-check` (verify_jwt true). Cloudflare Workers AI `@cf/meta/llama-4-scout-17b-16e-instruct` on the free daily Neuron allocation. Hidden in the UI until the secrets below are set; `GET` returns `{ enabled }`.
+
+Secrets (free, set outside Git):
+
+- `CF_ACCOUNT_ID` and `CF_AI_TOKEN` (Workers AI run token) for `photo-check`. Use a Cloudflare account on the Workers Free plan with no payment method so usage can never bill; requests fail after the daily allocation instead.
+- `CENSUS_API_KEY` for `market-context` (still pending).
