@@ -11,7 +11,7 @@ const cockpitDestinations = readFileSync("src/core/decisionCockpitDestinations.t
 
 describe("FinanceIQ UI source boundaries", () => {
   it("adds FinanceIQ to the Deal workspace and safe deep links", () => {
-    expect(app).toContain("{ id: \"financeiq\", label: \"FinanceIQ\" }");
+    expect(app).toContain("{ id: \"financeiq\", label: \"Financing\" }");
     expect(app).toContain("<FinanceIQWorkspace");
     expect(deepLinks).toContain("\"financeiq\"");
     expect(deepLinks).toContain("\"financing_structure\"");

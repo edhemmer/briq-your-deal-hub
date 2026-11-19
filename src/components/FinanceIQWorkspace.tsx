@@ -36,12 +36,12 @@ export function FinanceIQWorkspace({ dealId, dealName, workspaceId, isAuthentica
   const load = useCallback(async (nextSelectedStructureId = selectedStructureId) => {
     if (!isAuthenticated || !workspaceId) {
       setStatus("signed_out");
-      setMessage("Sign in to load canonical FinanceIQ financing structures for this Deal.");
+      setMessage("Sign in to load your financing structures for this Deal.");
       return;
     }
     if (!isOnline) {
       setStatus("offline");
-      setMessage("FinanceIQ requires a connection so BRIX can confirm canonical financing state.");
+      setMessage("Financing requires a connection so BRIX can confirm the latest financing state.");
       return;
     }
     setStatus("loading");
@@ -56,7 +56,7 @@ export function FinanceIQWorkspace({ dealId, dealName, workspaceId, isAuthentica
       setStatus("idle");
     } catch (error) {
       setStatus("failed");
-      setMessage(error instanceof Error ? error.message : "BRIX could not load FinanceIQ.");
+      setMessage(error instanceof Error ? error.message : "BRIX could not load financing.");
     }
   }, [dealId, isAuthenticated, isOnline, selectedStructureId, workspaceId]);
 
@@ -100,15 +100,15 @@ export function FinanceIQWorkspace({ dealId, dealName, workspaceId, isAuthentica
   }
 
   if (status === "signed_out" || status === "offline") {
-    return <FinanceIQStateCard title={status === "signed_out" ? "FinanceIQ needs your BRIX account" : "FinanceIQ is offline"} message={message} />;
+    return <FinanceIQStateCard title={status === "signed_out" ? "Financing needs your BRIX account" : "Financing is offline"} message={message} />;
   }
 
   return (
-    <div className="financeiq-workspace" role="region" aria-label="FinanceIQ workspace">
+    <div className="financeiq-workspace" role="region" aria-label="Financing workspace">
       <section className="workspace-card wide financeiq-hero">
         <div className="panel-heading-row">
           <div>
-            <p className="eyebrow">FinanceIQ</p>
+            <p className="eyebrow">Financing</p>
             <h4>{model.selectedProjection?.name ?? model.emptyState?.title ?? "Financing structure"}</h4>
             <p className="quiet">{model.emptyState?.detail ?? "Canonical financing, lender requirements, and underwriting-owned debt projections for this Deal."}</p>
           </div>
@@ -139,12 +139,12 @@ export function FinanceIQWorkspace({ dealId, dealName, workspaceId, isAuthentica
         )}
         {model.activeSelection.warning && <p className="warning-text">{model.activeSelection.warning}</p>}
         {message && <p className={status === "failed" ? "error" : "success-text"}>{message}</p>}
-        {status === "loading" && <p className="quiet">Loading canonical FinanceIQ records.</p>}
+        {status === "loading" && <p className="quiet">Loading financing records.</p>}
       </section>
 
       {model.selectedProjection ? (
         <>
-          <nav className="financeiq-tabs" role="tablist" aria-label="FinanceIQ sections">
+          <nav className="financeiq-tabs" role="tablist" aria-label="Financing sections">
             {financeIqSections.map((item) => (
               <button key={item.id} className={section === item.id ? "deal-section-tab active" : "deal-section-tab"} type="button" role="tab" aria-selected={section === item.id} onClick={() => setSection(item.id)}>
                 {item.label}
@@ -160,7 +160,7 @@ export function FinanceIQWorkspace({ dealId, dealName, workspaceId, isAuthentica
           {section === "sources" && <FinanceIQSources model={model} />}
         </>
       ) : (
-        <FinanceIQStateCard title={model.emptyState?.title ?? "No FinanceIQ structure yet"} message={model.emptyState?.detail ?? "No financing structures are available."} />
+        <FinanceIQStateCard title={model.emptyState?.title ?? "No financing structure yet"} message={model.emptyState?.detail ?? "No financing structures are available."} />
       )}
     </div>
   );
@@ -339,7 +339,7 @@ function DebtEditCard({ model, tranche, disabled, onSaved }: { model: FinanceIQP
 }
 
 function FinanceIQEquity({ model, status, onSaved }: { model: FinanceIQPresentationModel; status: string; onSaved: () => Promise<void> }) {
-  if (model.equityTranches.length === 0) return <FinanceIQStateCard title="No equity tranches" message="No canonical equity tranche is attached to this financing structure." />;
+  if (model.equityTranches.length === 0) return <FinanceIQStateCard title="No equity tranches" message="No equity tranche is attached to this financing structure." />;
   return <div className="financeiq-grid">{model.equityTranches.map((tranche) => <EquityEditCard key={tranche.equityTrancheId} model={model} tranche={tranche} disabled={status === "saving"} onSaved={onSaved} />)}</div>;
 }
 
@@ -354,7 +354,7 @@ function EquityEditCard({ model, tranche, disabled, onSaved }: { model: FinanceI
     try {
       await saveEquityTranche(model.selectedProjection.financingStructureId, { equityTrancheId: tranche.equityTrancheId, label, contributionAmount: numberInput(amount), ownershipPercentage: numberInput(ownership) }, tranche.equityTrancheVersion);
       await onSaved();
-      setMessage("Equity terms saved through FinanceIQ.");
+      setMessage("Equity terms saved through financing.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "BRIX could not save equity terms.");
     }
@@ -406,7 +406,7 @@ function FinanceIQRequirements({ model }: { model: FinanceIQPresentationModel })
 }
 
 function FinanceIQCompare({ model }: { model: FinanceIQPresentationModel }) {
-  if (!model.comparison) return <FinanceIQStateCard title="No comparison result yet" message="FinanceIQ will show saved comparison output after the backend creates a canonical financing comparison." />;
+  if (!model.comparison) return <FinanceIQStateCard title="No comparison result yet" message="Financing will show saved comparison output after the backend creates a financing comparison." />;
   return (
     <section className="workspace-card wide">
       <p className="eyebrow">Comparison</p>
@@ -440,7 +440,7 @@ function FinanceIQSources({ model }: { model: FinanceIQPresentationModel }) {
 function FinanceIQStateCard({ title, message }: { title: string; message: string }) {
   return (
     <section className="workspace-card wide financeiq-empty">
-      <p className="eyebrow">FinanceIQ</p>
+      <p className="eyebrow">Financing</p>
       <h4>{title}</h4>
       <p className="quiet">{message}</p>
     </section>

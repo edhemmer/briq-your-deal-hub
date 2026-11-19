@@ -250,6 +250,10 @@ export function normalizeDealRecord(value: unknown): DealFacts | null {
 
   if (isRecord(value.analyzer)) deal.analyzer = value.analyzer as DealFacts["analyzer"];
   if (isRecord(value.actuals)) deal.actuals = value.actuals as DealFacts["actuals"];
+  if (Array.isArray(value.photoFindings)) {
+    const findings = value.photoFindings.filter((item): item is Record<string, unknown> => isRecord(item) && typeof item.id === "string" && Array.isArray(item.observations));
+    if (findings.length) deal.photoFindings = findings.slice(0, 40) as unknown as DealFacts["photoFindings"];
+  }
 
   return deal;
 }

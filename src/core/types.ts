@@ -46,6 +46,8 @@ export type DealFacts = {
   analyzer?: Partial<import("./investorMath").AnalyzerInputs>;
   /** Actual results once owned (see core/portfolio). */
   actuals?: import("./portfolio").OwnedActuals;
+  /** Saved AI photo condition findings (see core/photoCheck). Text only; photos are not stored. */
+  photoFindings?: import("./photoCheck").PhotoFinding[];
 };
 
 export type DealPriority = "low" | "normal" | "high" | "urgent";

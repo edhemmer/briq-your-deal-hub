@@ -712,7 +712,7 @@ describe("BRIX app module flow", () => {
     expect(within(primaryNav).queryByRole("button", { name: /Reports/i })).not.toBeInTheDocument();
     expect(await screen.findByText("Account ready")).toBeInTheDocument();
     expect(screen.getByText("No saved Deals yet")).toBeInTheDocument();
-    expect(screen.getByText(/only shows records that exist/i)).toBeInTheDocument();
+    expect(screen.getByText(/runs the numbers at today's rates/i)).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("heading", { name: "What needs attention now" })).not.toBeInTheDocument());
 
     await waitFor(() => expect(screen.queryByText(/Sync needs attention/i)).not.toBeInTheDocument());

@@ -62,12 +62,12 @@ export function ContractIQWorkspace({ dealId, dealName, workspaceId, isAuthentic
   const load = useCallback(async (nextContractId = selectedContractId) => {
     if (!isAuthenticated || !workspaceId) {
       setStatus("signed_out");
-      setMessage("Sign in to load canonical ContractIQ records for this Deal.");
+      setMessage("Sign in to load your contract review records for this Deal.");
       return;
     }
     if (!isOnline) {
       setStatus("offline");
-      setMessage("ContractIQ requires a connection so BRIX can confirm canonical contract state.");
+      setMessage("Contract review requires a connection so BRIX can confirm the latest contract state.");
       return;
     }
     setStatus("loading");
@@ -81,7 +81,7 @@ export function ContractIQWorkspace({ dealId, dealName, workspaceId, isAuthentic
       setStatus("idle");
     } catch (error) {
       setStatus("failed");
-      setMessage(error instanceof Error ? error.message : "BRIX could not load ContractIQ.");
+      setMessage(error instanceof Error ? error.message : "BRIX could not load contract review.");
     }
   }, [dealId, isAuthenticated, isOnline, selectedContractId, workspaceId]);
 
@@ -122,7 +122,7 @@ export function ContractIQWorkspace({ dealId, dealName, workspaceId, isAuthentic
       await load(model.selectedProjection.contractId);
     } catch (error) {
       setStatus("failed");
-      setMessage(error instanceof Error ? error.message : "BRIX could not propagate that ContractIQ change.");
+      setMessage(error instanceof Error ? error.message : "BRIX could not propagate that contract review change.");
     } finally {
       setBusyProposalId(undefined);
       setStatus((current) => current === "failed" ? current : "idle");
@@ -130,15 +130,15 @@ export function ContractIQWorkspace({ dealId, dealName, workspaceId, isAuthentic
   }
 
   if (status === "signed_out" || status === "offline") {
-    return <ContractIQStateCard title={status === "signed_out" ? "ContractIQ needs your BRIX account" : "ContractIQ is offline"} message={message} />;
+    return <ContractIQStateCard title={status === "signed_out" ? "Contract review needs your BRIX account" : "Contract review is offline"} message={message} />;
   }
 
   return (
-    <div className="contractiq-workspace" role="region" aria-label="ContractIQ workspace">
+    <div className="contractiq-workspace" role="region" aria-label="Contract review workspace">
       <section className="workspace-card wide contractiq-hero">
         <div className="panel-heading-row">
           <div>
-            <p className="eyebrow">ContractIQ</p>
+            <p className="eyebrow">Contract review</p>
             <h4>{model.selectedProjection?.title ?? model.emptyState?.title ?? "Contract review"}</h4>
             <p className="quiet">{model.emptyState?.detail ?? `${model.stateLabel}. ${model.statusDetail}`}</p>
           </div>
@@ -176,12 +176,12 @@ export function ContractIQWorkspace({ dealId, dealName, workspaceId, isAuthentic
           <small>Perspective changes interpretation and questions. It does not rewrite source facts.</small>
         </div>
         {message && <p className={status === "failed" ? "error" : "success-text"}>{message}</p>}
-        {status === "loading" && <p className="quiet">Loading canonical ContractIQ records.</p>}
+        {status === "loading" && <p className="quiet">Loading contract review records.</p>}
       </section>
 
       {model.selectedProjection ? (
         <>
-          <nav className="contractiq-tabs" role="tablist" aria-label="ContractIQ sections">
+          <nav className="contractiq-tabs" role="tablist" aria-label="Contract review sections">
             {contractIqSections.map((item) => (
               <button key={item.id} className={section === item.id ? "deal-section-tab active" : "deal-section-tab"} type="button" role="tab" aria-selected={section === item.id} onClick={() => setSection(item.id)}>
                 {item.label}
@@ -200,7 +200,7 @@ export function ContractIQWorkspace({ dealId, dealName, workspaceId, isAuthentic
         </>
       ) : (
         <>
-  {workspaceId ? null : <ContractIQStateCard title={model.emptyState?.title ?? "No ContractIQ record yet"} message={model.emptyState?.nextAction ?? "No contract projection is available."}  />}
+  {workspaceId ? null : <ContractIQStateCard title={model.emptyState?.title ?? "No contract review record yet"} message={model.emptyState?.nextAction ?? "No contract projection is available."}  />}
           {workspaceId ? <DocumentUploadPanel kind="contract" workspaceId={workspaceId} dealId={dealId} dealName={dealName} onCreated={() => void load()} /> : null}
         </>
       )}
@@ -229,7 +229,7 @@ function ContractIQOverview({ model }: { model: ContractIQPresentationModel }) {
           {model.guidedPriorities.map((priority) => (
             <article className="contractiq-row compact-row" key={priority}>
               <ShieldCheck size={16} />
-              <div><strong>{priority}</strong><span>Source-backed ContractIQ review item</span></div>
+              <div><strong>{priority}</strong><span>Source-backed contract review item</span></div>
             </article>
           ))}
         </div>
@@ -242,7 +242,7 @@ function ContractIQOverview({ model }: { model: ContractIQPresentationModel }) {
             {model.professionalDetails.map((detail) => (
               <article className="contractiq-row compact-row" key={detail}>
                 <FileSearch size={16} />
-                <div><strong>{detail}</strong><span>Read-only ContractIQ metadata</span></div>
+                <div><strong>{detail}</strong><span>Read-only contract review metadata</span></div>
               </article>
             ))}
           </div>
@@ -258,7 +258,7 @@ function ContractIQDocuments({ model, selectedSource, onSelectSource }: { model:
       <section className="workspace-card contractiq-source-list">
         <p className="eyebrow">Documents</p>
         <h4>Source inventory</h4>
-        <p className="quiet">ContractIQ uses immutable Evidence records and source anchors. It does not store or expose raw document text in this workspace.</p>
+        <p className="quiet">Contract review uses immutable Evidence records and source anchors. It does not store or expose raw document text in this workspace.</p>
         {model.sourceRows.length === 0 ? <p className="quiet">No contract Evidence is linked to this record.</p> : (
           <div className="contractiq-row-list">
             {model.sourceRows.map((source) => (
@@ -303,7 +303,7 @@ function ContractIQDeadlines({ model, onSelectSource }: { model: ContractIQPrese
       <section className="workspace-card wide">
         <p className="eyebrow">Deadlines</p>
         <h4>Deterministic contract deadline results</h4>
-        <p className="quiet">Dates shown here are backend-owned ContractIQ results linked to the canonical task/deadline system when accepted.</p>
+        <p className="quiet">Dates shown here are backend-owned contract review results linked to the task/deadline system when accepted.</p>
         {model.deadlineResults.length === 0 ? <RecordList rows={model.deadlines} empty="No deadline results are available yet." icon="deadline" onSelectSource={onSelectSource} /> : (
           <div className="contractiq-row-list">
             {model.deadlineResults.map((deadline) => (
@@ -341,7 +341,7 @@ function ContractIQRisks({ model, onSelectSource }: { model: ContractIQPresentat
     <section className="workspace-card wide">
       <p className="eyebrow">Risks / Analysis</p>
       <h4>{perspectiveLabel(model.perspective)} interpretation</h4>
-      <p className="quiet">ContractIQ separates facts, risks, missing information, and questions. It does not provide legal advice or choose a legal outcome.</p>
+      <p className="quiet">Contract review separates facts, risks, missing information, and questions. It does not provide legal advice or choose a legal outcome.</p>
       {model.perspectiveGroups.length === 0 ? <p className="quiet">No perspective analysis is available for this perspective yet.</p> : model.perspectiveGroups.map((group) => (
         <div className="contractiq-group" key={group.groupId}>
           <h5>{group.label}</h5>
@@ -408,7 +408,7 @@ function ContractIQQuestions({ model, onSelectSource }: { model: ContractIQPrese
       <section className="workspace-card wide">
         <p className="eyebrow">Questions / Review</p>
         <h4>Source follow-up queue</h4>
-        {model.questions.length === 0 ? <p className="quiet">No ContractIQ questions are open for this contract.</p> : model.questions.map((group) => (
+        {model.questions.length === 0 ? <p className="quiet">No contract review questions are open for this contract.</p> : model.questions.map((group) => (
           <div className="contractiq-group" key={group.groupId}>
             <h5>{group.label}</h5>
             <div className="contractiq-row-list">
@@ -458,7 +458,7 @@ function ContractIQChanges({ model, onPropagate, busyProposalId, onSelectSource 
       <section className="workspace-card wide">
         <p className="eyebrow">Connected Deal Impact</p>
         <h4>Accepted-change propagation</h4>
-        {model.propagations.length === 0 ? <p className="quiet">No accepted ContractIQ change has been propagated yet.</p> : (
+        {model.propagations.length === 0 ? <p className="quiet">No accepted contract review change has been propagated yet.</p> : (
           <div className="contractiq-row-list">
             {model.propagations.map((item) => (
               <article className={`contractiq-row propagation-row ${item.propagationStatus}`} key={item.contractChangePropagationId}>
@@ -466,7 +466,7 @@ function ContractIQChanges({ model, onPropagate, busyProposalId, onSelectSource 
                 <div>
                   <strong>{targetDomainLabel(item.targetDomain)} / {labelize(item.propagationStatus)}</strong>
                   <span>{item.affectedDomains.length ? item.affectedDomains.map(targetDomainLabel).join(", ") : "No downstream domain flagged"}</span>
-                  <small>Underwriting {labelize(item.underwritingStatus)} / Strategy {labelize(item.strategyStatus)} / FinanceIQ {labelize(item.financeStatus)} / Tasks {labelize(item.deadlineTaskStatus)} / Cockpit {labelize(item.cockpitStatus)}</small>
+                  <small>Underwriting {labelize(item.underwritingStatus)} / Strategy {labelize(item.strategyStatus)} / Financing {labelize(item.financeStatus)} / Tasks {labelize(item.deadlineTaskStatus)} / Cockpit {labelize(item.cockpitStatus)}</small>
                 </div>
                 <b>{item.failedDownstreamCount > 0 ? "Failed - Prior Valid Result Preserved" : "Owner review"}</b>
                 <small>{item.downstreamProposalCount} proposals / {item.retryCount} retries</small>
@@ -478,7 +478,7 @@ function ContractIQChanges({ model, onPropagate, busyProposalId, onSelectSource 
       <section className="workspace-card wide">
         <p className="eyebrow">Change Proposals</p>
         <h4>Backend-supported actions</h4>
-        {model.changeProposals.length === 0 ? <p className="quiet">No ContractIQ change proposal is available.</p> : (
+        {model.changeProposals.length === 0 ? <p className="quiet">No contract review change proposal is available.</p> : (
           <div className="contractiq-row-list">
             {model.changeProposals.map((proposal) => {
               const canPropagate = proposal.status === "accepted";
@@ -526,7 +526,7 @@ function RecordList({ rows, empty, icon, onSelectSource }: { rows: ContractDetai
 }
 
 function SourceReviewPane({ source }: { source: ContractDetailRow | ContractPerspectiveAnalysisItem | null }) {
-  if (!source) return <ContractIQStateCard title="No source selected" message="Select a source anchor to review canonical reference metadata." />;
+  if (!source) return <ContractIQStateCard title="No source selected" message="Select a source anchor to review reference metadata." />;
   const isPerspective = "itemId" in source;
   return (
     <section className="workspace-card contractiq-source-pane" aria-label="Selected source anchor">
@@ -540,7 +540,7 @@ function SourceReviewPane({ source }: { source: ContractDetailRow | ContractPers
         { label: "Anchor", value: isPerspective ? compactJson(source.sourceRefs[0]) : sourceAnchorLabel(source.sourceAnchor) },
         { label: "Payload", value: isPerspective ? compactJson(source.payload) : compactJson(source.payload) },
       ]} />
-      <p className="quiet">Use the canonical Evidence record for original document review. ContractIQ only presents source anchors and derived records here.</p>
+      <p className="quiet">Use the original Evidence record for original document review. Contract review only presents source anchors and derived records here.</p>
     </section>
   );
 }
@@ -548,7 +548,7 @@ function SourceReviewPane({ source }: { source: ContractDetailRow | ContractPers
 function ContractIQStateCard({ title, message }: { title: string; message: string }) {
   return (
     <section className="workspace-card wide contractiq-empty">
-      <p className="eyebrow">ContractIQ</p>
+      <p className="eyebrow">Contract review</p>
       <h4>{title}</h4>
       <p className="quiet">{message}</p>
     </section>

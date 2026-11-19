@@ -127,7 +127,7 @@ export function buildGovernanceIQPresentation(input: {
     mode: input.mode,
     selectedProjection,
     projections: data.projections,
-    stateLabel: selectedProjection ? stateLabel(selectedProjection.projectionState) : "No Governance Identified",
+    stateLabel: selectedProjection ? stateLabel(selectedProjection.projectionState) : "No HOA or association documents yet",
     statusDetail: selectedProjection ? statusDetail(selectedProjection) : "No association or private-governance record is linked to this Deal.",
     metrics,
     documents: groupDocuments(data.documents),
@@ -141,8 +141,8 @@ export function buildGovernanceIQPresentation(input: {
     guidedPriorities: guidedPriorities(data.findings, restrictions, financial),
     professionalDetails: professionalDetails(data, financial, restrictions),
     emptyState: selectedProjection ? undefined : {
-      title: "No Governance Identified",
-      detail: "GovernanceIQ will appear after an association, declaration, resale certificate, budget, rules packet, or private-governance evidence is linked to this Deal.",
+      title: "No HOA or association documents yet",
+      detail: "Due diligence will appear after an association, declaration, resale certificate, budget, rules packet, or private-governance evidence is linked to this Deal.",
       nextAction: "Upload / link governance Evidence through the canonical Evidence intake.",
     },
   };
@@ -161,7 +161,7 @@ export function governanceSectionFromFocus(focus?: string | null): GovernanceIQS
 
 export function stateLabel(state: GovernanceProjectionState | string) {
   const labels: Record<string, string> = {
-    no_governance_identified: "No Governance Identified",
+    no_governance_identified: "No HOA or association documents yet",
     documents_requested: "Documents Requested",
     processing: "Processing",
     partial: "Partial",
@@ -281,7 +281,7 @@ export function possibleImpactLabels(finding: GovernanceFinding) {
   const impacts = new Set<string>(["Decision Cockpit"]);
   if (["dues", "assessment", "insurance"].includes(category)) impacts.add("underwriting");
   if (["rental", "short_term_rental", "room_rental", "occupancy", "parking", "commercial_vehicle", "pickup_truck", "trailer", "rv", "boat", "architectural_approval", "renovation", "entity_ownership"].includes(category)) impacts.add("strategy");
-  if (["litigation", "lender_requirement", "governance_financing_risk", "insurance", "entity_ownership", "board_approval", "right_of_first_refusal", "transfer"].includes(category)) impacts.add("FinanceIQ");
+  if (["litigation", "lender_requirement", "governance_financing_risk", "insurance", "entity_ownership", "board_approval", "right_of_first_refusal", "transfer"].includes(category)) impacts.add("Financing");
   if (["assessment", "architectural_approval", "board_approval", "right_of_first_refusal"].includes(category)) impacts.add("tasks/deadlines");
   return [...impacts].sort();
 }
@@ -361,7 +361,7 @@ function statusDetail(projection: GovernanceProjection) {
   if (projection.projectionState === "current_with_conflicts") return "Current analysis includes unresolved conflicts. BRIX does not choose a legal winner.";
   if (projection.projectionState === "professional_review_required") return "One or more findings, documents, or questions should be reviewed by a qualified professional.";
   if (projection.projectionState === "awaiting_verification") return "Proposed findings are waiting for governed review.";
-  return "Loaded from canonical GovernanceIQ projections.";
+  return "Loaded from canonical due diligence projections.";
 }
 
 function documentCompletenessDetail(projection: GovernanceProjection) {

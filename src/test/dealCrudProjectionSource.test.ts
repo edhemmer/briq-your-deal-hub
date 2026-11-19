@@ -67,7 +67,7 @@ describe("Specification 003 CRUD commands and query projections", () => {
   });
 
   it("adds focused canonical edit behavior in the Deal UI", () => {
-    for (const text of ["Canonical Deal and Property details", "Deal name", "Property address", "Reload", "Versions: Deal"]) {
+    for (const text of ["Deal and address details", "Deal name", "Property address", "Reload", "Versions: Deal"]) {
       expect(app).toContain(text);
     }
     expect(app).toContain("safeDealCommandMessage");

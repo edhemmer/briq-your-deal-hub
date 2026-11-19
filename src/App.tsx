@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject, SetStateAction } from "react";
-import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch, Eye, EyeOff, AlertTriangle, CheckCircle2, Users, UserMinus, Home, Menu, X, WifiOff, RefreshCw, CalendarClock, Pin, Archive, CheckSquare } from "lucide-react";
+import { Search, BarChart3, FilePenLine, KanbanSquare, Building2, ShieldCheck, UserCircle, Trash2, Camera, Plus, LogOut, FileDown, Table2, MapPinned, Landmark, FileSearch, Eye, EyeOff, AlertTriangle, CheckCircle2, Users, UserMinus, Home, Menu, X, WifiOff, RefreshCw, CalendarClock, Pin, Archive, CheckSquare, ArrowRight } from "lucide-react";
 import { getStrategy, strategyCatalog, type StrategyId } from "./core/strategyCatalog";
 import { StrategyWorkspace } from "./components/StrategyWorkspace";
 import { buildStrategyPresentation } from "./core/strategyPresentation";
@@ -9,6 +9,7 @@ import { Landing } from "./Landing";
 import { PropertyFacts, type PropertyFactsPatch } from "./components/PropertyFacts";
 import { OwnedPerformance } from "./components/OwnedPerformance";
 import { analyzeOwned, portfolioTotals } from "./core/portfolio";
+import type { PhotoFinding } from "./core/photoCheck";
 import { DealAnalyzer, DealSnapshot, type AnalyzerSaveState, type AnalyzerView } from "./components/DealAnalyzer";
 import { analyzeRental, inputsFromDeal, rentalVerdict, usd, type AnalyzerInputs } from "./core/investorMath";
 import { createRemoteDeal, loadAnonymousDeals, loadRemoteDeals, persistRemoteDeal, saveAnonymousDeals, softDeleteRemoteDeal } from "./core/store";
@@ -1260,7 +1261,6 @@ function BrixApp() {
       <main id="main-content" className="workspace" tabIndex={-1} ref={mainContentRef}>
         <header className="topbar">
           <div className="page-title">
-            <p className="eyebrow">BRIX Real Estate</p>
             <h1>{titleFor(module)}</h1>
           </div>
           <button ref={searchButtonRef} className="shell-search-trigger" type="button" onClick={() => setSearchOpen(true)}>
@@ -1605,12 +1605,12 @@ function HomeSurface({
     <section className="home-surface">
       <div className="panel hero-panel home-hero">
         <StatusBadge tone={accountReady ? "success" : isAuthenticated ? "warning" : "neutral"}>{accountReady ? "Account ready" : isAuthenticated ? "Account loading" : "Not signed in"}</StatusBadge>
-        <h2>{accountReady ? isProfessional ? "Ready for deal work." : "Your BRIX account is ready." : isAuthenticated ? "BRIX is confirming your account context." : "Create a free account to analyze and save Deals."}</h2>
+        <h2>{accountReady ? isProfessional ? "Ready for deal work." : hasDeals ? "Find your next deal." : "Analyze your first deal." : isAuthenticated ? "BRIX is confirming your account context." : "Create a free account to analyze and save Deals."}</h2>
         <p className="quiet">
           {accountReady
             ? isProfessional
-              ? "Saved records, account state, and available actions are loaded from your authorized BRIX data."
-              : "The shell only shows records that exist in your saved workspace. Start a Deal when you are ready to investigate a Property."
+              ? "Add a property and BRIX runs the numbers, checks the area and sizes the rehab."
+              : "Add an address with the price and rent. BRIX runs the numbers at today's rates, checks the surroundings for rail, highways and flood zones, and tells you whether it's worth your time."
             : isAuthenticated
               ? "Cloud Deal information stays hidden until BRIX confirms your account workspace and permissions."
             : "Deals, analysis, and evidence are saved to your private account so they're there on any device. Sign-up takes under a minute."}
@@ -1619,8 +1619,7 @@ function HomeSurface({
           {isAuthenticated
             ? <button className="primary" onClick={onStartIntake}><Plus size={18} /> Add Deal</button>
             : <button className="primary" onClick={onOpenSettings}><UserCircle size={18} /> Sign in or create account</button>}
-          {hasDeals && <button className="primary" onClick={() => onOpenDeal()}><BarChart3 size={18} /> Open Deals</button>}
-          {isAuthenticated && <button className="secondary" onClick={onOpenSettings}><UserCircle size={18} /> Account settings</button>}
+          {hasDeals && <button className="secondary" onClick={onOpenDeals}><BarChart3 size={18} /> All deals</button>}
         </div>
       </div>
 
@@ -1640,12 +1639,17 @@ function HomeSurface({
       )}
 
       {hasDeals ? (
-        <section className="panel">
-          <p className="eyebrow">Saved Deal</p>
-          <h2>{selectedDeal?.address || "Untitled property"}</h2>
-          <p className="quiet">Open the saved Deal workspace to review facts, assumptions, strategy fit, and verification needs.</p>
-          <button className="primary" onClick={() => onOpenDeal()}>Open Deals</button>
-        </section>
+        <>
+          <HomePipeline deals={deals} isOnline={isOnline} isAuthenticated={isAuthenticated} onOpenDeal={(id) => onOpenDeal(id)} />
+          <section className="panel home-resume">
+            <div>
+              <p className="eyebrow">Pick up where you left off</p>
+              <h2>{selectedDeal ? dealTitle(selectedDeal) : "Your latest deal"}</h2>
+              {selectedDeal ? <p className="quiet">{dealLocation(selectedDeal)}</p> : null}
+            </div>
+            <button className="primary" onClick={() => onOpenDeal()}>Resume deal <ArrowRight size={18} /></button>
+          </section>
+        </>
       ) : (
         <EmptyState
           title="No saved Deals yet"
@@ -1655,6 +1659,18 @@ function HomeSurface({
         />
       )}
     </section>
+  );
+}
+
+function HomePipeline({ deals, isOnline, isAuthenticated, onOpenDeal }: { deals: DealFacts[]; isOnline: boolean; isAuthenticated: boolean; onOpenDeal: (dealId: string) => void }) {
+  const rows = useMemo(() => deals.map(localDealProjection), [deals]);
+  const fetched = useDealListFacts(isAuthenticated ? rows : [], isOnline);
+  const facts = rows.map((row) => fetched.get(row.dealId) ?? deals.find((d) => d.id === row.dealId));
+  return (
+    <>
+      <PortfolioSummary facts={facts} />
+      <DealScoreboard rows={rows.map((row, i) => ({ row, facts: facts[i] }))} onOpenDeal={onOpenDeal} />
+    </>
   );
 }
 
@@ -2053,7 +2069,7 @@ function DealsSurface({
         )}
       </div>
       {pendingAction && (
-        <div className="modal-backdrop" role="presentation">
+        <div className="modal-backdrop" role="presentation" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); setPendingAction(null); } }}>
           <section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="deal-archive-title">
             <p className="eyebrow">{pendingAction.type === "archive" ? "Archive Deal" : "Restore Deal"}</p>
             <h2 id="deal-archive-title">{pendingAction.type === "archive" ? "Archive this Deal?" : "Restore this Deal?"}</h2>
@@ -2064,7 +2080,7 @@ function DealsSurface({
             </p>
             <strong>{pendingAction.deal.displayName}</strong>
             <div className="button-row">
-              <button className="secondary" type="button" onClick={() => setPendingAction(null)}>Cancel</button>
+              <button className="secondary" type="button" autoFocus onClick={() => setPendingAction(null)}>Cancel</button>
               <button className={pendingAction.type === "archive" ? "archive-button" : "primary"} type="button" onClick={confirmArchiveOrRestore} disabled={page.status === "saving"}>
                 {page.status === "saving" ? "Saving..." : pendingAction.type === "archive" ? "Archive Deal" : "Restore Deal"}
               </button>
@@ -2575,7 +2591,7 @@ function ManualPropertyIntakeDialog({
   const packageSummary = packageDraft ? summarizePackageBatch(packageDraft) : null;
 
   return (
-    <div className="modal-backdrop" role="presentation">
+    <div className="modal-backdrop" role="presentation" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }}>
       <section className="manual-intake-dialog" role="dialog" aria-modal="true" aria-labelledby="manual-intake-title">
         <div className="panel-heading-row">
           <div>
@@ -3003,14 +3019,29 @@ const dealWorkspaceSections: Array<{ id: DealWorkspaceSection; label: string }> 
   { id: "underwriting", label: "Underwriting" },
   { id: "strategies", label: "Strategies" },
   { id: "performance", label: "Performance" },
-  { id: "financeiq", label: "FinanceIQ" },
-  { id: "governanceiq", label: "GovernanceIQ" },
-  { id: "contractiq", label: "ContractIQ" },
+  { id: "financeiq", label: "Financing" },
+  { id: "governanceiq", label: "Due diligence" },
+  { id: "contractiq", label: "Contracts" },
   { id: "people", label: "People" },
   { id: "work", label: "Work" },
   { id: "notes", label: "Notes" },
   { id: "history", label: "History" },
 ];
+
+const dealSectionIcons: Record<DealWorkspaceSection, typeof Home> = {
+  overview: Eye,
+  property: Home,
+  underwriting: BarChart3,
+  strategies: KanbanSquare,
+  performance: Table2,
+  financeiq: Landmark,
+  governanceiq: ShieldCheck,
+  contractiq: FileSearch,
+  people: Users,
+  work: CheckSquare,
+  notes: Pin,
+  history: CalendarClock,
+};
 
 function workspaceSectionFromLocation(): DealWorkspaceSection {
   const value = new URLSearchParams(window.location.search).get("section");
@@ -3151,6 +3182,11 @@ function DealWorkspace({
     selectSection(next);
   }
 
+  useEffect(() => {
+    // Keep the active tab visible when the strip scrolls on narrow screens.
+    tabRefs.current[section]?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [section]);
+
   return (
     <section className="deal-workspace" aria-labelledby="deal-workspace-title">
       <header className="deal-workspace-header">
@@ -3171,8 +3207,8 @@ function DealWorkspace({
           <button className="secondary compact" type="button" onClick={loadDetail} disabled={loadStatus === "loading"}>
             <RefreshCw size={14} /> Reload
           </button>
-          <button className="danger compact" type="button" onClick={() => onDelete(deal.id)}>
-            <Trash2 size={14} /> {isAuthenticated ? "Archive Deal" : "Delete local draft"}
+          <button className="quiet-danger compact" type="button" aria-label={isAuthenticated ? "Archive Deal" : undefined} onClick={() => onDelete(deal.id)}>
+            <Archive size={14} /> {isAuthenticated ? "Archive" : "Delete local draft"}
           </button>
         </div>
       </header>
@@ -3196,13 +3232,14 @@ function DealWorkspace({
             onClick={() => selectSection(item.id)}
             onKeyDown={(event) => onSectionKeyDown(event, index)}
           >
+            {(() => { const Icon = dealSectionIcons[item.id]; return <Icon size={16} aria-hidden="true" />; })()}
             {item.label}
           </button>
         ))}
       </nav>
 
       <div className="deal-section-shell" role="tabpanel" id={`deal-section-${section}`} aria-labelledby={`deal-tab-${section}`}>
-        <h3 ref={sectionHeadingRef} tabIndex={-1}>{dealWorkspaceSections.find((item) => item.id === section)?.label}</h3>
+        <h3 ref={sectionHeadingRef} tabIndex={-1} className="sr-only">{dealWorkspaceSections.find((item) => item.id === section)?.label}</h3>
         {section === "overview" && <DealOverviewSection deal={effectiveDeal} detail={detail} property={property} onEdit={() => selectSection("property")} onAnalyze={() => selectSection("underwriting")} />}
         {section === "property" && <DealPropertySection deal={effectiveDeal} detail={detail} property={property} userId={userId} draftScope={draftScope} isAuthenticated={isAuthenticated} isOnline={isOnline} onDraftQueued={onDraftQueued} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
         {section === "underwriting" && <DealAnalysisSection key={`${deal.id}:${effectiveDeal.dealVersion ?? 0}:rental`} deal={effectiveDeal} initialView="insights" isAuthenticated={isAuthenticated} isOnline={isOnline} onSaved={(saved) => { onCanonicalSaved(saved); void loadDetail(); }} />}
@@ -3474,7 +3511,29 @@ function DealAnalysisSection({
     }
   }
 
-  return <DealAnalyzer deal={deal} initialView={initialView} canSave={canSave} saveState={saveState} saveMessage={saveMessage} onSave={(inputs) => void save(inputs)} />;
+  async function savePhotoFindings(findings: PhotoFinding[]) {
+    if (!canSave) throw new Error("Sign in and go online to save photo findings.");
+    const detail = await updateDealCore(deal, {
+      facts: { ...deal, photoFindings: findings.length ? findings : undefined },
+      strategyId: deal.strategyId,
+      strategyIntent: deal.strategyId,
+      verification: deal.verification,
+    });
+    onSaved(detail.deal);
+  }
+
+  return (
+    <DealAnalyzer
+      deal={deal}
+      initialView={initialView}
+      canSave={canSave}
+      saveState={saveState}
+      saveMessage={saveMessage}
+      onSave={(inputs) => void save(inputs)}
+      photoFindings={deal.photoFindings}
+      onSavePhotoFindings={isAuthenticated ? savePhotoFindings : undefined}
+    />
+  );
 }
 
 function DealStrategySection({
@@ -3793,7 +3852,7 @@ function CanonicalDealEditPanel({
       <div className="panel-heading-row">
         <div>
           <p className="eyebrow">Deal record</p>
-          <h3>Canonical Deal and Property details</h3>
+          <h3>Deal and address details</h3>
         </div>
         <div className="button-row">
           <button className="secondary compact" type="button" onClick={load} disabled={status === "loading" || status === "saving"}><RefreshCw size={14} /> Reload</button>
@@ -4723,7 +4782,7 @@ function ContractIQ({ deal }: { deal?: DealFacts }) {
   return (
     <section className="two-column">
       <div className="panel">
-        <p className="eyebrow">ContractIQ</p>
+        <p className="eyebrow">Contracts</p>
         <h2>{deal.address}</h2>
         <label className="field">
           <span>Paste contract text or key clauses</span>

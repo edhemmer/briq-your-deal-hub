@@ -10,7 +10,7 @@ const cockpitDestinations = read("src/core/decisionCockpitDestinations.ts");
 
 describe("ContractIQ web source boundary", () => {
   it("adds ContractIQ to the Deal workspace and safe deep links without reviving a top-level module", () => {
-    expect(app).toContain("{ id: \"contractiq\", label: \"ContractIQ\" }");
+    expect(app).toContain("{ id: \"contractiq\", label: \"Contracts\" }");
     expect(app).toContain("<ContractIQWorkspace");
     expect(app).not.toContain('"/contractiq"');
     expect(deepLinks).toContain("\"contractiq\"");

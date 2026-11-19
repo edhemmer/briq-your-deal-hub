@@ -1,4 +1,4 @@
-import { ArrowRight, BadgeDollarSign, Calculator, LineChart, ShieldCheck } from "lucide-react";
+import { Activity, ArrowRight, BadgeDollarSign, Calculator, LineChart, MapPinned, ShieldCheck } from "lucide-react";
 import { MARKET_DEFAULTS } from "./core/investorMath";
 
 const FEATURES = [
@@ -16,6 +16,16 @@ const FEATURES = [
     icon: LineChart,
     title: "Rental vs BRRRR vs flip",
     text: "See cash left in the deal after refi, flip profit after every holding cost, and 10-year IRR side by side.",
+  },
+  {
+    icon: MapPinned,
+    title: "Skip the bad locations",
+    text: "Before you drive out, BRIX flags nearby rail lines, highways, busy roads, industrial land, power lines and FEMA flood zones.",
+  },
+  {
+    icon: Activity,
+    title: "Stress-tested, not hopeful",
+    text: "See whether the deal survives lower rent, a long vacancy, higher taxes or a rate bump, and what it would take to make it work.",
   },
   {
     icon: ShieldCheck,

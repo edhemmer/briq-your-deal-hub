@@ -58,7 +58,7 @@ describe("GovernanceIQ web presentation", () => {
 
     expect(possibleImpactLabels(dueFinding)).toEqual(expect.arrayContaining(["Decision Cockpit", "underwriting"]));
     expect(possibleImpactLabels(strFinding)).toEqual(expect.arrayContaining(["Decision Cockpit", "strategy"]));
-    expect(possibleImpactLabels(litigationFinding)).toEqual(expect.arrayContaining(["Decision Cockpit", "FinanceIQ"]));
+    expect(possibleImpactLabels(litigationFinding)).toEqual(expect.arrayContaining(["Decision Cockpit", "Financing"]));
     expect(findingCategoryLabel("pickup_truck")).toBe("Parking / Vehicles / Trailers");
   });
 });
